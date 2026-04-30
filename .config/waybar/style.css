@@ -1,4 +1,4 @@
-/* ~/.config/waybar/style.css — Anime White Black Style */
+/* ~/.config/waybar/style.css — Anime White Black Style (Fixed GTK compatibility) */
 
 * {
     font-family: "JetBrains Mono", "Symbols Nerd Font Mono", monospace;
@@ -15,7 +15,6 @@ window#waybar {
     background-color: rgba(0, 0, 0, 0.85);
     color: #ffffff;
     border-bottom: 2px solid #ffffff;
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 window#waybar.hidden {
@@ -25,25 +24,25 @@ window#waybar.hidden {
 /* ─── WORKSPACES ── */
 #workspaces {
     background: transparent;
-    margin: 4px 8px;
+    margin: 2px 8px;
     padding: 0px;
 }
 
 #workspaces button {
-    padding: 0px 10px;
-    margin: 0 4px;
+    padding: 0px 12px;
+    margin: 4px 4px;
     color: #ffffff;
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px; /* Sharp but slightly rounded for anime look */
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 4px;
+    transition: all 0.3s ease;
     min-width: 30px;
 }
 
 #workspaces button:hover {
     background-color: rgba(255, 255, 255, 0.1);
     border-color: #ffffff;
-    transform: scale(1.1);
+    /* transform removed - unsupported in GTK CSS */
 }
 
 #workspaces button.active {
@@ -51,18 +50,17 @@ window#waybar.hidden {
     background-color: #ffffff;
     border-color: #ffffff;
     min-width: 45px; /* Expand active workspace */
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 #workspaces button.urgent {
     color: #000000;
-    background-color: #ff0000; /* Subtle accent for urgent */
+    background-color: #ff0000;
     border-color: #ff0000;
 }
 
 /* ─── MODULES ── */
 #clock, #mpris, #pulseaudio, #network, #battery, #cpu, #memory, #custom-eyecare, #custom-power {
-    padding: 0 12px;
+    padding: 0 14px;
     transition: all 0.3s ease;
 }
 
@@ -79,25 +77,11 @@ window#waybar.hidden {
 #pulseaudio:hover, #network:hover, #battery:hover, #cpu:hover, #memory:hover, #clock:hover {
     color: #000000;
     background-color: #ffffff;
-    transform: translateY(-2px);
 }
 
 #battery.critical:not(.charging) {
     background-color: #ff0000;
     color: #ffffff;
-    animation: blink 0.5s steps(5, start) infinite;
-}
-
-@keyframes blink {
-    to {
-        background-color: #ffffff;
-        color: #000000;
-    }
-}
-
-#custom-sep {
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 16px;
 }
 
 #custom-power {
@@ -121,4 +105,5 @@ tooltip {
 tooltip label {
     color: #ffffff;
 }
+
 

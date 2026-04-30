@@ -11,213 +11,144 @@ gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, GLib, Gdk, Gtk4LayerShell as LayerShell
 import subprocess
 import threading
-import sys
-
-CSS = """
+import sysCSS = """
 * {
-    font-family: "JetBrains Mono", "Noto Sans", monospace;
+    font-family: "JetBrains Mono", "Symbols Nerd Font Mono", monospace;
+    font-weight: 700;
 }
 
 window {
-    background-color: rgba(16, 15, 13, 0.97);
-    border-radius: 0 0 12px 12px;
-    border: 1px solid rgba(200, 194, 180, 0.12);
-    border-top: none;
+    background-color: rgba(0, 0, 0, 0.95);
+    border: 2px solid #ffffff;
+    border-radius: 4px;
 }
 
 .panel-box {
-    padding: 0;
+    padding: 8px;
 }
 
 .header-box {
-    padding: 12px 16px 10px 16px;
-    border-bottom: 1px solid rgba(200, 194, 180, 0.07);
+    padding: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .connected-ssid {
-    font-size: 13px;
-    font-weight: 600;
-    color: #c8c2b4;
+    font-size: 14px;
+    color: #ffffff;
 }
 
 .connected-ip {
     font-size: 11px;
-    color: #4a4842;
-    margin-top: 1px;
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .disconnected-label {
     font-size: 12px;
-    color: #4a4842;
+    color: #ff0000;
 }
 
 .dot-on {
-    background-color: #c8c2b4;
+    background-color: #00ff00;
     border-radius: 99px;
-    min-width: 6px;
-    min-height: 6px;
+    min-width: 8px;
+    min-height: 8px;
     margin-right: 10px;
-    margin-top: 4px;
 }
 
 .dot-off {
-    background-color: #2a2820;
+    background-color: #ff0000;
     border-radius: 99px;
-    min-width: 6px;
-    min-height: 6px;
+    min-width: 8px;
+    min-height: 8px;
     margin-right: 10px;
-    margin-top: 4px;
 }
 
 .section-title {
     font-size: 10px;
-    color: #2a2820;
-    letter-spacing: 1px;
-    padding: 10px 16px 3px 16px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 2px;
+    padding: 12px 12px 4px 12px;
 }
 
 .network-row {
-    padding: 7px 16px;
-    background-color: transparent;
+    padding: 8px 12px;
+    transition: all 0.2s ease;
 }
 
 .network-row:hover {
-    background-color: rgba(200, 194, 180, 0.05);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .net-ssid {
-    font-size: 12px;
-    color: #9a9488;
-    font-weight: 500;
+    font-size: 13px;
+    color: #ffffff;
 }
 
 .net-ssid-active {
-    font-size: 12px;
-    color: #c8c2b4;
-    font-weight: 600;
-}
-
-.net-security {
-    font-size: 10px;
-    color: #3a3830;
-    margin-top: 1px;
+    font-size: 13px;
+    color: #000000;
+    background-color: #ffffff;
+    padding: 0 4px;
 }
 
 .signal {
-    font-size: 11px;
-    color: #3a3830;
+    font-size: 12px;
     margin-right: 10px;
 }
 
-.signal-strong { color: #c8c2b4; }
-.signal-good   { color: #7a7468; }
-.signal-weak   { color: #3a3830; }
+.signal-strong { color: #ffffff; }
+.signal-good   { color: rgba(255, 255, 255, 0.6); }
+.signal-weak   { color: rgba(255, 255, 255, 0.3); }
 
-.btn-connect {
-    background-color: rgba(200, 194, 180, 0.07);
-    color: #8a8478;
-    border-radius: 6px;
-    border: 1px solid rgba(200, 194, 180, 0.10);
-    padding: 2px 10px;
+.btn-connect, .btn-confirm {
+    background-color: #ffffff;
+    color: #000000;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 12px;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
-    min-height: 0;
+    font-weight: 800;
 }
 
-.btn-connect:hover {
-    background-color: rgba(200, 194, 180, 0.13);
-    color: #c8c2b4;
-    border-color: rgba(200, 194, 180, 0.22);
+.btn-connect:hover, .btn-confirm:hover {
+    background-color: rgba(255, 255, 255, 0.8);
 }
 
-.btn-disconnect {
+.btn-disconnect, .btn-footer {
     background-color: transparent;
-    color: #3a3830;
-    border-radius: 6px;
-    border: 1px solid rgba(200, 194, 180, 0.07);
-    padding: 2px 10px;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 3px 8px;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
-    min-height: 0;
 }
 
-.btn-disconnect:hover {
-    color: #8a8478;
-    border-color: rgba(200, 194, 180, 0.15);
+.btn-disconnect:hover, .btn-footer:hover {
+    background-color: #ffffff;
+    color: #000000;
 }
 
 .password-box {
-    padding: 10px 16px 12px 16px;
-    border-top: 1px solid rgba(200, 194, 180, 0.07);
-}
-
-.password-label {
-    font-size: 11px;
-    color: #5a5650;
-    margin-bottom: 6px;
+    padding: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .password-entry {
-    background-color: rgba(200, 194, 180, 0.05);
-    border: 1px solid rgba(200, 194, 180, 0.12);
-    border-radius: 7px;
-    color: #c8c2b4;
-    padding: 5px 10px;
-    font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
-    caret-color: #c8c2b4;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid #ffffff;
+    border-radius: 4px;
+    color: #ffffff;
+    padding: 6px;
+    font-size: 13px;
 }
-
-.password-entry:focus {
-    border-color: rgba(200, 194, 180, 0.28);
-}
-
-.btn-confirm {
-    background-color: rgba(200, 194, 180, 0.09);
-    color: #c8c2b4;
-    border-radius: 7px;
-    border: 1px solid rgba(200, 194, 180, 0.14);
-    padding: 5px 14px;
-    font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
-    min-height: 0;
-    margin-top: 6px;
-}
-
-.btn-confirm:hover {
-    background-color: rgba(200, 194, 180, 0.16);
-}
-
-.footer-box {
-    padding: 7px 16px 10px 16px;
-    border-top: 1px solid rgba(200, 194, 180, 0.07);
-}
-
-.btn-footer {
-    background-color: transparent;
-    color: #3a3830;
-    border: none;
-    border-radius: 5px;
-    padding: 3px 7px;
-    font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
-    min-height: 0;
-}
-
-.btn-footer:hover {
-    color: #7a7468;
-    background-color: rgba(200, 194, 180, 0.04);
-}
-
-spinner { color: #4a4842; min-width: 14px; min-height: 14px; }
 
 tooltip {
-    background-color: rgba(16, 15, 13, 0.98);
-    border: 1px solid rgba(200, 194, 180, 0.10);
-    border-radius: 6px;
-    color: #c8c2b4;
+    background-color: #000000;
+    border: 1px solid #ffffff;
+    color: #ffffff;
 }
 """
+""
 
 def run(*args):
     return subprocess.run(list(args), capture_output=True, text=True).stdout.strip()
@@ -286,6 +217,7 @@ class WifiPanel(Gtk.Window):
         self.add_controller(key)
 
         # Foco: cierra si se pierde
+        self.connect("notify::is-active", lambda w, p: self.close() if not self.is_active() else None)
 
 
         self._build()
