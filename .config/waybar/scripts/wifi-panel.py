@@ -93,16 +93,41 @@ window {
     color: #cdd6f4;
     border: 1px solid transparent;
     border-radius: 6px;
-    padding: 2px 6px;
+    padding: 0 6px;
+    min-height: 22px;
     font-size: 11px;
     transition: all 0.3s ease;
 }
 
-.btn-connect:hover, .btn-disconnect:hover, .btn-footer:hover, .btn-confirm:hover {
+.btn-connect:hover, .btn-disconnect:hover, .btn-confirm:hover, .btn-footer:hover {
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.btn-icon {
+    font-family: "Symbols Nerd Font Mono";
+    font-size: 14px;
+    line-height: 1;
+    margin-bottom: -3px;
+}
+
+button {
+    background-image: none;
+    box-shadow: none;
+     padding: 0;
+    margin: 0;
+    min-height: 0;
+    min-width: 0;
+}
+
+button:hover, button:focus {
+    background-image: none;
+    box-shadow: none;
+}
+button > label {
+    padding: 0;
+    margin: 0;
+}
 .btn-connect:hover { color: #a6e3a1; }
 .btn-disconnect:hover { color: #f38ba8; }
 .btn-footer:hover { color: #cba6f7; }
@@ -141,6 +166,12 @@ tooltip {
 
 tooltip label {
     color: #cdd6f4;
+}
+
+scrollbar {
+    opacity: 0;
+    min-width: 0;
+    min-height: 0;
 }
 """
 
@@ -226,7 +257,18 @@ class WifiPanel(Gtk.Window):
         self._build()
         self._load_networks()
 
-
+    def _icon_button(self, icon, css_class):
+        btn = Gtk.Button()
+        btn.add_css_class(css_class)
+        btn.set_has_frame(False)
+        btn.set_valign(Gtk.Align.CENTER)
+        btn.set_halign(Gtk.Align.CENTER)
+        lbl = Gtk.Label(label=icon)
+        lbl.set_valign(Gtk.Align.CENTER)
+        lbl.set_halign(Gtk.Align.CENTER)
+        lbl.add_css_class("btn-icon")
+        btn.set_child(lbl)
+        return btn
 
     def _build(self):
         self._root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -237,11 +279,6 @@ class WifiPanel(Gtk.Window):
         self._header_box.add_css_class("header-box")
         self._root.append(self._header_box)
         self._rebuild_header()
-
-        sec = Gtk.Label(label="REDES DISPONIBLES")
-        sec.add_css_class("section-title")
-        sec.set_xalign(0)
-        self._root.append(sec)
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -264,22 +301,6 @@ class WifiPanel(Gtk.Window):
         lbl.add_css_class("net-security")
         self._spinner_row.append(lbl)
         self._list.append(self._spinner_row)
-
-        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        footer.add_css_class("footer-box")
-        footer.set_spacing(4)
-        footer.set_halign(Gtk.Align.END)
-        self._root.append(footer)
-
-        r = Gtk.Button(label="󰑐")
-        r.add_css_class("btn-footer")
-        r.connect("clicked", lambda _: self._load_networks())
-        footer.append(r)
-
-        a = Gtk.Button(label="󰒓")
-        a.add_css_class("btn-footer")
-        a.connect("clicked", self._open_nmtui)
-        footer.append(a)
 
     def _rebuild_header(self):
         while c := self._header_box.get_first_child():
@@ -309,16 +330,23 @@ class WifiPanel(Gtk.Window):
             info.append(s)
 
             row.append(info)
-            btn = Gtk.Button(label="󰖪")
-            btn.add_css_class("btn-disconnect")
-            btn.set_valign(Gtk.Align.CENTER)
+            btn = self._icon_button("󰖪", "btn-disconnect")
             btn.connect("clicked", self._disconnect)
             row.append(btn)
         else:
             l = Gtk.Label(label="sin conexión")
             l.add_css_class("disconnected-label")
             l.set_xalign(0)
+            l.set_hexpand(True)
             row.append(l)
+
+        r = self._icon_button("󰑐", "btn-footer")
+        r.connect("clicked", lambda _: self._load_networks())
+        row.append(r)
+
+        a = self._icon_button("󰒓", "btn-footer")
+        a.connect("clicked", self._open_nmtui)
+        row.append(a)
 
         self._header_box.append(row)
 
@@ -370,9 +398,7 @@ class WifiPanel(Gtk.Window):
 
         row.append(info)
 
-        btn = Gtk.Button(label="")
-        btn.add_css_class("btn-connect")
-        btn.set_valign(Gtk.Align.CENTER)
+        btn = self._icon_button("", "btn-connect")
         btn.connect("clicked", lambda _, s=net["ssid"], h=bool(net["security"]): self._connect(s, h))
         row.append(btn)
 
