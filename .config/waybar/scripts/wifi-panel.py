@@ -16,7 +16,7 @@ CSS = """
 * {
     font-family: "JetBrains Mono", "Symbols Nerd Font Mono", monospace;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 11px;
 }
 
 window {
@@ -27,35 +27,37 @@ window {
 }
 
 .panel-box {
-    padding: 12px;
+    padding: 8px;
 }
 
 .header-box {
-    padding-bottom: 12px;
-    margin-bottom: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .connected-ssid {
-    font-size: 14px;
+    font-size: 12px;
     color: #a6e3a1;
     font-weight: 900;
 }
 
 .disconnected-label {
-    font-size: 13px;
+    font-size: 12px;
     color: #f38ba8;
 }
 
 .section-title {
-    font-size: 11px;
+    font-size: 10px;
     color: rgba(205, 214, 244, 0.5);
     letter-spacing: 1px;
-    padding: 8px 12px 4px 12px;
+    padding: 6px 10px 4px 10px;
 }
 
 .network-row {
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: 8px;
     transition: all 0.3s ease;
 }
@@ -65,12 +67,12 @@ window {
 }
 
 .net-ssid {
-    font-size: 13px;
+    font-size: 11px;
     color: #cdd6f4;
 }
 
 .net-ssid-active {
-    font-size: 13px;
+    font-size: 11px;
     color: #11111b;
     background: linear-gradient(45deg, #cba6f7, #89b4fa);
     border-radius: 4px;
@@ -78,57 +80,53 @@ window {
 }
 
 .signal {
-    font-size: 14px;
-    margin-right: 12px;
+    font-size: 12px;
+    margin-right: 8px;
 }
 
 .signal-strong { color: #cdd6f4; }
 .signal-good   { color: rgba(205, 214, 244, 0.8); }
 .signal-weak   { color: rgba(205, 214, 244, 0.5); }
 
-.btn-connect, .btn-confirm {
-    background-color: rgba(45, 45, 55, 0.6);
-    color: #cdd6f4;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    padding: 4px 12px;
-    font-size: 12px;
-    transition: all 0.3s ease;
-}
-
-.btn-connect:hover, .btn-confirm:hover {
-    background-color: rgba(100, 100, 100, 0.5);
-}
-
-.btn-disconnect, .btn-footer {
+.btn-connect, .btn-disconnect, .btn-footer, .btn-confirm {
     background-color: transparent;
     color: #cdd6f4;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 4px 10px;
-    font-size: 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 11px;
     transition: all 0.3s ease;
 }
 
-.btn-disconnect:hover, .btn-footer:hover {
-    background-color: rgba(45, 45, 55, 0.6);
-    color: #f38ba8;
-    border-color: #f38ba8;
+.btn-connect:hover, .btn-disconnect:hover, .btn-footer:hover, .btn-confirm:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-connect:hover { color: #a6e3a1; }
+.btn-disconnect:hover { color: #f38ba8; }
+.btn-footer:hover { color: #cba6f7; }
+.btn-confirm:hover { color: #a6e3a1; }
+
+.net-security-icon {
+    font-size: 10px;
+    color: rgba(205, 214, 244, 0.4);
+    margin-top: 2px;
 }
 
 .password-box {
-    padding: 12px;
-    margin-top: 8px;
+    padding: 10px;
+    margin-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .password-entry {
     background-color: rgba(45, 45, 55, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    border-radius: 6px;
     color: #cdd6f4;
-    padding: 8px;
-    font-size: 13px;
+    padding: 6px;
+    font-size: 11px;
 }
 
 .password-entry:focus {
@@ -138,7 +136,7 @@ window {
 tooltip {
     background: rgba(15, 15, 20, 0.95);
     border: 1px solid #cba6f7;
-    border-radius: 10px;
+    border-radius: 8px;
 }
 
 tooltip label {
@@ -150,11 +148,11 @@ def run(*args):
     return subprocess.run(list(args), capture_output=True, text=True).stdout.strip()
 
 def get_current():
-    for line in run("nmcli", "-t", "-f", "active,ssid,signal", "dev", "wifi").splitlines():
-        if line.startswith("yes:"):
+    for line in run("nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL", "dev", "wifi").splitlines():
+        if line.startswith("*"):
             parts = line.split(":")
             if len(parts) >= 3:
-                try: sig = int(parts[2])
+                try: sig = int(parts[-1])
                 except: sig = 0
                 return parts[1], sig
     return None
@@ -172,11 +170,12 @@ def get_networks():
         p = line.split(":")
         if len(p) < 4: continue
         ssid, sec, sig_s, active = p[0], p[1], p[2], p[3]
+        if active == "*": continue
         if not ssid or ssid in seen: continue
         seen.add(ssid)
         try: sig = int(sig_s)
         except: sig = 0
-        nets.append({"ssid": ssid, "security": sec if sec != "--" else "", "signal": sig, "active": active == "*"})
+        nets.append({"ssid": ssid, "security": sec if sec != "--" else "", "signal": sig, "active": False})
     return sorted(nets, key=lambda x: x["signal"], reverse=True)
 
 def signal_icon(s):
@@ -203,7 +202,7 @@ class WifiPanel(Gtk.Window):
         LayerShell.set_exclusive_zone(self, -1)
         self.set_decorated(False)
         self.set_resizable(False)
-        self.set_size_request(320, -1)
+        self.set_size_request(280, -1)
         self._pending_ssid = None
         self._pass_box = None
 
@@ -269,14 +268,15 @@ class WifiPanel(Gtk.Window):
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         footer.add_css_class("footer-box")
         footer.set_spacing(4)
+        footer.set_halign(Gtk.Align.END)
         self._root.append(footer)
 
-        r = Gtk.Button(label="↻ actualizar")
+        r = Gtk.Button(label="󰑐")
         r.add_css_class("btn-footer")
         r.connect("clicked", lambda _: self._load_networks())
         footer.append(r)
 
-        a = Gtk.Button(label="ajustes avanzados")
+        a = Gtk.Button(label="󰒓")
         a.add_css_class("btn-footer")
         a.connect("clicked", self._open_nmtui)
         footer.append(a)
@@ -301,6 +301,7 @@ class WifiPanel(Gtk.Window):
 
             info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             info.set_hexpand(True)
+            info.set_valign(Gtk.Align.CENTER)
 
             s = Gtk.Label(label=ssid)
             s.add_css_class("connected-ssid")
@@ -308,7 +309,7 @@ class WifiPanel(Gtk.Window):
             info.append(s)
 
             row.append(info)
-            btn = Gtk.Button(label="desconectar")
+            btn = Gtk.Button(label="󰖪")
             btn.add_css_class("btn-disconnect")
             btn.set_valign(Gtk.Align.CENTER)
             btn.connect("clicked", self._disconnect)
@@ -353,21 +354,27 @@ class WifiPanel(Gtk.Window):
 
         info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         info.set_hexpand(True)
+        info.set_valign(Gtk.Align.CENTER)
 
         sl = Gtk.Label(label=net["ssid"])
-        sl.add_css_class("net-ssid-active" if net["active"] else "net-ssid")
+        sl.add_css_class("net-ssid")
         sl.set_xalign(0)
         sl.set_ellipsize(3)
         info.append(sl)
 
+        if net["security"]:
+            sec = Gtk.Label(label="󰌾")
+            sec.add_css_class("net-security-icon")
+            sec.set_xalign(0)
+            info.append(sec)
+
         row.append(info)
 
-        if not net["active"]:
-            btn = Gtk.Button(label="conectar")
-            btn.add_css_class("btn-connect")
-            btn.set_valign(Gtk.Align.CENTER)
-            btn.connect("clicked", lambda _, s=net["ssid"], h=bool(net["security"]): self._connect(s, h))
-            row.append(btn)
+        btn = Gtk.Button(label="")
+        btn.add_css_class("btn-connect")
+        btn.set_valign(Gtk.Align.CENTER)
+        btn.connect("clicked", lambda _, s=net["ssid"], h=bool(net["security"]): self._connect(s, h))
+        row.append(btn)
 
         return row
 

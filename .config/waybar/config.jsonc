@@ -62,7 +62,7 @@
     },
     "pulseaudio": {
         "format": "{icon} {volume}%",
-        "format-muted": "󰝟 Muted",
+        "format-muted": "󰝟 ssh",
         "format-icons": {
             "default": [
                 "󰕿",
@@ -74,8 +74,8 @@
     },
     "network": {
         "format-wifi": "󰤨 {essid}",
-        "format-ethernet": "󰈀 Wired",
-        "format-disconnected": "󰤭 None",
+        "format-ethernet": "󰈀",
+        "format-disconnected": "󰤭 ",
         "on-click": "LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so python3 ~/.config/waybar/scripts/wifi-panel.py"
     },
     "battery": {
@@ -103,20 +103,22 @@
     },
     "cpu": {
         "format": "󰻠 {usage}%",
-        "on-click": "kitty btop"
+        "on-click": "kitty btop",
+        "tooltip": false
     },
     "memory": {
-        "format": "󰍛 {used}G"
+        "format": "󰍛 {used}G",
+        "tooltip": false
     },
     "custom/launcher": {
         "format": "󰣇",
         "on-click": "wofi --show drun",
-        "tooltip": "Aplicaciones"
+        "tooltip": false
     },
     "custom/functions": {
         "format": "󰠮",
         "on-click": "~/.config/waybar/scripts/launcher.sh",
-        "tooltip": "Funciones y Scripts"
+        "tooltip": false
     },
     "custom/power": {
         "format": "󰐥",
