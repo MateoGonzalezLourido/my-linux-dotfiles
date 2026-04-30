@@ -1,0 +1,123 @@
+// ~/.config/waybar/config.jsonc
+{
+    "layer": "overlay",
+    "position": "top",
+    "height": 32,
+    "margin-top": 0,
+    "margin-left": 16,
+    "margin-right": 16,
+    "exclusive": true,
+    "passthrough": false,
+    "gtk-layer-shell": true,
+    "start_hidden":false,
+    "hide_when_fullscreen":true,
+    "modules-left": [
+        "custom/placeholder"
+    ],
+
+    "modules-center": [
+        "hyprland/workspaces"
+    ],
+
+    "modules-right": [
+        "mpris",
+        "custom/sep",
+        "pulseaudio",
+        "network",
+        "battery",
+        "custom/sep",
+        "cpu",
+        "memory",
+        "custom/sep",
+        "clock",
+        "custom/sep",
+        "custom/eyecare",
+        "custom/power"
+    ],
+
+    "hyprland/workspaces": {
+        "format": "{name}",
+        "on-scroll-up": "hyprctl dispatch workspace e+1",
+        "on-scroll-down": "hyprctl dispatch workspace e-1",
+        "sort-by-number": true
+    },
+
+    "clock": {
+        "format": "{:%H:%M}",
+        "format-alt": "{:%d %b  %H:%M}",
+        "tooltip-format": "<tt>{calendar}</tt>"
+    },
+
+    "mpris": {
+        "format": "♪ {title}",
+        "format-paused": "⏸ {title}",
+        "format-stopped": "",
+        "max-length": 25,
+        "on-click": "playerctl play-pause",
+        "on-scroll-up": "playerctl next",
+        "on-scroll-down": "playerctl previous"
+    },
+
+    "custom/eyecare": {
+        "exec": "~/.config/waybar/scripts/eyecare.sh status",
+        "interval": 5,
+        "format": "{}",
+        "on-click": "~/.config/waybar/scripts/eyecare.sh toggle",
+        "return-type": "json"
+    },
+
+    "pulseaudio": {
+        "format": "♬ {volume}%",
+        "format-muted": "✕ mute",
+        "on-click": "pavucontrol",
+        "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+",
+        "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+    },
+
+    "network": {
+        "format-wifi": "  {essid}",
+        "format-ethernet": "  eth",
+        "format-disconnected": "✕ offline",
+        "tooltip-format": "{essid} — {signalStrength}%\n{ipaddr}",
+        "on-click": "~/.config/waybar/scripts/wifi.sh"
+    },
+
+    "battery": {
+        "format": "{icon} {capacity}%",
+        "format-charging": "⚡ {capacity}%",
+        "format-plugged": "• {capacity}%",
+        "format-icons": ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"],
+        "states": {
+            "warning": 30,
+            "critical": 15
+        }
+    },
+
+    "cpu": {
+        "format": "cpu {usage}%",
+        "interval": 3,
+        "on-click": "kitty --title btop btop"
+    },
+
+    "memory": {
+        "format": "ram {used:0.1f}G",
+        "interval": 5
+    },
+
+    "custom/sep": {
+        "format": "/",
+        "tooltip": false
+    },
+
+    "custom/placeholder": {
+        "format": "",
+        "tooltip": false
+    },
+
+    "custom/power": {
+        "format": "⏻",
+        "on-click": "~/.config/waybar/scripts/power.sh",
+        "tooltip": false
+    }
+}

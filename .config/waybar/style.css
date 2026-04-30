@@ -1,0 +1,124 @@
+/* ~/.config/waybar/style.css — Anime White Black Style */
+
+* {
+    font-family: "JetBrains Mono", "Symbols Nerd Font Mono", monospace;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    border-radius: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+window#waybar {
+    background-color: rgba(0, 0, 0, 0.85);
+    color: #ffffff;
+    border-bottom: 2px solid #ffffff;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+window#waybar.hidden {
+    opacity: 0;
+}
+
+/* ─── WORKSPACES ── */
+#workspaces {
+    background: transparent;
+    margin: 4px 8px;
+    padding: 0px;
+}
+
+#workspaces button {
+    padding: 0px 10px;
+    margin: 0 4px;
+    color: #ffffff;
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px; /* Sharp but slightly rounded for anime look */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 30px;
+}
+
+#workspaces button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: #ffffff;
+    transform: scale(1.1);
+}
+
+#workspaces button.active {
+    color: #000000;
+    background-color: #ffffff;
+    border-color: #ffffff;
+    min-width: 45px; /* Expand active workspace */
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+#workspaces button.urgent {
+    color: #000000;
+    background-color: #ff0000; /* Subtle accent for urgent */
+    border-color: #ff0000;
+}
+
+/* ─── MODULES ── */
+#clock, #mpris, #pulseaudio, #network, #battery, #cpu, #memory, #custom-eyecare, #custom-power {
+    padding: 0 12px;
+    transition: all 0.3s ease;
+}
+
+#clock {
+    color: #ffffff;
+    font-size: 14px;
+}
+
+#mpris {
+    color: rgba(255, 255, 255, 0.7);
+    font-style: italic;
+}
+
+#pulseaudio:hover, #network:hover, #battery:hover, #cpu:hover, #memory:hover, #clock:hover {
+    color: #000000;
+    background-color: #ffffff;
+    transform: translateY(-2px);
+}
+
+#battery.critical:not(.charging) {
+    background-color: #ff0000;
+    color: #ffffff;
+    animation: blink 0.5s steps(5, start) infinite;
+}
+
+@keyframes blink {
+    to {
+        background-color: #ffffff;
+        color: #000000;
+    }
+}
+
+#custom-sep {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 16px;
+}
+
+#custom-power {
+    color: #ffffff;
+    margin-right: 8px;
+    border-radius: 4px;
+}
+
+#custom-power:hover {
+    background-color: #ff0000;
+    color: #ffffff;
+}
+
+tooltip {
+    background-color: #000000;
+    border: 2px solid #ffffff;
+    border-radius: 4px;
+    color: #ffffff;
+}
+
+tooltip label {
+    color: #ffffff;
+}
+
