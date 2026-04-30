@@ -16,148 +16,147 @@ CSS = """
 * {
     font-family: "JetBrains Mono", "Symbols Nerd Font Mono", monospace;
     font-weight: 700;
+    font-size: 13px;
 }
 
 window {
-    background-color: rgba(0, 0, 0, 0.95);
-    border: 2px solid #ffffff;
-    border-radius: 4px;
+    background-color: rgba(15, 15, 20, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: #cdd6f4;
 }
 
 .panel-box {
-    padding: 8px;
+    padding: 12px;
 }
 
 .header-box {
-    padding: 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .connected-ssid {
     font-size: 14px;
-    color: #ffffff;
-}
-
-.connected-ip {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.6);
+    color: #a6e3a1;
+    font-weight: 900;
 }
 
 .disconnected-label {
-    font-size: 12px;
-    color: #ff0000;
-}
-
-.dot-on {
-    background-color: #00ff00;
-    border-radius: 99px;
-    min-width: 8px;
-    min-height: 8px;
-    margin-right: 10px;
-}
-
-.dot-off {
-    background-color: #ff0000;
-    border-radius: 99px;
-    min-width: 8px;
-    min-height: 8px;
-    margin-right: 10px;
+    font-size: 13px;
+    color: #f38ba8;
 }
 
 .section-title {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.5);
-    letter-spacing: 2px;
-    padding: 12px 12px 4px 12px;
+    font-size: 11px;
+    color: rgba(205, 214, 244, 0.5);
+    letter-spacing: 1px;
+    padding: 8px 12px 4px 12px;
 }
 
 .network-row {
     padding: 8px 12px;
-    transition: all 0.2s ease;
+    border-radius: 8px;
+    transition: all 0.3s ease;
 }
 
 .network-row:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(45, 45, 55, 0.6);
 }
 
 .net-ssid {
     font-size: 13px;
-    color: #ffffff;
+    color: #cdd6f4;
 }
 
 .net-ssid-active {
     font-size: 13px;
-    color: #000000;
-    background-color: #ffffff;
-    padding: 0 4px;
+    color: #11111b;
+    background: linear-gradient(45deg, #cba6f7, #89b4fa);
+    border-radius: 4px;
+    padding: 2px 6px;
 }
 
 .signal {
-    font-size: 12px;
-    margin-right: 10px;
+    font-size: 14px;
+    margin-right: 12px;
 }
 
-.signal-strong { color: #ffffff; }
-.signal-good   { color: rgba(255, 255, 255, 0.6); }
-.signal-weak   { color: rgba(255, 255, 255, 0.3); }
+.signal-strong { color: #cdd6f4; }
+.signal-good   { color: rgba(205, 214, 244, 0.8); }
+.signal-weak   { color: rgba(205, 214, 244, 0.5); }
 
 .btn-connect, .btn-confirm {
-    background-color: #ffffff;
-    color: #000000;
-    border: none;
-    border-radius: 4px;
+    background-color: rgba(45, 45, 55, 0.6);
+    color: #cdd6f4;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
     padding: 4px 12px;
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 12px;
+    transition: all 0.3s ease;
 }
 
 .btn-connect:hover, .btn-confirm:hover {
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(100, 100, 100, 0.5);
 }
 
 .btn-disconnect, .btn-footer {
     background-color: transparent;
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    padding: 3px 8px;
-    font-size: 11px;
+    color: #cdd6f4;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    transition: all 0.3s ease;
 }
 
 .btn-disconnect:hover, .btn-footer:hover {
-    background-color: #ffffff;
-    color: #000000;
+    background-color: rgba(45, 45, 55, 0.6);
+    color: #f38ba8;
+    border-color: #f38ba8;
 }
 
 .password-box {
     padding: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .password-entry {
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid #ffffff;
-    border-radius: 4px;
-    color: #ffffff;
-    padding: 6px;
+    background-color: rgba(45, 45, 55, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #cdd6f4;
+    padding: 8px;
     font-size: 13px;
 }
 
+.password-entry:focus {
+    border-color: #cba6f7;
+}
+
 tooltip {
-    background-color: #000000;
-    border: 1px solid #ffffff;
-    color: #ffffff;
+    background: rgba(15, 15, 20, 0.95);
+    border: 1px solid #cba6f7;
+    border-radius: 10px;
+}
+
+tooltip label {
+    color: #cdd6f4;
 }
 """
-""
 
 def run(*args):
     return subprocess.run(list(args), capture_output=True, text=True).stdout.strip()
 
 def get_current():
-    for line in run("nmcli", "-t", "-f", "active,ssid", "dev", "wifi").splitlines():
+    for line in run("nmcli", "-t", "-f", "active,ssid,signal", "dev", "wifi").splitlines():
         if line.startswith("yes:"):
-            return line.split(":", 1)[1]
+            parts = line.split(":")
+            if len(parts) >= 3:
+                try: sig = int(parts[2])
+                except: sig = 0
+                return parts[1], sig
     return None
 
 def get_ip():
@@ -189,14 +188,18 @@ def signal_icon(s):
 
 class WifiPanel(Gtk.Window):
     def __init__(self, app):
-        super().__init__(application=app)
+        super().__init__()
+        # Importante: inicializar layer-shell antes de cualquier otra cosa
         LayerShell.init_for_window(self)
+        LayerShell.set_namespace(self, "wifi-panel")
+        self.set_application(app)
+
         LayerShell.set_layer(self, LayerShell.Layer.TOP)
         LayerShell.set_anchor(self, LayerShell.Edge.TOP, True)
         LayerShell.set_anchor(self, LayerShell.Edge.RIGHT, True)
         LayerShell.set_margin(self, LayerShell.Edge.TOP, 44)
         LayerShell.set_margin(self, LayerShell.Edge.RIGHT, 8)
-        LayerShell.set_keyboard_mode(self, LayerShell.KeyboardMode.EXCLUSIVE)
+        LayerShell.set_keyboard_mode(self, LayerShell.KeyboardMode.ON_DEMAND)
         LayerShell.set_exclusive_zone(self, -1)
         self.set_decorated(False)
         self.set_resizable(False)
@@ -282,27 +285,28 @@ class WifiPanel(Gtk.Window):
         while c := self._header_box.get_first_child():
             self._header_box.remove(c)
 
-        current = get_current()
+        current_info = get_current()
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        row.set_spacing(8)
+        row.set_valign(Gtk.Align.CENTER)
 
-        dot = Gtk.Label(label="")
-        dot.add_css_class("dot-on" if current else "dot-off")
-        row.append(dot)
+        if current_info:
+            ssid, sig = current_info
+            
+            bar, cls = signal_icon(sig)
+            sig_lbl = Gtk.Label(label=bar)
+            sig_lbl.add_css_class("signal")
+            sig_lbl.add_css_class(cls)
+            row.append(sig_lbl)
 
-        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        info.set_hexpand(True)
+            info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            info.set_hexpand(True)
 
-        if current:
-            s = Gtk.Label(label=current)
+            s = Gtk.Label(label=ssid)
             s.add_css_class("connected-ssid")
             s.set_xalign(0)
             info.append(s)
-            ip = get_ip()
-            if ip:
-                i = Gtk.Label(label=ip)
-                i.add_css_class("connected-ip")
-                i.set_xalign(0)
-                info.append(i)
+
             row.append(info)
             btn = Gtk.Button(label="desconectar")
             btn.add_css_class("btn-disconnect")
@@ -313,8 +317,7 @@ class WifiPanel(Gtk.Window):
             l = Gtk.Label(label="sin conexión")
             l.add_css_class("disconnected-label")
             l.set_xalign(0)
-            info.append(l)
-            row.append(info)
+            row.append(l)
 
         self._header_box.append(row)
 
@@ -356,12 +359,6 @@ class WifiPanel(Gtk.Window):
         sl.set_xalign(0)
         sl.set_ellipsize(3)
         info.append(sl)
-
-        if net["security"]:
-            sec = Gtk.Label(label=net["security"])
-            sec.add_css_class("net-security")
-            sec.set_xalign(0)
-            info.append(sec)
 
         row.append(info)
 
