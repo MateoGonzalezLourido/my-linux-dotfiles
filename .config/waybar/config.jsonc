@@ -43,9 +43,10 @@
     },
     "clock": {
         "format": "{:%H:%M}",
-        "format-alt": "{:%A, %d %B %Y}",
+        "format-alt": "{:%A, %d de %B de %Y}",
         "interval": 1,
-        "tooltip-format": "<tt>{calendar}</tt>"
+        "tooltip-format": "<tt>{calendar}</tt>",
+        "locale": "es_US.UTF-8"
     },
     "mpris": {
         "format": "{player_icon} {title}",
