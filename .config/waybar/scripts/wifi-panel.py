@@ -11,7 +11,8 @@ gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, GLib, Gdk, Gtk4LayerShell as LayerShell
 import subprocess
 import threading
-import sysCSS = """
+import sys
+CSS = """
 * {
     font-family: "JetBrains Mono", "Symbols Nerd Font Mono", monospace;
     font-weight: 700;
