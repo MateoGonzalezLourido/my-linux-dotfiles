@@ -2,25 +2,22 @@
 {
     "layer": "top", // Best for overlay behavior
     "position": "top",
-    "height": 40,
+    "height": 38,
     "margin-top": 0,
-    "margin-left": 0,
-    "margin-right": 0,
+    "margin-left": 8,
+    "margin-right": 8,
     "exclusive": true,
     "passthrough": false,
     "gtk-layer-shell": true,
     "start_hidden": false,
-    
     "modules-left": [
         "custom/launcher",
-        "hyprland/workspaces",
-        "hyprland/window"
+        "custom/functions",
+        "hyprland/workspaces"
     ],
-
     "modules-center": [
         "clock"
     ],
-
     "modules-right": [
         "mpris",
         "pulseaudio",
@@ -30,7 +27,6 @@
         "memory",
         "custom/power"
     ],
-
     "hyprland/workspaces": {
         "format": "{name}",
         "on-click": "activate",
@@ -40,20 +36,17 @@
         "active-only": false,
         "all-outputs": true
     },
-
     "hyprland/window": {
         "format": " {title}",
         "max-length": 40,
         "separate-outputs": true
     },
-
     "clock": {
-        "format": "{:%H:%M:%S}",
+        "format": "{:%H:%M}",
         "format-alt": "{:%A, %d %B %Y}",
         "interval": 1,
         "tooltip-format": "<tt>{calendar}</tt>"
     },
-
     "mpris": {
         "format": "{player_icon} {title}",
         "format-paused": "{status_indicator} {title}",
@@ -66,23 +59,24 @@
         },
         "max-length": 30
     },
-
     "pulseaudio": {
         "format": "{icon} {volume}%",
         "format-muted": "󰝟 Muted",
         "format-icons": {
-            "default": ["󰕿", "󰖀", "󰕾"]
+            "default": [
+                "󰕿",
+                "󰖀",
+                "󰕾"
+            ]
         },
         "on-click": "pavucontrol"
     },
-
     "network": {
         "format-wifi": "󰤨 {essid}",
         "format-ethernet": "󰈀 Wired",
         "format-disconnected": "󰤭 None",
         "on-click": "nm-connection-editor"
     },
-
     "battery": {
         "states": {
             "warning": 30,
@@ -92,28 +86,40 @@
         "format-charging": "󰂄 {capacity}%",
         "format-plugged": "󰂄 {capacity}%",
         "format-alt": "{icon} {time}",
-        "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+        "format-icons": [
+            "󰂎",
+            "󰁺",
+            "󰁻",
+            "󰁼",
+            "󰁽",
+            "󰁾",
+            "󰁿",
+            "󰂀",
+            "󰂁",
+            "󰂂",
+            "󰁹"
+        ]
     },
-
     "cpu": {
         "format": "󰻠 {usage}%",
         "on-click": "kitty btop"
     },
-
     "memory": {
         "format": "󰍛 {used}G"
     },
-
     "custom/launcher": {
         "format": "󰣇",
         "on-click": "wofi --show drun",
-        "tooltip": false
+        "tooltip": "Aplicaciones"
     },
-
+    "custom/functions": {
+        "format": "󰠮",
+        "on-click": "~/.config/waybar/scripts/launcher.sh",
+        "tooltip": "Funciones y Scripts"
+    },
     "custom/power": {
         "format": "󰐥",
         "on-click": "~/.config/waybar/scripts/power.sh",
         "tooltip": false
     }
 }
-

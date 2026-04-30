@@ -24,10 +24,8 @@ while true; do
     SHOULD_SHOW=1
     
     if [ "$Y" -gt "$THRESHOLD" ]; then
-        # Mouse is OUT
-        if [ "$WINDOWS" -eq 0 ]; then
-            SHOULD_SHOW=0
-        fi
+        # Mouse is OUT -> Always hide by default
+        SHOULD_SHOW=0
         
         # Mini window (floating) rule
         if [ "$FLOATING" -gt 0 ]; then

@@ -2,8 +2,8 @@
 
 * {
     font-family: "JetBrains Mono", "Symbols Nerd Font Mono", monospace;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 800;
     border: none;
     border-radius: 0;
     min-height: 0;
@@ -14,7 +14,9 @@
 window#waybar {
     background-color: rgba(0, 0, 0, 0.85);
     color: #ffffff;
-    border-bottom: 2px solid #ffffff;
+    border: none;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
 }
 
 window#waybar.hidden {
@@ -24,32 +26,32 @@ window#waybar.hidden {
 /* ─── WORKSPACES ── */
 #workspaces {
     background: transparent;
-    margin: 2px 8px;
+    margin: 4px 6px;
     padding: 0px;
 }
 
 #workspaces button {
-    padding: 0px 12px;
-    margin: 4px 4px;
+    padding: 0px 8px;
+    margin: 0 3px;
     color: #ffffff;
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 4px;
-    transition: all 0.3s ease;
-    min-width: 30px;
+    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    min-width: 24px;
 }
 
 #workspaces button:hover {
     background-color: rgba(255, 255, 255, 0.1);
     border-color: #ffffff;
-    /* transform removed - unsupported in GTK CSS */
 }
 
 #workspaces button.active {
     color: #000000;
     background-color: #ffffff;
     border-color: #ffffff;
-    min-width: 45px; /* Expand active workspace */
+    min-width: 36px;
+    /* Expand active workspace */
 }
 
 #workspaces button.urgent {
@@ -59,14 +61,25 @@ window#waybar.hidden {
 }
 
 /* ─── MODULES ── */
-#clock, #mpris, #pulseaudio, #network, #battery, #cpu, #memory, #custom-eyecare, #custom-power {
-    padding: 0 14px;
-    transition: all 0.3s ease;
+#clock,
+#mpris,
+#pulseaudio,
+#network,
+#battery,
+#cpu,
+#memory,
+#custom-eyecare {
+    padding: 0 8px;
+    margin: 4px 2px;
+    border-radius: 4px;
+    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    border: 1px solid transparent;
 }
 
 #clock {
     color: #ffffff;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 900;
 }
 
 #mpris {
@@ -74,25 +87,70 @@ window#waybar.hidden {
     font-style: italic;
 }
 
-#pulseaudio:hover, #network:hover, #battery:hover, #cpu:hover, #memory:hover, #clock:hover {
-    color: #000000;
-    background-color: #ffffff;
+/* ─── CORNER BUTTONS (ARCH, FUNCIONES, APAGADO) ── */
+#custom-launcher,
+#custom-functions,
+#custom-power {
+    font-size: 16px;
+    color: #ffffff;
+    padding: 0 12px;
+    /* Padding ensures the icon is centered in the button area */
+    margin: 4px 2px;
+    border-radius: 4px;
+    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    border: 1px solid transparent;
 }
 
-#battery.critical:not(.charging) {
-    background-color: #ff0000;
-    color: #ffffff;
+#custom-launcher {
+    margin-left: 12px;
+    margin-right: 0px;
+    /* Glue to functions */
+    border-radius: 4px 0 0 4px;
+    /* Anime style: sharp joint */
+}
+
+#custom-functions {
+    margin-left: 0px;
+    /* Glue to arch */
+    margin-right: 10px;
+    border-radius: 0 4px 4px 0;
 }
 
 #custom-power {
-    color: #ffffff;
-    margin-right: 8px;
-    border-radius: 4px;
+    margin-right: 12px;
+    padding: 0 14px;
+}
+
+
+#custom-launcher:hover,
+#custom-functions:hover {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #ffffff;
 }
 
 #custom-power:hover {
     background-color: #ff0000;
     color: #ffffff;
+    border: 1px solid #ff0000;
+}
+
+#pulseaudio:hover,
+#network:hover,
+#battery:hover,
+#cpu:hover,
+#memory:hover,
+#clock:hover,
+#mpris:hover {
+    color: #000000;
+    background-color: #ffffff;
+    border: 1px solid #ffffff;
+}
+
+#battery.critical:not(.charging) {
+    background-color: #ff0000;
+    color: #ffffff;
+    border: 1px solid #ff0000;
 }
 
 tooltip {
@@ -105,5 +163,3 @@ tooltip {
 tooltip label {
     color: #ffffff;
 }
-
-
