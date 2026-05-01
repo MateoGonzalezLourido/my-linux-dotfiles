@@ -8,27 +8,23 @@ HIDDEN=0
 pgrep -x waybar > /dev/null || waybar &
 
 while true; do
-    # Get cursor Y position
     CURSOR_INFO=$(hyprctl cursorpos 2>/dev/null)
-    [[ -z "$CURSOR_INFO" ]] && sleep 1 && continue
+    if [[ -z "$CURSOR_INFO" ]]; then
+        sleep 1
+        continue
+    fi
     
-    Y=$(echo "$CURSOR_INFO" | awk '{print $2}' | tr -d ',')
-    
-    # Get counts from Hyprland
-    CLIENTS_JSON=$(hyprctl clients -j 2>/dev/null)
-    [[ -z "$CLIENTS_JSON" ]] && WINDOWS=0 && FLOATING=0 || {
-        WINDOWS=$(echo "$CLIENTS_JSON" | jq '. | length')
-        FLOATING=$(echo "$CLIENTS_JSON" | jq '[.[] | select(.floating == true)] | length')
-    }
+    # Extract Y coordinate purely in bash (no awk/tr subshells)
+    Y="${CURSOR_INFO#*, }"
     
     SHOULD_SHOW=1
     
     if [ "$Y" -gt "$THRESHOLD" ]; then
-        # Mouse is OUT -> Always hide by default
         SHOULD_SHOW=0
         
-        # Mini window (floating) rule
-        if [ "$FLOATING" -gt 0 ]; then
+        # Only query clients if we are out of threshold.
+        # Use grep instead of jq for massive performance boost.
+        if hyprctl clients 2>/dev/null | grep -q "floating: 1"; then
             SHOULD_SHOW=1
         fi
     fi
@@ -42,7 +38,7 @@ while true; do
         HIDDEN=1
     fi
     
-    sleep 0.2
+    sleep 0.3
 done
 
 

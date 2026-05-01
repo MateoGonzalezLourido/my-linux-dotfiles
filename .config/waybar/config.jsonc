@@ -44,7 +44,7 @@
     "clock": {
         "format": "{:%H:%M}",
         "format-alt": "{:%A, %d de %B de %Y}",
-        "interval": 1,
+        "interval": 60,
         "tooltip-format": "<tt>{calendar}</tt>",
         "locale": "es_US.UTF-8"
     },
@@ -73,6 +73,7 @@
         "on-click": "pavucontrol"
     },
     "network": {
+        "interval": 10,
         "format-wifi": "󰤨 {essid}",
         "format-ethernet": "󰈀",
         "format-disconnected": "󰤭 ",
