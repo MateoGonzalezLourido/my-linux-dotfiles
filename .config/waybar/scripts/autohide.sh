@@ -5,7 +5,7 @@ THRESHOLD=50
 HIDDEN=0
 
 # Ensure waybar is running
-pgrep -x waybar > /dev/null || waybar &
+pgrep -x waybar > /dev/null || LC_TIME=es_US.UTF-8 waybar &
 
 while true; do
     CURSOR_INFO=$(hyprctl cursorpos 2>/dev/null)

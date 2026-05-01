@@ -42,11 +42,28 @@
         "separate-outputs": true
     },
     "clock": {
+        "locale": "es_US.UTF-8",
         "format": "{:%H:%M}",
-        "format-alt": "{:%A, %d de %B de %Y}",
+        "format-alt": "{:%A, %d de %B}",
         "interval": 60,
         "tooltip-format": "<tt>{calendar}</tt>",
-        "locale": "es_US.UTF-8"
+        "calendar": {
+            "mode"          : "month",
+            "mode-mon-col"  : 3,
+            "on-scroll"     : 1,
+            "iso8601"       : true,
+            "format": {
+                "months":     "<span color='#cba6f7'><b>{}</b></span>",
+                "days":       "<span color='#cdd6f4'><b>{}</b></span>",
+                "weekdays":   "<span color='#89b4fa'><b>{}</b></span>",
+                "today":      "<span color='#f38ba8'><b><u>{}</u></b></span>"
+            }
+        },
+        "actions":  {
+            "on-click-right": "mode",
+            "on-scroll-up": "shift_up",
+            "on-scroll-down": "shift_down"
+        }
     },
     "mpris": {
         "format": "{player_icon} {title}",
