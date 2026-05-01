@@ -27,14 +27,14 @@ window {
 }
 
 .panel-box {
-    padding: 8px;
+    padding: 4px 6px;
 }
 
 .header-box {
-    padding-bottom: 8px;
-    margin-bottom: 6px;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    padding-left: 4px;
+    padding-right: 4px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -57,9 +57,9 @@ window {
 }
 
 .network-row {
-    padding: 6px 10px;
-    border-radius: 8px;
-    transition: all 0.3s ease;
+    padding: 3px 6px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
 }
 
 .network-row:hover {
@@ -88,33 +88,13 @@ window {
 .signal-good   { color: rgba(205, 214, 244, 0.8); }
 .signal-weak   { color: rgba(205, 214, 244, 0.5); }
 
-.btn-connect, .btn-disconnect, .btn-footer, .btn-confirm {
-    background-color: transparent;
-    color: #cdd6f4;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    padding: 0 6px;
-    min-height: 22px;
-    font-size: 11px;
-    transition: all 0.3s ease;
-}
-
-.btn-connect:hover, .btn-disconnect:hover, .btn-confirm:hover, .btn-footer:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn-icon {
-    font-family: "Symbols Nerd Font Mono";
-    font-size: 14px;
-    line-height: 1;
-    margin-bottom: -3px;
-}
-
 button {
+    background-color: transparent;
     background-image: none;
     box-shadow: none;
-     padding: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 0;
     margin: 0;
     min-height: 0;
     min-width: 0;
@@ -124,14 +104,41 @@ button:hover, button:focus {
     background-image: none;
     box-shadow: none;
 }
+
 button > label {
     padding: 0;
     margin: 0;
+    min-height: 0;
+    -gtk-icon-size: 0;
 }
+
+.btn-icon > label {
+    font-family: "Symbols Nerd Font Mono";
+    font-size: 14px;
+    line-height: 1;
+}
+
+.btn-connect, .btn-disconnect, .btn-footer, .btn-confirm {
+    color: #cdd6f4;
+    padding: 4px 6px;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-connect:hover, .btn-disconnect:hover, .btn-confirm:hover, .btn-footer:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .btn-connect:hover { color: #a6e3a1; }
 .btn-disconnect:hover { color: #f38ba8; }
 .btn-footer:hover { color: #cba6f7; }
 .btn-confirm:hover { color: #a6e3a1; }
+
+.btn-icon {
+    font-family: "Symbols Nerd Font Mono";
+    font-size: 14px;
+    line-height: 1;
+}
 
 .net-security-icon {
     font-size: 10px;
@@ -228,12 +235,12 @@ class WifiPanel(Gtk.Window):
         LayerShell.set_anchor(self, LayerShell.Edge.TOP, True)
         LayerShell.set_anchor(self, LayerShell.Edge.RIGHT, True)
         LayerShell.set_margin(self, LayerShell.Edge.TOP, 44)
-        LayerShell.set_margin(self, LayerShell.Edge.RIGHT, 8)
+        LayerShell.set_margin(self, LayerShell.Edge.RIGHT, 210)
         LayerShell.set_keyboard_mode(self, LayerShell.KeyboardMode.ON_DEMAND)
         LayerShell.set_exclusive_zone(self, -1)
         self.set_decorated(False)
         self.set_resizable(False)
-        self.set_size_request(280, -1)
+        self.set_size_request(220, -1)
         self._pending_ssid = None
         self._pass_box = None
 
@@ -258,16 +265,44 @@ class WifiPanel(Gtk.Window):
         self._load_networks()
 
     def _icon_button(self, icon, css_class):
+        from gi.repository import Pango, PangoCairo
+        SIZE = 18
+        color_map = {
+            "btn-disconnect": (0.953, 0.545, 0.659),
+            "btn-footer":     (0.792, 0.651, 0.969),
+            "btn-confirm":    (0.651, 0.890, 0.631),
+            "btn-connect":    (0.804, 0.839, 0.957),
+        }
+        r, g, b = color_map.get(css_class, (0.804, 0.839, 0.957))
+
         btn = Gtk.Button()
         btn.add_css_class(css_class)
         btn.set_has_frame(False)
         btn.set_valign(Gtk.Align.CENTER)
         btn.set_halign(Gtk.Align.CENTER)
-        lbl = Gtk.Label(label=icon)
-        lbl.set_valign(Gtk.Align.CENTER)
-        lbl.set_halign(Gtk.Align.CENTER)
-        lbl.add_css_class("btn-icon")
-        btn.set_child(lbl)
+        btn.set_size_request(SIZE, SIZE)
+
+        da = Gtk.DrawingArea()
+        da.set_size_request(SIZE, SIZE)
+        da.set_halign(Gtk.Align.FILL)
+        da.set_valign(Gtk.Align.FILL)
+
+        def draw(widget, cr, w, h):
+            layout = PangoCairo.create_layout(cr)
+            layout.set_text(icon, -1)
+            fd = Pango.FontDescription.from_string("Symbols Nerd Font Mono 13")
+            layout.set_font_description(fd)
+            # Usar ink extents para centrado visual real (no bounding box)
+            ink, _ = layout.get_pixel_extents()
+            # ink.x, ink.y son el offset del glyph dentro del bounding box
+            x = (w - ink.width) / 2 - ink.x
+            y = (h - ink.height) / 2 - ink.y
+            cr.set_source_rgba(r, g, b, 1.0)
+            cr.move_to(x, y)
+            PangoCairo.show_layout(cr, layout)
+
+        da.set_draw_func(draw)
+        btn.set_child(da)
         return btn
 
     def _build(self):
@@ -282,7 +317,7 @@ class WifiPanel(Gtk.Window):
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scroll.set_max_content_height(260)
+        scroll.set_max_content_height(200)
         scroll.set_propagate_natural_height(True)
         self._root.append(scroll)
 
@@ -308,7 +343,7 @@ class WifiPanel(Gtk.Window):
 
         current_info = get_current()
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        row.set_spacing(8)
+        row.set_spacing(2)
         row.set_valign(Gtk.Align.CENTER)
 
         if current_info:
@@ -398,62 +433,45 @@ class WifiPanel(Gtk.Window):
 
         row.append(info)
 
-        btn = self._icon_button("", "btn-connect")
-        btn.connect("clicked", lambda _, s=net["ssid"], h=bool(net["security"]): self._connect(s, h))
-        row.append(btn)
+        gesture = Gtk.GestureClick()
+        gesture.connect("released", lambda g, n, x, y, s=net["ssid"], h=bool(net["security"]), r=row: self._cancel_pass() if self._pending_ssid == s else self._connect(s, h, r))
+        row.add_controller(gesture)
+        row.set_cursor(Gdk.Cursor.new_from_name("pointer"))
 
         return row
 
-    def _connect(self, ssid, has_security):
+    def _connect(self, ssid, has_security, row=None):
         def try_it():
             r = subprocess.run(["nmcli", "dev", "wifi", "connect", ssid], capture_output=True, text=True)
             if r.returncode == 0:
                 GLib.idle_add(self._on_ok, ssid)
             elif has_security:
-                GLib.idle_add(self._show_pass, ssid)
+                GLib.idle_add(self._show_pass, ssid, row)
             else:
                 GLib.idle_add(self._on_err, ssid)
         threading.Thread(target=try_it, daemon=True).start()
 
-    def _show_pass(self, ssid):
+    def _show_pass(self, ssid, anchor_row=None):
         self._pending_ssid = ssid
         if self._pass_box:
-            self._root.remove(self._pass_box)
+            try: self._list.remove(self._pass_box)
+            except: pass
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         box.add_css_class("password-box")
         self._pass_box = box
 
-        lbl = Gtk.Label(label=f"contraseña — {ssid}")
-        lbl.add_css_class("password-label")
-        lbl.set_xalign(0)
-        box.append(lbl)
-
         entry = Gtk.Entry()
         entry.set_visibility(False)
-        entry.set_placeholder_text("••••••••")
+        entry.set_placeholder_text("contraseña")
         entry.add_css_class("password-entry")
         entry.connect("activate", lambda e: self._confirm_pass(e.get_text()))
         box.append(entry)
 
-        btns = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        btns.set_spacing(8)
-        btns.set_margin_top(6)
-        box.append(btns)
-
-        cancel = Gtk.Button(label="cancelar")
-        cancel.add_css_class("btn-footer")
-        cancel.connect("clicked", lambda _: self._cancel_pass())
-        btns.append(cancel)
-
-        ok = Gtk.Button(label="conectar →")
-        ok.add_css_class("btn-confirm")
-        ok.connect("clicked", lambda _: self._confirm_pass(entry.get_text()))
-        btns.append(ok)
-
-        # Insertar antes del footer
-        footer = self._root.get_last_child()
-        self._root.insert_child_after(box, footer.get_prev_sibling())
+        if anchor_row:
+            self._list.insert_child_after(box, anchor_row)
+        else:
+            self._list.append(box)
         entry.grab_focus()
 
     def _confirm_pass(self, pw):
@@ -468,7 +486,8 @@ class WifiPanel(Gtk.Window):
 
     def _cancel_pass(self):
         if self._pass_box:
-            self._root.remove(self._pass_box)
+            try: self._list.remove(self._pass_box)
+            except: pass
             self._pass_box = None
         self._pending_ssid = None
 
