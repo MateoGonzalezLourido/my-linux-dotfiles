@@ -38,6 +38,17 @@ window {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.connected-row {
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+    padding: 4px 6px;
+    min-height: 26px;
+}
+
+.connected-row:hover {
+    background-color: rgba(243, 139, 168, 0.08);
+}
+
 .connected-ssid {
     font-size: 12px;
     color: #a6e3a1;
@@ -202,13 +213,19 @@ def get_ip():
     return ""
 
 def get_networks():
+    current = get_current()
+    current_ssid = current[0] if current else None
+
     out = run("nmcli", "--fields", "SSID,SECURITY,SIGNAL,IN-USE", "-t", "dev", "wifi", "list")
-    nets, seen = [], set()
+    nets = []
+    seen = set()
+    if current_ssid:
+        seen.add(current_ssid)
+
     for line in out.splitlines():
         p = line.split(":")
         if len(p) < 4: continue
         ssid, sec, sig_s, active = p[0], p[1], p[2], p[3]
-        if active == "*": continue
         if not ssid or ssid in seen: continue
         seen.add(ssid)
         try: sig = int(sig_s)
@@ -365,9 +382,12 @@ class WifiPanel(Gtk.Window):
             info.append(s)
 
             row.append(info)
-            btn = self._icon_button("󰖪", "btn-disconnect")
-            btn.connect("clicked", self._disconnect)
-            row.append(btn)
+
+            gesture = Gtk.GestureClick()
+            gesture.connect("released", lambda g, n, x, y: self._disconnect(None))
+            row.add_controller(gesture)
+            row.add_css_class("connected-row")
+            row.set_cursor(Gdk.Cursor.new_from_name("pointer"))
         else:
             l = Gtk.Label(label="sin conexión")
             l.add_css_class("disconnected-label")
@@ -375,15 +395,30 @@ class WifiPanel(Gtk.Window):
             l.set_hexpand(True)
             row.append(l)
 
+        btn_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        btn_row.set_spacing(2)
+        btn_row.set_valign(Gtk.Align.CENTER)
+
         r = self._icon_button("󰑐", "btn-footer")
         r.connect("clicked", lambda _: self._load_networks())
-        row.append(r)
+        btn_row.append(r)
 
         a = self._icon_button("󰒓", "btn-footer")
         a.connect("clicked", self._open_nmtui)
-        row.append(a)
+        btn_row.append(a)
 
-        self._header_box.append(row)
+        outer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        outer.set_spacing(6)
+        row.set_hexpand(False)
+        row.set_size_request(140, -1)
+        row.set_valign(Gtk.Align.FILL)
+        btn_row.set_valign(Gtk.Align.FILL)
+        row.set_valign(Gtk.Align.FILL)
+        btn_row.set_valign(Gtk.Align.FILL)
+        outer.set_valign(Gtk.Align.FILL)
+        outer.append(row)
+        outer.append(btn_row)
+        self._header_box.append(outer)
 
     def _load_networks(self):
         threading.Thread(target=lambda: GLib.idle_add(self._populate, get_networks()), daemon=True).start()
