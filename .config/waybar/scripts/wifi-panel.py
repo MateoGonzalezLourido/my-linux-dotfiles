@@ -277,8 +277,16 @@ class WifiPanel(Gtk.Window):
         self.add_controller(key)
 
         # Foco: cierra si se pierde
-        self.connect("notify::is-active", lambda w, p: self.close() if not self.is_active() else None)
-
+        def on_focus_lost(w, p):
+            if not self.is_active():
+                try:
+                    import time
+                    with open("/tmp/wifi-panel-close.ts", "w") as f:
+                        f.write(str(time.time()))
+                except:
+                    pass
+                self.close()
+        self.connect("notify::is-active", on_focus_lost)
 
         self._build()
         self._load_networks()
@@ -609,9 +617,26 @@ class App(Gtk.Application):
         super().__init__(application_id="com.waybar.wifipanel")
 
     def do_activate(self):
-        win = WifiPanel(self)
-        win.present()
+        windows = self.get_windows()
+        if windows:
+            # Si ya hay una ventana (panel abierto), la cerramos (Flip-Flop)
+            for win in windows:
+                win.close()
+        else:
+            win = WifiPanel(self)
+            win.present()
 
 
 if __name__ == "__main__":
+    import time, os
+    try:
+        with open("/tmp/wifi-panel-close.ts", "r") as f:
+            last_closed = float(f.read().strip())
+        if time.time() - last_closed < 0.3:
+            # Evita que el botón de Waybar reabra el panel instantáneamente si fue él quien causó la pérdida de foco
+            os.remove("/tmp/wifi-panel-close.ts")
+            sys.exit(0)
+    except:
+        pass
+
     App().run(sys.argv)
