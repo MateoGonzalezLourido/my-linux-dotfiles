@@ -262,6 +262,8 @@ class WifiPanel(Gtk.Window):
         self.set_size_request(220, -1)
         self._pending_ssid = None
         self._pass_box = None
+        self._scan_anim_id = None
+        self._scan_phase = 0.0
 
         # CSS
         p = Gtk.CssProvider()
@@ -333,9 +335,68 @@ class WifiPanel(Gtk.Window):
         return btn
 
     def _build(self):
+        from gi.repository import Pango, PangoCairo
+        import math
+
+        overlay = Gtk.Overlay()
+        self.set_child(overlay)
+
         self._root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._root.add_css_class("panel-box")
-        self.set_child(self._root)
+        overlay.set_child(self._root)
+
+        # DrawingArea para el borde animado
+        self._border_da = Gtk.DrawingArea()
+        self._border_da.set_visible(False)
+        self._border_da.set_can_target(False)  # no intercepta clicks
+        self._border_da.set_halign(Gtk.Align.FILL)
+        self._border_da.set_valign(Gtk.Align.FILL)
+
+        def draw_border(widget, cr, w, h):
+            import math
+            import cairo
+            phase = self._scan_phase
+            radius = 12
+            lw = 2.0
+
+            # Trazar el contorno redondeado
+            cr.new_path()
+            cr.arc(w - radius, radius, radius, -math.pi/2, 0)
+            cr.arc(w - radius, h - radius, radius, 0, math.pi/2)
+            cr.arc(radius, h - radius, radius, math.pi/2, math.pi)
+            cr.arc(radius, radius, radius, math.pi, 3*math.pi/2)
+            cr.close_path()
+
+            # Longitud total aproximada del perímetro
+            perimeter = 2*(w + h) - (8 - 2*math.pi)*radius
+
+            cr.set_line_width(lw)
+
+            # Gradiente que rota: colores azul/violeta/cyan
+            colors = [
+                (0.537, 0.706, 0.980),  # #89b4fa azul
+                (0.792, 0.651, 0.969),  # #cba6f7 violeta
+                (0.604, 0.871, 0.855),  # #99d1db cyan
+                (0.537, 0.706, 0.980),  # cierre
+            ]
+
+            # Dibujar el borde con dash animado
+            dash_len = perimeter * 0.35
+            gap_len  = perimeter * 0.65
+            offset   = -phase * perimeter
+
+            cr.set_dash([dash_len, gap_len], offset)
+
+            # Gradiente lineal azul -> violeta -> cyan rotando con phase
+            grad = cairo.LinearGradient(phase * w - w, 0, phase * w, h)
+            grad.add_color_stop_rgba(0.0,  0.537, 0.706, 0.980, 0.9)  # #89b4fa azul
+            grad.add_color_stop_rgba(0.5,  0.792, 0.651, 0.969, 0.9)  # #cba6f7 violeta
+            grad.add_color_stop_rgba(1.0,  0.537, 0.706, 0.980, 0.9)  # cierre azul
+            cr.set_source(grad)
+            cr.stroke()
+
+        self._border_da.set_draw_func(draw_border)
+        overlay.add_overlay(self._border_da)
 
         self._header_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._header_box.add_css_class("header-box")
@@ -434,9 +495,27 @@ class WifiPanel(Gtk.Window):
             self._spinner.start()
         return False
 
+    def _start_scan_anim(self):
+        self._scan_phase = 0.0
+        if hasattr(self, '_scan_anim_id') and self._scan_anim_id:
+            return
+        self._border_da.set_visible(True)
+        def tick():
+            self._scan_phase = (self._scan_phase + 0.03) % 1.0
+            self._border_da.queue_draw()
+            return True  # continuar
+        self._scan_anim_id = GLib.timeout_add(30, tick)
+
+    def _stop_scan_anim(self):
+        if hasattr(self, '_scan_anim_id') and self._scan_anim_id:
+            GLib.source_remove(self._scan_anim_id)
+            self._scan_anim_id = None
+        self._border_da.set_visible(False)
+
     def _load_networks(self, rescan=False):
         if rescan:
             self._show_spinner()
+            self._start_scan_anim()
 
         def worker():
             current_info = get_current(rescan)
@@ -447,6 +526,7 @@ class WifiPanel(Gtk.Window):
                 current_info = get_current(rescan=True)
                 nets = get_networks(rescan=True)
 
+            GLib.idle_add(self._stop_scan_anim)
             GLib.idle_add(self._rebuild_header, current_info)
             GLib.idle_add(self._populate, nets)
         threading.Thread(target=worker, daemon=True).start()
