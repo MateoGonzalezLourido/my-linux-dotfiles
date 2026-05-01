@@ -196,8 +196,9 @@ scrollbar {
 def run(*args):
     return subprocess.run(list(args), capture_output=True, text=True).stdout.strip()
 
-def get_current():
-    for line in run("nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL", "dev", "wifi").splitlines():
+def get_current(rescan=False):
+    rescan_arg = "yes" if rescan else "no"
+    for line in run("nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL", "dev", "wifi", "list", "--rescan", rescan_arg).splitlines():
         if line.startswith("*"):
             parts = line.split(":")
             if len(parts) >= 3:
@@ -212,11 +213,12 @@ def get_ip():
             return line.split(":", 1)[1].split("/")[0]
     return ""
 
-def get_networks():
-    current = get_current()
+def get_networks(rescan=False):
+    current = get_current(rescan=False)
     current_ssid = current[0] if current else None
 
-    out = run("nmcli", "--fields", "SSID,SECURITY,SIGNAL,IN-USE", "-t", "dev", "wifi", "list")
+    rescan_arg = "yes" if rescan else "no"
+    out = run("nmcli", "--fields", "SSID,SECURITY,SIGNAL,IN-USE", "-t", "dev", "wifi", "list", "--rescan", rescan_arg)
     nets = []
     seen = set()
     if current_ssid:
@@ -400,7 +402,7 @@ class WifiPanel(Gtk.Window):
         btn_row.set_valign(Gtk.Align.CENTER)
 
         r = self._icon_button("󰑐", "btn-footer")
-        r.connect("clicked", lambda _: self._load_networks())
+        r.connect("clicked", lambda _: self._load_networks(rescan=True))
         btn_row.append(r)
 
         a = self._icon_button("󰒓", "btn-footer")
@@ -420,8 +422,8 @@ class WifiPanel(Gtk.Window):
         outer.append(btn_row)
         self._header_box.append(outer)
 
-    def _load_networks(self):
-        threading.Thread(target=lambda: GLib.idle_add(self._populate, get_networks()), daemon=True).start()
+    def _load_networks(self, rescan=False):
+        threading.Thread(target=lambda: GLib.idle_add(self._populate, get_networks(rescan)), daemon=True).start()
 
     def _populate(self, nets):
         while c := self._list.get_first_child():
