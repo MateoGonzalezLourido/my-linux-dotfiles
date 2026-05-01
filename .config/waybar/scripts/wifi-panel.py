@@ -419,11 +419,19 @@ class WifiPanel(Gtk.Window):
         info.set_hexpand(True)
         info.set_valign(Gtk.Align.CENTER)
 
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         sl = Gtk.Label(label=net["ssid"])
         sl.add_css_class("net-ssid")
         sl.set_xalign(0)
         sl.set_ellipsize(3)
-        info.append(sl)
+        header.append(sl)
+
+        spinner = Gtk.Spinner()
+        spinner.set_margin_start(6)
+        spinner.set_visible(False)
+        header.append(spinner)
+
+        info.append(header)
 
         if net["security"]:
             sec = Gtk.Label(label="󰌾")
@@ -432,6 +440,7 @@ class WifiPanel(Gtk.Window):
             info.append(sec)
 
         row.append(info)
+        row._spinner = spinner
 
         gesture = Gtk.GestureClick()
         gesture.connect("released", lambda g, n, x, y, s=net["ssid"], h=bool(net["security"]), r=row: self._cancel_pass() if self._pending_ssid == s else self._connect(s, h, r))
@@ -441,6 +450,11 @@ class WifiPanel(Gtk.Window):
         return row
 
     def _connect(self, ssid, has_security, row=None):
+        if row and hasattr(row, '_spinner'):
+            row._spinner.set_visible(True)
+            row._spinner.start()
+            self._connecting_spinner = row._spinner
+
         def try_it():
             r = subprocess.run(["nmcli", "dev", "wifi", "connect", ssid], capture_output=True, text=True)
             if r.returncode == 0:
@@ -452,7 +466,14 @@ class WifiPanel(Gtk.Window):
         threading.Thread(target=try_it, daemon=True).start()
 
     def _show_pass(self, ssid, anchor_row=None):
+        if hasattr(self, '_connecting_spinner') and self._connecting_spinner:
+            self._connecting_spinner.stop()
+            self._connecting_spinner.set_visible(False)
+            self._connecting_spinner = None
+
         self._pending_ssid = ssid
+        self._pending_row = anchor_row
+
         if self._pass_box:
             try: self._list.remove(self._pass_box)
             except: pass
@@ -477,7 +498,14 @@ class WifiPanel(Gtk.Window):
     def _confirm_pass(self, pw):
         if not pw or not self._pending_ssid: return
         ssid = self._pending_ssid
+        row = getattr(self, '_pending_row', None)
         self._cancel_pass()
+
+        if row and hasattr(row, '_spinner'):
+            row._spinner.set_visible(True)
+            row._spinner.start()
+            self._connecting_spinner = row._spinner
+
         def do():
             r = subprocess.run(["nmcli", "dev", "wifi", "connect", ssid, "password", pw], capture_output=True, text=True)
             if r.returncode == 0: GLib.idle_add(self._on_ok, ssid)
@@ -490,6 +518,7 @@ class WifiPanel(Gtk.Window):
             except: pass
             self._pass_box = None
         self._pending_ssid = None
+        self._pending_row = None
 
     def _disconnect(self, _):
         def do():
@@ -505,10 +534,20 @@ class WifiPanel(Gtk.Window):
         self._load_networks()
 
     def _on_ok(self, ssid):
+        if hasattr(self, '_connecting_spinner') and self._connecting_spinner:
+            self._connecting_spinner.stop()
+            self._connecting_spinner.set_visible(False)
+            self._connecting_spinner = None
+
         subprocess.Popen(["notify-send", "WiFi", f"✓ Conectado a {ssid}", "--expire-time=3000"])
-        self._refresh()
+        self.close()
 
     def _on_err(self, ssid):
+        if hasattr(self, '_connecting_spinner') and self._connecting_spinner:
+            self._connecting_spinner.stop()
+            self._connecting_spinner.set_visible(False)
+            self._connecting_spinner = None
+
         subprocess.Popen(["notify-send", "WiFi", f"✕ Error conectando a {ssid}", "--expire-time=3000"])
 
     def _open_nmtui(self, _):
