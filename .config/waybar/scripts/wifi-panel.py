@@ -386,10 +386,6 @@ class WifiPanel(Gtk.Window):
         self._header_box.append(row)
 
     def _load_networks(self):
-        while c := self._list.get_first_child():
-            self._list.remove(c)
-        self._list.append(self._spinner_row)
-        self._spinner.start()
         threading.Thread(target=lambda: GLib.idle_add(self._populate, get_networks()), daemon=True).start()
 
     def _populate(self, nets):
