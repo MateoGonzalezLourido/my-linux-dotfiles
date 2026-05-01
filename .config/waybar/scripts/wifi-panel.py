@@ -278,17 +278,42 @@ class WifiPanel(Gtk.Window):
         key.connect("key-pressed", lambda c, k, *a: self.close() or True if k == Gdk.KEY_Escape else False)
         self.add_controller(key)
 
-        # Foco: cierra si se pierde
+        # Foco: cierra si se pierde, pero con delay de 300ms
+        self._focus_timeout_id = None
+
+        def cancel_focus_timeout():
+            if self._focus_timeout_id:
+                GLib.source_remove(self._focus_timeout_id)
+                self._focus_timeout_id = None
+
         def on_focus_lost(w, p):
             if not self.is_active():
-                try:
-                    import time
-                    with open("/tmp/wifi-panel-close.ts", "w") as f:
-                        f.write(str(time.time()))
-                except:
-                    pass
-                self.close()
+                # Al perder el foco, esperamos 300ms antes de cerrar
+                cancel_focus_timeout()
+                
+                def check_focus():
+                    if not self.is_active():
+                        try:
+                            import time
+                            with open("/tmp/wifi-panel-close.ts", "w") as f:
+                                f.write(str(time.time()))
+                        except:
+                            pass
+                        self.close()
+                    self._focus_timeout_id = None
+                    return False
+                
+                self._focus_timeout_id = GLib.timeout_add(300, check_focus)
+            else:
+                # Si recuperamos el foco antes de que pase el tiempo, cancelamos el cierre
+                cancel_focus_timeout()
+
         self.connect("notify::is-active", on_focus_lost)
+
+        # También cancelamos si el ratón entra (aunque no tenga foco de teclado)
+        motion = Gtk.EventControllerMotion()
+        motion.connect("enter", lambda *_: cancel_focus_timeout())
+        self.add_controller(motion)
 
         self._build()
         self._load_networks()
