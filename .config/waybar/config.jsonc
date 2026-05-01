@@ -81,6 +81,7 @@
         "tooltip": false
     },
     "battery": {
+        "interval": 60,
         "states": {
             "warning": 30,
             "critical": 15
@@ -88,7 +89,8 @@
         "format": "{icon} {capacity}%",
         "format-charging": "󰂄 {capacity}%",
         "format-plugged": "󰂄 {capacity}%",
-        "format-alt": "{icon} {time}",
+        "format-alt": "{time}",
+        "format-full": "{icon} {capacity}%",
         "format-icons": [
             "󰂎",
             "󰁺",
@@ -101,7 +103,9 @@
             "󰂁",
             "󰂂",
             "󰁹"
-        ]
+        ],
+        "format-time": "{H}h.{M}min",
+        "tooltip-format": "{time}"
     },
     "cpu": {
         "format": "󰻠 {usage}%",
