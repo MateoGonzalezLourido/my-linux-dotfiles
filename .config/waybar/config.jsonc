@@ -77,7 +77,8 @@
         "format-wifi": "󰤨 {essid}",
         "format-ethernet": "󰈀",
         "format-disconnected": "󰤭 ",
-        "on-click": "LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so python3 ~/.config/waybar/scripts/wifi-panel.py"
+        "on-click": "LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so python3 ~/.config/waybar/scripts/wifi-panel.py",
+        "tooltip": false
     },
     "battery": {
         "states": {

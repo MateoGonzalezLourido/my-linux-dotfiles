@@ -88,11 +88,25 @@ window#waybar.hidden {
     border: none;
 }
 
-#pulseaudio { color: #f9e2af; }
-#network { color: #a6e3a1; }
-#battery { color: #94e2d5; }
-#cpu { color: #fab387; }
-#memory { color: #eba0ac; }
+#pulseaudio {
+    color: #f9e2af;
+}
+
+#network {
+    color: #a6e3a1;
+}
+
+#battery {
+    color: #94e2d5;
+}
+
+#cpu {
+    color: #fab387;
+}
+
+#memory {
+    color: #eba0ac;
+}
 
 #custom-launcher {
     color: #cba6f7;
@@ -135,5 +149,6 @@ tooltip {
 
 tooltip label {
     color: #cdd6f4;
-    padding: 8px;
+    font-size: 11px;
+    padding: 4px;
 }
