@@ -332,7 +332,6 @@ class WifiPanel(Gtk.Window):
         self._header_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._header_box.add_css_class("header-box")
         self._root.append(self._header_box)
-        self._rebuild_header()
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -356,11 +355,10 @@ class WifiPanel(Gtk.Window):
         self._spinner_row.append(lbl)
         self._list.append(self._spinner_row)
 
-    def _rebuild_header(self):
+    def _rebuild_header(self, current_info=None):
         while c := self._header_box.get_first_child():
             self._header_box.remove(c)
 
-        current_info = get_current()
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         row.set_spacing(2)
         row.set_valign(Gtk.Align.CENTER)
@@ -422,9 +420,28 @@ class WifiPanel(Gtk.Window):
         outer.append(btn_row)
         self._header_box.append(outer)
 
-    def _load_networks(self, rescan=False):
-        threading.Thread(target=lambda: GLib.idle_add(self._populate, get_networks(rescan)), daemon=True).start()
+    def _show_spinner(self):
+        if self._spinner_row.get_parent() is None:
+            self._list.prepend(self._spinner_row)
+            self._spinner.start()
+        return False
 
+    def _load_networks(self, rescan=False):
+        if rescan:
+            self._show_spinner()
+
+        def worker():
+            current_info = get_current(rescan)
+            nets = get_networks(rescan)
+            
+            if not nets and not rescan:
+                GLib.idle_add(self._show_spinner)
+                current_info = get_current(rescan=True)
+                nets = get_networks(rescan=True)
+
+            GLib.idle_add(self._rebuild_header, current_info)
+            GLib.idle_add(self._populate, nets)
+        threading.Thread(target=worker, daemon=True).start()
     def _populate(self, nets):
         while c := self._list.get_first_child():
             self._list.remove(c)
@@ -563,8 +580,7 @@ class WifiPanel(Gtk.Window):
         threading.Thread(target=do, daemon=True).start()
 
     def _refresh(self):
-        self._rebuild_header()
-        self._load_networks()
+        self._load_networks(rescan=False)
 
     def _on_ok(self, ssid):
         if hasattr(self, '_connecting_spinner') and self._connecting_spinner:
