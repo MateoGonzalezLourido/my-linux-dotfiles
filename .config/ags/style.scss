@@ -1,0 +1,387 @@
+@use "sass:color";
+
+$bg-bar: rgba(8, 8, 12);
+$bg-pill: rgba(255, 255, 255, 0.07);
+$bg-pill-hover: rgba(0, 0, 0, 0.36);
+$border: rgba(255, 255, 255, 0.308);
+$text: #e2e2e2;
+$text-dim: rgba(226, 226, 226, 0.45);
+$blue: #89b4fa;
+$violet: #cba6f7;
+$red: #f38ba8;
+$orange: #fab387;
+
+// ── Reset botones GTK4 dentro de la bar ───────────────────────────────────────
+// Añadimos el punto (.) antes de Bar para que detecte la clase
+.Bar button,
+.Bar menubutton {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  transition: all 150ms ease;
+}
+
+.Bar button:hover,
+.Bar menubutton:hover {
+  transition: all 150ms ease;
+}
+
+// ── Ventana ───────────────────────────────────────────────────────────────────
+.Bar {
+  background-color: $bg-bar;
+  color: $text;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 42px;
+}
+
+.bar-hidden {
+  opacity: 0;
+}
+
+.bar-visible {
+  opacity: 1;
+}
+
+.Bar>centerbox {
+  padding: 0 15px; // Esto empujará TODO el contenido (reloj incluido) 15px hacia adentro}
+}
+
+// ── Reloj ─────────────────────────────────────────────────────────────────────
+.clock {
+  // Con una barra de 38px, un margen vertical de 4px deja el reloj de 30px de alto
+  margin: 4px 6px;
+  min-height: 0; // Permitimos que el margen controle el tamaño
+
+  font-size: 14px; // Un poco más pequeño para que quepa bien
+  color: #cba6f7;
+  font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono';
+  font-weight: 700;
+  padding: 0 12px;
+  border-radius: 8px; // Estilo píldora
+  background-color: rgba(255, 255, 255, 0.05); // Fondo sutil para ver el área
+
+  &:hover {
+    background-color: $bg-pill-hover;
+  }
+}
+
+
+.stopwatch label {
+  color: #f38ba8;
+  border-color: #f38ba8;
+}
+
+// ── Icono suelto ──────────────────────────────────────────────────────────────
+.icon-bare {
+  color: $text-dim;
+  padding: 0 5px;
+
+  &:hover {
+    color: $text;
+  }
+}
+
+// ── Workspaces ────────────────────────────────────────────────────────────────
+.Workspaces {
+  button {
+    all: unset;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    margin: 0;
+    padding: 4px 8px;
+    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    color: rgba(226, 226, 226, 0.4);
+    font-family: 'JetBrainsMono Nerd Font';
+
+    .ws-id {
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .ws-icons {
+      font-size: 14px;
+      margin-left: 2px;
+    }
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: rgba(226, 226, 226, 0.8);
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
+
+    // Estilo cuando el workspace está activo
+    &.focused {
+      background: linear-gradient(135deg, #89b4fa, #cba6f7);
+      color: #11111b;
+      padding: 4px 10px; // Se expande un poco al activarse
+      box-shadow: 0 4px 12px rgba(137, 180, 250, 0.3);
+
+      .ws-id {
+        color: #11111b;
+      }
+
+      .ws-icons {
+        color: #11111b;
+      }
+    }
+  }
+}
+
+
+// ── App en focus ──────────────────────────────────────────────────────────────
+.focused-client {
+  padding: 0 6px;
+  color: $text;
+  font-size: 14px;
+}
+
+// ── Media ─────────────────────────────────────────────────────────────────────
+.media {
+  background-color: $bg-pill;
+  border-radius: 8px;
+  border: 1px solid $border;
+  padding: 3px 10px;
+
+  .media-icon {
+    color: $blue;
+    margin-right: 6px;
+  }
+
+  .media-title {
+    color: $text;
+    margin-right: 8px;
+  }
+
+  button {
+    color: $text-dim;
+    padding: 0 4px;
+
+    &:hover {
+      color: $text;
+    }
+  }
+}
+
+// ── Batería ───────────────────────────────────────────────────────────────────
+.battery {
+  background-color: $bg-pill;
+  border-radius: 8px;
+  border: 1px solid $border;
+  padding: 3px 10px;
+  color: $text;
+  margin: 0 2px;
+
+  &.critical {
+    background-color: rgba(243, 139, 168, 0.10);
+    border-color: $red;
+    color: $red;
+  }
+}
+
+// ── CPU/RAM ───────────────────────────────────────────────────────────────────
+.cpuram {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  padding: 1px 10px;
+  margin: 0 2px;
+
+  label {
+    margin: 0 1px;
+    color: #e2e2e2;
+    font-family: 'JetBrains Mono';
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .icon {
+    color: #fab387;
+    font-family: 'JetBrainsMono Nerd Font';
+    font-size: 14px;
+  }
+
+  &:hover {
+    background-color: $bg-pill-hover;
+  }
+}
+
+// ── Grabación ────────────────────────────────────────────────────────────────
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.recording {
+  color: $red;
+  padding: 0 5px;
+  animation: pulse 1s infinite;
+}
+
+// ── Notificaciones ────────────────────────────────────────────────────────────
+.notifications {
+  padding: 0 5px;
+  color: $text-dim;
+  margin: 0 1px;
+
+  &.has-notifs {
+    color: $violet;
+  }
+
+  .badge {
+    color: $violet;
+    font-size: 10px;
+    margin-left: 2px;
+  }
+}
+
+// ── Red-network ───────────────────────────────────────────────────────────────────────
+.network {
+  padding: 0 5px;
+  color: $blue;
+  margin: 0 1px;
+
+  &.disconnected {
+    color: $text-dim;
+  }
+}
+
+// ── Volumen ───────────────────────────────────────────────────────────────────
+.volume {
+  padding: 0 5px;
+  color: $text;
+  margin: 0 1px;
+
+  &.muted {
+    color: $text-dim;
+  }
+}
+
+// ── Bluetooth ─────────────────────────────────────────────────────────────────
+.bluetooth {
+  color: $blue;
+  padding: 0 5px;
+  margin: 0 1px;
+}
+
+// ── Power ─────────────────────────────────────────────────────────────────────
+.power {
+  color: $red;
+  padding: 0 5px;
+  margin-left: 2px;
+
+
+
+  &:hover {
+    
+  }
+}
+
+.bt-power {
+  border: none;
+  padding: 0 6px;
+  margin: 0 1px;
+  border-radius: 8px;
+
+  font-family: 'JetBrainsMono Nerd Font';
+  font-size: 15px;
+  color: #f38ba8;
+
+  &:hover {
+    color: color.adjust(rgba(225, 52, 101, 0.753), $lightness: 10%);
+  }
+}
+
+// ── Calendario ────────────────────────────────────────────────────────────────
+.calendar-popover {
+  background: transparent;
+  padding: 0;
+
+  contents {
+    background: rgba(24, 24, 37, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(137, 180, 250, 0.2);
+    border-radius: 10px; // Un poco menos redondeado para ser más compacto
+    padding: 6px; // Reducido de 12px
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    margin: 4px; // Menos margen
+  }
+
+  arrow {
+    background: rgba(24, 24, 37, 0.95);
+    border: 1px solid rgba(137, 180, 250, 0.2);
+  }
+}
+
+.calendar-widget {
+  background: transparent;
+  color: $text;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
+  font-size: 12px; // Reducido de 14px
+
+  header {
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 4px; // Reducido de 10px
+    padding-bottom: 2px;
+
+    button {
+      color: $blue;
+      padding: 2px; // Reducido de 5px
+      border-radius: 4px;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    }
+
+    label {
+      font-weight: 800;
+      color: $violet;
+      font-size: 13px; // Reducido de 16px
+    }
+  }
+
+  grid {
+    label.day-name {
+      color: $orange;
+      font-weight: 700;
+      padding: 4px; // Reducido de 8px
+      opacity: 0.8;
+    }
+
+    label.day-number {
+      padding: 4px; // Reducido de 8px
+      border-radius: 6px;
+      min-width: 24px; // Asegura que los días no se peguen pero sean pequeños
+      min-height: 24px;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      &.today {
+        background: $blue;
+        color: #11111b;
+        font-weight: 800;
+        box-shadow: 0 2px 8px rgba(137, 180, 250, 0.4);
+      }
+
+      &.other-month {
+        color: $text-dim;
+        opacity: 0.3;
+      }
+    }
+  }
+}
