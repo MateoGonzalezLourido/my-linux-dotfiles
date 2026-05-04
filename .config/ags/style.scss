@@ -37,7 +37,7 @@ $orange: #fab387;
   font-size: 15px;
   font-weight: 600;
   transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 42px;
+  min-height: 38px;
 }
 
 .bar-hidden {
@@ -49,7 +49,7 @@ $orange: #fab387;
 }
 
 .Bar>centerbox {
-  padding: 0 15px; // Esto empujará TODO el contenido (reloj incluido) 15px hacia adentro}
+  padding: 0 13px; // Esto empujará TODO el contenido (reloj incluido) hacia adentro}
 }
 
 // ── Reloj ─────────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ $orange: #fab387;
   font-weight: 700;
   padding: 0 12px;
   border-radius: 8px; // Estilo píldora
-  min-height: 42px;
+  min-height: 38px;
 
   &:hover {
     background-color: $bg-pill-hover;
@@ -89,7 +89,7 @@ $orange: #fab387;
 .own-functions {
   border: none;
   padding: 0 2px;
-  min-height: 42px;
+  min-height: 38px;
 
   & label {
     font-family: 'JetBrainsMono Nerd Font';
@@ -188,17 +188,29 @@ $orange: #fab387;
 
 // ── Batería ───────────────────────────────────────────────────────────────────
 .battery {
-  background-color: $bg-pill;
-  border-radius: 8px;
-  border: 1px solid $border;
-  padding: 3px 3px;
   color: $text;
   font-size: 13px;
+  font-family: 'JetBrainsMono Nerd Font';
 
-  &.critical {
-    background-color: rgba(243, 139, 168, 0.10);
-    border-color: $red;
-    color: $red;
+  &.icon-critical {
+    color: #f38ba8;
+  }
+
+  &.label-critical {
+    color: #f38ba8;
+  }
+
+  &.icon-normal {
+    color: #e2e2e2;
+  }
+
+  &.label-normal {
+    color: #e2e2e2;
+  }
+
+  &.level-battery {
+    font-size: 12px;
+    font-weight: 400;
   }
 }
 
@@ -207,9 +219,9 @@ $orange: #fab387;
   border-radius: 8px;
   padding: 1px 6px;
   margin: 0 2px 0px 0px;
+  background-color: $orange;
 
   label {
-    margin: 0 1px;
     color: #e2e2e2;
     font-family: 'JetBrains Mono';
     font-size: 12px;
@@ -220,6 +232,7 @@ $orange: #fab387;
     color: #87fae9;
     font-family: 'JetBrainsMono Nerd Font';
     font-size: 14px;
+    margin: 0 1px 0px 2px;
   }
 
   &:hover {
@@ -229,14 +242,22 @@ $orange: #fab387;
 
 //bar pill
 .bar-pill {
-  padding: 3px 10px;
-  font-size: 13px;
+  font-size: 14px;
   color: $text;
-  min-height: 42px;
+  border-radius: 8px;
+  background-color: $violet;
+  &:hover {
+    background-color: $bg-pill-hover;
+  }
 
-  & button {
-    width: 8px;
+  & button,
+  box {
     margin: 0;
+    background-color: red;
+    padding: 0px 4px;
+    min-width: 16px;
+    border-radius: 0px;
+    border: none;
   }
 }
 
@@ -297,12 +318,11 @@ $orange: #fab387;
 // ── Red-network ───────────────────────────────────────────────────────────────────────
 .network {
   color: #87fae9;
-  width: 8px;
   font-family: 'JetBrainsMono Nerd Font';
   font-size: 14px;
 
   & .network-icon-on {
-    color: #89b4fa;
+    color: #87fae9;
   }
 
   & .network-icon-off {
@@ -317,9 +337,28 @@ $orange: #fab387;
 // ── Volumen ───────────────────────────────────────────────────────────────────
 .volume {
   color: $text;
+  font-family: 'JetBrainsMono Nerd Font';
+  font-size: 15px;
+  color: #e2e2e2;
 
   &.muted {
     color: $text-dim;
+  }
+
+  &.bt-muted {
+    color: rgba(226, 226, 226, 0.45);
+  }
+
+  &.bt-normal {
+    color: #e2e2e2;
+  }
+
+  &.icon-muted {
+    color: rgba(226, 226, 226, 0.45);
+  }
+
+  &.icon-normal {
+    color: #e2e2e2;
   }
 }
 
@@ -330,10 +369,9 @@ $orange: #fab387;
 
 // ── Power ─────────────────────────────────────────────────────────────────────
 .bt-power {
-  min-height: 42px;
-  width: 8px;
+  padding: 3px;
   margin-left: 4px;
-  border-radius: 8px;
+  border-radius: 4px;
   border: none;
   font-family: 'JetBrainsMono Nerd Font';
   font-size: 15px;

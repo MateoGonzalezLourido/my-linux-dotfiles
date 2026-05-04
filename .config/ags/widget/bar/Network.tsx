@@ -14,7 +14,7 @@ function strengthIcon(s: number) {
 export default function Network() {
   const network = AstalNetwork.get_default()
   const wifi    = network.wifi
-  if (!wifi) return <label css={`${BTN} ${ICON_OFF}`} label="󰤭" />
+  if (!wifi) return <label cssClasses={["disconnected"]} label="󰤭" />
 
   const strength = createBinding(wifi, "strength")
   const internet = createBinding(wifi, "internet")

@@ -1,7 +1,7 @@
 import GLib from "gi://GLib"
-import { createState,createEffect } from "ags"
+import { createState, createEffect } from "ags"
 import { Gtk } from "ags/gtk4"
-import { barVisible,widgetsRefresh} from "../state.tsx";
+import { barVisible, widgetsRefresh } from "../state.tsx";
 
 let cacheLastTimeRendered = ""
 /*NOTA: EL RELOJ NO SE PARA PORQUE SU INTERVAL ES DE 1 MINUTO, EL COSTE ES NULO, SOLO PARAMOS EL RENDER */
@@ -12,16 +12,18 @@ export default function Clock() {
   const [running, setRunning] = createState(false)
   let swInterval: number | null = null
   let startTime = 0
+  //formato del reloj
+  const string_clock = () => {
+    const string = GLib.DateTime.new_now_local().format("%H:%M") ?? ""
+    if (barVisible()) cacheLastTimeRendered = string
+    return string
+  }
   //logica de timers para actualizar el reloj
   GLib.timeout_add(GLib.PRIORITY_DEFAULT, (60 - now.get_second()) * 1000, () => {
-    const t = GLib.DateTime.new_now_local().format("%H:%M") ?? ""
-    setTime(t)
-    if (barVisible()) cacheLastTimeRendered = t
+    setTime(string_clock())
 
     GLib.timeout_add(GLib.PRIORITY_DEFAULT, 60000, () => {
-      const t = GLib.DateTime.new_now_local().format("%H:%M") ?? ""
-      setTime(t)
-      if (barVisible()) cacheLastTimeRendered = t
+      setTime(string_clock())
       return GLib.SOURCE_CONTINUE
     })
 
@@ -32,15 +34,17 @@ export default function Clock() {
     const h = Math.floor(secs / 3600)
     const m = Math.floor((secs % 3600) / 60)
     const s = secs % 60
-    return h > 0
+    const string = h > 0
       ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
       : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+    if (barVisible()) cacheLastTimeRendered = string
+    return string
+
   }
 
   function tick() {
     const elapsed = Date.now() - startTime
     setStopwatch(Math.round(elapsed / 1000))
-    console.log("tick:", stopwatch(), "visible:", barVisible())
     const nextTick = 1000 - (elapsed % 1000)
     swInterval = GLib.timeout_add(GLib.PRIORITY_HIGH, nextTick, () => {
       tick()

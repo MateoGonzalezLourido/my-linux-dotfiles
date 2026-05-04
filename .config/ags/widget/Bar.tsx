@@ -13,10 +13,9 @@ import Network from "./bar/Network"
 import Volume from "./bar/Volume"
 import Battery from "./bar/Battery"
 import CpuRam from "./bar/CpuRam"
-import Recording from "./bar/Recording"
 import Notifications from "./bar/Notifications"
 import PowerButton from "./bar/PowerButton"
-
+import Recording from "./bar/Recording"
 import { setBarVisible, setWidgetsRefresh } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
@@ -24,7 +23,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   const [visible, setVisible] = createState(false) //asi ya aparece oculto, si esta en true tienes que pasar el raton por el waybar y sacarlo para que se oculte
   let hideTimer: ReturnType<typeof setTimeout> | null = null
   let showTimer: ReturnType<typeof setTimeout> | null = null
-  const BAR_HEIGHT = 42
+  const BAR_HEIGHT = 38
 
   function show() {
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
@@ -99,14 +98,14 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       <box $type="end" halign={Gtk.Align.START} spacing={6} css="margin-left: 20px;">
         <SystemTray />
         <Bluetooth />
-        <box cssClasses={["bar-pill"]} spacing={4}>
+        <box cssClasses={["bar-pill"]}>
           <Notifications />
           <Network />
           <Volume />
           <Battery />
         </box>
         <CpuRam />
-        <Recording />
+        <Recording/>
         <PowerButton />
       </box>
     </centerbox>

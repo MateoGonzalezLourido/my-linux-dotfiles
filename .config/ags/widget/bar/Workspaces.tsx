@@ -90,12 +90,12 @@ const getIcons = (clients: any[]): string[] => {
     .filter(c => c.class)
     .map(c => {
       const cls: string = c.class.toLowerCase()
+      //hay un bug de firefo, se duplica raro el icono, asi que forzamos el icono de firefox para cualquier clase que lo contenga (funcionar funcionalmente pero no es lo ideal, habria que investigar por que se duplica asi y arreglarlo de raiz)
       if (cls.includes("firefox")) return APP_ICONS["firefox"]
       return APP_ICONS[cls] || "󰣆"
     })
     .filter((icon, index, self) => self.indexOf(icon) === index)
 }
-// ... (APP_ICONS y getIcons se mantienen igual)
 
 function WsButton({ ws, focusedId }: { ws: any, focusedId: any }) {
   const [hovered, setHovered] = createState<boolean>(false)
@@ -137,7 +137,7 @@ function WsButton({ ws, focusedId }: { ws: any, focusedId: any }) {
     </button>
   )
 }
-let cacheLastTimeRendered = []
+const [cacheLastTimeRendered, setCacheLastTimeRendered] = createState<any[]>([])//hay que crealo signal para no romper el render
 export default function Workspaces() {
   const hypr = AstalHyprland.get_default()
 
@@ -175,13 +175,11 @@ export default function Workspaces() {
     const shouldDeduplicate = visibleWss.length > 5
 
     // Añadimos esta propiedad a cada objeto para que el botón sepa qué hacer
-    setWss(visibleWss.map(ws => ({ ...ws, shouldDeduplicate })))
-    //guardamos el ultimo render en cache para congelar el render cuando la barra no este visible
-    if(barVisible()){
-      cacheLastTimeRendered = wss()
-    }
+    const newWss = visibleWss.map(ws => ({ ...ws, shouldDeduplicate }))
+    setWss(newWss)    //guardamos el ultimo render en cache para congelar el render cuando la barra no este visible
+    if (barVisible()) setCacheLastTimeRendered(newWss)  // ← el valor nuevo, no wss()
   }
-  
+
   // Nos suscribimos a los cambios relevantes de Hyprland para actualizar la lista de workspaces sin timers
   hypr.connect("notify::workspaces", update)
   hypr.connect("notify::focused-workspace", update)
@@ -191,7 +189,7 @@ export default function Workspaces() {
 
   return (
     <box cssClasses={["Workspaces"]} spacing={4}>
-      <For each={barVisible() ? wss : cacheLastTimeRendered}>
+      <For each={() => barVisible() ? wss() : cacheLastTimeRendered()}>
         {(ws) => <WsButton ws={ws} focusedId={focusedId} />}
       </For>
     </box>
