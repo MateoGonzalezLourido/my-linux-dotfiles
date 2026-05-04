@@ -218,8 +218,7 @@ $orange: #fab387;
 .cpuram {
   border-radius: 8px;
   padding: 1px 6px;
-  margin: 0 2px 0px 0px;
-  background-color: $orange;
+  margin: 4px 2px;
 
   label {
     color: #e2e2e2;
@@ -245,7 +244,8 @@ $orange: #fab387;
   font-size: 14px;
   color: $text;
   border-radius: 8px;
-  background-color: $violet;
+  margin: 4px 2px;
+
   &:hover {
     background-color: $bg-pill-hover;
   }
@@ -253,7 +253,7 @@ $orange: #fab387;
   & button,
   box {
     margin: 0;
-    background-color: red;
+    background-color: transparent;
     padding: 0px 4px;
     min-width: 16px;
     border-radius: 0px;
@@ -277,6 +277,7 @@ $orange: #fab387;
 .recording {
   color: $red;
   padding: 0 5px;
+  margin: 4px 0;
   animation: pulse 1s infinite;
 }
 
@@ -365,12 +366,15 @@ $orange: #fab387;
 // ── Bluetooth ─────────────────────────────────────────────────────────────────
 .bluetooth {
   color: $blue;
+  margin: 4px 0;
 }
 
 // ── Power ─────────────────────────────────────────────────────────────────────
 .bt-power {
-  padding: 3px;
-  margin-left: 4px;
+  padding: 0;
+  margin: 4px;
+  min-width: 30px;
+  min-height: 30px;
   border-radius: 4px;
   border: none;
   font-family: 'JetBrainsMono Nerd Font';
@@ -382,6 +386,7 @@ $orange: #fab387;
     color: color.adjust(rgb(0, 0, 0), $lightness: 10%);
   }
 }
+
 
 // ── Calendario ────────────────────────────────────────────────────────────────
 .calendar-popover {
