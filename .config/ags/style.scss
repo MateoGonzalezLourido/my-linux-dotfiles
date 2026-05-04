@@ -56,15 +56,13 @@ $orange: #fab387;
 .clock {
   // Con una barra de 38px, un margen vertical de 4px deja el reloj de 30px de alto
   margin: 4px 6px;
-  min-height: 0; // Permitimos que el margen controle el tamaño
-
   font-size: 14px; // Un poco más pequeño para que quepa bien
   color: #cba6f7;
   font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono';
   font-weight: 700;
   padding: 0 12px;
   border-radius: 8px; // Estilo píldora
-  background-color: rgba(255, 255, 255, 0.05); // Fondo sutil para ver el área
+  min-height: 42px;
 
   &:hover {
     background-color: $bg-pill-hover;
@@ -84,6 +82,26 @@ $orange: #fab387;
 
   &:hover {
     color: $text;
+  }
+}
+
+//own funcions
+.own-functions {
+  border: none;
+  padding: 0 2px;
+  min-height: 42px;
+
+  & label {
+    font-family: 'JetBrainsMono Nerd Font';
+    font-size: 16px;
+    color: #89b4fa;
+    border: none;
+    background: transparent;
+    padding: 0 4px;
+  }
+
+  &:hover {
+    background-color: $bg-pill-hover;
   }
 }
 
@@ -146,7 +164,7 @@ $orange: #fab387;
   background-color: $bg-pill;
   border-radius: 8px;
   border: 1px solid $border;
-  padding: 3px 10px;
+  padding: 3px 3px;
 
   .media-icon {
     color: $blue;
@@ -173,9 +191,9 @@ $orange: #fab387;
   background-color: $bg-pill;
   border-radius: 8px;
   border: 1px solid $border;
-  padding: 3px 10px;
+  padding: 3px 3px;
   color: $text;
-  margin: 0 2px;
+  font-size: 13px;
 
   &.critical {
     background-color: rgba(243, 139, 168, 0.10);
@@ -187,26 +205,38 @@ $orange: #fab387;
 // ── CPU/RAM ───────────────────────────────────────────────────────────────────
 .cpuram {
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  padding: 1px 10px;
-  margin: 0 2px;
+  padding: 1px 6px;
+  margin: 0 2px 0px 0px;
 
   label {
     margin: 0 1px;
     color: #e2e2e2;
     font-family: 'JetBrains Mono';
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 500;
   }
 
   .icon {
-    color: #fab387;
+    color: #87fae9;
     font-family: 'JetBrainsMono Nerd Font';
     font-size: 14px;
   }
 
   &:hover {
     background-color: $bg-pill-hover;
+  }
+}
+
+//bar pill
+.bar-pill {
+  padding: 3px 10px;
+  font-size: 13px;
+  color: $text;
+  min-height: 42px;
+
+  & button {
+    width: 8px;
+    margin: 0;
   }
 }
 
@@ -233,7 +263,25 @@ $orange: #fab387;
 .notifications {
   padding: 0 5px;
   color: $text-dim;
-  margin: 0 1px;
+
+  & .icon-active {
+    font-family: 'JetBrainsMono Nerd Font';
+    font-size: 14px;
+    color: #cba6f7;
+  }
+
+  & .icon-desactive {
+    font-family: 'JetBrainsMono Nerd Font';
+    font-size: 14px;
+    color: rgba(226, 226, 226, 0.45);
+  }
+
+  & .label-number-notis {
+    font-family: 'JetBrains Mono';
+    font-size: 10px;
+    color: #cba6f7;
+    font-weight: 700;
+  }
 
   &.has-notifs {
     color: $violet;
@@ -248,9 +296,18 @@ $orange: #fab387;
 
 // ── Red-network ───────────────────────────────────────────────────────────────────────
 .network {
-  padding: 0 5px;
-  color: $blue;
-  margin: 0 1px;
+  color: #87fae9;
+  width: 8px;
+  font-family: 'JetBrainsMono Nerd Font';
+  font-size: 14px;
+
+  & .network-icon-on {
+    color: #89b4fa;
+  }
+
+  & .network-icon-off {
+    color: rgba(226, 226, 226, 0.45);
+  }
 
   &.disconnected {
     color: $text-dim;
@@ -259,9 +316,7 @@ $orange: #fab387;
 
 // ── Volumen ───────────────────────────────────────────────────────────────────
 .volume {
-  padding: 0 5px;
   color: $text;
-  margin: 0 1px;
 
   &.muted {
     color: $text-dim;
@@ -271,35 +326,22 @@ $orange: #fab387;
 // ── Bluetooth ─────────────────────────────────────────────────────────────────
 .bluetooth {
   color: $blue;
-  padding: 0 5px;
-  margin: 0 1px;
 }
 
 // ── Power ─────────────────────────────────────────────────────────────────────
-.power {
-  color: $red;
-  padding: 0 5px;
-  margin-left: 2px;
-
-
-
-  &:hover {
-    
-  }
-}
-
 .bt-power {
-  border: none;
-  padding: 0 6px;
-  margin: 0 1px;
+  min-height: 42px;
+  width: 8px;
+  margin-left: 4px;
   border-radius: 8px;
-
+  border: none;
   font-family: 'JetBrainsMono Nerd Font';
   font-size: 15px;
-  color: #f38ba8;
+  color: rgb(245, 50, 105);
 
   &:hover {
-    color: color.adjust(rgba(225, 52, 101, 0.753), $lightness: 10%);
+    background: linear-gradient(135deg, #89b4fa, #cba6f7);
+    color: color.adjust(rgb(0, 0, 0), $lightness: 10%);
   }
 }
 

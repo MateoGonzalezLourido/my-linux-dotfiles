@@ -17,6 +17,8 @@ import Recording from "./bar/Recording"
 import Notifications from "./bar/Notifications"
 import PowerButton from "./bar/PowerButton"
 
+import { setBarVisible, setWidgetsRefresh } from "./state";
+
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
   const [visible, setVisible] = createState(false) //asi ya aparece oculto, si esta en true tienes que pasar el raton por el waybar y sacarlo para que se oculte
@@ -27,7 +29,9 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   function show() {
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
     if (showTimer) clearTimeout(showTimer)
+    setWidgetsRefresh(true)
     showTimer = setTimeout(() => {
+      setBarVisible(true)//va antes para que asi aparezcan las cosas ya renderizadas
       //actualizar renders y datos
       setVisible(true)
     }, 200)
@@ -38,7 +42,8 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
       setVisible(false)
-      //reducir timers y renders
+      setWidgetsRefresh(false)
+      setBarVisible(false)
     }, 300)
   }
 
@@ -94,12 +99,8 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       <box $type="end" halign={Gtk.Align.START} spacing={6} css="margin-left: 20px;">
         <SystemTray />
         <Bluetooth />
-        <box
-          css="border-radius: 8px;  padding: 2px 6px; margin: 0 2px;"
-          spacing={4}
-        >
+        <box cssClasses={["bar-pill"]} spacing={4}>
           <Notifications />
-          <label css="color: rgba(255,255,255,0.12); font-size: 11px;" label="|" />
           <Network />
           <Volume />
           <Battery />

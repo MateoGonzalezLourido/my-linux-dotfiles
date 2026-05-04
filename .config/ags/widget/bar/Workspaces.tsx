@@ -2,6 +2,8 @@ import AstalHyprland from "gi://AstalHyprland"
 import { createState, For } from "ags"
 import { Gtk } from "ags/gtk4"
 
+import { barVisible } from "../state.tsx"
+
 interface AppIcons {
   [key: string]: string;
 }
@@ -135,7 +137,7 @@ function WsButton({ ws, focusedId }: { ws: any, focusedId: any }) {
     </button>
   )
 }
-
+let cacheLastTimeRendered = []
 export default function Workspaces() {
   const hypr = AstalHyprland.get_default()
 
@@ -174,8 +176,13 @@ export default function Workspaces() {
 
     // Añadimos esta propiedad a cada objeto para que el botón sepa qué hacer
     setWss(visibleWss.map(ws => ({ ...ws, shouldDeduplicate })))
+    //guardamos el ultimo render en cache para congelar el render cuando la barra no este visible
+    if(barVisible()){
+      cacheLastTimeRendered = wss()
+    }
   }
-
+  
+  // Nos suscribimos a los cambios relevantes de Hyprland para actualizar la lista de workspaces sin timers
   hypr.connect("notify::workspaces", update)
   hypr.connect("notify::focused-workspace", update)
   hypr.connect("notify::clients", update)
@@ -184,7 +191,7 @@ export default function Workspaces() {
 
   return (
     <box cssClasses={["Workspaces"]} spacing={4}>
-      <For each={wss}>
+      <For each={barVisible() ? wss : cacheLastTimeRendered}>
         {(ws) => <WsButton ws={ws} focusedId={focusedId} />}
       </For>
     </box>

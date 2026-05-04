@@ -10,9 +10,6 @@ function strengthIcon(s: number) {
   return "󰤯"
 }
 
-const BTN = "border: none; padding: 0 6px; margin: 0 1px;"
-const ICON_ON  = "font-family: 'JetBrainsMono Nerd Font'; font-size: 14px; color: #89b4fa;"
-const ICON_OFF = "font-family: 'JetBrainsMono Nerd Font'; font-size: 14px; color: rgba(226,226,226,0.45);"
 
 export default function Network() {
   const network = AstalNetwork.get_default()
@@ -24,11 +21,11 @@ export default function Network() {
 
   return (
     <button
-      css={BTN}
+      cssClasses={["network"]}
       onClicked={() => execAsync(["bash", "-c", `${SRC}/scripts/wifi-panel.sh`])}
     >
       <label
-        css={internet((i) => i === AstalNetwork.Internet.CONNECTED ? ICON_ON : ICON_OFF)}
+        cssClasses={internet((i) => i === AstalNetwork.Internet.CONNECTED ? ["network-icon-on"] : ["network-icon-off"])}
         label={strength((s) => strengthIcon(s ?? 0))}
       />
     </button>
