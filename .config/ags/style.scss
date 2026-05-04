@@ -53,7 +53,7 @@ $orange: #fab387;
 }
 
 .Bar>centerbox {
-  padding: 0 13px;
+  padding: 0 15px;
 }
 
 // ── Reloj ─────────────────────────────────────────────────────────────────────
@@ -343,7 +343,7 @@ $orange: #fab387;
 
 .bt-power {
   padding: 0;
-  margin: 4px;
+  margin: 0;
   min-width: 30px;
   min-height: 30px;
   border-radius: 4px;
@@ -351,6 +351,10 @@ $orange: #fab387;
   font-family: 'JetBrainsMono Nerd Font';
   font-size: 15px;
   color: rgb(245, 50, 105);
+
+  label {
+    margin-right: 1px;
+  }
 
   &:hover {
     background: linear-gradient(135deg, #89b4fa, #cba6f7);
@@ -457,25 +461,24 @@ $orange: #fab387;
 .power-button {
   all: unset;
   padding: 20px 40px;
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 80ms ease-in-out;
   color: rgba(226, 226, 226, 0.4);
-  min-width: 120px;
+  min-width: 130px;
 
   .power-icon {
     font-size: 32px;
     color: #ffffff;
-    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 80ms ease-in-out;
     opacity: 0.5;
-    margin-top: 0px;
-    margin-left: -6px;
+    margin: 0 auto;
   }
 
   .power-label {
     font-size: 11px;
     font-weight: 500;
-    margin-top: 5px;
+    margin: 5px auto 0 auto;
     opacity: 0.5; // Visible by default
-    transition: all 150ms ease;
+    transition: all 80ms ease-in-out;
   }
 
   &:hover {
@@ -504,13 +507,14 @@ $orange: #fab387;
       font-size: 55px;
       opacity: 1;
       text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+      margin: 0 auto;
     }
 
     .power-label {
       font-weight: 800;
       font-size: 14px;
       opacity: 1;
-      margin-top: 10px;
+      margin: 10px auto 0 auto;
     }
 
     &:hover {
@@ -527,4 +531,51 @@ $orange: #fab387;
 .power-button:last-child {
   border-top-right-radius: 40px;
   border-bottom-right-radius: 40px;
+}
+// ── OSD (On Screen Display) ──────────────────────────────────────────────────
+.osd-window {
+  background-color: transparent;
+}
+
+.osd-container {
+  background-color: rgba(24, 24, 37, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(137, 180, 250, 0.2);
+  border-radius: 99px;
+  padding: 6px 16px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+}
+
+.osd-icon {
+  font-family: 'JetBrainsMono Nerd Font';
+  font-size: 16px;
+  color: #89b4fa;
+}
+
+.osd-progress-container {
+  min-width: 120px;
+}
+
+progressbar.osd-progress {
+  min-height: 6px;
+  
+  trough {
+    min-height: 6px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  progress {
+    min-height: 6px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #89b4fa, #cba6f7);
+    box-shadow: 0 0 10px rgba(137, 180, 250, 0.5);
+  }
+}
+
+.osd-percentage {
+  font-family: 'JetBrains Mono';
+  font-size: 12px;
+  font-weight: 800;
+  color: #e2e2e2;
 }

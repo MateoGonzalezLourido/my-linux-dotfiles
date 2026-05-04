@@ -9,11 +9,12 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
     const [hovered, setHovered] = createState<string | null>(null)
 
     const handleAction = (command: string) => {
-        setAnyPanelVisible(false)
         execAsync(command)
+            .catch(err => console.error(`Power Action Error: ${err}`))
+        setAnyPanelVisible(false)
     }
 
-    const PowerButtonAction = ({ id, icon, label, command, highlightedClass = "" }: { id: string, icon: string, label: string, command: string, highlightedClass?: string }) => (
+    const PowerButtonAction = ({ id, icon, label, command }: { id: string, icon: string, label: string, command: string }) => (
         <button
             cssClasses={hovered((h) => ["power-button", id, h === id ? "highlighted" : ""])}
             onClicked={() => handleAction(command)}
@@ -23,9 +24,21 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
                 onEnter={() => setHovered(id)}
                 onLeave={() => setHovered(null)}
             />
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={15} halign={Gtk.Align.CENTER} hexpand>
-                <label cssClasses={["power-icon"]} label={icon} xalign={0.5} />
-                <label cssClasses={["power-label"]} label={label} xalign={0.5} />
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={10} halign={Gtk.Align.CENTER} hexpand>
+                <label
+                    cssClasses={["power-icon"]}
+                    label={icon}
+                    halign={Gtk.Align.CENTER}
+                    xalign={0.5}
+                    hexpand
+                />
+                <label
+                    cssClasses={["power-label"]}
+                    label={label}
+                    halign={Gtk.Align.CENTER}
+                    xalign={0.5}
+                    hexpand
+                />
             </box>
         </button>
     )
@@ -60,7 +73,13 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
                 valign={Gtk.Align.FILL}
             >
                 <Gtk.GestureClick
-                    onPressed={() => setAnyPanelVisible(false)}
+                    onPressed={(self, n, x, y) => {
+                        const widget = self.get_widget()
+                        const target = widget.pick(x, y, Gtk.PickFlags.DEFAULT)
+                        if (target === widget || target?.get_css_classes().includes("power-menu-overlay")) {
+                            setAnyPanelVisible(false)
+                        }
+                    }}
                 />
                 <box
                     cssClasses={["power-menu-container"]}
@@ -69,12 +88,9 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
                     hexpand
                     vexpand
                 >
-                    <Gtk.GestureClick
-                        onPressed={() => {}} // Stop propagation
-                    />
-                    
-                    <box 
-                        cssClasses={["power-menu-strip"]} 
+
+                    <box
+                        cssClasses={["power-menu-strip"]}
                         spacing={0}
                         valign={Gtk.Align.CENTER}
                     >

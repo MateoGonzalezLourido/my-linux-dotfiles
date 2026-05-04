@@ -1,12 +1,14 @@
 import AstalWp from "gi://AstalWp"
-import { createBinding } from "ags"
+import { createState } from "ags"
 import { Gtk } from "ags/gtk4"
 
 function volIcon(v: number, muted: boolean) {
   if (muted || v === 0) return "󰝟"
-  if (v < 0.33)         return "󰕿"
-  if (v < 0.66)         return "󰖀"
-  return "󰕾"
+  if (v < 0.20)         return "󰕿"
+  if (v < 0.40)         return "󰖀"
+  if (v < 0.60)         return "󰕾"
+  if (v < 0.80)         return ""
+  return ""
 }
 
 export default function Volume() {
@@ -14,8 +16,16 @@ export default function Volume() {
   const speaker = wp?.audio?.defaultSpeaker
   if (!speaker) return (<box />)
 
-  const vol   = createBinding(speaker, "volume")
-  const muted = createBinding(speaker, "mute")
+  const [icon, setIcon] = createState(volIcon(speaker.volume, speaker.mute))
+  const [muted, setMuted] = createState(speaker.mute)
+
+  const updateVars = () => {
+    setIcon(volIcon(speaker.volume, speaker.mute))
+    setMuted(speaker.mute)
+  }
+
+  speaker.connect("notify::volume", updateVars)
+  speaker.connect("notify::mute", updateVars)
 
   return (
     <button
@@ -24,7 +34,7 @@ export default function Volume() {
     >
       <label
         cssClasses={muted((m) => m ? ["icon-muted"] : ["icon-normal"])}
-        label={vol((v) => volIcon(v, speaker.mute))}
+        label={icon}
       />
       <Gtk.EventControllerScroll
         flags={Gtk.EventControllerScrollFlags.VERTICAL}

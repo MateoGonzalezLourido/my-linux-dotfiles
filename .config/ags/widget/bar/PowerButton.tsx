@@ -4,7 +4,7 @@ export default function PowerButton() {
   return (
     <button
       cssClasses={["bt-power"]}
-      onClicked={() => setAnyPanelVisible(!anyPanelVisible())}
+      onClicked={() => setAnyPanelVisible(true)}
     >
       <label label="󰐥" />
     </button>

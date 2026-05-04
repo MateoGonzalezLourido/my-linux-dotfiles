@@ -20,7 +20,7 @@ import { anyPanelVisible, setBarVisible, setWidgetsRefresh } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
-  const [visible, setVisible] = createState(false) 
+  const [visible, setVisible] = createState(false)
   let hideTimer: ReturnType<typeof setTimeout> | null = null
   let showTimer: ReturnType<typeof setTimeout> | null = null
   const BAR_HEIGHT = 38
@@ -89,7 +89,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       onEnter={show}
       onLeave={scheduleHide}
     />
-    <centerbox css="margin-left: 10px; margin-right: 10px;">
+    <centerbox css="margin-left: 9px; margin-right: 10px;">
       {/* IZQUIERDA */}
       <box $type="start" halign={Gtk.Align.START} spacing={6}>
         <Clock />
