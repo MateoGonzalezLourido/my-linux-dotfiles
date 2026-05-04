@@ -1,5 +1,7 @@
 import { createPoll } from "ags/time"
 import { readFile } from "ags/file"
+import { Gtk, Gdk } from "ags/gtk4"
+import { execAsync } from "ags/process"
 
 function cpuUsage() {
   try {
@@ -27,7 +29,15 @@ export default function CpuRam() {
   const ram = createPoll(0, 4000, ramUsage)
 
   return (
-    <box cssClasses={["cpuram"]} spacing={4}>
+    <box 
+      cssClasses={["cpuram"]} 
+      spacing={4}
+      tooltipText="Right-click to open System Monitor"
+    >
+      <Gtk.GestureClick
+        button={Gdk.BUTTON_SECONDARY}
+        onPressed={() => execAsync("kitty --class floating_terminal -e btop").catch(console.error)}
+      />
       <label cssClasses={["icon"]} label="󰻠" />
       <label cssClasses={["label"]} label={cpu((c) => `${c}%`)} />
       <label cssClasses={[" label"]} label="|" />
