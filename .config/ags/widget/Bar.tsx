@@ -88,14 +88,13 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         <Clock />
         <Functions />
         <Workspaces />
-        {/* ELIMINA ESTA LÍNEA -> <FocusedClient /> */}
       </box>
       {/* CENTRO */}
       <box $type="center" halign={Gtk.Align.CENTER}>
         <MediaPlayer />
       </box>
       {/* DERECHA */}
-      <box $type="end" halign={Gtk.Align.START} spacing={6} css="margin-left: 20px;">
+      <box $type="end" halign={Gtk.Align.END} spacing={6} css="margin-left: 20px;">
         <SystemTray />
         <Bluetooth />
         <box cssClasses={["bar-pill"]}>
@@ -105,7 +104,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           <Battery />
         </box>
         <CpuRam />
-        <Recording/>
+        <Recording />
         <PowerButton />
       </box>
     </centerbox>

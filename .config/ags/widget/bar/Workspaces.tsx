@@ -120,7 +120,7 @@ function WsButton({ ws, focusedId }: { ws: any, focusedId: any }) {
         onEnter={() => setHovered(true)}
         onLeave={() => setHovered(false)}
       />
-      <box spacing={0} css="padding: 0 4px;">
+      <box spacing={0} css="padding: 0 2px;">
         <label cssClasses={["ws-id"]} label={`${ws.id}`} />
         <revealer
           revealChild={iconString((s: string) => s.length > 0)}
@@ -130,7 +130,7 @@ function WsButton({ ws, focusedId }: { ws: any, focusedId: any }) {
           <label
             cssClasses={["ws-icons"]}
             label={iconString}
-            css="margin-left: 6px;"
+            css="margin-left: 4px;"
           />
         </revealer>
       </box>
@@ -188,7 +188,7 @@ export default function Workspaces() {
   update()
 
   return (
-    <box cssClasses={["Workspaces"]} spacing={4}>
+    <box cssClasses={["Workspaces"]} spacing={2}>
       <For each={() => barVisible() ? wss() : cacheLastTimeRendered()}>
         {(ws) => <WsButton ws={ws} focusedId={focusedId} />}
       </For>

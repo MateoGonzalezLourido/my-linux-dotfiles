@@ -1,10 +1,10 @@
-import { execAsync } from "ags/process"
+import { powerMenuVisible, setPowerMenuVisible } from "../state"
 
 export default function PowerButton() {
   return (
     <button
       cssClasses={["bt-power"]}
-      onClicked={() => execAsync(["bash", "-c", `${SRC}/scripts/powermenu.sh`])}
+      onClicked={() => setPowerMenuVisible(!powerMenuVisible())}
     >
       <label label="󰐥" />
     </button>
