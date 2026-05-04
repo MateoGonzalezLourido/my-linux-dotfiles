@@ -1,6 +1,6 @@
 import AstalWp from "gi://AstalWp"
 import { createState } from "ags"
-import { Gtk } from "ags/gtk4"
+import { Gtk, Gdk } from "ags/gtk4"
 
 function volIcon(v: number, muted: boolean) {
   if (muted || v === 0) return "󰝟"
@@ -30,8 +30,11 @@ export default function Volume() {
   return (
     <button
       cssClasses={muted((m) => m ? ["bt-muted"] : ["bt-normal"])}
-      onClicked={() => { speaker.mute = !speaker.mute }}
     >
+      <Gtk.GestureClick
+        button={Gdk.BUTTON_SECONDARY}
+        onPressed={() => { speaker.mute = !speaker.mute }}
+      />
       <label
         cssClasses={muted((m) => m ? ["icon-muted"] : ["icon-normal"])}
         label={icon}
