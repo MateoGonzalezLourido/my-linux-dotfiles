@@ -2,14 +2,14 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import { createState } from "ags"
-import { powerMenuVisible, setPowerMenuVisible } from "../state"
+import { anyPanelVisible, setAnyPanelVisible } from "../state"
 
 export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
     const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
     const [hovered, setHovered] = createState<string | null>(null)
 
     const handleAction = (command: string) => {
-        setPowerMenuVisible(false)
+        setAnyPanelVisible(false)
         execAsync(command)
     }
 
@@ -30,14 +30,14 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
         </button>
     )
 
-    powerMenuVisible.subscribe((v) => {
+    anyPanelVisible.subscribe((v) => {
         if (v) setHovered(null)
     })
 
     return (
         <window
             name="power-menu"
-            visible={powerMenuVisible}
+            visible={anyPanelVisible}
             gdkmonitor={gdkmonitor}
             layer={Astal.Layer.OVERLAY}
             exclusivity={Astal.Exclusivity.IGNORE}
@@ -48,7 +48,7 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
         >
             <Gtk.EventControllerKey
                 onKeyPressed={(self, keyval, keycode, state) => {
-                    setPowerMenuVisible(false)
+                    setAnyPanelVisible(false)
                     return true
                 }}
             />
@@ -60,7 +60,7 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
                 valign={Gtk.Align.FILL}
             >
                 <Gtk.GestureClick
-                    onPressed={() => setPowerMenuVisible(false)}
+                    onPressed={() => setAnyPanelVisible(false)}
                 />
                 <box
                     cssClasses={["power-menu-container"]}

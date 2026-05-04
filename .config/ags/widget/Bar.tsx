@@ -16,11 +16,11 @@ import CpuRam from "./bar/CpuRam"
 import Notifications from "./bar/Notifications"
 import PowerButton from "./bar/PowerButton"
 import Recording from "./bar/Recording"
-import { setBarVisible, setWidgetsRefresh } from "./state";
+import { anyPanelVisible, setBarVisible, setWidgetsRefresh } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
-  const [visible, setVisible] = createState(false) //asi ya aparece oculto, si esta en true tienes que pasar el raton por el waybar y sacarlo para que se oculte
+  const [visible, setVisible] = createState(false) 
   let hideTimer: ReturnType<typeof setTimeout> | null = null
   let showTimer: ReturnType<typeof setTimeout> | null = null
   const BAR_HEIGHT = 38
@@ -30,13 +30,14 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     if (showTimer) clearTimeout(showTimer)
     setWidgetsRefresh(true)
     showTimer = setTimeout(() => {
-      setBarVisible(true)//va antes para que asi aparezcan las cosas ya renderizadas
-      //actualizar renders y datos
+      setBarVisible(true)
       setVisible(true)
     }, 200)
   }
 
   function scheduleHide() {
+    if (anyPanelVisible.get()) return; // No ocultar si hay algún panel abierto
+
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
@@ -45,6 +46,12 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       setBarVisible(false)
     }, 300)
   }
+
+  // Asegurar que la barra se vea cuando algún menú se abre
+  anyPanelVisible.subscribe((v) => {
+    if (v) show();
+    else if (!visible.get()) scheduleHide();
+  })
 
   // 1. La zona sensible debe quedarse SIEMPRE en el borde (marginTop={0})
   // y tener exclusividad NORMAL para no molestar.
