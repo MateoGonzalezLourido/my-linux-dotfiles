@@ -1,13 +1,12 @@
-import { anyPanelVisible, setAnyPanelVisible } from "../state"
+import { openPowerMenu } from "../state"
 
 export default function PowerButton() {
   return (
     <button
       cssClasses={["bt-power"]}
-      onClicked={() => setAnyPanelVisible(true)}
+      onClicked={() => openPowerMenu()}
     >
       <label label="󰐥" />
     </button>
   )
 }
-

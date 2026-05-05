@@ -2,16 +2,33 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import { createState } from "ags"
-import { anyPanelVisible, setAnyPanelVisible } from "../state"
+import { powerMenuVisible, closeAllPanels } from "../state"
 
 export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
-    const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
+    const { TOP, RIGHT } = Astal.WindowAnchor
     const [hovered, setHovered] = createState<string | null>(null)
+    let hoverTimeout: number | null = null
+
+    const clearTimer = () => {
+        if (hoverTimeout !== null) {
+            GLib.source_remove(hoverTimeout)
+            hoverTimeout = null
+        }
+    }
+
+    const startTimer = () => {
+        clearTimer()
+        hoverTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+            closeAllPanels()
+            hoverTimeout = null
+            return GLib.SOURCE_REMOVE
+        })
+    }
 
     const handleAction = (command: string) => {
         execAsync(command)
             .catch(err => console.error(`Power Action Error: ${err}`))
-        setAnyPanelVisible(false)
+        closeAllPanels()
     }
 
     const PowerButtonAction = ({ id, icon, label, command }: { id: string, icon: string, label: string, command: string }) => (
@@ -24,7 +41,7 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
                 onEnter={() => setHovered(id)}
                 onLeave={() => setHovered(null)}
             />
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={10} halign={Gtk.Align.CENTER} hexpand>
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={6} halign={Gtk.Align.CENTER} hexpand>
                 <label
                     cssClasses={["power-icon"]}
                     label={icon}
@@ -43,66 +60,52 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
         </button>
     )
 
-    anyPanelVisible.subscribe((v) => {
-        if (v) setHovered(null)
+    powerMenuVisible.subscribe((v) => {
+        if (!v) setHovered(null)
     })
 
     return (
         <window
             name="power-menu"
-            visible={anyPanelVisible}
+            visible={powerMenuVisible}
             gdkmonitor={gdkmonitor}
-            layer={Astal.Layer.OVERLAY}
-            exclusivity={Astal.Exclusivity.IGNORE}
-            keymode={Astal.Keymode.EXCLUSIVE}
-            anchor={TOP | BOTTOM | LEFT | RIGHT}
+            layer={Astal.Layer.TOP}
+            exclusivity={Astal.Exclusivity.NORMAL}
+            keymode={Astal.Keymode.ON_DEMAND}
+            anchor={TOP | RIGHT}
             application={app}
-            css="background-color: transparent;"
+            marginTop={48}
+            marginRight={8}
+            cssClasses={["power-window"]}
         >
             <Gtk.EventControllerKey
-                onKeyPressed={(self, keyval, keycode, state) => {
-                    setAnyPanelVisible(false)
-                    return true
+                onKeyPressed={(_self, keyval) => {
+                    if (keyval === Gdk.KEY_Escape) { closeAllPanels(); return true }
+                    return false
                 }}
             />
             <box
-                cssClasses={["power-menu-overlay"]}
-                hexpand
-                vexpand
-                halign={Gtk.Align.FILL}
-                valign={Gtk.Align.FILL}
+                cssClasses={["power-menu-container"]}
+                orientation={Gtk.Orientation.VERTICAL}
             >
-                <Gtk.GestureClick
-                    onPressed={(self, n, x, y) => {
-                        const widget = self.get_widget()
-                        const target = widget.pick(x, y, Gtk.PickFlags.DEFAULT)
-                        if (target === widget || target?.get_css_classes().includes("power-menu-overlay")) {
-                            setAnyPanelVisible(false)
-                        }
-                    }}
+                <Gtk.EventControllerMotion
+                    onEnter={clearTimer}
+                    onLeave={startTimer}
                 />
                 <box
-                    cssClasses={["power-menu-container"]}
-                    halign={Gtk.Align.CENTER}
+                    cssClasses={["power-menu-strip"]}
+                    spacing={0}
                     valign={Gtk.Align.CENTER}
-                    hexpand
-                    vexpand
                 >
-
-                    <box
-                        cssClasses={["power-menu-strip"]}
-                        spacing={0}
-                        valign={Gtk.Align.CENTER}
-                    >
-                        <PowerButtonAction id="lock" icon="󰌾" label="Lock" command="hyprlock" />
-                        <PowerButtonAction id="logout" icon="󰍃" label="Logout" command="hyprctl dispatch exit" />
-                        <PowerButtonAction id="suspend" icon="󰏤" label="Suspend" command="systemctl suspend" />
-                        <PowerButtonAction id="shutdown" icon="󰐥" label="Shutdown" command="systemctl poweroff" />
-                        <PowerButtonAction id="hibernate" icon="󰒲" label="Hibernate" command="systemctl hibernate" />
-                        <PowerButtonAction id="reboot" icon="󰜉" label="Reboot" command="systemctl reboot" />
-                    </box>
+                    <PowerButtonAction id="lock" icon="󰌾" label="Lock" command="hyprlock" />
+                    <PowerButtonAction id="logout" icon="󰍃" label="Logout" command="hyprctl dispatch exit" />
+                    <PowerButtonAction id="suspend" icon="󰏤" label="Suspend" command="systemctl suspend" />
+                    <PowerButtonAction id="shutdown" icon="󰐥" label="Shutdown" command="systemctl poweroff" />
+                    <PowerButtonAction id="hibernate" icon="󰒲" label="Hibernate" command="systemctl hibernate" />
+                    <PowerButtonAction id="reboot" icon="󰜉" label="Reboot" command="systemctl reboot" />
                 </box>
             </box>
         </window>
     )
 }
+
