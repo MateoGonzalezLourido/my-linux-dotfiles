@@ -16,7 +16,7 @@ import CpuRam from "./bar/CpuRam"
 import Notifications from "./bar/Notifications"
 import PowerButton from "./bar/PowerButton"
 import Recording from "./bar/Recording"
-import { anyPanelVisible, setBarVisible, setWidgetsRefresh } from "./state";
+import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
@@ -104,12 +104,17 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       <box $type="end" halign={Gtk.Align.END} spacing={6} css="margin-left: 20px;">
         <SystemTray />
         <Bluetooth />
-        <box cssClasses={["bar-pill"]}>
-          <Notifications />
-          <Network />
-          <Volume />
-          <Battery />
-        </box>
+        <button
+          cssClasses={["bar-pill-btn"]}
+          onClicked={() => quickSettingsVisible.get() ? closeAllPanels() : openQuickSettings()}
+        >
+          <box cssClasses={["bar-pill"]}>
+            <Notifications />
+            <Network />
+            <Volume />
+            <Battery />
+          </box>
+        </button>
         <CpuRam />
         <Recording />
         <PowerButton />

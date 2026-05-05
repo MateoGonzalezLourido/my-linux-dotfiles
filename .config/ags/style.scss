@@ -160,31 +160,85 @@ $orange: #fab387;
   font-size: 14px;
 }
 
-.media {
-  background-color: $bg-pill;
-  border-radius: 8px;
-  border: 1px solid $border;
-  padding: 3px 3px;
+/* Media Player Redesign */
+#mpris,
+.mpris-widget {
+  background: rgba(36, 30, 34, 0.92);
+  border-radius: 999px;
+  padding: 4px 16px 4px 6px;
+  margin: 4px 6px;
+  min-width: 220px;
 
-  .media-icon {
-    color: $blue;
-    margin-right: 6px;
+  font-family: "JetBrainsMono Nerd Font", sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+
+  .album-art {
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 999px;
+    background-size: cover;
+    background-position: center;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
   }
 
-  .media-title {
-    color: $text;
-    margin-right: 8px;
+
+  .title-scroll-container {
+    min-width: 140px;
   }
 
-  button {
-    color: $text-dim;
+  .title-text {
+    animation: marquee 14s linear infinite;
+    padding-right: 40px;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+
+
+
+  .controls button {
+    background: transparent;
+    border: none;
     padding: 0 4px;
+    color: rgba(255, 255, 255, 1);
+    font-size: 16px;
+    min-width: unset;
+    box-shadow: none;
+    border-radius: 0;
 
     &:hover {
-      color: $text;
+      color: #ffffff;
+      background: transparent;
     }
   }
+
+
+  .btn-add {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .play-pause {
+    font-size: 15px;
+  }
 }
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-400px);
+  }
+}
+
 
 .battery-pill {
   font-family: 'JetBrainsMono Nerd Font';
@@ -229,7 +283,6 @@ $orange: #fab387;
 
   &:hover {
     background-color: $bg-pill-hover;
-    cursor: pointer;
   }
 }
 
@@ -459,31 +512,31 @@ $orange: #fab387;
 
 .power-menu-strip {
   background-color: rgb(30, 30, 46);
-  border-radius: 40px;
-  padding: 20px 10px; // Padding to prevent jumping
+  border-radius: 20px;
+  padding: 10px 5px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  min-height: 120px; // Stable height
+  min-height: 80px;
 }
 
 .power-button {
   all: unset;
-  padding: 20px 40px;
+  padding: 12px 20px;
   transition: all 80ms ease-in-out;
   color: rgba(226, 226, 226, 0.4);
-  min-width: 130px;
+  min-width: 90px;
 
   .power-icon {
-    font-size: 32px;
+    font-size: 24px;
     color: #ffffff;
     transition: all 80ms ease-in-out;
     opacity: 0.5;
-    margin: 0 auto;
+    margin: 0;
   }
 
   .power-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
-    margin: 5px auto 0 auto;
+    margin: 5px 0 0 0;
     opacity: 0.5; // Visible by default
     transition: all 80ms ease-in-out;
   }
@@ -503,25 +556,25 @@ $orange: #fab387;
   &.highlighted {
     background: linear-gradient(135deg, rgb(137, 180, 250), #cba6f7);
     backdrop-filter: blur(30px);
-    border-radius: 35px;
-    padding: 50px 45px;
-    margin: -40px 5px;
+    border-radius: 16px;
+    padding: 20px 22px;
+    margin: -10px 4px;
     color: #ffffff;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.25);
 
     .power-icon {
-      font-size: 55px;
+      font-size: 36px;
       opacity: 1;
       text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-      margin: 0 auto;
+      margin: 0;
     }
 
     .power-label {
       font-weight: 800;
       font-size: 14px;
       opacity: 1;
-      margin: 10px auto 0 auto;
+      margin: 10px 0 0 0;
     }
 
     &:hover {
@@ -539,6 +592,7 @@ $orange: #fab387;
   border-top-right-radius: 40px;
   border-bottom-right-radius: 40px;
 }
+
 // ── OSD (On Screen Display) ──────────────────────────────────────────────────
 .osd-window {
   background-color: transparent;
@@ -565,13 +619,13 @@ $orange: #fab387;
 
 progressbar.osd-progress {
   min-height: 6px;
-  
+
   trough {
     min-height: 6px;
     border-radius: 10px;
     background-color: rgba(255, 255, 255, 0.1);
   }
-  
+
   progress {
     min-height: 6px;
     border-radius: 10px;
@@ -587,13 +641,536 @@ progressbar.osd-progress {
   color: #e2e2e2;
 }
 
+// ── bar-pill-btn (wrapper del bar-pill clickeable) ────────────────────────────
+.Bar .bar-pill-btn {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  outline: none;
+}
+
+// ── Quick Settings Panel ──────────────────────────────────────────────────────
+$qs-bg: rgba(30, 28, 35, 0.72);
+$qs-border: rgba(255, 255, 255, 0.12);
+$qs-accent: #a78bfa;
+$qs-accent2: #c4b8ff;
+$qs-green: #1db954;
+$qs-yellow: #ffd85a;
+$qs-orange: #ff9030;
+$qs-text: rgba(230, 225, 255, 0.92);
+$qs-text-dim: rgba(200, 190, 255, 0.55);
+$qs-tile-act: rgba(139, 120, 255, 0.25);
+$qs-tile-brd: rgba(139, 120, 255, 0.4);
+
+.qs-window {
+  background-color: transparent;
+}
+
+.qs-panel {
+  background-color: $qs-bg;
+  backdrop-filter: blur(24px);
+  border: 1px solid $qs-border;
+  border-radius: 12px;
+  padding: 6px 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 8px 32px rgba(0, 0, 0, 0.4);
+  min-width: 240px;
+  color: $qs-text;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", sans-serif;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.qs-header {
+  padding-bottom: 4px;
+}
+
+.qs-clock {
+  font-size: 15px;
+  font-weight: 700;
+  color: $qs-text;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
+  margin: 0;
+}
+
+.qs-date {
+  font-size: 10px;
+  font-weight: 400;
+  color: $qs-text-dim;
+  margin: 0;
+}
+
+.qs-dnd-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  padding: 2px 8px;
+  color: rgba(200, 200, 200, 0.6);
+  font-size: 10px;
+  transition: all 150ms ease;
+
+  &.active {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: rgba(248, 180, 180, 0.9);
+  }
+
+  .qs-dnd-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 11px;
+    margin: 0;
+  }
+
+  .qs-dnd-label {
+    font-size: 10px;
+    margin: 0;
+  }
+}
+
+.qs-notif-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  color: rgba(200, 200, 200, 0.6);
+  transition: all 150ms ease;
+
+  &.has-notifs {
+    color: $qs-accent2;
+    border-color: rgba(139, 120, 255, 0.35);
+    background: rgba(139, 120, 255, 0.12);
+  }
+
+  .qs-notif-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 12px;
+    margin: 0;
+  }
+
+  .qs-notif-badge {
+    font-size: 8px;
+    font-weight: 700;
+    color: $qs-accent;
+    margin: 0;
+  }
+}
+
+// ── Tiles 2×2 ─────────────────────────────────────────────────────────────────
+.qs-tile {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 3px 6px;
+  transition: all 150ms ease;
+  color: $qs-text;
+  margin-bottom: 1px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &.active {
+    background: $qs-tile-act;
+    border-color: $qs-tile-brd;
+  }
+
+  .qs-tile-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 14px;
+    color: $qs-accent;
+    margin: 0;
+    min-width: 18px;
+  }
+
+  .qs-tile-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: $qs-text;
+    margin: 0;
+  }
+
+  .qs-tile-sub {
+    font-size: 9px;
+    color: $qs-text-dim;
+    margin: 0;
+  }
+
+  &:not(.active) .qs-tile-icon,
+  &:not(.active) .qs-tile-label {
+    opacity: 0.7;
+  }
+}
+
+// ── Spotify ───────────────────────────────────────────────────────────────────
+.qs-spotify {
+  background: rgba(29, 185, 84, 0.12);
+  border: 1px solid rgba(29, 185, 84, 0.25);
+  border-radius: 14px;
+  padding: 8px;
+  margin-top: 8px;
+
+  .qs-spotify-art {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 24px;
+    min-width: 40px;
+    min-height: 40px;
+    color: $qs-green;
+    margin: 0;
+  }
+
+  .qs-spotify-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: $qs-text;
+    margin: 0;
+  }
+
+  .qs-spotify-artist {
+    font-size: 11px;
+    color: $qs-text-dim;
+    margin: 0;
+  }
+
+  .qs-spotify-btn {
+    background: transparent;
+    border: none;
+    color: rgba(29, 185, 84, 0.8);
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 16px;
+    padding: 2px 4px;
+    border-radius: 6px;
+    transition: all 100ms ease;
+
+    &:hover {
+      color: $qs-green;
+      background: rgba(29, 185, 84, 0.15);
+    }
+
+    label {
+      margin: 0;
+    }
+  }
+
+  progressbar.qs-spotify-progress {
+    min-height: 3px;
+
+    trough {
+      min-height: 3px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    progress {
+      min-height: 3px;
+      border-radius: 99px;
+      background: $qs-green;
+    }
+  }
+}
+
+// ── Section containers (Volume / Brightness) ──────────────────────────────────
+
+.qs-section {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  font-size: 13px;
+  margin-top: 4px;
+
+  button.qs-icon-btn {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    min-width: 18px;
+    min-height: 18px;
+    padding: 0;
+    color: $qs-text-dim;
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 11px;
+    transition: all 100ms ease;
+
+    &.active {
+      background: $qs-tile-act;
+      border-color: $qs-tile-brd;
+      color: $qs-accent2;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    label {
+      margin: 0;
+    }
+  }
+}
+
+.qs-section-icon {
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 12px;
+  color: $qs-accent;
+  margin: 0;
+
+  &.bright {
+    color: $qs-yellow;
+  }
+
+  &.night {
+    color: $qs-orange;
+  }
+}
+
+.qs-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: $qs-text;
+  margin: 0;
+}
+
+.qs-section-pct {
+  font-size: 10px;
+  color: $qs-text-dim;
+  margin: 0;
+}
+
+.qs-dropdown-header {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.qs-sink-item {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: $qs-text-dim;
+  transition: all 100ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  &.active {
+    background: rgba(139, 120, 255, 0.18);
+    border-color: rgba(139, 120, 255, 0.3);
+    color: $qs-accent2;
+  }
+
+  .qs-sink-dot {
+    font-size: 8px;
+    color: $qs-accent;
+    margin: 0;
+  }
+
+  .qs-sink-name {
+    font-size: 12px;
+    margin: 0;
+  }
+}
+
+// ── Sliders ───────────────────────────────────────────────────────────────────
+scale.qs-slider {
+  min-height: 12px;
+
+  trough {
+    min-height: 3px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  progress {
+    min-height: 3px;
+    border-radius: 99px;
+    background: rgba(139, 120, 255, 0.8);
+  }
+
+  slider {
+    min-width: 8px;
+    min-height: 8px;
+    border-radius: 50%;
+    background: $qs-accent2;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  }
+
+  &.mic {
+    trough {
+      min-height: 3px;
+    }
+
+    progress {
+      min-height: 3px;
+      background: rgba(139, 120, 255, 0.5);
+    }
+
+    slider {
+      min-width: 10px;
+      min-height: 10px;
+      background: $qs-accent;
+    }
+  }
+
+  &.app {
+    trough {
+      min-height: 3px;
+    }
+
+    progress {
+      min-height: 3px;
+      background: rgba(139, 120, 255, 0.5);
+    }
+
+    slider {
+      min-width: 10px;
+      min-height: 10px;
+      background: $qs-accent;
+    }
+  }
+
+  &.spotify {
+    trough {
+      min-height: 3px;
+    }
+
+    progress {
+      min-height: 3px;
+      background: rgba(29, 185, 84, 0.6);
+    }
+
+    slider {
+      min-width: 10px;
+      min-height: 10px;
+      background: $qs-green;
+    }
+  }
+
+  &.brightness {
+    progress {
+      background: rgba(255, 210, 90, 0.7);
+    }
+
+    slider {
+      background: $qs-yellow;
+    }
+  }
+
+  &.temperature {
+    trough {
+      background: linear-gradient(to right, rgba(100, 160, 255, 0.4), rgba(255, 140, 30, 0.5));
+    }
+
+    progress {
+      background: transparent;
+    }
+
+    slider {
+      background: $qs-orange;
+    }
+  }
+}
+
+// ── Night light toggle ────────────────────────────────────────────────────────
+button.qs-toggle {
+  background: transparent;
+  border: none;
+  padding: 0;
+  min-width: 34px;
+  min-height: 18px;
+
+  .qs-toggle-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 9px;
+    min-width: 34px;
+    min-height: 18px;
+    transition: background 150ms ease;
+  }
+
+  .qs-toggle-dot {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    min-width: 12px;
+    min-height: 12px;
+    margin: 3px 3px;
+    transition: all 150ms ease;
+
+    &.on {
+      background: #ffad30;
+      margin-left: 19px;
+    }
+  }
+
+  &.on .qs-toggle-track {
+    background: rgba(255, 140, 30, 0.5);
+  }
+}
+
+// ── Footer ────────────────────────────────────────────────────────────────────
+.qs-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+.qs-avatar {
+  background: rgba(139, 120, 255, 0.2);
+  border: 1px solid rgba(139, 120, 255, 0.3);
+  border-radius: 50%;
+  min-width: 28px;
+  min-height: 28px;
+  color: $qs-accent2;
+  font-size: 10px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.qs-username {
+  font-size: 11px;
+  font-weight: 600;
+  color: $qs-text;
+  margin: 0;
+}
+
+.qs-hostname {
+  font-size: 9px;
+  color: $qs-text-dim;
+  margin: 0;
+}
+
+.qs-footer-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  color: $qs-text-dim;
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 13px;
+  transition: all 100ms ease;
+
+  &:hover {
+    background: rgba(139, 120, 255, 0.18);
+    border-color: rgba(139, 120, 255, 0.3);
+    color: $qs-accent2;
+  }
+
+  label {
+    margin: 0;
+  }
+}
+
 // ── Tooltip Global ────────────────────────────────────────────────────────────
 tooltip {
   background-color: rgba(24, 24, 37, 0.95);
   border: 1px solid rgba(137, 180, 250, 0.2);
   border-radius: 8px;
   padding: 2px 4px;
-  
+
   label {
     font-family: 'JetBrains Mono', 'Inter', sans-serif;
     font-size: 11px;
