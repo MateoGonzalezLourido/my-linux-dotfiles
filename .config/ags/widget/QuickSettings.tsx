@@ -341,6 +341,18 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
 
 // ── Section 3: Media Player ───────────────────────────────────────────────────
 
+const MEDIA_THEMES = [
+  { bg: "rgba(137, 180, 250, 0.08)", border: "rgba(137, 180, 250, 0.2)", accent: "#89b4fa" },
+  { bg: "rgba(245, 194, 231, 0.08)", border: "rgba(245, 194, 231, 0.2)", accent: "#f5c2e7" },
+  { bg: "rgba(166, 227, 161, 0.08)", border: "rgba(166, 227, 161, 0.2)", accent: "#a6e3a1" },
+  { bg: "rgba(250, 179, 135, 0.08)", border: "rgba(250, 179, 135, 0.2)", accent: "#fab387" },
+  { bg: "rgba(203, 166, 247, 0.08)", border: "rgba(203, 166, 247, 0.2)", accent: "#cba6f7" },
+  { bg: "rgba(249, 226, 175, 0.08)", border: "rgba(249, 226, 175, 0.2)", accent: "#f9e2af" },
+  { bg: "rgba(148, 226, 213, 0.08)", border: "rgba(148, 226, 213, 0.2)", accent: "#94e2d5" },
+]
+
+const playerThemes = new Map<string, number>()
+
 function QsMedia() {
   const mpris = AstalMpris.get_default()
   if (!mpris) return <box />
@@ -354,6 +366,7 @@ function QsMedia() {
   const [playerIndex, setPlayerIndex] = createState(0)
   const [numPlayers, setNumPlayers] = createState(0)
   const [playerName, setPlayerName] = createState("")
+  const [themeIdx, setThemeIdx] = createState(0)
 
   let currentP: any = null
 
@@ -385,6 +398,14 @@ function QsMedia() {
     setCover(p.cover_art || "")
     setPlayerName(p.identity || p.bus_name.split(".").pop() || "Player")
     if (p.length > 0) setProg(p.position / p.length)
+
+    // Assign and persist theme for this player instance
+    let tIdx = playerThemes.get(p.bus_name)
+    if (tIdx === undefined) {
+      tIdx = Math.floor(Math.random() * MEDIA_THEMES.length)
+      playerThemes.set(p.bus_name, tIdx)
+    }
+    setThemeIdx(tIdx)
   }
 
   const nextPlayer = () => {
@@ -410,22 +431,36 @@ function QsMedia() {
     return GLib.SOURCE_CONTINUE
   })
 
+  const curTheme = themeIdx((i) => MEDIA_THEMES[i])
+
   return (
     <box
       cssClasses={["qs-media"]}
       visible={hasPlayer}
       orientation={Gtk.Orientation.VERTICAL}
       spacing={4}
+      css={curTheme((t) => `background-color: ${t.bg}; border-color: ${t.border};`)}
     >
       <box spacing={4} visible={numPlayers((n) => n > 1)} css="margin-bottom: 2px;">
-        <label cssClasses={["qs-media-source"]} label={playerName} hexpand halign={Gtk.Align.START} />
+        <label 
+          cssClasses={["qs-media-source"]} 
+          label={playerName} 
+          hexpand 
+          halign={Gtk.Align.START} 
+          css={curTheme((t) => `color: ${t.accent};`)}
+        />
         <box spacing={0} valign={Gtk.Align.CENTER}>
           <button cssClasses={["qs-media-switch"]} onClicked={prevPlayer}>
-            <label label="󰅁" />
+            <label label="󰅁" css={curTheme((t) => `color: ${t.accent};`)} />
           </button>
-          <label cssClasses={["qs-media-count"]} label={playerIndex((i) => `${i + 1}/${numPlayers()}`)} halign={Gtk.Align.CENTER} />
+          <label 
+            cssClasses={["qs-media-count"]} 
+            label={playerIndex((i) => `${i + 1}/${numPlayers()}`)} 
+            halign={Gtk.Align.CENTER} 
+            css={curTheme((t) => `color: ${t.accent};`)}
+          />
           <button cssClasses={["qs-media-switch"]} onClicked={nextPlayer}>
-            <label label="󰅂" />
+            <label label="󰅂" css={curTheme((t) => `color: ${t.accent};`)} />
           </button>
         </box>
       </box>
@@ -437,20 +472,35 @@ function QsMedia() {
           valign={Gtk.Align.CENTER}
           halign={Gtk.Align.CENTER}
         >
-          <label label="󰎈" visible={cover((c) => !c)} />
+          <label label="󰎈" visible={cover((c) => !c)} css={curTheme((t) => `color: ${t.accent};`)} />
         </box>
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand valign={Gtk.Align.CENTER}>
           <label cssClasses={["qs-media-title"]} label={title} halign={Gtk.Align.START} ellipsize={3} />
           <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
         </box>
         <box spacing={2} valign={Gtk.Align.CENTER}>
-          <button cssClasses={["qs-media-btn"]} onClicked={() => currentP?.previous()}>
+          <button cssClasses={["qs-media-btn"]} onClicked={() => {
+            const p = mpris.players[playerIndex.get()]
+            if (p) {
+              const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
+              execAsync(["playerctl", "-p", name, "previous"]).catch(() => {})
+            }
+          }} css={curTheme((t) => `color: ${t.accent};`)}>
             <label label="󰒮" />
           </button>
-          <button cssClasses={["qs-media-btn"]} onClicked={() => currentP?.play_pause()}>
+          <button cssClasses={["qs-media-btn"]} onClicked={() => {
+            const p = mpris.players[playerIndex.get()]
+            if (p) p.play_pause()
+          }} css={curTheme((t) => `color: ${t.accent};`)}>
             <label label={isPlaying((v) => v ? "󰏤" : "󰐊")} />
           </button>
-          <button cssClasses={["qs-media-btn"]} onClicked={() => currentP?.next()}>
+          <button cssClasses={["qs-media-btn"]} onClicked={() => {
+            const p = mpris.players[playerIndex.get()]
+            if (p) {
+              const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
+              execAsync(["playerctl", "-p", name, "next"]).catch(() => {})
+            }
+          }} css={curTheme((t) => `color: ${t.accent};`)}>
             <label label="󰒭" />
           </button>
         </box>
@@ -459,6 +509,7 @@ function QsMedia() {
         cssClasses={["qs-media-progress"]}
         fraction={prog}
         hexpand
+        css={curTheme((t) => `trough { background: rgba(255,255,255,0.1); } progress { background: ${t.accent}; }`)}
       />
     </box>
   )
