@@ -41,7 +41,7 @@ export default function Battery() {
     return `
       background: linear-gradient(to right, 
         ${color} ${Math.round(p)}%, 
-        rgba(17, 17, 27, 0.6) ${Math.round(p)}%
+        rgba(255, 255, 255, 0.4) ${Math.round(p)}%
       );
       border-radius: 99px;
     `
@@ -71,18 +71,22 @@ export default function Battery() {
       cssClasses={cssClass}
       css={cssStr}
       tooltipText={tooltip}
+      spacing={0}
+      halign={Gtk.Align.CENTER}
     >
-      <box halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} hexpand vexpand>
-        <label
-          cssClasses={["battery-charging-icon"]}
-          label="󰂄 "
-          visible={charging}
-        />
-        <label
-          cssClasses={["battery-text"]}
-          label={pctStr}
-        />
-      </box>
+      <label
+        cssClasses={["battery-charging-icon"]}
+        label="󰂄"
+        visible={charging}
+        valign={Gtk.Align.CENTER}
+      />
+      <label
+        cssClasses={["battery-text"]}
+        label={pctStr}
+        valign={Gtk.Align.CENTER}
+        halign={Gtk.Align.CENTER}
+        xalign={0.5}
+      />
     </box>
   )
 }

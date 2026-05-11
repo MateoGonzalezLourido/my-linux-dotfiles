@@ -212,20 +212,21 @@ $orange: #fab387;
 .battery-pill {
   font-family: 'JetBrainsMono Nerd Font';
   margin: 9px 4px;
-  min-height: 16px;
-  min-width: 40px;
+  min-height: 13px;
+  min-width: 0;
   border-radius: 99px;
-  padding: 0;
+  padding: 0 5px;
 
   .battery-text {
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 900;
     color: #000000;
   }
 
   .battery-charging-icon {
-    font-size: 10px;
+    font-size: 9px;
     color: #000000;
+    margin-right: 2px;
   }
 }
 
