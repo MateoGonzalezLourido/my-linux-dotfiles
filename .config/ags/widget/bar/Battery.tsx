@@ -37,7 +37,7 @@ export default function Battery() {
   
   const getGradient = () => {
     const p = bat.percentage * 100
-    const color = bat.charging ? "#a6e3a1" : (p < 20 ? "#f38ba8" : p < 60 ? "#f9e2af" : "#a6e3a1")
+    const color = bat.charging ? "#a6e3a1" : (p <= 15 ? "#f38ba8" : "#ffffff")
     return `
       background: linear-gradient(to right, 
         ${color} ${Math.round(p)}%, 
@@ -49,14 +49,14 @@ export default function Battery() {
 
   const [cssStr, setCssStr] = createState(getGradient())
   const [cssClass, setCssClass] = createState(
-    ["battery-pill", bat.percentage * 100 < 20 ? "low" : bat.percentage * 100 < 60 ? "medium" : "normal"]
+    ["battery-pill", bat.percentage * 100 <= 15 ? "low" : "normal"]
   )
 
   const updateVars = () => {
     setPctStr(`${Math.round(bat.percentage * 100)}`)
     setCharging(bat.charging)
     setCssStr(getGradient())
-    setCssClass(["battery-pill", bat.percentage * 100 < 20 ? "low" : bat.percentage * 100 < 60 ? "medium" : "normal"])
+    setCssClass(["battery-pill", bat.percentage * 100 <= 15 ? "low" : "normal"])
     setTooltip(getTooltip())
   }
 

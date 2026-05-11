@@ -5,7 +5,6 @@ import { createState } from "ags"
 import Clock from "./bar/Clock"
 import Functions from "./bar/Functions"
 import Workspaces from "./bar/Workspaces"
-//import FocusedClient from "./bar/FocusedClient"
 import MediaPlayer from "./bar/MediaPlayer"
 import SystemTray from "./bar/SystemTray"
 import Bluetooth from "./bar/Bluetooth"
@@ -13,9 +12,9 @@ import Network from "./bar/Network"
 import Volume from "./bar/Volume"
 import Battery from "./bar/Battery"
 import CpuRam from "./bar/CpuRam"
+import Recording from "./bar/Recording"
 import Notifications from "./bar/Notifications"
 import PowerButton from "./bar/PowerButton"
-import Recording from "./bar/Recording"
 import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
@@ -36,7 +35,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   }
 
   function scheduleHide() {
-    if (anyPanelVisible.get()) return; // No ocultar si hay algún panel abierto
+    if (anyPanelVisible.get()) return; 
 
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (hideTimer) clearTimeout(hideTimer)
@@ -47,14 +46,11 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     }, 300)
   }
 
-  // Asegurar que la barra se vea cuando algún menú se abre
   anyPanelVisible.subscribe((v) => {
     if (v) show();
     else if (!visible.get()) scheduleHide();
   })
 
-  // 1. La zona sensible debe quedarse SIEMPRE en el borde (marginTop={0})
-  // y tener exclusividad NORMAL para no molestar.
   const hotzone = <window
     name="bar-hotzone"
     visible={true}
@@ -63,7 +59,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     exclusivity={Astal.Exclusivity.NORMAL}
     anchor={TOP | LEFT | RIGHT}
     application={app}
-    heightRequest={1} // Se queda fija en los 3px del borde
+    heightRequest={1}
     marginTop={0}
   >
     <box hexpand vexpand>
@@ -73,13 +69,12 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     </box>
   </window>
 
-  // 2. La barra real debe ser SIEMPRE NORMAL para que flote sobre las ventanas.
   const bar = <window
     name="bar"
     visible={true}
     gdkmonitor={gdkmonitor}
     layer={Astal.Layer.TOP}
-    exclusivity={Astal.Exclusivity.NORMAL} // SIEMPRE NORMAL para superponerse
+    exclusivity={Astal.Exclusivity.NORMAL}
     anchor={TOP | LEFT | RIGHT}
     application={app}
     marginTop={visible((v) => v ? 0 : -BAR_HEIGHT)}
@@ -90,17 +85,16 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       onLeave={scheduleHide}
     />
     <centerbox css="margin-left: 9px; margin-right: 10px;">
-      {/* IZQUIERDA */}
       <box $type="start" halign={Gtk.Align.START} spacing={6}>
         <Clock />
         <Functions />
         <Workspaces />
       </box>
-      {/* CENTRO */}
+      
       <box $type="center" halign={Gtk.Align.CENTER}>
         <MediaPlayer />
       </box>
-      {/* DERECHA */}
+      
       <box $type="end" halign={Gtk.Align.END} spacing={6} css="margin-left: 20px;">
         <SystemTray />
         <Bluetooth />
