@@ -19,7 +19,10 @@ import {
   qsView,
   setQsView,
   infoSsid,
-  setInfoSsid
+  setInfoSsid,
+  openPowerMenu,
+  brightness,
+  setBrightness
 } from "./state"
 
 // ── Persistence Utilities ──────────────────────────────────────────────────────
@@ -50,6 +53,46 @@ function saveAudioPresets(p: Record<string, number>) {
     saveTimeout = null
     return GLib.SOURCE_REMOVE
   })
+}
+
+const DISPLAY_CONFIG_PATH = `${GLib.get_user_config_dir()}/ags/config/display.json`
+
+function loadDisplayConfig() {
+  try {
+    const [ok, content] = GLib.file_get_contents(DISPLAY_CONFIG_PATH)
+    if (ok) return JSON.parse(new TextDecoder().decode(content))
+  } catch (e) { }
+  return { brightness: 0.5, nightLightActive: false, nightLightTemp: 4500 }
+}
+
+let displaySaveTimeout: number | null = null
+function saveDisplayConfig() {
+  if (displaySaveTimeout !== null) GLib.source_remove(displaySaveTimeout)
+  displaySaveTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+    try {
+      const dir = GLib.path_get_dirname(DISPLAY_CONFIG_PATH)
+      if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) execAsync(["mkdir", "-p", dir]).catch(() => { })
+      const config = {
+        brightness: brightness.get(),
+        nightLightActive: nightLightActive.get(),
+        nightLightTemp: nightLightTemp.get(),
+      }
+      GLib.file_set_contents(DISPLAY_CONFIG_PATH, JSON.stringify(config))
+    } catch (e) { }
+    displaySaveTimeout = null
+    return GLib.SOURCE_REMOVE
+  })
+}
+
+// ── Initial Display Load & Apply ──────────────────────────────────────────────
+const dispConfig = loadDisplayConfig()
+setBrightness(dispConfig.brightness)
+setNightLightActive(dispConfig.nightLightActive)
+setNightLightTemp(dispConfig.nightLightTemp)
+
+execAsync(["bash", "-c", `brightnessctl s ${Math.round(dispConfig.brightness * 100)}%`]).catch(() => { })
+if (dispConfig.nightLightActive) {
+  execAsync(["bash", "-c", `pkill wlsunset; wlsunset -t ${dispConfig.nightLightTemp} &`]).catch(() => { })
 }
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
@@ -524,6 +567,7 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
   const [lastInteraction, setLastInteraction] = createState(0)
   const [presets, setPresets] = createState<Record<string, number>>(loadAudioPresets())
   const handledStreams = new Set<number>()
+  const handledDevices = new Set<string>()
 
   function volIcon(v: number, m: boolean) {
     if (m || v === 0) return "󰝟"
@@ -557,11 +601,12 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
             si.properties = { ...client.properties, ...si.properties }
           }
           const name = si.properties?.["application.name"] || si.properties?.["node.name"] || "App"
+          const key = `app:spk:${name.toLowerCase()}`
           activeAppNames.add(name.toLowerCase())
 
           // Apply preset if new
           if (!handledStreams.has(si.index)) {
-            const p = presets.get()[name.toLowerCase()]
+            const p = presets.get()[key]
             if (p !== undefined) {
               execAsync(["pactl", "set-sink-input-volume", `${si.index}`, `${Math.round(p * 100)}%`]).catch(() => { })
             }
@@ -644,10 +689,27 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                 {(s: AstalWp.Endpoint) => {
                   const vol = createBinding(s, "volume")
                   const mute = createBinding(s, "mute")
+
+                  // Apply device preset if new
+                  if (s.name && !handledDevices.has(`spk:${s.name}`)) {
+                    const key = `dev:spk:${s.name}`
+                    const p = presets.get()[key]
+                    if (p !== undefined) {
+                      s.volume = p
+                    }
+                    handledDevices.add(`spk:${s.name}`)
+                  }
+
                   const scale = makeScale(
                     ["qs-slider", "speaker"],
                     () => s.volume,
-                    (v) => { s.volume = v },
+                    (v) => {
+                      s.volume = v
+                      const p = { ...presets.get() }
+                      p[`dev:spk:${s.name}`] = v
+                      setPresets(p)
+                      saveAudioPresets(p)
+                    },
                     (cb) => { s.connect("notify::volume", cb) },
                   )
 
@@ -692,10 +754,11 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                     || props["media.name"]
                     || props["application.process.binary"]
                     || "App"
+                  const key = `app:spk:${name.toLowerCase()}`
 
                   const volObj = si.volume || {}
                   const channels = Object.keys(volObj)
-                  const presetVal = presets.get()[name.toLowerCase()]
+                  const presetVal = presets.get()[key]
                   const initialVol = channels.length > 0
                     ? parseFloat((volObj[channels[0]].value_percent || "100%").replace("%", "")) / 100
                     : (presetVal !== undefined ? presetVal : 1.0)
@@ -711,7 +774,7 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                       setLastInteraction(Date.now())
                       // Update preset
                       const p = { ...presets.get() }
-                      p[name.toLowerCase()] = v
+                      p[key] = v
                       setPresets(p)
                       saveAudioPresets(p)
                       // Apply to stream if active
@@ -761,6 +824,7 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
   const [lastInteraction, setLastInteraction] = createState(0)
   const [presets, setPresets] = createState<Record<string, number>>(loadAudioPresets())
   const handledStreams = new Set<number>()
+  const handledDevices = new Set<string>()
 
   if (!wp.audio) return <box />
 
@@ -789,7 +853,7 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
             si.properties = { ...client.properties, ...si.properties }
           }
           const name = si.properties?.["application.name"] || si.properties?.["node.name"] || "App"
-          const key = `mic:${name.toLowerCase()}`
+          const key = `app:mic:${name.toLowerCase()}`
           activeAppNames.add(name.toLowerCase())
 
           // Apply preset if new
@@ -870,10 +934,27 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
                 {(m: AstalWp.Endpoint) => {
                   const vol = createBinding(m, "volume")
                   const mute = createBinding(m, "mute")
+
+                  // Apply device preset if new
+                  if (m.name && !handledDevices.has(`mic:${m.name}`)) {
+                    const key = `dev:mic:${m.name}`
+                    const p = presets.get()[key]
+                    if (p !== undefined) {
+                      m.volume = p
+                    }
+                    handledDevices.add(`mic:${m.name}`)
+                  }
+
                   const scale = makeScale(
                     ["qs-slider", "mic"],
                     () => m.volume,
-                    (v) => { m.volume = v },
+                    (v) => {
+                      m.volume = v
+                      const p = { ...presets.get() }
+                      p[`dev:mic:${m.name}`] = v
+                      setPresets(p)
+                      saveAudioPresets(p)
+                    },
                     (cb) => { m.connect("notify::volume", cb) },
                   )
 
@@ -982,7 +1063,6 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
 
 function QsDisplayMenu({ onBack }: { onBack: () => void }) {
   const [monitors, setMonitors] = createState<any[]>([])
-  const [brightness, setBrightness] = createState(0.5)
 
   const updateMonitors = () => {
     execAsync(["hyprctl", "monitors", "-j"]).then(out => {
@@ -1002,6 +1082,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
     () => brightness.get(),
     (v) => {
       setBrightness(v)
+      saveDisplayConfig()
       execAsync(["bash", "-c", `brightnessctl s ${Math.round(v * 100)}%`]).catch(() => { })
     },
     (cb) => brightness.subscribe(cb),
@@ -1013,6 +1094,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
     (v) => {
       const t = Math.round(v * 4500 + 1500)
       setNightLightTemp(t)
+      saveDisplayConfig()
       if (nightLightActive.get()) {
         execAsync(["bash", "-c", `pkill wlsunset; wlsunset -t ${t} &`]).catch(() => { })
       }
@@ -1070,6 +1152,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
               onClicked={() => {
                 const next = !nightLightActive.get()
                 setNightLightActive(next)
+                saveDisplayConfig()
                 if (next) execAsync(["bash", "-c", `pkill wlsunset; wlsunset -t ${nightLightTemp.get()} &`]).catch(() => { })
                 else execAsync(["bash", "-c", "pkill wlsunset"]).catch(() => { })
               }}
@@ -1126,13 +1209,23 @@ function QsFooter() {
         <label cssClasses={["qs-username"]} label={user} halign={Gtk.Align.START} />
         <label cssClasses={["qs-hostname"]} label={`@${host}`} halign={Gtk.Align.START} />
       </box>
-      <button cssClasses={["qs-footer-btn"]} tooltipText="Configuración (próximamente)">
+      <button
+        cssClasses={["qs-footer-btn"]}
+        tooltipText="Opciones de energía"
+        onClicked={() => openPowerMenu()}
+      >
+        <label label="󰐥" />
+      </button>
+      <button
+        cssClasses={["qs-footer-btn"]}
+        tooltipText="Configuración (próximamente)"
+      >
         <label label="󰒓" />
       </button>
       <button
         cssClasses={["qs-footer-btn"]}
         tooltipText="Cerrar sesión"
-        onClicked={() => execAsync(["bash", "-c", `loginctl terminate-user ${user}`]).catch(() => { })}
+        onClicked={() => execAsync("hyprctl dispatch exit").catch(() => { })}
       >
         <label label="󰍃" />
       </button>

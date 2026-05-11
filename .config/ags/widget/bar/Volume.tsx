@@ -18,10 +18,12 @@ export default function Volume() {
 
   const [icon, setIcon] = createState(volIcon(speaker.volume, speaker.mute))
   const [muted, setMuted] = createState(speaker.mute)
+  const [volPercent, setVolPercent] = createState(Math.round(speaker.volume * 100))
 
   const updateVars = () => {
     setIcon(volIcon(speaker.volume, speaker.mute))
     setMuted(speaker.mute)
+    setVolPercent(Math.round(speaker.volume * 100))
   }
 
   speaker.connect("notify::volume", updateVars)
@@ -30,6 +32,7 @@ export default function Volume() {
   return (
     <button
       cssClasses={muted((m) => m ? ["bt-muted"] : ["bt-normal"])}
+      tooltipText={volPercent((v) => `${v}`)}
     >
       <Gtk.GestureClick
         button={Gdk.BUTTON_SECONDARY}

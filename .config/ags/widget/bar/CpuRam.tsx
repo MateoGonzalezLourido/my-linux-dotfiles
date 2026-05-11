@@ -28,10 +28,35 @@ export default function CpuRam() {
   const cpu = createPoll(0, 4000, cpuUsage)
   const ram = createPoll(0, 4000, ramUsage)
 
+  const topProcs = createPoll("Cargando...", 5000, async () => {
+    try {
+      const [cpuOut, ramOut] = await Promise.all([
+        execAsync(["bash", "-c", "ps axch -o pcpu,comm --sort=-pcpu | head -n 1"]),
+        execAsync(["bash", "-c", "ps axch -o rss,comm --sort=-rss | head -n 1"]),
+      ])
+
+      const parseCpu = (out: string) => {
+        const parts = out.trim().split(/\s+/)
+        return `${parts.slice(1).join(" ")} (${parts[0]}%)`
+      }
+
+      const parseRam = (out: string) => {
+        const parts = out.trim().split(/\s+/)
+        const gb = (parseInt(parts[0]) / 1024 / 1024).toFixed(1)
+        return `${parts.slice(1).join(" ")} (${gb}G)`
+      }
+
+      return `CPU: ${parseCpu(cpuOut)}\nRAM: ${parseRam(ramOut)}`
+    } catch {
+      return "Error al obtener procesos"
+    }
+  })
+
   return (
     <box
       cssClasses={["cpuram"]}
       spacing={4}
+      tooltipText={topProcs((t) => t)}
     >
       <Gtk.GestureClick
         button={Gdk.BUTTON_SECONDARY}

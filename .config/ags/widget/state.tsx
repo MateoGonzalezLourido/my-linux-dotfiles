@@ -4,6 +4,7 @@ export const [widgetsRefresh, setWidgetsRefresh] = createState(false)
 export const [barVisible, setBarVisible] = createState(false)
 export const [nightLightActive, setNightLightActive] = createState(false)
 export const [nightLightTemp, setNightLightTemp] = createState(4500)
+export const [brightness, setBrightness] = createState(0.5)
 
 // ── Panel visibility ─────────────────────────────────────────────────────────
 // Cada panel tiene su propio estado. anyPanelVisible se deriva de ellos.

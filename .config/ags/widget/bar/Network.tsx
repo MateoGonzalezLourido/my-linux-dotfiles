@@ -18,10 +18,12 @@ export default function Network() {
 
   const strength = createBinding(wifi, "strength")
   const internet = createBinding(wifi, "internet")
+  const ssid = createBinding(wifi, "ssid")
 
   return (
     <button
       cssClasses={["network"]}
+      tooltipText={ssid((s) => s || "Disconnected")}
       onClicked={() => execAsync(["bash", "-c", `${SRC}/scripts/wifi-panel.sh`])}
     >
       <label
