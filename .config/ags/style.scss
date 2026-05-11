@@ -1,5 +1,3 @@
-
-
 $bg-bar: rgba(8, 8, 12);
 $bg-pill: rgba(255, 255, 255, 0.07);
 $bg-pill-hover: rgba(0, 0, 0, 0.36);
@@ -196,17 +194,29 @@ $orange: #fab387;
       font-size: 14px;
       transition: color 120ms ease;
 
-      &:hover    { color: #ffffff; }
-      &:disabled { color: rgba(255, 255, 255, 0.3); }
+      &:hover {
+        color: #ffffff;
+      }
+
+      &:disabled {
+        color: rgba(255, 255, 255, 0.3);
+      }
     }
 
-    .play-pause { font-size: 15px; }
+    .play-pause {
+      font-size: 15px;
+    }
   }
 }
 
 @keyframes marquee {
-  from { transform: translateX(0px); }
-  to   { transform: translateX(-245px); }
+  from {
+    transform: translateX(0px);
+  }
+
+  to {
+    transform: translateX(-245px);
+  }
 }
 
 .battery-pill {
@@ -361,6 +371,18 @@ $orange: #fab387;
 
   &.icon-muted {
     color: rgba(226, 226, 226, 0.45);
+  }
+}
+
+.bar-nightlight {
+  color: $orange;
+  font-family: 'JetBrainsMono Nerd Font';
+  font-size: 14px;
+  
+  .bar-nightlight-label {
+    font-family: 'JetBrains Mono';
+    font-size: 11px;
+    font-weight: 700;
   }
 }
 
@@ -620,7 +642,7 @@ progressbar.osd-progress {
 }
 
 // ── Quick Settings Panel ──────────────────────────────────────────────────────
-$qs-bg: rgba(12, 12, 18, 0.92);
+$qs-bg: rgba(12, 12, 18, 1);
 $qs-border: rgba(255, 255, 255, 0.1);
 $qs-accent: #00f2ff;
 $qs-accent2: #7000ff;
@@ -734,7 +756,7 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
     background: $qs-tile-act;
     border-color: $qs-tile-brd;
     box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
-    
+
     .qs-tile-label {
       color: #fff;
       text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
@@ -1225,6 +1247,7 @@ tooltip {
     &.vertical {
       min-width: 0;
     }
+
     &.horizontal {
       min-height: 0;
     }
@@ -1307,7 +1330,8 @@ tooltip {
     margin: 0;
   }
 
-  .qs-wifi-lock, .qs-wifi-portal-icon {
+  .qs-wifi-lock,
+  .qs-wifi-portal-icon {
     font-size: 12px;
     color: rgba(255, 255, 255, 0.3);
     font-family: "JetBrainsMono Nerd Font";
@@ -1345,35 +1369,35 @@ tooltip {
     }
   }
 }
- 
- .qs-wifi-info-section {
-   background: rgba(20, 20, 30, 0.45);
-   margin: 0 10px 10px 10px;
-   padding: 12px;
-   border-radius: 12px;
-   border: 1px solid rgba(255, 255, 255, 0.06);
-   box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
 
-   .qs-wifi-info-label {
-     font-size: 10px;
-     font-weight: 800;
-     color: rgba(180, 170, 255, 0.5);
-     text-transform: uppercase;
-     letter-spacing: 0.8px;
-   }
+.qs-wifi-info-section {
+  background: rgba(20, 20, 30, 0.45);
+  margin: 0 10px 10px 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
 
-   .qs-wifi-info-value {
-     font-size: 11px;
-     font-weight: 600;
-     color: rgba(230, 225, 255, 0.95);
-   }
+  .qs-wifi-info-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: rgba(180, 170, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
 
-   .qs-wifi-info-sep {
-     color: rgba(255, 255, 255, 0.1);
-     font-size: 10px;
-     margin: 0 4px;
-   }
- }
+  .qs-wifi-info-value {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(230, 225, 255, 0.95);
+  }
+
+  .qs-wifi-info-sep {
+    color: rgba(255, 255, 255, 0.1);
+    font-size: 10px;
+    margin: 0 4px;
+  }
+}
 
 .qs-tile-arrow {
   background: transparent;
@@ -1415,7 +1439,7 @@ tooltip {
     background: rgba(139, 120, 255, 0.18);
     border-color: rgba(139, 120, 255, 0.5);
     box-shadow: 0 0 20px rgba(139, 120, 255, 0.15);
-    
+
     .qs-audio-name {
       color: #ffffff;
       text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
@@ -1449,7 +1473,7 @@ tooltip {
     font-size: 14px;
     color: $qs-green;
   }
-  
+
   .qs-audio-radio {
     min-width: 16px;
     min-height: 16px;
@@ -1472,7 +1496,7 @@ tooltip {
       box-shadow: 0 0 8px $qs-accent;
     }
   }
-  
+
   .qs-audio-card-btn {
     background: transparent;
     border: none;
@@ -1480,7 +1504,7 @@ tooltip {
     margin: 0;
     box-shadow: none;
     border-radius: 0;
-    
+
     &:hover {
       background: transparent;
     }
@@ -1496,12 +1520,12 @@ tooltip {
 
   scale.qs-slider {
     margin: 4px 0 0 0;
-    
+
     trough {
       min-height: 4px;
       background: rgba(255, 255, 255, 0.05);
     }
-    
+
     progress {
       min-height: 4px;
     }
@@ -1509,7 +1533,10 @@ tooltip {
 }
 
 .qs-wifi-list-scroll {
-  scrollbar, scrollbar slider, scrollbar button {
+
+  scrollbar,
+  scrollbar slider,
+  scrollbar button {
     opacity: 0;
     min-width: 0;
     min-height: 0;

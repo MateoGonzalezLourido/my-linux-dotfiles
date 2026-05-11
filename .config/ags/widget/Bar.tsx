@@ -20,11 +20,12 @@ import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, q
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
   const [visible, setVisible] = createState(false)
+  const [isHovered, setIsHovered] = createState(false)
   let hideTimer: ReturnType<typeof setTimeout> | null = null
   let showTimer: ReturnType<typeof setTimeout> | null = null
   const BAR_HEIGHT = 38
 
-  function show() {
+  function handleShow() {
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
     if (showTimer) clearTimeout(showTimer)
     setWidgetsRefresh(true)
@@ -34,22 +35,30 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     }, 200)
   }
 
-  function scheduleHide() {
-    if (anyPanelVisible.get()) return; 
-
+  function handleHide() {
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
-      setVisible(false)
-      setWidgetsRefresh(false)
-      setBarVisible(false)
+      // Final check before hiding
+      if (!isHovered() && !anyPanelVisible.get()) {
+        setVisible(false)
+        setWidgetsRefresh(false)
+        setBarVisible(false)
+      }
     }, 300)
   }
 
-  anyPanelVisible.subscribe((v) => {
-    if (v) show();
-    else if (!visible.get()) scheduleHide();
-  })
+  // Unified visibility logic
+  const checkVisibility = () => {
+    if (isHovered() || anyPanelVisible.get()) {
+      handleShow()
+    } else {
+      handleHide()
+    }
+  }
+
+  isHovered.subscribe(checkVisibility)
+  anyPanelVisible.subscribe(checkVisibility)
 
   const hotzone = <window
     name="bar-hotzone"
@@ -64,8 +73,9 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   >
     <box hexpand vexpand>
       <Gtk.EventControllerMotion
-        onEnter={show}
-        onLeave={scheduleHide} />
+        onEnter={() => setIsHovered(true)}
+        onLeave={() => setIsHovered(false)}
+        onMotion={() => setIsHovered(true)} />
     </box>
   </window>
 
@@ -75,14 +85,20 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     gdkmonitor={gdkmonitor}
     layer={Astal.Layer.TOP}
     exclusivity={Astal.Exclusivity.NORMAL}
+    focusable={true}
     anchor={TOP | LEFT | RIGHT}
     application={app}
+    keymode={Astal.Keymode.ON_DEMAND}
     marginTop={visible((v) => v ? 0 : -BAR_HEIGHT)}
     cssClasses={visible((v) => v ? ["Bar", "bar-visible"] : ["Bar", "bar-hidden"])}
   >
     <Gtk.EventControllerMotion
-      onEnter={show}
-      onLeave={scheduleHide}
+      onEnter={() => setIsHovered(true)}
+      onLeave={() => setIsHovered(false)}
+      onMotion={() => setIsHovered(true)}
+    />
+    <Gtk.GestureClick
+      onPressed={() => setIsHovered(true)}
     />
     <centerbox css="margin-left: 9px; margin-right: 10px;">
       <box $type="start" halign={Gtk.Align.START} spacing={6}>

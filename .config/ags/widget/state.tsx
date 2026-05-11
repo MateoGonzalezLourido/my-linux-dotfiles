@@ -5,6 +5,7 @@ export const [barVisible, setBarVisible] = createState(false)
 export const [nightLightActive, setNightLightActive] = createState(false)
 export const [nightLightTemp, setNightLightTemp] = createState(4500)
 export const [brightness, setBrightness] = createState(0.5)
+export const [isMenuOpen, setIsMenuOpen] = createState(false)
 
 // ── Panel visibility ─────────────────────────────────────────────────────────
 // Cada panel tiene su propio estado. anyPanelVisible se deriva de ellos.
@@ -24,10 +25,11 @@ quickSettingsVisible.subscribe((v) => {
 // La barra observa esto para no ocultarse mientras haya un panel abierto.
 // Abrir un panel cierra el resto (exclusividad mutua).
 export const anyPanelVisible = {
-  get: () => powerMenuVisible.get() || quickSettingsVisible.get(),
+  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get(),
   subscribe: (cb: (v: boolean) => void) => {
-    powerMenuVisible.subscribe(() => cb(powerMenuVisible.get() || quickSettingsVisible.get()))
-    quickSettingsVisible.subscribe(() => cb(powerMenuVisible.get() || quickSettingsVisible.get()))
+    powerMenuVisible.subscribe(() => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get()))
+    quickSettingsVisible.subscribe(() => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get()))
+    isMenuOpen.subscribe(() => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get()))
   },
 }
 

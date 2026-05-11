@@ -20,10 +20,33 @@ import {
   setQsView,
   infoSsid,
   setInfoSsid,
-  openPowerMenu,
+
   brightness,
   setBrightness
 } from "./state"
+
+// ── Auto-Switch Audio (Switch-on-Connect) ───────────────────────────────────
+try {
+  const wp = AstalWp.get_default()
+  if (wp?.audio) {
+    wp.audio.connect("speaker-added", (_, speaker) => {
+      setTimeout(() => {
+        execAsync(["wpctl", "set-default", String(speaker.id)]).catch(() => {})
+        if (speaker.name) execAsync(["pactl", "set-default-sink", speaker.name]).catch(() => {})
+        try { speaker.is_default = true } catch (e) {}
+      }, 500)
+    })
+    wp.audio.connect("microphone-added", (_, mic) => {
+      setTimeout(() => {
+        execAsync(["wpctl", "set-default", String(mic.id)]).catch(() => {})
+        if (mic.name) execAsync(["pactl", "set-default-source", mic.name]).catch(() => {})
+        try { mic.is_default = true } catch (e) {}
+      }, 500)
+    })
+  }
+} catch (e) {
+  console.error("Failed to init audio switch-on-connect", e)
+}
 
 // ── Persistence Utilities ──────────────────────────────────────────────────────
 const PRESETS_PATH = `${GLib.get_user_config_dir()}/ags/config/audioPresets.json`
@@ -92,7 +115,7 @@ setNightLightTemp(dispConfig.nightLightTemp)
 
 execAsync(["bash", "-c", `brightnessctl s ${Math.round(dispConfig.brightness * 100)}%`]).catch(() => { })
 if (dispConfig.nightLightActive) {
-  execAsync(["bash", "-c", `pkill wlsunset; wlsunset -t ${dispConfig.nightLightTemp} &`]).catch(() => { })
+  execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${dispConfig.nightLightTemp} &`]).catch(() => { })
 }
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
@@ -352,8 +375,8 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           onRightClick={() => {
             const next = !nightLightActive.get()
             setNightLightActive(next)
-            if (next) execAsync(["bash", "-c", `pkill wlsunset; wlsunset -t ${nightLightTemp.get()} &`]).catch(() => { })
-            else execAsync(["bash", "-c", "pkill wlsunset"]).catch(() => { })
+            if (next) execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${nightLightTemp.get()} &`]).catch(() => { })
+            else execAsync(["bash", "-c", "pkill hyprsunset; hyprctl hyprsunset identity"]).catch(() => { })
           }}
         />
       </box>
@@ -1088,6 +1111,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
     (cb) => brightness.subscribe(cb),
   )
 
+  let hyprsunsetTimeout: ReturnType<typeof setTimeout> | null = null
   const tempScale = makeScale(
     ["qs-slider", "temperature"],
     () => (nightLightTemp.get() - 1500) / 4500,
@@ -1096,7 +1120,10 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
       setNightLightTemp(t)
       saveDisplayConfig()
       if (nightLightActive.get()) {
-        execAsync(["bash", "-c", `pkill wlsunset; wlsunset -t ${t} &`]).catch(() => { })
+        if (hyprsunsetTimeout) clearTimeout(hyprsunsetTimeout)
+        hyprsunsetTimeout = setTimeout(() => {
+          execAsync(["bash", "-c", `hyprctl hyprsunset temperature ${t}`]).catch(() => { })
+        }, 150)
       }
     },
     (cb) => nightLightTemp.subscribe(cb),
@@ -1147,14 +1174,15 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
           <box spacing={6}>
             <label cssClasses={["qs-section-icon", "night"]} label="󰌾" />
             <label cssClasses={["qs-section-label"]} label="Luz nocturna" hexpand halign={Gtk.Align.START} />
+            <label cssClasses={["qs-section-pct"]} label={nightLightTemp((t) => `${t}K`)} />
             <button
               cssClasses={nightLightActive((n) => n ? ["qs-toggle", "on"] : ["qs-toggle"])}
               onClicked={() => {
                 const next = !nightLightActive.get()
                 setNightLightActive(next)
                 saveDisplayConfig()
-                if (next) execAsync(["bash", "-c", `pkill wlsunset; wlsunset -t ${nightLightTemp.get()} &`]).catch(() => { })
-                else execAsync(["bash", "-c", "pkill wlsunset"]).catch(() => { })
+                if (next) execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${nightLightTemp.get()} &`]).catch(() => { })
+                else execAsync(["bash", "-c", "pkill hyprsunset; hyprctl hyprsunset identity"]).catch(() => { })
               }}
             >
               <box cssClasses={["qs-toggle-track"]}>
@@ -1209,13 +1237,7 @@ function QsFooter() {
         <label cssClasses={["qs-username"]} label={user} halign={Gtk.Align.START} />
         <label cssClasses={["qs-hostname"]} label={`@${host}`} halign={Gtk.Align.START} />
       </box>
-      <button
-        cssClasses={["qs-footer-btn"]}
-        tooltipText="Opciones de energía"
-        onClicked={() => openPowerMenu()}
-      >
-        <label label="󰐥" />
-      </button>
+
       <button
         cssClasses={["qs-footer-btn"]}
         tooltipText="Configuración (próximamente)"
@@ -1240,20 +1262,53 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   const btPowered = createBinding(bt, "isPowered")
   const [devices, setDevices] = createState<any[]>(bt.get_devices())
   const [scanning, setScanning] = createState(false)
+  const [showUnnamed, setShowUnnamed] = createState(false)
+  const [buffering, setBuffering] = createState(false)
 
-  const update = () => setDevices(bt.get_devices())
-  bt.connect("notify::devices", update)
-  bt.connect("notify::is-powered", update)
+  const update = () => {
+    if (buffering.get()) return
+    setDevices(bt.get_devices())
+  }
 
-  const scan = () => {
+  const scan = (duration: number = 15000) => {
     if (scanning.get()) return
+    const adapter = bt.adapter
+    if (!adapter) {
+      execAsync(["notify-send", "Bluetooth Error", "Adapter is null"]).catch(() => {})
+      return
+    }
+
     setScanning(true)
-    const interval = setInterval(update, 2000)
-    execAsync(["bash", "-c", "timeout 15 bluetoothctl scan on"]).finally(() => {
-      clearInterval(interval)
-      setScanning(false)
+    setBuffering(true)
+    adapter.start_discovery()
+    
+    setTimeout(() => {
+      setBuffering(false)
       update()
-    })
+      
+      const interval = setInterval(update, 1000)
+      
+      const remaining = Math.max(0, duration - 2000)
+      setTimeout(() => {
+        adapter.stop_discovery()
+        clearInterval(interval)
+        setScanning(false)
+        update()
+      }, remaining)
+    }, 2000)
+  }
+
+  // Update once on mount and when powered/devices change
+  bt.connect("notify::is-powered", update)
+  bt.connect("notify::devices", update)
+  bt.connect("device-added", update)
+  bt.connect("device-removed", update)
+
+  const isMac = (str: string) => /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/i.test(str)
+  const hasRealName = (dev: any) => {
+    if (dev.alias && !isMac(dev.alias)) return true;
+    if (dev.name && !isMac(dev.name)) return true;
+    return false;
   }
 
   const getDeviceIcon = (dev: any) => {
@@ -1264,6 +1319,92 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     if (name.includes("mouse") || name.includes("ratón") || dev.icon_name?.includes("mouse")) return "󰍽"
     if (name.includes("keyboard") || name.includes("teclado") || dev.icon_name?.includes("keyboard")) return "󰌌"
     return "󰂯"
+  }
+
+  const pairedBinding = devices((ds) => {
+    const arr = ds || []
+    return arr.filter(d => d.paired || d.connected).sort((a, b) => {
+      if (a.connected !== b.connected) return a.connected ? -1 : 1;
+      const nameA = (a.alias || a.name || a.address || "").toLowerCase();
+      const nameB = (b.alias || b.name || b.address || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    })
+  })
+
+  const availableBinding = devices((ds) => {
+    const arr = ds || []
+    return arr.filter(d => !d.paired && !d.connected && hasRealName(d)).sort((a, b) => {
+      const nameA = (a.alias || a.name || "").toLowerCase();
+      const nameB = (b.alias || b.name || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    })
+  })
+
+  const unnamedBinding = devices((ds) => {
+    const arr = ds || []
+    return arr.filter(d => !d.paired && !d.connected && !hasRealName(d)).sort((a, b) => {
+      const nameA = (a.address || "").toLowerCase();
+      const nameB = (b.address || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    })
+  })
+
+  const renderDevice = (dev: any) => {
+    const connectedBinding = createBinding(dev, "connected");
+    const aliasBinding = createBinding(dev, "alias");
+    
+    return (
+      <button
+        cssClasses={connectedBinding((c) => {
+          const classes = ["qs-wifi-item"];
+          if (c) classes.push("active");
+          else if (dev.paired) classes.push("known");
+          return classes;
+        })}
+        onClicked={() => {
+          if (dev.connected) {
+            execAsync(["bluetoothctl", "disconnect", dev.address]).catch(() => {})
+          } else {
+            execAsync(["bluetoothctl", "connect", dev.address]).catch(() => {})
+          }
+        }}
+      >
+        <box spacing={8}>
+          <label cssClasses={["qs-wifi-icon"]} label={aliasBinding(() => getDeviceIcon(dev))} />
+          <box orientation={Gtk.Orientation.VERTICAL} hexpand>
+            <label 
+              label={aliasBinding((a) => {
+                 if (a && !isMac(a)) return a;
+                 if (dev.name && !isMac(dev.name)) return dev.name;
+                 return dev.address || "Desconocido";
+              })} 
+              halign={Gtk.Align.START} 
+              ellipsize={3} 
+              cssClasses={["qs-wifi-name"]} 
+            />
+            <label
+              label={connectedBinding((c) => c ? "Conectado" : dev.paired ? "Vinculado" : "Disponible")}
+              halign={Gtk.Align.START}
+              cssClasses={["qs-wifi-sec"]}
+            />
+          </box>
+          <label 
+            label="󰄬" 
+            cssClasses={["qs-wifi-lock"]} 
+            halign={Gtk.Align.END} 
+            visible={connectedBinding} 
+          />
+        </box>
+      </button>
+    )
+  }
+
+  if (!(globalThis as any)._btAutoScanSub) {
+    (globalThis as any)._btAutoScanSub = qsView.subscribe((view) => {
+      if (view === "bluetooth" && bt.isPowered && !scanning.get()) {
+        scan(5000)
+      }
+    })
   }
 
   return (
@@ -1278,7 +1419,7 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
         ><label label="󰒓" /></button>
         <button
           cssClasses={scanning((s) => s ? ["qs-icon-btn", "scanning"] : ["qs-icon-btn"])}
-          onClicked={scan}
+          onClicked={() => scan()}
           tooltipText="Buscar dispositivos"
         ><label label="󰑐" /></button>
         <button
@@ -1297,36 +1438,41 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
         vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
         vexpand
       >
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-          <For each={() => devices()}>
-            {(dev: any) => (
-              <button
-                cssClasses={createBinding(dev, "connected")((c) => c ? ["qs-wifi-item", "active"] : ["qs-wifi-item"])}
-                onClicked={() => {
-                  if (dev.connected) {
-                    dev.disconnect()
-                  } else {
-                    dev.connect()
-                  }
-                }}
-              >
-                <box spacing={8}>
-                  <label cssClasses={["qs-wifi-icon"]} label={getDeviceIcon(dev)} />
-                  <box orientation={Gtk.Orientation.VERTICAL} hexpand>
-                    <label label={dev.alias || dev.name || "Unknown"} halign={Gtk.Align.START} ellipsize={3} cssClasses={["qs-wifi-name"]} />
-                    <label
-                      label={createBinding(dev, "connected")((c) => c ? "Conectado" : dev.paired ? "Vinculado" : "Disponible")}
-                      halign={Gtk.Align.START}
-                      cssClasses={["qs-wifi-sec"]}
-                    />
-                  </box>
-                  {createBinding(dev, "connected")((c) => c && (
-                    <label label="󰄬" cssClasses={["qs-wifi-lock"]} halign={Gtk.Align.END} />
-                  ))}
-                </box>
-              </button>
-            )}
-          </For>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={pairedBinding((arr) => arr.length > 0)}>
+            <label cssClasses={["qs-dropdown-header"]} label="VINCULADOS" halign={Gtk.Align.START} />
+            <For each={pairedBinding}>
+              {renderDevice}
+            </For>
+          </box>
+
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={availableBinding((arr) => arr.length > 0)}>
+            <label cssClasses={["qs-dropdown-header"]} label="DISPONIBLES" halign={Gtk.Align.START} />
+            <For each={availableBinding}>
+              {renderDevice}
+            </For>
+          </box>
+
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={unnamedBinding((arr) => arr.length > 0)}>
+            <button 
+              cssClasses={["qs-dropdown-header"]} 
+              onClicked={() => setShowUnnamed(!showUnnamed.get())}
+              css="background: transparent; border: none; padding: 0;"
+            >
+              <box spacing={6}>
+                <label label="OTROS DISPOSITIVOS (MAC)" css="font-size: 0.8em; font-weight: bold; color: rgba(255,255,255,0.5);" />
+                <label label={showUnnamed((s) => s ? "󰅀" : "󰅂")} css="font-size: 0.8em; color: rgba(255,255,255,0.5);" />
+              </box>
+            </button>
+            <revealer revealChild={showUnnamed} transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN} transitionDuration={200}>
+              <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+                <For each={unnamedBinding}>
+                  {renderDevice}
+                </For>
+              </box>
+            </revealer>
+          </box>
+
           <label
             label="No se encontraron dispositivos"
             css="opacity: 0.5; margin-top: 20px;"

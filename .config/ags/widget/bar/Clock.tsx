@@ -1,7 +1,7 @@
 import GLib from "gi://GLib"
 import { createState, createEffect } from "ags"
 import { Gtk } from "ags/gtk4"
-import { barVisible, widgetsRefresh } from "../state.tsx";
+import { barVisible, widgetsRefresh, setIsMenuOpen } from "../state.tsx";
 
 let cacheLastTimeRendered = ""
 /*NOTA: EL RELOJ NO SE PARA PORQUE SU INTERVAL ES DE 1 MINUTO, EL COSTE ES NULO, SOLO PARAMOS EL RENDER */
@@ -94,6 +94,7 @@ export default function Clock() {
     <menubutton
       valign={Gtk.Align.CENTER}
       cssClasses={running((r) => r ? ["clock", "stopwatch"] : ["clock"])}
+      onNotifyActive={(self) => setIsMenuOpen(self.active)}
     >
       <label label={running((r) => r
         ? (barVisible() ? formatSW(stopwatch()) : cacheLastTimeRendered)

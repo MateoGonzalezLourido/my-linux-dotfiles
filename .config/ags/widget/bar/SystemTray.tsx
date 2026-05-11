@@ -1,6 +1,7 @@
 import AstalTray from "gi://AstalTray"
 import { createBinding, For } from "ags"
 import { Gtk } from "ags/gtk4"
+import { setIsMenuOpen } from "../state"
 
 export default function SystemTray() {
   const tray  = AstalTray.get_default()
@@ -10,21 +11,33 @@ export default function SystemTray() {
     <box spacing={2}>
       <For each={items}>
         {(item) => (
-          <menubutton
-            cssName="icon-bare"
-            tooltipMarkup={createBinding(item, "tooltipMarkup")}
-            menuModel={createBinding(item, "menuModel")}
+          <box
             $={(self) => {
               createBinding(item, "actionGroup").subscribe((ag) => {
-                if (ag) self.insert_action_group("dbusmenu", ag)
+                if (ag) {
+                  self.insert_action_group("dbusmenu", ag)
+                  self.insert_action_group("tray", ag)
+                  self.insert_action_group("indicator", ag)
+                  self.insert_action_group("item", ag)
+                  self.insert_action_group("app", ag)
+                  self.insert_action_group("unity", ag)
+                }
               })
             }}
           >
-            <image
-              gicon={createBinding(item, "gicon")}
-              iconSize={Gtk.IconSize.NORMAL}
-            />
-          </menubutton>
+            <menubutton
+              cssName="icon-bare"
+              focusable={true}
+              menuModel={createBinding(item, "menuModel").as(mm => mm || null)}
+              tooltipMarkup={createBinding(item, "tooltipMarkup")}
+              onNotifyActive={(self) => setIsMenuOpen(self.active)}
+            >
+              <image
+                gicon={createBinding(item, "gicon")}
+                iconSize={Gtk.IconSize.NORMAL}
+              />
+            </menubutton>
+          </box>
         )}
       </For>
     </box>
