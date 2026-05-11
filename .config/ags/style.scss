@@ -1224,6 +1224,38 @@ tooltip {
     border-color: rgba(139, 120, 255, 0.3);
   }
 
+  &.portal {
+    background: rgba(255, 123, 0, 0.15);
+    border-color: rgba(255, 123, 0, 0.4);
+    box-shadow: 0 0 15px rgba(255, 123, 0, 0.1);
+
+    .qs-wifi-icon {
+      color: #ff7b00;
+    }
+
+    .qs-wifi-name {
+      color: #ffca99;
+    }
+
+    .qs-wifi-sec {
+      color: #ffca99;
+      font-weight: 700;
+    }
+  }
+
+  &.known {
+    background: rgba(255, 60, 120, 0.03);
+    border-color: rgba(255, 60, 120, 0.1);
+
+    .qs-wifi-icon {
+      color: rgba(255, 60, 120, 0.5);
+    }
+
+    .qs-wifi-name {
+      color: rgba(255, 255, 255, 0.85);
+    }
+  }
+
   .qs-wifi-icon {
     font-size: 16px;
     color: #c4b8ff;
@@ -1242,10 +1274,15 @@ tooltip {
     margin: 0;
   }
 
-  .qs-wifi-lock {
+  .qs-wifi-lock, .qs-wifi-portal-icon {
     font-size: 12px;
     color: rgba(255, 255, 255, 0.3);
     font-family: "JetBrainsMono Nerd Font";
+  }
+
+  .qs-wifi-portal-icon {
+    color: #ff7b00;
+    font-size: 14px;
   }
 }
 

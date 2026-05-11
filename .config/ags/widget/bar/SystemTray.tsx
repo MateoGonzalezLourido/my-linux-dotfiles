@@ -10,14 +10,20 @@ export default function SystemTray() {
     <box spacing={2}>
       <For each={items}>
         {(item) => (
-          <menubutton cssName="icon-bare">
+          <menubutton
+            cssName="icon-bare"
+            tooltipMarkup={createBinding(item, "tooltipMarkup")}
+            menuModel={createBinding(item, "menuModel")}
+            $={(self) => {
+              createBinding(item, "actionGroup").subscribe((ag) => {
+                if (ag) self.insert_action_group("dbusmenu", ag)
+              })
+            }}
+          >
             <image
               gicon={createBinding(item, "gicon")}
               iconSize={Gtk.IconSize.NORMAL}
             />
-            <popover>
-              <Gtk.Label label={createBinding(item, "tooltipMarkup")} useMarkup />
-            </popover>
           </menubutton>
         )}
       </For>
