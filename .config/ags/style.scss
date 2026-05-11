@@ -632,6 +632,7 @@ $qs-tile-act: rgba(0, 242, 255, 0.1);
 $qs-tile-brd: rgba(0, 242, 255, 0.3);
 
 .qs-window {
+  background: transparent;
   background-color: transparent;
 }
 
@@ -670,10 +671,11 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
 .qs-dnd-btn {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 99px;
-  padding: 2px 8px;
+  border-radius: 50%;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
   color: rgba(200, 200, 200, 0.6);
-  font-size: 10px;
   transition: all 150ms ease;
 
   &.active {
@@ -685,11 +687,6 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
   .qs-dnd-icon {
     font-family: "JetBrainsMono Nerd Font";
     font-size: 11px;
-    margin: 0;
-  }
-
-  .qs-dnd-label {
-    font-size: 10px;
     margin: 0;
   }
 }
@@ -713,13 +710,6 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
   .qs-notif-icon {
     font-family: "JetBrainsMono Nerd Font";
     font-size: 12px;
-    margin: 0;
-  }
-
-  .qs-notif-badge {
-    font-size: 8px;
-    font-weight: 700;
-    color: $qs-accent;
     margin: 0;
   }
 }
@@ -1185,10 +1175,10 @@ tooltip {
     -gtk-icon-size: 0;
 
     &.vertical {
-      width: 0;
+      min-width: 0;
     }
     &.horizontal {
-      height: 0;
+      min-height: 0;
     }
   }
 
@@ -1282,5 +1272,134 @@ tooltip {
   &:hover {
     background: rgba(255, 255, 255, 0.1);
     color: rgba(230, 225, 255, 0.92);
+  }
+}
+
+// ── Bluetooth Menu ────────────────────────────────────────────────────────────
+.qs-bluetooth-menu {
+  background: transparent;
+  border-radius: 12px;
+  padding: 2px;
+}
+
+// ── Audio/Mic Items ───────────────────────────────────────────────────────────
+.qs-audio-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  margin-bottom: 6px;
+  padding: 8px;
+  transition: all 200ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &.active {
+    background: rgba(139, 120, 255, 0.18);
+    border-color: rgba(139, 120, 255, 0.5);
+    box-shadow: 0 0 20px rgba(139, 120, 255, 0.15);
+    
+    .qs-audio-name {
+      color: #ffffff;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    }
+
+    .qs-audio-icon {
+      color: #ffffff;
+      text-shadow: 0 0 12px $qs-accent;
+    }
+  }
+
+  .qs-audio-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 16px;
+    color: $qs-accent;
+  }
+
+  .qs-audio-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .qs-audio-vol-text {
+    font-size: 9px;
+    color: $qs-text-dim;
+  }
+
+  .qs-audio-check {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 14px;
+    color: $qs-green;
+  }
+  
+  .qs-audio-radio {
+    min-width: 16px;
+    min-height: 16px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    background: transparent;
+    transition: all 200ms ease;
+    margin-right: 4px;
+
+    &.active {
+      border-color: $qs-accent;
+      background: rgba(0, 242, 255, 0.1);
+    }
+
+    .qs-audio-radio-dot {
+      min-width: 8px;
+      min-height: 8px;
+      border-radius: 50%;
+      background: $qs-accent;
+      box-shadow: 0 0 8px $qs-accent;
+    }
+  }
+  
+  .qs-audio-card-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+    
+    &:hover {
+      background: transparent;
+    }
+  }
+
+  .qs-audio-name-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  scale.qs-slider {
+    margin: 4px 0 0 0;
+    
+    trough {
+      min-height: 4px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    progress {
+      min-height: 4px;
+    }
+  }
+}
+
+.qs-wifi-list-scroll {
+  scrollbar, scrollbar slider, scrollbar button {
+    opacity: 0;
+    min-width: 0;
+    min-height: 0;
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
   }
 }
