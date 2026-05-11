@@ -339,9 +339,9 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
 }
 
 
-// ── Section 3: Spotify Player ─────────────────────────────────────────────────
+// ── Section 3: Media Player ───────────────────────────────────────────────────
 
-function QsSpotify() {
+function QsMedia() {
   const mpris = AstalMpris.get_default()
   if (!mpris) return <box />
 
@@ -350,18 +350,57 @@ function QsSpotify() {
   const [isPlaying, setIsPlaying] = createState(false)
   const [prog, setProg] = createState(0)
   const [hasPlayer, setHasPlayer] = createState(false)
+  const [cover, setCover] = createState("")
+  const [playerIndex, setPlayerIndex] = createState(0)
+  const [numPlayers, setNumPlayers] = createState(0)
+  const [playerName, setPlayerName] = createState("")
+
+  let currentP: any = null
 
   const update = () => {
-    const p = mpris.players.find(p => p.bus_name.includes("spotify") || p.identity.toLowerCase().includes("spotify"))
+    const players = mpris.players
+    setNumPlayers(players.length)
+    if (players.length === 0) {
+      setHasPlayer(false)
+      return
+    }
+
+    let idx = playerIndex.get()
+    if (idx >= players.length) {
+      idx = 0
+      setPlayerIndex(0)
+    }
+
+    const p = players[idx]
     if (!p) {
       setHasPlayer(false)
       return
     }
+
+    currentP = p
     setHasPlayer(true)
     setTitle(p.title || "Sin título")
     setArtist(p.artist || "Artista desconocido")
     setIsPlaying(p.playback_status === AstalMpris.PlaybackStatus.PLAYING)
+    setCover(p.cover_art || "")
+    setPlayerName(p.identity || p.bus_name.split(".").pop() || "Player")
     if (p.length > 0) setProg(p.position / p.length)
+  }
+
+  const nextPlayer = () => {
+    const players = mpris.players
+    if (players.length > 1) {
+      setPlayerIndex((playerIndex.get() + 1) % players.length)
+      update()
+    }
+  }
+
+  const prevPlayer = () => {
+    const players = mpris.players
+    if (players.length > 1) {
+      setPlayerIndex((playerIndex.get() - 1 + players.length) % players.length)
+      update()
+    }
   }
 
   // Initial update and interval
@@ -373,34 +412,51 @@ function QsSpotify() {
 
   return (
     <box
-      cssClasses={["qs-spotify"]}
+      cssClasses={["qs-media"]}
       visible={hasPlayer}
       orientation={Gtk.Orientation.VERTICAL}
       spacing={4}
     >
+      <box spacing={4} visible={numPlayers((n) => n > 1)} css="margin-bottom: 2px;">
+        <label cssClasses={["qs-media-source"]} label={playerName} hexpand halign={Gtk.Align.START} />
+        <box spacing={0} valign={Gtk.Align.CENTER}>
+          <button cssClasses={["qs-media-switch"]} onClicked={prevPlayer}>
+            <label label="󰅁" />
+          </button>
+          <label cssClasses={["qs-media-count"]} label={playerIndex((i) => `${i + 1}/${numPlayers()}`)} halign={Gtk.Align.CENTER} />
+          <button cssClasses={["qs-media-switch"]} onClicked={nextPlayer}>
+            <label label="󰅂" />
+          </button>
+        </box>
+      </box>
+
       <box spacing={10}>
-        <label cssClasses={["qs-spotify-art"]} label="󰎈" />
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
-          <label cssClasses={["qs-spotify-title"]} label={title} halign={Gtk.Align.START} ellipsize={3} />
-          <label cssClasses={["qs-spotify-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
+        <box 
+          cssClasses={["qs-media-art"]} 
+          css={cover((c) => c ? `background-image: url('${c}'); background-size: cover; background-position: center; border-radius: 8px;` : "")}
+          valign={Gtk.Align.CENTER}
+          halign={Gtk.Align.CENTER}
+        >
+          <label label="󰎈" visible={cover((c) => !c)} />
+        </box>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand valign={Gtk.Align.CENTER}>
+          <label cssClasses={["qs-media-title"]} label={title} halign={Gtk.Align.START} ellipsize={3} />
+          <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
         </box>
         <box spacing={2} valign={Gtk.Align.CENTER}>
-          <button cssClasses={["qs-spotify-btn"]} tooltipText="Añadir a la biblioteca">
-            <label label="⊕" />
-          </button>
-          <button cssClasses={["qs-spotify-btn"]} onClicked={() => execAsync("playerctl previous")}>
+          <button cssClasses={["qs-media-btn"]} onClicked={() => currentP?.previous()}>
             <label label="󰒮" />
           </button>
-          <button cssClasses={["qs-spotify-btn"]} onClicked={() => execAsync("playerctl play-pause")}>
+          <button cssClasses={["qs-media-btn"]} onClicked={() => currentP?.play_pause()}>
             <label label={isPlaying((v) => v ? "󰏤" : "󰐊")} />
           </button>
-          <button cssClasses={["qs-spotify-btn"]} onClicked={() => execAsync("playerctl next")}>
+          <button cssClasses={["qs-media-btn"]} onClicked={() => currentP?.next()}>
             <label label="󰒭" />
           </button>
         </box>
       </box>
       <Gtk.ProgressBar
-        cssClasses={["qs-spotify-progress"]}
+        cssClasses={["qs-media-progress"]}
         fraction={prog}
         hexpand
       />
@@ -595,9 +651,9 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
 
                   const [currentVol, setCurrentVol] = createState(initialVol)
 
-                  const isSpotify = name.toLowerCase().includes("spotify")
+                  const isMedia = name.toLowerCase().includes("spotify") || si.properties?.["media.name"]
                   const streamScale = makeScale(
-                    isSpotify ? ["qs-slider", "spotify"] : ["qs-slider", "app"],
+                    isMedia ? ["qs-slider", "media"] : ["qs-slider", "app"],
                     () => currentVol.get(),
                     (v) => {
                       setCurrentVol(v)
@@ -1483,7 +1539,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
             onAudioClick={() => setQsView("audio")}
             onMicClick={() => setQsView("mic")}
           />
-          <QsSpotify />
+          <QsMedia />
           <QsFooter />
         </box>
 

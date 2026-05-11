@@ -769,40 +769,40 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
   }
 }
 
-// ── Spotify ───────────────────────────────────────────────────────────────────
-.qs-spotify {
-  background: rgba(0, 255, 157, 0.04);
-  border: 1px solid rgba(0, 255, 157, 0.1);
+// ── Media Player ──────────────────────────────────────────────────────────────
+.qs-media {
+  background: rgba(137, 180, 250, 0.04);
+  border: 1px solid rgba(137, 180, 250, 0.1);
   border-radius: 20px;
   padding: 10px;
   margin-top: 10px;
 
-  .qs-spotify-art {
+  .qs-media-art {
     font-family: "JetBrainsMono Nerd Font";
     font-size: 24px;
     min-width: 40px;
     min-height: 40px;
-    color: $qs-green;
+    color: $blue;
     margin: 0;
   }
 
-  .qs-spotify-title {
+  .qs-media-title {
     font-size: 12px;
     font-weight: 600;
     color: $qs-text;
     margin: 0;
   }
 
-  .qs-spotify-artist {
+  .qs-media-artist {
     font-size: 11px;
     color: $qs-text-dim;
     margin: 0;
   }
 
-  .qs-spotify-btn {
+  .qs-media-btn {
     background: transparent;
     border: none;
-    color: $qs-green;
+    color: $blue;
     font-family: "JetBrainsMono Nerd Font";
     font-size: 18px;
     padding: 4px;
@@ -812,7 +812,7 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
 
     &:hover {
       opacity: 1;
-      background: rgba(0, 255, 157, 0.1);
+      background: rgba(137, 180, 250, 0.1);
       transform: scale(1.1);
     }
 
@@ -821,7 +821,7 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
     }
   }
 
-  progressbar.qs-spotify-progress {
+  progressbar.qs-media-progress {
     min-height: 3px;
 
     trough {
@@ -833,8 +833,41 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
     progress {
       min-height: 3px;
       border-radius: 99px;
-      background: $qs-green;
+      background: $blue;
     }
+  }
+
+  .qs-media-source {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $blue;
+    opacity: 0.7;
+    margin-bottom: 4px;
+  }
+
+  .qs-media-switch {
+    background: transparent;
+    border: none;
+    color: $qs-text-dim;
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 12px;
+    padding: 0 4px;
+    border-radius: 4px;
+    transition: all 200ms ease;
+
+    &:hover {
+      color: $blue;
+      background: rgba(137, 180, 250, 0.1);
+    }
+  }
+
+  .qs-media-count {
+    font-size: 9px;
+    font-weight: 700;
+    color: $qs-text-dim;
+    min-width: 24px;
   }
 }
 
@@ -1003,9 +1036,9 @@ scale.qs-slider {
     }
   }
 
-  &.spotify {
+  &.media {
     progress {
-      background: rgba(29, 185, 84, 0.6);
+      background: rgba(137, 180, 250, 0.6);
     }
   }
 
