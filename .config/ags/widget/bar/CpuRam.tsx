@@ -29,10 +29,9 @@ export default function CpuRam() {
   const ram = createPoll(0, 4000, ramUsage)
 
   return (
-    <box 
-      cssClasses={["cpuram"]} 
+    <box
+      cssClasses={["cpuram"]}
       spacing={4}
-      tooltipText="Right-click to open System Monitor"
     >
       <Gtk.GestureClick
         button={Gdk.BUTTON_SECONDARY}

@@ -37,7 +37,7 @@ export default function Battery() {
   
   const getGradient = () => {
     const p = bat.percentage * 100
-    const color = bat.charging ? "#a6e3a1" : (p <= 15 ? "#f38ba8" : "#ffffff")
+    const color = bat.charging ? "#7df072ff" : (p <= 15 ? "#f38ba8" : "#f0f0f0ff")
     return `
       background: linear-gradient(to right, 
         ${color} ${Math.round(p)}%, 
