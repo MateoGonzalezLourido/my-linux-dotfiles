@@ -1,4 +1,5 @@
 import { createState } from "ags"
+import { notifPanelVisible, closeNotifPanel } from "./notifications/store"
 
 export const [widgetsRefresh, setWidgetsRefresh] = createState(false)
 export const [barVisible, setBarVisible] = createState(false)
@@ -25,11 +26,13 @@ quickSettingsVisible.subscribe((v) => {
 // La barra observa esto para no ocultarse mientras haya un panel abierto.
 // Abrir un panel cierra el resto (exclusividad mutua).
 export const anyPanelVisible = {
-  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get(),
+  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get(),
   subscribe: (cb: (v: boolean) => void) => {
-    powerMenuVisible.subscribe(() => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get()))
-    quickSettingsVisible.subscribe(() => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get()))
-    isMenuOpen.subscribe(() => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get()))
+    const notify = () => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get())
+    powerMenuVisible.subscribe(notify)
+    quickSettingsVisible.subscribe(notify)
+    isMenuOpen.subscribe(notify)
+    notifPanelVisible.subscribe(notify)
   },
 }
 
@@ -41,6 +44,7 @@ export function openPowerMenu() {
 export function openQuickSettings() {
   setPowerMenuVisible(false)
   setQuickSettingsVisible(true)
+  closeNotifPanel()
 }
 
 export function closeAllPanels() {
@@ -48,4 +52,5 @@ export function closeAllPanels() {
   setQuickSettingsVisible(false)
   setQsView("main")
   setInfoSsid(null)
+  closeNotifPanel()
 }

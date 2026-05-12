@@ -13,13 +13,13 @@ import Volume from "./bar/Volume"
 import Battery from "./bar/Battery"
 import CpuRam from "./bar/CpuRam"
 import Recording from "./bar/Recording"
-import Notifications from "./bar/Notifications"
+import NotificationButton from "./bar/NotificationButton"
 import PowerButton from "./bar/PowerButton"
 import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
-  const [visible, setVisible] = createState(false)
+  const [visible, setVisible] = createState(true)
   const [isHovered, setIsHovered] = createState(false)
   let hideTimer: ReturnType<typeof setTimeout> | null = null
   let showTimer: ReturnType<typeof setTimeout> | null = null
@@ -114,12 +114,12 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       <box $type="end" halign={Gtk.Align.END} spacing={6} css="margin-left: 20px;">
         <SystemTray />
         <Bluetooth />
+        <NotificationButton />
         <button
           cssClasses={["bar-pill-btn"]}
           onClicked={() => quickSettingsVisible.get() ? closeAllPanels() : openQuickSettings()}
         >
           <box cssClasses={["bar-pill"]}>
-            <Notifications />
             <Network />
             <Volume />
             <Battery />

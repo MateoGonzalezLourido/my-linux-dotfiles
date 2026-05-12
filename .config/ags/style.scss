@@ -1546,3 +1546,809 @@ tooltip {
     padding: 0;
   }
 }
+
+// ── Notification Button (Waybar) ──────────────────────────────────────────────
+.nb-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 6px;
+  margin: 4px 2px;
+  border-radius: 8px;
+  transition: all 150ms ease-out;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &.panel-open {
+    background: rgba(203, 166, 247, 0.15);
+    border: 1px solid rgba(203, 166, 247, 0.3);
+  }
+
+  .nb-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 15px;
+    color: rgba(226, 226, 226, 0.45);
+    margin: 0;
+
+    &.has-notifs {
+      color: #cba6f7;
+    }
+
+    &.dnd {
+      color: #f38ba8;
+    }
+  }
+
+  .nb-badge {
+    font-family: "JetBrains Mono";
+    font-size: 9px;
+    font-weight: 800;
+    color: #cba6f7;
+    margin: 0;
+  }
+}
+
+// ── Notification Popups ───────────────────────────────────────────────────────
+.notif-popup-window {
+  background: transparent;
+}
+
+.notif-popup-item {
+  background: rgba(18, 18, 27, 0.97);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-width: 300px;
+  max-width: 300px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  animation: notif-slide-in 200ms ease-out;
+
+  .notif-popup-app-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .notif-popup-app-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(226, 226, 226, 0.55);
+    font-family: "JetBrains Mono";
+    margin: 0;
+  }
+
+  .notif-popup-time {
+    font-size: 10px;
+    color: rgba(226, 226, 226, 0.35);
+    font-family: "JetBrains Mono";
+    margin: 0;
+  }
+
+  .notif-popup-close {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: rgba(226, 226, 226, 0.3);
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 12px;
+    border-radius: 4px;
+    min-width: 18px;
+    min-height: 18px;
+    transition: all 100ms ease;
+
+    &:hover {
+      color: #f38ba8;
+      background: rgba(243, 139, 168, 0.1);
+    }
+
+    label { margin: 0; }
+  }
+
+  .notif-popup-summary {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e2e2e2;
+    font-family: "JetBrains Mono";
+    margin: 0;
+  }
+
+  .notif-popup-body {
+    font-size: 11px;
+    color: rgba(226, 226, 226, 0.55);
+    font-family: "JetBrains Mono";
+    margin: 0;
+  }
+
+  .notif-popup-progress-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 99px;
+    min-height: 2px;
+    overflow: hidden;
+  }
+
+  .notif-popup-progress-bar {
+    border-radius: 99px;
+    min-height: 2px;
+  }
+}
+
+@keyframes notif-slide-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes notif-dismiss {
+  from { min-width: 276px; }
+  to { min-width: 0; }
+}
+
+// ── Notification Panel ────────────────────────────────────────────────────────
+.np-window {
+  background: transparent;
+}
+
+.np-panel {
+  background: rgba(12, 12, 18, 0.97);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  min-width: 360px;
+  max-width: 360px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
+  color: #e2e2e2;
+
+  button {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    transition: all 150ms ease;
+  }
+}
+
+// Panel header
+.np-header {
+  padding: 14px 14px 8px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
+}
+
+.np-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.np-unread-badge {
+  background: rgba(203, 166, 247, 0.2);
+  border: 1px solid rgba(203, 166, 247, 0.35);
+  border-radius: 99px;
+  padding: 0 6px;
+  min-height: 18px;
+}
+
+.np-unread-count {
+  font-size: 10px;
+  font-weight: 800;
+  color: #cba6f7;
+  margin: 0;
+}
+
+.np-icon-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 150ms ease-out;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &.active {
+    background: rgba(203, 166, 247, 0.15);
+    border-color: rgba(203, 166, 247, 0.35);
+
+    .np-btn-icon { color: #cba6f7; }
+  }
+
+  &.dnd-active {
+    background: rgba(243, 139, 168, 0.15);
+    border-color: rgba(243, 139, 168, 0.35);
+
+    .np-btn-icon { color: #f38ba8; }
+  }
+
+  .np-btn-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 13px;
+    color: rgba(226, 226, 226, 0.55);
+    margin: 0;
+  }
+}
+
+// Filter chips
+.np-filter-scroll {
+  margin-top: 8px;
+
+  scrollbar, scrollbar slider {
+    opacity: 0;
+    min-height: 0;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.np-filter-row {
+  padding: 2px 0;
+}
+
+.np-filter-chip {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  padding: 2px 10px;
+  transition: all 150ms ease-out;
+
+  &.active {
+    background: rgba(203, 166, 247, 0.15);
+    border-color: rgba(203, 166, 247, 0.35);
+
+    .np-filter-chip-label { color: #cba6f7; }
+  }
+
+  &:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .np-filter-chip-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(226, 226, 226, 0.55);
+    margin: 0;
+  }
+}
+
+// Notification list
+.np-list-scroll {
+  min-height: 200px;
+
+  scrollbar, scrollbar slider {
+    opacity: 0;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.np-empty-icon {
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 36px;
+  color: rgba(226, 226, 226, 0.15);
+  margin: 0;
+}
+
+.np-empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(226, 226, 226, 0.3);
+  margin: 0;
+}
+
+.np-empty-sub {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.2);
+  margin: 0;
+}
+
+// App group
+.np-app-group {
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.04);
+}
+
+.np-group-header {
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  transition: background 100ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.np-group-chevron {
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.4);
+  margin: 0;
+}
+
+.np-group-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(226, 226, 226, 0.6);
+  margin: 0;
+}
+
+.np-group-badge {
+  background: rgba(203, 166, 247, 0.2);
+  border-radius: 99px;
+  padding: 0 5px;
+}
+
+.np-group-count {
+  font-size: 9px;
+  font-weight: 800;
+  color: #cba6f7;
+  margin: 0;
+}
+
+.np-group-total {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.3);
+  margin: 0;
+}
+
+// Panel footer
+.np-footer {
+  padding: 10px 14px;
+  border-top: 0.5px solid rgba(255, 255, 255, 0.07);
+}
+
+.np-footer-info {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.35);
+  margin: 0;
+}
+
+.np-footer-unread {
+  font-size: 10px;
+  color: rgba(203, 166, 247, 0.6);
+  margin: 0;
+}
+
+.np-footer-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.6);
+  transition: all 150ms ease-out;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e2e2;
+  }
+
+  &.danger:hover {
+    background: rgba(243, 139, 168, 0.15);
+    border-color: rgba(243, 139, 168, 0.3);
+    color: #f38ba8;
+  }
+
+  &.danger.confirm {
+    background: rgba(243, 139, 168, 0.15);
+    border-color: rgba(243, 139, 168, 0.4);
+    color: #f38ba8;
+  }
+
+  label { margin: 0; }
+}
+
+// ── Notification Item ─────────────────────────────────────────────────────────
+.notif-item-wrapper {
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.04);
+}
+
+.notif-item {
+  transition: background 150ms ease-out;
+}
+
+.notif-unread-bar {
+  min-width: 3px;
+  border-radius: 0;
+}
+
+.notif-checkbox {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+
+  &.checked {
+    border-color: rgba(166, 227, 161, 0.6);
+  }
+
+  .notif-checkbox-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 12px;
+    color: rgba(226, 226, 226, 0.4);
+    margin: 0;
+  }
+}
+
+.notif-item-btn {
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 0;
+  transition: background 100ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.notif-app-icon-wrap {
+  border-radius: 8px;
+  min-width: 32px;
+  min-height: 32px;
+
+  .notif-app-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 16px;
+    margin: 0;
+  }
+}
+
+.notif-app-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "JetBrains Mono";
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.notif-timestamp {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.3);
+  font-family: "JetBrains Mono";
+  margin: 0;
+}
+
+.notif-summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e2e2;
+  font-family: "JetBrains Mono";
+  margin: 0;
+}
+
+.notif-body {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.55);
+  font-family: "JetBrains Mono";
+  margin: 0;
+}
+
+// Hover actions
+.notif-hover-actions {
+  padding: 4px;
+}
+
+.notif-action-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.4);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e2e2;
+  }
+
+  &.active {
+    background: rgba(243, 139, 168, 0.15);
+    border-color: rgba(243, 139, 168, 0.3);
+    color: #f38ba8;
+  }
+
+  &.dismiss:hover {
+    background: rgba(243, 139, 168, 0.15);
+    border-color: rgba(243, 139, 168, 0.3);
+    color: #f38ba8;
+  }
+
+  &.reply:hover {
+    background: rgba(137, 180, 250, 0.15);
+    border-color: rgba(137, 180, 250, 0.3);
+    color: #89b4fa;
+  }
+
+  label { margin: 0; }
+}
+
+// D-Bus action buttons
+.notif-dbus-actions {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.04);
+}
+
+.notif-dbus-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.7);
+  transition: all 100ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e2e2;
+  }
+
+  label { margin: 0; }
+}
+
+// Reply box
+.notif-reply-box {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.notif-reply-entry {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #e2e2e2;
+  font-family: "JetBrains Mono";
+}
+
+.notif-reply-send {
+  background: rgba(137, 180, 250, 0.1);
+  border: 1px solid rgba(137, 180, 250, 0.2);
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+
+  &:hover {
+    background: rgba(137, 180, 250, 0.2);
+  }
+
+  label { margin: 0; }
+}
+
+.notif-reply-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.4);
+
+  &:hover {
+    color: #f38ba8;
+    background: rgba(243, 139, 168, 0.1);
+  }
+
+  label { margin: 0; }
+}
+
+// ── Notification Settings Subpanel ────────────────────────────────────────────
+.ns-panel {
+  min-width: 360px;
+}
+
+.ns-header {
+  padding: 14px 14px 8px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
+}
+
+.ns-back-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 14px;
+  color: rgba(226, 226, 226, 0.55);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  label { margin: 0; }
+}
+
+.ns-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.ns-reset-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 13px;
+  color: rgba(226, 226, 226, 0.4);
+
+  &:hover {
+    background: rgba(243, 139, 168, 0.1);
+    color: #f38ba8;
+  }
+
+  label { margin: 0; }
+}
+
+.ns-scroll {
+  min-height: 200px;
+
+  scrollbar, scrollbar slider {
+    opacity: 0;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.ns-app-row {
+  background: rgba(255, 255, 255, 0.02);
+  border: 0.5px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 8px;
+  transition: background 100ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.ns-app-icon-wrap {
+  border-radius: 8px;
+  min-width: 30px;
+  min-height: 30px;
+
+  .ns-app-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 15px;
+    margin: 0;
+  }
+}
+
+.ns-app-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.ns-mute-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &.muted {
+    background: rgba(243, 139, 168, 0.1);
+    border-color: rgba(243, 139, 168, 0.3);
+
+    .ns-mute-icon { color: #f38ba8; }
+  }
+
+  .ns-mute-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 13px;
+    color: rgba(226, 226, 226, 0.5);
+    margin: 0;
+  }
+}
+
+.ns-label-dim {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.35);
+  margin: 0;
+}
+
+.ns-importance-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.5);
+  transition: all 100ms ease;
+
+  &.active {
+    color: #e2e2e2;
+  }
+
+  &:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  label { margin: 0; }
+}
+
+.ns-lock-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 13px;
+  color: rgba(226, 226, 226, 0.4);
+
+  &.active {
+    background: rgba(166, 227, 161, 0.1);
+    border-color: rgba(166, 227, 161, 0.3);
+    color: #a6e3a1;
+  }
+
+  &:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  label { margin: 0; }
+}
+
+.ns-empty-icon {
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 32px;
+  color: rgba(226, 226, 226, 0.15);
+  margin: 0;
+}
+
+.ns-empty-label {
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.3);
+  margin: 0;
+}

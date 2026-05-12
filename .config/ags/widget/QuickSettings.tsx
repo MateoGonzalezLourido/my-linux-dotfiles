@@ -24,6 +24,7 @@ import {
   brightness,
   setBrightness
 } from "./state"
+import { openNotifPanel } from "./notifications/store"
 
 // ── Auto-Switch Audio (Switch-on-Connect) ───────────────────────────────────
 try {
@@ -196,6 +197,10 @@ function QsHeader() {
         <button
           cssClasses={notifs((n) => n.length > 0 ? ["qs-notif-btn", "has-notifs"] : ["qs-notif-btn"])}
           tooltipText="Notificaciones"
+          onClicked={() => {
+            closeAllPanels()
+            openNotifPanel()
+          }}
         >
           <label cssClasses={["qs-notif-icon"]} label="󰂚" />
         </button>
