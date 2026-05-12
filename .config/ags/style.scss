@@ -1600,7 +1600,6 @@ tooltip {
   border-radius: 12px;
   padding: 10px 12px;
   min-width: 300px;
-  max-width: 300px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   animation: notif-slide-in 200ms ease-out;
 
@@ -1664,7 +1663,6 @@ tooltip {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 99px;
     min-height: 2px;
-    overflow: hidden;
   }
 
   .notif-popup-progress-bar {
@@ -1698,8 +1696,7 @@ tooltip {
   background: rgba(12, 12, 18, 0.97);
   border: 0.5px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
-  min-width: 360px;
-  max-width: 360px;
+  min-width: 400px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
   font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
   color: #e2e2e2;
@@ -1955,7 +1952,7 @@ tooltip {
 
 // ── Notification Item ─────────────────────────────────────────────────────────
 .notif-item-wrapper {
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 2px;
 }
 
 .notif-item {
@@ -1988,9 +1985,6 @@ tooltip {
 }
 
 .notif-item-btn {
-  background: transparent;
-  border: none;
-  padding: 8px 10px;
   border-radius: 0;
   transition: background 100ms ease;
 
@@ -1999,26 +1993,38 @@ tooltip {
   }
 }
 
+// Especificidad mayor que .np-panel button { padding: 0 }
+.np-panel .notif-item-btn {
+  padding: 10px 12px;
+}
+
 .notif-app-icon-wrap {
   border-radius: 8px;
   min-width: 32px;
   min-height: 32px;
+  padding: 0;
 
   .notif-app-icon {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 16px;
+    font-size: 15px;
     margin: 0;
+    padding: 0;
   }
+}
+
+.notif-app-img {
+  margin: 0;
+  padding: 0;
+  opacity: 0.7;
 }
 
 .notif-app-name {
   font-size: 10px;
-  font-weight: 700;
-  color: rgba(226, 226, 226, 0.45);
+  font-weight: 600;
+  color: rgba(226, 226, 226, 0.5);
   font-family: "JetBrains Mono";
   margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .notif-timestamp {
@@ -2029,23 +2035,22 @@ tooltip {
 }
 
 .notif-summary {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: #e2e2e2;
+  color: #eaeaea;
   font-family: "JetBrains Mono";
   margin: 0;
 }
 
 .notif-body {
   font-size: 11px;
-  color: rgba(226, 226, 226, 0.55);
+  color: rgba(226, 226, 226, 0.65);
   font-family: "JetBrains Mono";
   margin: 0;
 }
 
-// Hover actions
 .notif-hover-actions {
-  padding: 4px;
+  padding: 0 4px;
 }
 
 .notif-action-btn {
