@@ -1,0 +1,105 @@
+#!/bin/bash
+
+# ~/.config/inicializador/init.sh
+
+CONFIG_DIR="$HOME/.config/ags/config"
+DISPLAY_CONFIG="$CONFIG_DIR/display.json"
+STATE_CONFIG="$CONFIG_DIR/system_state.json"
+
+# --- Valores por Defecto ---
+DEFAULT_BRIGHTNESS=50        # 0-100%
+DEFAULT_NIGHTLIGHT=false     # true/false
+DEFAULT_NIGHTLIGHT_TEMP=4500 # Temperatura en Kelvin
+DEFAULT_WIFI=true            # true/false
+DEFAULT_BLUETOOTH=true       # true/false
+DEFAULT_VOLUME=50            # 0-100%
+DEFAULT_MUTE=false           # true/false
+
+# --- Funciones Modulares ---
+
+apply_brightness() {
+    local val=$DEFAULT_BRIGHTNESS
+    if [ -f "$DISPLAY_CONFIG" ]; then
+        local raw=$(jq -r '.brightness // empty' "$DISPLAY_CONFIG")
+        if [ -n "$raw" ]; then
+            val=$(echo "$raw * 100" | bc | awk '{print int($1+0.5)}')
+        fi
+    fi
+    brightnessctl s "${val}%"
+}
+
+apply_nightlight() {
+    local active=$DEFAULT_NIGHTLIGHT
+    local temp=$DEFAULT_NIGHTLIGHT_TEMP
+    
+    if [ -f "$DISPLAY_CONFIG" ]; then
+        local raw_active=$(jq -r '.nightLightActive // empty' "$DISPLAY_CONFIG")
+        local raw_temp=$(jq -r '.nightLightTemp // empty' "$DISPLAY_CONFIG")
+        
+        [ -n "$raw_active" ] && active=$raw_active
+        [ -n "$raw_temp" ] && temp=$raw_temp
+    fi
+    
+    pkill hyprsunset
+    if [ "$active" = "true" ]; then
+        hyprsunset -t "$temp" &
+    fi
+}
+
+apply_wifi() {
+    local active=$DEFAULT_WIFI
+    if [ -f "$STATE_CONFIG" ]; then
+        local raw=$(jq -r '.wifi // empty' "$STATE_CONFIG")
+        [ -n "$raw" ] && active=$raw
+    fi
+    
+    if [ "$active" = "true" ]; then
+        nmcli radio wifi on
+    else
+        nmcli radio wifi off
+    fi
+}
+
+apply_bluetooth() {
+    local active=$DEFAULT_BLUETOOTH
+    if [ -f "$STATE_CONFIG" ]; then
+        local raw=$(jq -r '.bluetooth // empty' "$STATE_CONFIG")
+        [ -n "$raw" ] && active=$raw
+    fi
+    
+    if [ "$active" = "true" ]; then
+        bluetoothctl power on
+    else
+        bluetoothctl power off
+    fi
+}
+
+apply_volume() {
+    local vol=$DEFAULT_VOLUME
+    local mute=$DEFAULT_MUTE
+
+    if [ -f "$STATE_CONFIG" ]; then
+        local raw_vol=$(jq -r '.volume // empty' "$STATE_CONFIG")
+        local raw_mute=$(jq -r '.mute // empty' "$STATE_CONFIG")
+        
+        [ -n "$raw_vol" ] && vol=$(echo "$raw_vol * 100" | bc | awk '{print int($1+0.5)}')
+        [ -n "$raw_mute" ] && mute=$raw_mute
+    fi
+    
+    # Aplicar volumen
+    wpctl set-volume @DEFAULT_AUDIO_SINK@ "${vol}%"
+    
+    # Aplicar mute
+    if [ "$mute" = "true" ]; then
+        wpctl set-mute @DEFAULT_AUDIO_SINK@ 1
+    else
+        wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+    fi
+}
+
+# --- Ejecución ---
+apply_brightness
+apply_nightlight
+apply_wifi
+apply_bluetooth
+apply_volume

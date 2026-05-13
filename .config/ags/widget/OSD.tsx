@@ -2,9 +2,8 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { createState } from "ags"
 import AstalWp from "gi://AstalWp"
-import { barVisible } from "./state"
+import { barVisible, osdVisible, setOsdVisible, micOsdVisible } from "./state"
 
-const [osdVisible, setOsdVisible] = createState(false)
 let osdTimeout: number | null = null
 
 export function showOSD() {
@@ -62,8 +61,9 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
             cssClasses={["osd-window"]}
             marginTop={barVisible((v) => v ? 60 : 15)}
         >
-            <box
-                cssClasses={["osd-container"]}
+            <box orientation={Gtk.Orientation.HORIZONTAL} halign={Gtk.Align.CENTER}>
+                <box
+                    cssClasses={["osd-container"]}
                 orientation={Gtk.Orientation.HORIZONTAL}
                 halign={Gtk.Align.CENTER}
                 valign={Gtk.Align.START}
@@ -85,6 +85,14 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
                     cssClasses={["osd-percentage"]} 
                     label={percent} 
                 />
+                </box>
+                <revealer
+                    revealChild={micOsdVisible}
+                    transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
+                    transitionDuration={300}
+                >
+                    <box css="min-width: 220px;" />
+                </revealer>
             </box>
         </window>
     )

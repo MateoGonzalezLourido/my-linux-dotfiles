@@ -13,6 +13,7 @@ import Volume from "./bar/Volume"
 import Battery from "./bar/Battery"
 import CpuRam from "./bar/CpuRam"
 import Recording from "./bar/Recording"
+import MicIndicator from "./bar/MicIndicator"
 import NotificationButton from "./bar/NotificationButton"
 import PowerButton from "./bar/PowerButton"
 import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels } from "./state";
@@ -114,6 +115,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       <box $type="end" halign={Gtk.Align.END} spacing={6} css="margin-left: 20px;">
         <SystemTray />
         <Bluetooth />
+        <MicIndicator />
         <NotificationButton />
         <button
           cssClasses={["bar-pill-btn"]}

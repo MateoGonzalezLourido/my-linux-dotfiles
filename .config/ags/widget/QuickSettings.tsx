@@ -119,6 +119,58 @@ if (dispConfig.nightLightActive) {
   execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${dispConfig.nightLightTemp} &`]).catch(() => { })
 }
 
+// ── System State Persistence (Wifi, BT, Vol) ──────────────────────────────────
+const SYSTEM_STATE_PATH = `${GLib.get_user_config_dir()}/ags/config/system_state.json`
+
+let systemSaveTimeout: number | null = null
+function saveSystemState() {
+  if (systemSaveTimeout !== null) GLib.source_remove(systemSaveTimeout)
+  systemSaveTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+    try {
+      const dir = GLib.path_get_dirname(SYSTEM_STATE_PATH)
+      if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) execAsync(["mkdir", "-p", dir]).catch(() => { })
+      
+      const wp = AstalWp.get_default()
+      const speaker = wp?.audio?.defaultSpeaker
+      const network = AstalNetwork.get_default()
+      const bt = AstalBluetooth.get_default()
+      
+      const config = {
+        wifi: network?.wifi?.enabled ?? true,
+        bluetooth: bt?.isPowered ?? true,
+        volume: speaker?.volume ?? 0.5,
+        mute: speaker?.mute ?? false
+      }
+      GLib.file_set_contents(SYSTEM_STATE_PATH, JSON.stringify(config))
+    } catch (e) { }
+    systemSaveTimeout = null
+    return GLib.SOURCE_REMOVE
+  })
+}
+
+try {
+  const wp = AstalWp.get_default()
+  const network = AstalNetwork.get_default()
+  const bt = AstalBluetooth.get_default()
+  
+  if (network?.wifi) network.wifi.connect("notify::enabled", saveSystemState)
+  if (bt) bt.connect("notify::is-powered", saveSystemState)
+  if (wp?.audio) {
+    wp.audio.connect("notify::default-speaker", () => {
+      const spk = wp.audio?.defaultSpeaker
+      if (spk) {
+        spk.connect("notify::volume", saveSystemState)
+        spk.connect("notify::mute", saveSystemState)
+      }
+      saveSystemState()
+    })
+    if (wp.audio.defaultSpeaker) {
+      wp.audio.defaultSpeaker.connect("notify::volume", saveSystemState)
+      wp.audio.defaultSpeaker.connect("notify::mute", saveSystemState)
+    }
+  }
+} catch(e) {}
+
 // ── Utilities ──────────────────────────────────────────────────────────────────
 
 function getTime() { return GLib.DateTime.new_now_local().format("%H:%M") ?? "" }
@@ -380,6 +432,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           onRightClick={() => {
             const next = !nightLightActive.get()
             setNightLightActive(next)
+            saveDisplayConfig()
             if (next) execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${nightLightTemp.get()} &`]).catch(() => { })
             else execAsync(["bash", "-c", "pkill hyprsunset; hyprctl hyprsunset identity"]).catch(() => { })
           }}
@@ -1784,19 +1837,26 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   }
 
 
+  const PANEL_TOP = 38
+
+  const [panelVisible, setPanelVisible] = createState(false)
+
+  quickSettingsVisible.subscribe((v: boolean) => {
+    setPanelVisible(v)
+  })
 
   return (
     <window
       name="quick-settings"
-      visible={quickSettingsVisible}
+      visible={panelVisible}
       gdkmonitor={gdkmonitor}
       layer={Astal.Layer.TOP}
       exclusivity={Astal.Exclusivity.NORMAL}
       keymode={Astal.Keymode.ON_DEMAND}
       anchor={TOP | RIGHT}
       application={app}
-      marginTop={48}
-      marginRight={8}
+      marginTop={PANEL_TOP}
+      marginRight={0}
       cssClasses={["qs-window"]}
     >
       <Gtk.EventControllerKey
