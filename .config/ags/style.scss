@@ -283,6 +283,10 @@ $orange: #fab387;
     border-radius: 0px;
     border: none;
   }
+
+  .recording {
+    margin: 0;
+  }
 }
 
 @keyframes pulse {
@@ -389,6 +393,16 @@ $orange: #fab387;
 .bluetooth {
   color: $blue;
   margin: 4px 0;
+}
+
+.bluetooth-ind {
+  padding: 0 4px;
+
+  .bluetooth-icon {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 14px;
+    color: $blue;
+  }
 }
 
 .bt-power {
@@ -1577,42 +1591,44 @@ tooltip {
   }
 }
 
-// ── Notification Button (Waybar) ──────────────────────────────────────────────
+// ── Notification Button ───────────────────────────────────────────────────────
 .nb-btn {
-  background: transparent;
-  border: none;
-  padding: 2px 6px;
-  margin: 4px 2px;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 5px 10px;
+  margin: 3px 2px;
+  border-radius: 10px;
   transition: all 150ms ease-out;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.13);
   }
 
   &.panel-open {
-    background: rgba(203, 166, 247, 0.15);
-    border: 1px solid rgba(203, 166, 247, 0.3);
+    background: rgba(203, 166, 247, 0.18);
+    border-color: rgba(203, 166, 247, 0.35);
   }
 
   .nb-icon {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 15px;
-    color: rgba(226, 226, 226, 0.45);
+    font-size: 16px;
+    color: rgba(226, 226, 226, 0.55);
     margin: 0;
 
-    &.has-notifs {
-      color: #cba6f7;
-    }
+    &.has-notifs { color: #cba6f7; }
+    &.dnd        { color: #f38ba8; }
+  }
 
-    &.dnd {
-      color: #f38ba8;
-    }
+  .nb-badge-pill {
+    background: rgba(203, 166, 247, 0.22);
+    border-radius: 6px;
+    padding: 1px 5px;
   }
 
   .nb-badge {
     font-family: "JetBrains Mono";
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 800;
     color: #cba6f7;
     margin: 0;
@@ -1671,25 +1687,6 @@ tooltip {
     margin: 0;
   }
 
-  .notif-popup-close {
-    background: transparent;
-    border: none;
-    padding: 0;
-    color: rgba(226, 226, 226, 0.2);
-    font-family: "JetBrainsMono Nerd Font";
-    font-size: 11px;
-    border-radius: 4px;
-    min-width: 16px;
-    min-height: 16px;
-    transition: all 100ms ease;
-
-    &:hover {
-      color: #f38ba8;
-      background: rgba(243, 139, 168, 0.1);
-    }
-
-    label { margin: 0; }
-  }
 
 }
 
@@ -1756,10 +1753,12 @@ window.np-window.csd decoration {
   border-left: none;
   border-radius: 14px;
   border-top-left-radius: 0;
+  border-top-right-radius: 0;
   min-width: 360px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
   font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
   color: #e2e2e2;
+  animation: np-slide-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
 
   button {
     background: transparent;
@@ -1786,11 +1785,17 @@ window.np-window.csd decoration {
   margin: 0;
 }
 
-.np-unread-badge {
-  background: rgba(203, 166, 247, 0.15);
+.np-unread-badge-btn {
+  background: rgba(203, 166, 247, 0.12);
+  border: none;
   border-radius: 99px;
-  padding: 1px 6px;
-  min-height: 16px;
+  padding: 1px 7px;
+  min-height: 18px;
+  transition: all 120ms ease;
+
+  &:hover { background: rgba(203, 166, 247, 0.22); }
+
+  label { margin: 0; }
 }
 
 .np-unread-count {
@@ -1804,9 +1809,9 @@ window.np-window.csd decoration {
   background: transparent;
   border: none;
   border-radius: 6px;
-  min-width: 24px;
-  min-height: 24px;
-  padding: 0;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
   transition: all 120ms ease-out;
 
   &:hover {
@@ -1823,11 +1828,44 @@ window.np-window.csd decoration {
     .np-btn-icon { color: #f38ba8; }
   }
 
+  &.danger {
+    .np-btn-icon { color: rgba(243, 139, 168, 0.45); }
+
+    &:hover {
+      background: rgba(243, 139, 168, 0.1);
+      .np-btn-icon { color: #f38ba8; }
+    }
+
+    &.confirm {
+      background: rgba(243, 139, 168, 0.15);
+      .np-btn-icon { color: #f38ba8; }
+    }
+  }
+
   .np-btn-icon {
     font-family: "JetBrainsMono Nerd Font";
     font-size: 12px;
     color: rgba(226, 226, 226, 0.45);
     margin: 0;
+  }
+}
+
+.np-footer-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: #f38ba8;
+  font-family: "JetBrains Mono";
+  margin: 0;
+}
+
+@keyframes np-slide-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 
@@ -1854,8 +1892,8 @@ window.np-window.csd decoration {
   background: transparent;
   border: none;
   border-radius: 6px;
-  padding: 2px 8px;
-  transition: all 120ms ease-out;
+  padding: 3px 10px;
+  transition: background 100ms ease;
 
   &.active {
     background: rgba(203, 166, 247, 0.12);
@@ -1863,15 +1901,20 @@ window.np-window.csd decoration {
   }
 
   &:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.06);
   }
 
   .np-filter-chip-label {
     font-size: 10px;
-    font-weight: 600;
-    color: rgba(226, 226, 226, 0.45);
+    font-weight: 400;
+    color: rgba(226, 226, 226, 0.5);
     margin: 0;
   }
+}
+
+// Sobreescribe el reset general de .np-panel button para los chips
+.np-panel .np-filter-chip {
+  padding: 3px 10px;
 }
 
 // Notification list
@@ -1957,38 +2000,11 @@ window.np-window.csd decoration {
   margin: 0;
 }
 
-// Panel footer
 .np-footer {
-  padding: 8px 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 6px 10px 8px;
+  background: linear-gradient(to bottom, transparent 0%, rgba(12, 12, 18, 0.92) 40%);
 }
 
-.np-footer-btn {
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.45);
-  transition: all 120ms ease-out;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.07);
-    color: rgba(226, 226, 226, 0.8);
-  }
-
-  &.danger:hover {
-    background: rgba(243, 139, 168, 0.1);
-    color: #f38ba8;
-  }
-
-  &.danger.confirm {
-    background: rgba(243, 139, 168, 0.12);
-    color: #f38ba8;
-  }
-
-  label { margin: 0; }
-}
 
 // ── Notification Item ─────────────────────────────────────────────────────────
 .notif-item-wrapper {
