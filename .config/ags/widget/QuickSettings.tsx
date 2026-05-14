@@ -1817,48 +1817,58 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
 
 export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   const { TOP, RIGHT } = Astal.WindowAnchor
-  let hoverTimeout: number | null = null
-
-  const clearTimer = () => {
-    if (hoverTimeout !== null) {
-      GLib.source_remove(hoverTimeout)
-      hoverTimeout = null
-    }
-  }
-
-  const startTimer = () => {
-    clearTimer()
-    hoverTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
-      closeAllPanels()
-      hoverTimeout = null
-      setQsView("main") // Reset view when closing
-      return GLib.SOURCE_REMOVE
-    })
-  }
-
-
   const PANEL_TOP = 38
+  const SLIDE_PX  = 20
+  const MS_IN     = 200
 
-  const [panelVisible, setPanelVisible] = createState(false)
+  let win: any = null
+  let animId: number | null = null
+  const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 
+  function animateTo(target: number, ms: number) {
+    if (animId !== null) { GLib.source_remove(animId); animId = null }
+    if (!win) return
+    const from: number = win.marginTop
+    const start = GLib.get_monotonic_time()
+    const step = () => {
+      if (!win) return
+      const t = Math.min((GLib.get_monotonic_time() - start) / 1000 / ms, 1)
+      win.marginTop = Math.round(from + (target - from) * easeOut(t))
+      if (t < 1) {
+        animId = GLib.timeout_add(GLib.PRIORITY_HIGH, 16, () => { step(); return GLib.SOURCE_REMOVE })
+      } else {
+        animId = null
+      }
+    }
+    step()
+  }
+
+  // Subscribe fires BEFORE the visible binding, so margin is set before window maps
   quickSettingsVisible.subscribe((v: boolean) => {
-    setPanelVisible(v)
+    if (!win) return
+    if (animId !== null) { GLib.source_remove(animId); animId = null }
+    if (v) {
+      win.marginTop = PANEL_TOP - SLIDE_PX
+      animateTo(PANEL_TOP, MS_IN)
+    } else {
+      win.marginTop = PANEL_TOP
+    }
   })
 
-  return (
-    <window
-      name="quick-settings"
-      visible={panelVisible}
-      gdkmonitor={gdkmonitor}
-      layer={Astal.Layer.TOP}
-      exclusivity={Astal.Exclusivity.NORMAL}
-      keymode={Astal.Keymode.ON_DEMAND}
-      anchor={TOP | RIGHT}
-      application={app}
-      marginTop={PANEL_TOP}
-      marginRight={0}
-      cssClasses={["qs-window"]}
-    >
+  const result = <window
+    name="quick-settings"
+    visible={quickSettingsVisible}
+    gdkmonitor={gdkmonitor}
+    layer={Astal.Layer.TOP}
+    exclusivity={Astal.Exclusivity.NORMAL}
+    keymode={Astal.Keymode.ON_DEMAND}
+    anchor={TOP | RIGHT}
+    application={app}
+    marginTop={PANEL_TOP}
+    marginRight={0}
+    decorated={false}
+    cssClasses={["qs-window"]}
+  >
       <Gtk.EventControllerKey
         onKeyPressed={(_self, keyval) => {
           if (keyval === Gdk.KEY_Escape) {
@@ -1872,16 +1882,14 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
           return false
         }}
       />
+      <box cssClasses={["qs-wrapper"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0}>
+      <box cssClasses={["qs-bar-connector"]} valign={Gtk.Align.START} />
       <box
         cssClasses={["qs-panel"]}
         orientation={Gtk.Orientation.VERTICAL}
         spacing={3}
         overflow={Gtk.Overflow.HIDDEN}
       >
-        <Gtk.EventControllerMotion
-          onEnter={clearTimer}
-          onLeave={startTimer}
-        />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={3} visible={qsView((v) => v === "main")}>
           <QsHeader />
           <QsTiles
@@ -1918,7 +1926,10 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
           <QsMicMenu onBack={() => setQsView("main")} />
         </box>
       </box>
+      </box>
     </window>
-  )
+
+  win = result
+  return result
 }
 

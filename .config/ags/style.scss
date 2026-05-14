@@ -655,21 +655,41 @@ $qs-text-dim: rgba(255, 255, 255, 0.5);
 $qs-tile-act: rgba(0, 242, 255, 0.1);
 $qs-tile-brd: rgba(0, 242, 255, 0.3);
 
-.qs-window {
-  background: transparent;
+window.qs-window,
+window.qs-window.background,
+window.qs-window.csd {
+  background: none;
   background-color: transparent;
 }
 
-@keyframes qs-slide-in {
-  from { opacity: 0; margin-top: -18px; }
-  to   { opacity: 1; margin-top: 0; }
+window.qs-window decoration,
+window.qs-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+.qs-wrapper {
+  background: none;
+  background-color: transparent;
+}
+
+.qs-bar-connector {
+  background-color: transparent;
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, $bg-bar 18.5px);
+  min-width: 18px;
+  min-height: 18px;
 }
 
 .qs-panel {
   background-color: $bg-bar;
-  backdrop-filter: blur(10px) saturate(150%);
   border: 1px solid $qs-border;
   border-top: none;
+  border-left: none;
+  border-right: none;
   border-top-right-radius: 0;
   border-top-left-radius: 0;
   border-bottom-left-radius: 24px;
@@ -679,7 +699,6 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
   min-width: 240px;
   color: $qs-text;
   font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", sans-serif;
-  animation: qs-slide-in 260ms cubic-bezier(0.2, 1, 0.2, 1) forwards;
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
@@ -688,7 +707,7 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
 }
 
 .qs-clock {
-  font-size: 15px;
+  font-size: 22px;
   font-weight: 700;
   color: $qs-text;
   font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
@@ -696,20 +715,20 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
 }
 
 .qs-date {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   color: $qs-text-dim;
   margin: 0;
 }
 
 .qs-dnd-btn {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 50%;
-  min-width: 26px;
-  min-height: 26px;
+  min-width: 30px;
+  min-height: 30px;
   padding: 0;
-  color: rgba(200, 200, 200, 0.6);
+  color: rgba(200, 200, 200, 0.5);
   transition: all 150ms ease;
 
   &.active {
@@ -720,30 +739,30 @@ $qs-tile-brd: rgba(0, 242, 255, 0.3);
 
   .qs-dnd-icon {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 11px;
+    font-size: 13px;
     margin: 0;
   }
 }
 
 .qs-notif-btn {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 50%;
-  min-width: 26px;
-  min-height: 26px;
+  min-width: 30px;
+  min-height: 30px;
   padding: 0;
-  color: rgba(200, 200, 200, 0.6);
+  color: rgba(200, 200, 200, 0.5);
   transition: all 150ms ease;
 
   &.has-notifs {
-    color: $qs-accent2;
-    border-color: rgba(139, 120, 255, 0.35);
-    background: rgba(139, 120, 255, 0.12);
+    color: #cba6f7;
+    border-color: rgba(203, 166, 247, 0.4);
+    background: rgba(203, 166, 247, 0.2);
   }
 
   .qs-notif-icon {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 12px;
+    font-size: 13px;
     margin: 0;
   }
 }
@@ -1606,31 +1625,48 @@ tooltip {
 }
 
 .notif-popup-item {
-  background: rgba(18, 18, 27, 0.97);
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 10px 12px;
-  min-width: 300px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-  animation: notif-slide-in 200ms ease-out;
+  background: rgba(16, 16, 24, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 280px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  animation: notif-slide-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
 
   .notif-popup-app-icon {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 14px;
+    font-size: 11px;
     margin: 0;
+    margin-right: 4px;
   }
 
   .notif-popup-app-name {
-    font-size: 11px;
-    font-weight: 700;
-    color: rgba(226, 226, 226, 0.55);
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(226, 226, 226, 0.4);
     font-family: "JetBrains Mono";
     margin: 0;
   }
 
-  .notif-popup-time {
+  .notif-popup-dot {
     font-size: 10px;
-    color: rgba(226, 226, 226, 0.35);
+    color: rgba(226, 226, 226, 0.25);
+    font-family: "JetBrains Mono";
+    margin: 0;
+  }
+
+  .notif-popup-summary {
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(226, 226, 226, 0.85);
+    font-family: "JetBrains Mono";
+    margin: 0;
+  }
+
+  .notif-popup-body {
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba(226, 226, 226, 0.45);
     font-family: "JetBrains Mono";
     margin: 0;
   }
@@ -1639,12 +1675,12 @@ tooltip {
     background: transparent;
     border: none;
     padding: 0;
-    color: rgba(226, 226, 226, 0.3);
+    color: rgba(226, 226, 226, 0.2);
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 12px;
+    font-size: 11px;
     border-radius: 4px;
-    min-width: 18px;
-    min-height: 18px;
+    min-width: 16px;
+    min-height: 16px;
     transition: all 100ms ease;
 
     &:hover {
@@ -1655,36 +1691,11 @@ tooltip {
     label { margin: 0; }
   }
 
-  .notif-popup-summary {
-    font-size: 12px;
-    font-weight: 600;
-    color: #e2e2e2;
-    font-family: "JetBrains Mono";
-    margin: 0;
-  }
-
-  .notif-popup-body {
-    font-size: 11px;
-    color: rgba(226, 226, 226, 0.55);
-    font-family: "JetBrains Mono";
-    margin: 0;
-  }
-
-  .notif-popup-progress-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 99px;
-    min-height: 2px;
-  }
-
-  .notif-popup-progress-bar {
-    border-radius: 99px;
-    min-height: 2px;
-  }
 }
 
 @keyframes notif-slide-in {
   from {
-    transform: translateX(24px);
+    transform: translateX(32px);
     opacity: 0;
   }
   to {
@@ -1693,22 +1704,60 @@ tooltip {
   }
 }
 
-@keyframes notif-dismiss {
-  from { min-width: 276px; }
-  to { min-width: 0; }
+@keyframes notif-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(32px);
+    opacity: 0;
+  }
 }
 
+.notif-popup-item.leaving {
+  animation: notif-slide-out 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+
 // ── Notification Panel ────────────────────────────────────────────────────────
-.np-window {
-  background: transparent;
+window.np-window,
+window.np-window.background,
+window.np-window.csd {
+  background: none;
+  background-color: transparent;
+}
+
+window.np-window decoration,
+window.np-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+.np-wrapper {
+  background: none;
+  background-color: transparent;
+}
+
+.np-bar-connector {
+  background-color: transparent;
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, rgba(12, 12, 18, 0.97) 18.5px);
+  min-width: 18px;
+  min-height: 18px;
 }
 
 .np-panel {
-  background: rgba(12, 12, 18, 0.97);
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  min-width: 400px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+  background: rgba(12, 12, 18, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: none;
+  border-radius: 14px;
+  border-top-left-radius: 0;
+  min-width: 360px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
   font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
   color: #e2e2e2;
 
@@ -1719,76 +1768,72 @@ tooltip {
     outline: none;
     padding: 0;
     margin: 0;
-    transition: all 150ms ease;
+    transition: all 120ms ease;
   }
 }
 
 // Panel header
 .np-header {
-  padding: 14px 14px 8px;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .np-title {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-  color: #e2e2e2;
+  color: rgba(226, 226, 226, 0.6);
+  letter-spacing: 0.06em;
   margin: 0;
 }
 
 .np-unread-badge {
-  background: rgba(203, 166, 247, 0.2);
-  border: 1px solid rgba(203, 166, 247, 0.35);
+  background: rgba(203, 166, 247, 0.15);
   border-radius: 99px;
-  padding: 0 6px;
-  min-height: 18px;
+  padding: 1px 6px;
+  min-height: 16px;
 }
 
 .np-unread-count {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   color: #cba6f7;
   margin: 0;
 }
 
 .np-icon-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  min-width: 28px;
-  min-height: 28px;
+  border: none;
+  border-radius: 6px;
+  min-width: 24px;
+  min-height: 24px;
   padding: 0;
-  transition: all 150ms ease-out;
+  transition: all 120ms ease-out;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.07);
   }
 
   &.active {
-    background: rgba(203, 166, 247, 0.15);
-    border-color: rgba(203, 166, 247, 0.35);
-
+    background: rgba(203, 166, 247, 0.12);
     .np-btn-icon { color: #cba6f7; }
   }
 
   &.dnd-active {
-    background: rgba(243, 139, 168, 0.15);
-    border-color: rgba(243, 139, 168, 0.35);
-
+    background: rgba(243, 139, 168, 0.12);
     .np-btn-icon { color: #f38ba8; }
   }
 
   .np-btn-icon {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 13px;
-    color: rgba(226, 226, 226, 0.55);
+    font-size: 12px;
+    color: rgba(226, 226, 226, 0.45);
     margin: 0;
   }
 }
 
 // Filter chips
 .np-filter-scroll {
-  margin-top: 8px;
+  margin-top: 6px;
 
   scrollbar, scrollbar slider {
     opacity: 0;
@@ -1802,38 +1847,36 @@ tooltip {
 }
 
 .np-filter-row {
-  padding: 2px 0;
+  padding: 0;
 }
 
 .np-filter-chip {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 99px;
-  padding: 2px 10px;
-  transition: all 150ms ease-out;
+  border: none;
+  border-radius: 6px;
+  padding: 2px 8px;
+  transition: all 120ms ease-out;
 
   &.active {
-    background: rgba(203, 166, 247, 0.15);
-    border-color: rgba(203, 166, 247, 0.35);
-
+    background: rgba(203, 166, 247, 0.12);
     .np-filter-chip-label { color: #cba6f7; }
   }
 
   &:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .np-filter-chip-label {
     font-size: 10px;
     font-weight: 600;
-    color: rgba(226, 226, 226, 0.55);
+    color: rgba(226, 226, 226, 0.45);
     margin: 0;
   }
 }
 
 // Notification list
 .np-list-scroll {
-  min-height: 200px;
+  min-height: 160px;
 
   scrollbar, scrollbar slider {
     opacity: 0;
@@ -1847,21 +1890,21 @@ tooltip {
 
 .np-empty-icon {
   font-family: "JetBrainsMono Nerd Font";
-  font-size: 36px;
-  color: rgba(226, 226, 226, 0.15);
+  font-size: 28px;
+  color: rgba(226, 226, 226, 0.12);
   margin: 0;
 }
 
 .np-empty-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: rgba(226, 226, 226, 0.3);
+  color: rgba(226, 226, 226, 0.25);
   margin: 0;
 }
 
 .np-empty-sub {
-  font-size: 11px;
-  color: rgba(226, 226, 226, 0.2);
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.15);
   margin: 0;
 }
 
@@ -1916,45 +1959,31 @@ tooltip {
 
 // Panel footer
 .np-footer {
-  padding: 10px 14px;
-  border-top: 0.5px solid rgba(255, 255, 255, 0.07);
-}
-
-.np-footer-info {
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.35);
-  margin: 0;
-}
-
-.np-footer-unread {
-  font-size: 10px;
-  color: rgba(203, 166, 247, 0.6);
-  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .np-footer-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 11px;
-  color: rgba(226, 226, 226, 0.6);
-  transition: all 150ms ease-out;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.45);
+  transition: all 120ms ease-out;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #e2e2e2;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(226, 226, 226, 0.8);
   }
 
   &.danger:hover {
-    background: rgba(243, 139, 168, 0.15);
-    border-color: rgba(243, 139, 168, 0.3);
+    background: rgba(243, 139, 168, 0.1);
     color: #f38ba8;
   }
 
   &.danger.confirm {
-    background: rgba(243, 139, 168, 0.15);
-    border-color: rgba(243, 139, 168, 0.4);
+    background: rgba(243, 139, 168, 0.12);
     color: #f38ba8;
   }
 
@@ -2004,9 +2033,8 @@ tooltip {
   }
 }
 
-// Especificidad mayor que .np-panel button { padding: 0 }
 .np-panel .notif-item-btn {
-  padding: 10px 12px;
+  padding: 6px 10px;
 }
 
 .notif-app-icon-wrap {
@@ -2031,31 +2059,38 @@ tooltip {
 
 .notif-app-name {
   font-size: 10px;
-  font-weight: 600;
-  color: rgba(226, 226, 226, 0.5);
+  font-weight: 500;
+  color: rgba(226, 226, 226, 0.4);
   font-family: "JetBrains Mono";
   margin: 0;
-  letter-spacing: 0.04em;
+}
+
+.notif-dot {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.25);
+  font-family: "JetBrains Mono";
+  margin: 0;
 }
 
 .notif-timestamp {
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.3);
+  font-size: 9px;
+  color: rgba(226, 226, 226, 0.25);
   font-family: "JetBrains Mono";
   margin: 0;
 }
 
 .notif-summary {
-  font-size: 13px;
-  font-weight: 600;
-  color: #eaeaea;
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(226, 226, 226, 0.85);
   font-family: "JetBrains Mono";
   margin: 0;
 }
 
 .notif-body {
-  font-size: 11px;
-  color: rgba(226, 226, 226, 0.65);
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(226, 226, 226, 0.45);
   font-family: "JetBrains Mono";
   margin: 0;
 }
