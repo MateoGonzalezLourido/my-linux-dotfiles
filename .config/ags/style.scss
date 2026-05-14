@@ -797,23 +797,23 @@ window.qs-window.csd decoration {
   }
 
   &.active {
-    background: $qs-tile-act;
-    border-color: $qs-tile-brd;
-    box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
+    background: rgba(0, 242, 255, 0.12);
+    border-color: rgba(0, 242, 255, 0.45);
+    box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.12), 0 0 12px rgba(0, 242, 255, 0.08);
 
-    .qs-tile-label {
-      color: #fff;
-      text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+    .qs-tile-label { color: #fff; }
+
+    .qs-tile-icon {
+      color: $qs-accent;
+      text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
     }
   }
 
   .qs-tile-icon {
     font-family: "JetBrainsMono Nerd Font";
     font-size: 16px;
-    color: $qs-accent;
     margin: 0;
     min-width: 20px;
-    text-shadow: 0 0 10px rgba(0, 242, 255, 0.4);
   }
 
   .qs-tile-label {
@@ -830,7 +830,7 @@ window.qs-window.csd decoration {
   }
 
   &:not(.active) .qs-tile-icon {
-    color: $qs-text-dim;
+    color: rgba(255, 255, 255, 0.28);
     text-shadow: none;
   }
 }
@@ -948,29 +948,14 @@ window.qs-window.csd decoration {
   padding: 0 4px;
 
   button.qs-icon-btn {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    min-width: 18px;
-    min-height: 18px;
-    padding: 0;
-    color: $qs-text-dim;
-    font-family: "JetBrainsMono Nerd Font";
-    font-size: 11px;
-    transition: all 100ms ease;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    min-width: 22px;
+    min-height: 22px;
 
     &.active {
       background: $qs-tile-act;
       border-color: $qs-tile-brd;
-      color: $qs-accent2;
-    }
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    label {
-      margin: 0;
+      label { color: $qs-accent; }
     }
   }
 }
@@ -1023,11 +1008,11 @@ window.qs-window.csd decoration {
 }
 
 .qs-dropdown-header {
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.3);
-  font-weight: 600;
-  margin: 8px 0 4px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.22);
+  font-weight: 700;
+  margin: 4px 0 2px;
 }
 
 .qs-sink-item {
@@ -1260,6 +1245,36 @@ tooltip {
   }
 }
 
+// ── Panel header icon buttons ──────────────────────────────────────────────
+.qs-icon-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 3px;
+  transition: all 120ms ease-out;
+
+  label {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 13px;
+    color: rgba(226, 226, 226, 0.45);
+    margin: 0;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    label { color: rgba(226, 226, 226, 0.9); }
+  }
+
+  &.active {
+    background: rgba(203, 166, 247, 0.14);
+    label { color: #cba6f7; }
+  }
+
+  &.scanning label { color: #a78bfa; }
+}
+
 // ── Wi-Fi Menu ────────────────────────────────────────────────────────────────
 .qs-wifi-menu {
   background: transparent;
@@ -1270,10 +1285,6 @@ tooltip {
 .qs-wifi-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   padding-bottom: 6px;
-}
-
-.qs-icon-btn.scanning label {
-  color: #a78bfa;
 }
 
 .qs-wifi-list-scroll {
@@ -1469,76 +1480,51 @@ tooltip {
 // ── Audio/Mic Items ───────────────────────────────────────────────────────────
 .qs-audio-item {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  margin-bottom: 6px;
-  padding: 8px;
-  transition: all 200ms ease;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  margin-bottom: 3px;
+  padding: 5px 7px;
+  transition: background 150ms ease, border-color 150ms ease;
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
+  &:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.07);
   }
 
   &.active {
-    background: rgba(139, 120, 255, 0.18);
-    border-color: rgba(139, 120, 255, 0.5);
-    box-shadow: 0 0 20px rgba(139, 120, 255, 0.15);
+    background: rgba(89, 180, 250, 0.13);
+    border-color: rgba(89, 180, 250, 0.38);
 
     .qs-audio-name {
-      color: #ffffff;
-      text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+      color: #89b4fa;
+      font-weight: 700;
     }
 
-    .qs-audio-icon {
-      color: #ffffff;
-      text-shadow: 0 0 12px $qs-accent;
-    }
+    .qs-audio-icon { color: #89b4fa; }
+
+    scale.qs-slider progress { background: #89b4fa; }
   }
 
   .qs-audio-icon {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 16px;
-    color: $qs-accent;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.35);
+    min-width: 14px;
+    margin: 0;
   }
 
   .qs-audio-name {
-    font-size: 11px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.9);
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0;
   }
 
-  .qs-audio-vol-text {
+  .qs-audio-vol-pct {
     font-size: 9px;
-    color: $qs-text-dim;
-  }
-
-  .qs-audio-check {
-    font-family: "JetBrainsMono Nerd Font";
-    font-size: 14px;
-    color: $qs-green;
-  }
-
-  .qs-audio-radio {
-    min-width: 16px;
-    min-height: 16px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    background: transparent;
-    transition: all 200ms ease;
-    margin-right: 4px;
-
-    &.active {
-      border-color: $qs-accent;
-      background: rgba(0, 242, 255, 0.1);
-    }
-
-    .qs-audio-radio-dot {
-      min-width: 8px;
-      min-height: 8px;
-      border-radius: 50%;
-      background: $qs-accent;
-      box-shadow: 0 0 8px $qs-accent;
-    }
+    font-family: "JetBrains Mono";
+    color: rgba(255, 255, 255, 0.28);
+    min-width: 22px;
+    margin: 0;
   }
 
   .qs-audio-card-btn {
@@ -1547,32 +1533,20 @@ tooltip {
     padding: 0;
     margin: 0;
     box-shadow: none;
-    border-radius: 0;
+    border-radius: 4px;
 
-    &:hover {
-      background: transparent;
-    }
-  }
-
-  .qs-audio-name-btn {
-    background: transparent;
-    border: none;
-    padding: 0;
-    margin: 0;
-    box-shadow: none;
+    &:hover { background: rgba(255, 255, 255, 0.05); }
   }
 
   scale.qs-slider {
-    margin: 4px 0 0 0;
+    margin: 0;
 
     trough {
-      min-height: 4px;
-      background: rgba(255, 255, 255, 0.05);
+      min-height: 3px;
+      background: rgba(255, 255, 255, 0.07);
     }
 
-    progress {
-      min-height: 4px;
-    }
+    progress { min-height: 3px; }
   }
 }
 

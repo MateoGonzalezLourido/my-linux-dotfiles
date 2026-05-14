@@ -31,17 +31,25 @@ try {
   const wp = AstalWp.get_default()
   if (wp?.audio) {
     wp.audio.connect("speaker-added", (_, speaker) => {
-      setTimeout(() => {
-        execAsync(["wpctl", "set-default", String(speaker.id)]).catch(() => {})
-        if (speaker.name) execAsync(["pactl", "set-default-sink", speaker.name]).catch(() => {})
-        try { speaker.is_default = true } catch (e) {}
+      setTimeout(async () => {
+        const id = String(speaker.id)
+        const nodeName = await execAsync(["bash", "-c",
+          `pactl list sinks | awk '/^Sink/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
+        ]).catch(() => "")
+        const name = nodeName.trim()
+        if (name) execAsync(["pw-metadata", "-n", "default", "0", "default.audio.sink", `{"name":"${name}"}`]).catch(() => {})
+        else execAsync(["wpctl", "set-default", id]).catch(() => {})
       }, 500)
     })
     wp.audio.connect("microphone-added", (_, mic) => {
-      setTimeout(() => {
-        execAsync(["wpctl", "set-default", String(mic.id)]).catch(() => {})
-        if (mic.name) execAsync(["pactl", "set-default-source", mic.name]).catch(() => {})
-        try { mic.is_default = true } catch (e) {}
+      setTimeout(async () => {
+        const id = String(mic.id)
+        const nodeName = await execAsync(["bash", "-c",
+          `pactl list sources | awk '/^Source/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
+        ]).catch(() => "")
+        const name = nodeName.trim()
+        if (name) execAsync(["pw-metadata", "-n", "default", "0", "default.audio.source", `{"name":"${name}"}`]).catch(() => {})
+        else execAsync(["wpctl", "set-default", id]).catch(() => {})
       }, 500)
     })
   }
@@ -728,6 +736,14 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
   const speakers = createBinding(wp.audio, "speakers")
   const defaultSpeaker = createBinding(wp.audio, "defaultSpeaker")
 
+  // Local state for immediate visual update on click (don't wait for WirePlumber signal)
+  const [localDefaultSpkId, setLocalDefaultSpkId] = createState<number | null>(
+    wp.audio.defaultSpeaker?.id ?? null
+  )
+  wp.audio.connect("notify::default-speaker", () => {
+    setLocalDefaultSpkId(wp.audio.defaultSpeaker?.id ?? null)
+  })
+
   if (!wp.audio) return <box />
 
   return (
@@ -794,29 +810,31 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                     (cb) => { s.connect("notify::volume", cb) },
                   )
 
-                  const isDefault = defaultSpeaker((d) => d?.id === s.id)
-                  const activate = () => {
-                    // Try multiple reliable methods to ensure it switches
-                    execAsync(["wpctl", "set-default", String(s.id)]).catch(() => { })
-                    if (s.name) execAsync(["pactl", "set-default-sink", s.name]).catch(() => { })
-                    try { s.is_default = true } catch (e) { }
+                  const activate = async () => {
+                    setLocalDefaultSpkId(s.id)
+                    const id = String(s.id)
+                    const nodeName = await execAsync(["bash", "-c",
+                      `pactl list sinks | awk '/^Sink/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
+                    ]).catch(() => "")
+                    const name = nodeName.trim()
+                    if (!name) return
+                    execAsync(["pw-metadata", "-n", "default", "0", "default.audio.sink",
+                      `{"name":"${name}"}`]).catch(() => {})
+                    execAsync(["bash", "-c",
+                      `pactl list short sink-inputs | awk '{print $1}' | xargs -r -I{} pactl move-sink-input {} "${name}"`
+                    ]).catch(() => {})
                   }
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={2} cssClasses={isDefault((d) => d ? ["qs-audio-item", "active"] : ["qs-audio-item"])}>
-                      <button onClicked={activate} cssClasses={["qs-audio-card-btn"]}>
-                        <box spacing={8} valign={Gtk.Align.CENTER}>
-                          <label cssClasses={["qs-audio-icon"]} label={vol((v) => volIcon(v, s.mute))} />
-                          <box orientation={Gtk.Orientation.VERTICAL} halign={Gtk.Align.START} hexpand>
-                            <label cssClasses={["qs-audio-name"]} label={s.description || s.name || "Desconocido"} ellipsize={3} halign={Gtk.Align.START} />
-                            <label cssClasses={["qs-audio-vol-text"]} label={vol((v) => `${Math.round(v * 100)} (${toDb(v)}dB)`)} halign={Gtk.Align.START} />
-                          </box>
-                          <box cssClasses={isDefault((d) => d ? ["qs-audio-radio", "active"] : ["qs-audio-radio"])} valign={Gtk.Align.CENTER}>
-                            <box cssClasses={["qs-audio-radio-dot"]} visible={isDefault} />
-                          </box>
-                        </box>
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={localDefaultSpkId((id) => id === s.id ? ["qs-audio-item", "active"] : ["qs-audio-item"])}>
+                      <button onClicked={activate} cssClasses={["qs-audio-card-btn"]} hexpand>
+                        <label cssClasses={["qs-audio-name"]} label={s.description || s.name || "Desconocido"} ellipsize={3} halign={Gtk.Align.START} />
                       </button>
-                      {scale}
+                      <box spacing={5} valign={Gtk.Align.CENTER}>
+                        <label cssClasses={["qs-audio-icon"]} label={vol((v) => volIcon(v, s.mute))} />
+                        {scale}
+                        <label cssClasses={["qs-audio-vol-pct"]} label={vol((v) => `${Math.round(v * 100)}`)} />
+                      </box>
                     </box>
                   )
                 }}
@@ -870,9 +888,9 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                     || "audio-x-generic-symbolic"
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item"]} css="padding: 8px;">
-                      <box spacing={8} valign={Gtk.Align.CENTER}>
-                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} css="font-size: 1.2em; min-width: 24px;" />
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item"]} css="padding: 4px 6px;">
+                      <box spacing={6} valign={Gtk.Align.CENTER}>
+                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} css="font-size: 1em; min-width: 18px;" />
                         <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.START}>
                           <label cssClasses={["qs-section-label"]} label={name} halign={Gtk.Align.START} ellipsize={3} />
                         </box>
@@ -882,9 +900,9 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                           css={si.isSilent ? "opacity: 0.5;" : ""}
                         />
                       </box>
-                      <box spacing={8}>
+                      <box spacing={6}>
                         {streamScale}
-                        {si.isSilent && <label label="󰝟" css="opacity: 0.3; font-size: 0.8em;" tooltipText="Aplicación en silencio/espera" />}
+                        {si.isSilent && <label label="󰝟" css="opacity: 0.3; font-size: 0.75em;" tooltipText="Aplicación en silencio/espera" />}
                       </box>
                     </box>
                   )
@@ -976,6 +994,13 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
   const microphones = createBinding(wp.audio, "microphones")
   const defaultMic = createBinding(wp.audio, "defaultMicrophone")
 
+  const [localDefaultMicId, setLocalDefaultMicId] = createState<number | null>(
+    wp.audio.defaultMicrophone?.id ?? null
+  )
+  wp.audio.connect("notify::default-microphone", () => {
+    setLocalDefaultMicId(wp.audio.defaultMicrophone?.id ?? null)
+  })
+
   return (
     <box cssClasses={["qs-mic-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
       <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
@@ -1039,29 +1064,31 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
                     (cb) => { m.connect("notify::volume", cb) },
                   )
 
-                  const isDefault = defaultMic((d) => d?.id === m.id)
-                  const activate = () => {
-                    // Try multiple reliable methods to ensure it switches
-                    execAsync(["wpctl", "set-default", String(m.id)]).catch(() => { })
-                    if (m.name) execAsync(["pactl", "set-default-source", m.name]).catch(() => { })
-                    try { m.is_default = true } catch (e) { }
+                  const activate = async () => {
+                    setLocalDefaultMicId(m.id)
+                    const id = String(m.id)
+                    const nodeName = await execAsync(["bash", "-c",
+                      `pactl list sources | awk '/^Source/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
+                    ]).catch(() => "")
+                    const name = nodeName.trim()
+                    if (!name) return
+                    execAsync(["pw-metadata", "-n", "default", "0", "default.audio.source",
+                      `{"name":"${name}"}`]).catch(() => {})
+                    execAsync(["bash", "-c",
+                      `pactl list short source-outputs | awk '{print $1}' | xargs -r -I{} pactl move-source-output {} "${name}"`
+                    ]).catch(() => {})
                   }
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={2} cssClasses={isDefault((d) => d ? ["qs-audio-item", "active"] : ["qs-audio-item"])}>
-                      <button onClicked={activate} cssClasses={["qs-audio-card-btn"]}>
-                        <box spacing={8} valign={Gtk.Align.CENTER}>
-                          <label cssClasses={["qs-audio-icon"]} label={mute((v) => v ? "󰍭" : "󰍬")} />
-                          <box orientation={Gtk.Orientation.VERTICAL} halign={Gtk.Align.START} hexpand>
-                            <label cssClasses={["qs-audio-name"]} label={m.description || m.name || "Desconocido"} ellipsize={3} halign={Gtk.Align.START} />
-                            <label cssClasses={["qs-audio-vol-text"]} label={vol((v) => `${Math.round(v * 100)} (${toDb(v)}dB)`)} halign={Gtk.Align.START} />
-                          </box>
-                          <box cssClasses={isDefault((d) => d ? ["qs-audio-radio", "active"] : ["qs-audio-radio"])} valign={Gtk.Align.CENTER}>
-                            <box cssClasses={["qs-audio-radio-dot"]} visible={isDefault} />
-                          </box>
-                        </box>
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={localDefaultMicId((id) => id === m.id ? ["qs-audio-item", "active"] : ["qs-audio-item"])}>
+                      <button onClicked={activate} cssClasses={["qs-audio-card-btn"]} hexpand>
+                        <label cssClasses={["qs-audio-name"]} label={m.description || m.name || "Desconocido"} ellipsize={3} halign={Gtk.Align.START} />
                       </button>
-                      {scale}
+                      <box spacing={5} valign={Gtk.Align.CENTER}>
+                        <label cssClasses={["qs-audio-icon"]} label={mute((v) => v ? "󰍭" : "󰍬")} />
+                        {scale}
+                        <label cssClasses={["qs-audio-vol-pct"]} label={vol((v) => `${Math.round(v * 100)}`)} />
+                      </box>
                     </box>
                   )
                 }}
@@ -1112,9 +1139,9 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
                     || "audio-input-microphone-symbolic"
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item"]} css="padding: 8px;">
-                      <box spacing={8} valign={Gtk.Align.CENTER}>
-                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} css="font-size: 1.2em; min-width: 24px;" />
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item"]} css="padding: 4px 6px;">
+                      <box spacing={6} valign={Gtk.Align.CENTER}>
+                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} css="font-size: 1em; min-width: 18px;" />
                         <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.START}>
                           <label cssClasses={["qs-section-label"]} label={name} halign={Gtk.Align.START} ellipsize={3} />
                         </box>
@@ -1124,9 +1151,9 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
                           css={si.isSilent ? "opacity: 0.5;" : ""}
                         />
                       </box>
-                      <box spacing={8}>
+                      <box spacing={6}>
                         {streamScale}
-                        {si.isSilent && <label label="󰍭" css="opacity: 0.3; font-size: 0.8em;" tooltipText="Aplicación en silencio/espera" />}
+                        {si.isSilent && <label label="󰍭" css="opacity: 0.3; font-size: 0.75em;" tooltipText="Aplicación en silencio/espera" />}
                       </box>
                     </box>
                   )
