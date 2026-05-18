@@ -165,6 +165,14 @@ $orange: #fab387;
   }
 }
 
+// Ghost lives in the Overlay (outside .Workspaces), so selector must be top-level
+.ws-ghost {
+  background: rgba(203, 166, 247, 0.18);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
 .focused-client {
   padding: 0 6px;
   color: $text;

@@ -1,4 +1,5 @@
 import AstalHyprland from "gi://AstalHyprland"
+import Graphene from "gi://Graphene"
 import { createState, For } from "ags"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
@@ -55,30 +56,9 @@ const getClientIcons = (clients: any[]): ClientIcon[] => {
     })
 }
 
-// Pre-generate one CSS class per pixel offset and load them once.
-// During drag we only call add/remove_css_class (O(1), invalidates one widget)
-// instead of load_from_string (invalidates every widget in the display).
-const DRAG_MAX = 600
-let _offsetProvider: Gtk.CssProvider | null = null
-
-const initOffsetProvider = (display: any) => {
-  if (_offsetProvider) return
-  _offsetProvider = new Gtk.CssProvider()
-  let css = ""
-  for (let i = -DRAG_MAX; i <= DRAG_MAX; i++)
-    css += `.wsd${i < 0 ? "n" + (-i) : i}{transform:translateX(${i}px) scale(1.07);}`
-  _offsetProvider.load_from_string(css)
-  Gtk.StyleContext.add_provider_for_display(
-    display,
-    _offsetProvider,
-    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
-  )
-}
-
-const dragOffsetClass = (px: number) => {
-  const c = Math.max(-DRAG_MAX, Math.min(DRAG_MAX, Math.round(px)))
-  return `wsd${c < 0 ? "n" + (-c) : c}`
-}
+// Shared overlay reference — ghost widget lives here during drag so it floats
+// above other buttons without disrupting the Box layout at all.
+let _overlay: Gtk.Overlay | null = null
 
 function WsButton({ ws, focusedId, onSwap, getWsList }: {
   ws: any
@@ -141,20 +121,64 @@ function WsButton({ ws, focusedId, onSwap, getWsList }: {
       cssClasses={focusedId((id: number) => id === ws.id ? ["ws-btn", "focused"] : ["ws-btn"])}
       valign={Gtk.Align.CENTER}
       $={(self) => {
-        initOffsetProvider(self.get_display())
-
         let pressStartTime = 0
         let readyTimer: ReturnType<typeof setTimeout> | null = null
         let dragActive = false
-        let currentDragClass: string | null = null
+        let ghost: Gtk.Box | null = null
+        let baseX = 0
+        let grabX = 0
+        let pendingOffset = 0
+        let tickId: number | null = null
 
         const clearReady = () => {
           if (readyTimer !== null) { clearTimeout(readyTimer); readyTimer = null }
           self.remove_css_class("ws-hold-ready")
         }
 
-        // GestureClick records when the button was pressed so we can enforce
-        // the 300ms hold before drag activates.
+        const startGhost = () => {
+          if (!_overlay) return
+          // Compute position of this button relative to the overlay
+          const origin = new Graphene.Point({ x: 0, y: 0 })
+          const [ok, pt] = self.compute_point(_overlay, origin)
+          baseX = ok ? pt.x : self.get_allocation().x
+
+          self.set_opacity(0)
+
+          ghost = new Gtk.Box({
+            css_classes: focusedId() === ws.id
+              ? ["ws-btn", "focused", "ws-dragging", "ws-ghost"]
+              : ["ws-btn", "ws-dragging", "ws-ghost"],
+            halign: Gtk.Align.START,
+            valign: Gtk.Align.CENTER,
+            margin_start: baseX,
+            can_target: false,
+          })
+          const lbl = new Gtk.Label({ label: `${ws.id}`, css_classes: ["ws-id"] })
+          ghost.append(lbl)
+
+          _overlay.add_overlay(ghost)
+
+          let ghostHalfW = 0
+          tickId = self.add_tick_callback((_w: any, _fc: any): boolean => {
+            if (!dragActive) { tickId = null; return false }
+            if (!ghost) return true
+            if (ghostHalfW === 0) {
+              const w = ghost.get_allocated_width()
+              if (w > 0) ghostHalfW = w / 2
+            }
+            // Center ghost under the cursor regardless of where the button was grabbed
+            ghost.set_margin_start(baseX + grabX + pendingOffset - ghostHalfW)
+            return true
+          })
+        }
+
+        const stopGhost = () => {
+          dragActive = false
+          if (tickId !== null) { self.remove_tick_callback(tickId); tickId = null }
+          if (ghost) { ghost.unparent(); ghost = null }
+          self.set_opacity(1)
+        }
+
         const pressGesture = new Gtk.GestureClick()
         pressGesture.connect("pressed", () => {
           pressStartTime = Date.now()
@@ -169,10 +193,12 @@ function WsButton({ ws, focusedId, onSwap, getWsList }: {
         })
         self.add_controller(pressGesture)
 
-        // CAPTURE phase so motion is captured even when the pointer moves over
-        // child buttons. Drag only activates after the 300ms hold threshold.
         const dragGesture = new Gtk.GestureDrag()
         dragGesture.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+
+        dragGesture.connect("drag-begin", (_g: any, startX: number, _: number) => {
+          grabX = startX
+        })
 
         dragGesture.connect("drag-update", (_g: any, offsetX: number, _: number) => {
           if (!dragActive) {
@@ -181,13 +207,9 @@ function WsButton({ ws, focusedId, onSwap, getWsList }: {
             clearReady()
             self.add_css_class("ws-dragging")
             setIsWsDragging(true)
+            startGhost()
           }
-          const cls = dragOffsetClass(offsetX)
-          if (cls !== currentDragClass) {
-            if (currentDragClass) self.remove_css_class(currentDragClass)
-            self.add_css_class(cls)
-            currentDragClass = cls
-          }
+          pendingOffset = Math.round(offsetX)
         })
 
         dragGesture.connect("drag-end", (_g: any, totalOffsetX: number, _: number) => {
@@ -207,10 +229,9 @@ function WsButton({ ws, focusedId, onSwap, getWsList }: {
                 swapWorkspaces(ws.id, targetWs.id)
               }
             }
-            if (currentDragClass) { self.remove_css_class(currentDragClass); currentDragClass = null }
             self.remove_css_class("ws-dragging")
             setIsWsDragging(false)
-            dragActive = false
+            stopGhost()
           }
         })
 
@@ -305,10 +326,14 @@ export default function Workspaces() {
   update()
 
   return (
-    <box cssClasses={["Workspaces"]} spacing={2}>
-      <For each={() => barVisible() ? wss() : cacheLastTimeRendered()}>
-        {(ws) => <WsButton ws={ws} focusedId={focusedId} onSwap={doVisualSwap} getWsList={() => wss()} />}
-      </For>
-    </box>
+    <Gtk.Overlay
+      $={(self) => { _overlay = self }}
+    >
+      <box cssClasses={["Workspaces"]} spacing={2}>
+        <For each={() => barVisible() ? wss() : cacheLastTimeRendered()}>
+          {(ws) => <WsButton ws={ws} focusedId={focusedId} onSwap={doVisualSwap} getWsList={() => wss()} />}
+        </For>
+      </box>
+    </Gtk.Overlay>
   )
 }
