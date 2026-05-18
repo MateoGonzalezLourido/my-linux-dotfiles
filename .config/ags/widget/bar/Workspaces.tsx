@@ -1,11 +1,13 @@
 import AstalHyprland from "gi://AstalHyprland"
 import Gdk from "gi://Gdk"
+import GdkPixbuf from "gi://GdkPixbuf"
+import GLib from "gi://GLib"
 import Graphene from "gi://Graphene"
 import { createState, For } from "ags"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 
-import { barVisible, setIsWsDragging } from "../state.tsx"
+import { barVisible, setIsWsDragging, setIsWsPreview } from "../state.tsx"
 import { getIcon } from "./appIcons"
 
 // Blocks update() while hyprctl commands are in flight so intermediate
@@ -128,6 +130,61 @@ function WsButton({ ws, focusedId, onSwap, onShift, onRenumber, getWsList }: {
 }) {
   const [hovered, setHovered] = createState<boolean>(false)
   let ctrlAtPress = false
+  let _preview: Gtk.Popover | null = null
+
+  const showPreview = (anchor: Gtk.Widget) => {
+    if (_preview) { _preview.popdown(); return }
+
+    const path = `/tmp/ags-ws-preview-${ws.id}.png`
+    const PW = 280, PH = 158
+
+    const outer = new Gtk.Box()
+    outer.add_css_class("ws-preview-bg")
+    outer.set_size_request(PW, PH)
+
+    if (GLib.file_test(path, GLib.FileTest.EXISTS)) {
+      try {
+        // Pre-scale to exactly PW×PH so the Picture widget never learns the
+        // original resolution — avoids the popover expanding to 1920×1080.
+        const pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, PW, PH, false)
+        const texture = Gdk.Texture.new_for_pixbuf(pixbuf)
+        const pic = new Gtk.Picture()
+        pic.set_paintable(texture)
+        pic.set_size_request(PW, PH)
+        outer.append(pic)
+      } catch (_) {
+        const lbl = new Gtk.Label({ label: `Workspace ${ws.id}` })
+        lbl.add_css_class("ws-preview-empty")
+        lbl.set_halign(Gtk.Align.CENTER)
+        lbl.set_valign(Gtk.Align.CENTER)
+        lbl.set_hexpand(true)
+        lbl.set_vexpand(true)
+        outer.append(lbl)
+      }
+    } else {
+      const lbl = new Gtk.Label({ label: `Workspace ${ws.id}` })
+      lbl.add_css_class("ws-preview-empty")
+      lbl.set_halign(Gtk.Align.CENTER)
+      lbl.set_valign(Gtk.Align.CENTER)
+      lbl.set_hexpand(true)
+      lbl.set_vexpand(true)
+      outer.append(lbl)
+    }
+
+    const popover = new Gtk.Popover()
+    popover.set_has_arrow(false)
+    popover.set_position(Gtk.PositionType.TOP)
+    popover.set_child(outer)
+    popover.set_parent(anchor)
+    setIsWsPreview(true)
+    _preview = popover
+    popover.connect("closed", () => {
+      _preview = null
+      setIsWsPreview(false)
+      try { popover.unparent() } catch (_) {}
+    })
+    popover.popup()
+  }
 
   const clientsB = focusedId((fId: number) => {
     const isHov = hovered()
@@ -259,6 +316,7 @@ function WsButton({ ws, focusedId, onSwap, onShift, onRenumber, getWsList }: {
 
         const pressGesture = new Gtk.GestureClick()
         pressGesture.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        pressGesture.set_button(1)
         pressGesture.connect("pressed", (g: any) => {
           pressStartTime = Date.now()
           didDrag = false
@@ -349,6 +407,10 @@ function WsButton({ ws, focusedId, onSwap, onShift, onRenumber, getWsList }: {
         cssClasses={["ws-num-btn"]}
         onClicked={() => { if (!ctrlAtPress) ws.focus() }}
       >
+        <Gtk.GestureClick
+          button={3}
+          onPressed={(g: any) => showPreview((g as any).get_widget())}
+        />
         <label cssClasses={["ws-id"]} label={`${ws.id}`} />
       </button>
       <revealer
@@ -409,7 +471,7 @@ export default function Workspaces() {
     const shouldDeduplicate = visibleWss.length > 5
     const newWss = visibleWss.map(ws => ({ ...ws, shouldDeduplicate }))
     setWss(newWss)
-    if (barVisible()) setCacheLastTimeRendered(newWss)
+    setCacheLastTimeRendered(newWss)
   }
 
   const doVisualSwap = (idA: number, idB: number) => {
@@ -420,7 +482,7 @@ export default function Workspaces() {
     const next = [...current]
     ;[next[idxA], next[idxB]] = [next[idxB], next[idxA]]
     setWss(next)
-    if (barVisible()) setCacheLastTimeRendered(next)
+    setCacheLastTimeRendered(next)
   }
 
   // Combines visual swap (instant) + hyprland swap (suppressed events during flight)
@@ -438,7 +500,7 @@ export default function Workspaces() {
     const [item] = next.splice(fromIdx, 1)
     next.splice(toIdx, 0, item)
     setWss(next)
-    if (barVisible()) setCacheLastTimeRendered(next)
+    setCacheLastTimeRendered(next)
   }
 
   const doRenumber = (fromId: number, toId: number) => {
@@ -456,6 +518,20 @@ export default function Workspaces() {
   hypr.connect("notify::workspaces", update)
   hypr.connect("notify::focused-workspace", update)
   hypr.connect("notify::clients", update)
+
+  // Capture a screenshot whenever a workspace is focused so the preview
+  // shows real content. 400ms delay lets Hyprland finish rendering the switch.
+  const captureWorkspace = (id: number) => {
+    if (id <= 0 || id >= 9000) return
+    setTimeout(() => {
+      execAsync(["grim", "-t", "png", "-l", "0", `/tmp/ags-ws-preview-${id}.png`]).catch(() => {})
+    }, 400)
+  }
+  hypr.connect("notify::focused-workspace", () => {
+    captureWorkspace(hypr.focusedWorkspace?.id ?? -1)
+  })
+  // Capture on startup
+  setTimeout(() => captureWorkspace(hypr.focusedWorkspace?.id ?? -1), 800)
 
   update()
 

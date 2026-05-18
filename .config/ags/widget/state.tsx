@@ -8,6 +8,7 @@ export const [nightLightTemp, setNightLightTemp] = createState(4500)
 export const [brightness, setBrightness] = createState(0.5)
 export const [isMenuOpen, setIsMenuOpen] = createState(false)
 export const [isWsDragging, setIsWsDragging] = createState(false)
+export const [isWsPreview, setIsWsPreview] = createState(false)
 
 export const [osdVisible, setOsdVisible] = createState(false)
 export const [micOsdVisible, setMicOsdVisible] = createState(false)
@@ -30,13 +31,14 @@ quickSettingsVisible.subscribe((v) => {
 // La barra observa esto para no ocultarse mientras haya un panel abierto.
 // Abrir un panel cierra el resto (exclusividad mutua).
 export const anyPanelVisible = {
-  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get(),
+  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get(),
   subscribe: (cb: (v: boolean) => void) => {
-    const notify = () => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get())
+    const notify = () => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get())
     powerMenuVisible.subscribe(notify)
     quickSettingsVisible.subscribe(notify)
     isMenuOpen.subscribe(notify)
     notifPanelVisible.subscribe(notify)
+    isWsPreview.subscribe(notify)
   },
 }
 
