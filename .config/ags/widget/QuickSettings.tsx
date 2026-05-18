@@ -1356,13 +1356,7 @@ function QsFooter() {
       >
         <label label="󰒓" />
       </button>
-      <button
-        cssClasses={["qs-footer-btn"]}
-        tooltipText="Cerrar sesión"
-        onClicked={() => execAsync("hyprctl dispatch exit").catch(() => { })}
-      >
-        <label label="󰍃" />
-      </button>
+
     </box>
   )
 }

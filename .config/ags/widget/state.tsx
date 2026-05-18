@@ -58,3 +58,13 @@ export function closeAllPanels() {
   setInfoSsid(null)
   closeNotifPanel()
 }
+
+// ── Game Detection State ──────────────────────────────────────────────────────
+export const [gameActive, setGameActive] = createState(false)
+export const [gameInfo, setGameInfo] = createState<{
+  class: string
+  title: string
+  address: string
+  workspaceId: number
+  fullscreen: number
+} | null>(null)

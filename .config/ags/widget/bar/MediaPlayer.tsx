@@ -1,6 +1,7 @@
 import AstalMpris from "gi://AstalMpris"
-import { createBinding } from "ags"
+import { createBinding, createState } from "ags"
 import { Gtk } from "ags/gtk4"
+import { gameActive } from "../state"
 
 // ── Ad tracker ────────────────────────────────────────────────────────────────
 let _lastAdId = ""
@@ -51,11 +52,22 @@ export default function MediaPlayer() {
   if (!mpris) return <box />
 
   const players = createBinding(mpris, "players")
+  const [mprisVisible, setMprisVisible] = createState(false)
+
+  const updateVisibility = () => {
+    setMprisVisible(shouldShow(mpris.players) && !gameActive.get())
+  }
+
+  players.subscribe(updateVisibility)
+  gameActive.subscribe(updateVisibility)
+
+  // Initial update
+  updateVisibility()
 
   return (
     <box
       cssClasses={["mpris-widget"]}
-      visible={players(shouldShow)}
+      visible={mprisVisible}
       valign={Gtk.Align.CENTER}
       halign={Gtk.Align.CENTER}
       hexpand={false}

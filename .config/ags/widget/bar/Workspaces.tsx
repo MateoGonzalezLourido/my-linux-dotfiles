@@ -1,4 +1,5 @@
 import AstalHyprland from "gi://AstalHyprland"
+import Gdk from "gi://Gdk"
 import Graphene from "gi://Graphene"
 import { createState, For } from "ags"
 import { Gtk } from "ags/gtk4"
@@ -7,7 +8,49 @@ import { execAsync } from "ags/process"
 import { barVisible, setIsWsDragging } from "../state.tsx"
 import { getIcon } from "./appIcons"
 
-const swapWorkspaces = async (idA: number, idB: number) => {
+// Blocks update() while hyprctl commands are in flight so intermediate
+// states (clients in workspace 9999, etc.) never trigger a re-render.
+let _swapping = false
+
+// Cascades clients through every workspace between idA and idB.
+// e.g. [1,3,4], drag 1→4: ws1←ws3, ws3←ws4, ws4←original ws1
+const shiftWorkspaces = async (idA: number, idB: number, orderedIds: number[], afterSwap?: () => void) => {
+  _swapping = true
+  const TEMP = 9999
+  const hypr = AstalHyprland.get_default()
+  const focusedWsId = hypr.focusedWorkspace?.id ?? -1
+  const fromIdx = orderedIds.indexOf(idA)
+  const toIdx = orderedIds.indexOf(idB)
+  try {
+    const all: any[] = JSON.parse(await execAsync(["hyprctl", "clients", "-j"]))
+    const inFrom = all.filter(c => c.workspace?.id === idA).map(c => c.address as string)
+    for (const addr of inFrom)
+      await execAsync(["hyprctl", "dispatch", "movetoworkspacesilent", `${TEMP},address:${addr}`])
+    if (fromIdx < toIdx) {
+      for (let i = fromIdx; i < toIdx; i++) {
+        const clients = all.filter(c => c.workspace?.id === orderedIds[i + 1]).map(c => c.address as string)
+        for (const addr of clients)
+          await execAsync(["hyprctl", "dispatch", "movetoworkspacesilent", `${orderedIds[i]},address:${addr}`])
+      }
+    } else {
+      for (let i = fromIdx; i > toIdx; i--) {
+        const clients = all.filter(c => c.workspace?.id === orderedIds[i - 1]).map(c => c.address as string)
+        for (const addr of clients)
+          await execAsync(["hyprctl", "dispatch", "movetoworkspacesilent", `${orderedIds[i]},address:${addr}`])
+      }
+    }
+    for (const addr of inFrom)
+      await execAsync(["hyprctl", "dispatch", "movetoworkspacesilent", `${idB},address:${addr}`])
+    if (focusedWsId === idA)
+      await execAsync(["hyprctl", "dispatch", "workspace", String(idB)])
+  } catch (_) {}
+  await new Promise<void>(r => setTimeout(r, 120))
+  _swapping = false
+  afterSwap?.()
+}
+
+const swapWorkspaces = async (idA: number, idB: number, afterSwap?: () => void) => {
+  _swapping = true
   const TEMP = 9999
   const hypr = AstalHyprland.get_default()
   const focusedWsId = hypr.focusedWorkspace?.id ?? -1
@@ -26,6 +69,11 @@ const swapWorkspaces = async (idA: number, idB: number) => {
     else if (focusedWsId === idB)
       await execAsync(["hyprctl", "dispatch", "workspace", String(idA)])
   } catch (_) {}
+  // Small workspaces get destroyed by Hyprland when emptied during the swap,
+  // then recreated — wait for AstalHyprland to reflect the final state.
+  await new Promise<void>(r => setTimeout(r, 120))
+  _swapping = false
+  afterSwap?.()
 }
 
 interface ClientIcon {
@@ -60,10 +108,11 @@ const getClientIcons = (clients: any[]): ClientIcon[] => {
 // above other buttons without disrupting the Box layout at all.
 let _overlay: Gtk.Overlay | null = null
 
-function WsButton({ ws, focusedId, onSwap, getWsList }: {
+function WsButton({ ws, focusedId, onSwap, onShift, getWsList }: {
   ws: any
   focusedId: any
   onSwap: (a: number, b: number) => void
+  onShift: (a: number, b: number) => void
   getWsList: () => any[]
 }) {
   const [hovered, setHovered] = createState<boolean>(false)
@@ -212,10 +261,9 @@ function WsButton({ ws, focusedId, onSwap, getWsList }: {
           pendingOffset = Math.round(offsetX)
         })
 
-        dragGesture.connect("drag-end", (_g: any, totalOffsetX: number, _: number) => {
+        dragGesture.connect("drag-end", (g: any, totalOffsetX: number, _: number) => {
           clearReady()
           pressStartTime = 0
-
           if (dragActive) {
             const step = self.get_allocated_width() + 2
             const positions = Math.round(totalOffsetX / step)
@@ -224,9 +272,11 @@ function WsButton({ ws, focusedId, onSwap, getWsList }: {
               const currentIdx = list.findIndex((w: any) => w.id === ws.id)
               const targetIdx = Math.max(0, Math.min(list.length - 1, currentIdx + positions))
               if (targetIdx !== currentIdx) {
-                const targetWs = list[targetIdx]
-                onSwap(ws.id, targetWs.id)
-                swapWorkspaces(ws.id, targetWs.id)
+                const event = (g as any).get_last_event(null)
+                const mods: number = event ? (event as any).get_modifier_state() : 0
+                const ctrlHeld = !!(mods & Gdk.ModifierType.CONTROL_MASK)
+                if (ctrlHeld) onSwap(ws.id, list[targetIdx].id)
+                else onShift(ws.id, list[targetIdx].id)
               }
             }
             self.remove_css_class("ws-dragging")
@@ -272,6 +322,7 @@ export default function Workspaces() {
   const [focusedId, setFocusedId] = createState<number>(hypr.focusedWorkspace.id)
 
   const update = () => {
+    if (_swapping) return
     const allWorkspaces = hypr.get_workspaces()
     const fId = hypr.focusedWorkspace.id
     setFocusedId(fId)
@@ -319,6 +370,30 @@ export default function Workspaces() {
     if (barVisible()) setCacheLastTimeRendered(next)
   }
 
+  // Combines visual swap (instant) + hyprland swap (suppressed events during flight)
+  const doSwap = (idA: number, idB: number) => {
+    doVisualSwap(idA, idB)
+    swapWorkspaces(idA, idB, update)
+  }
+
+  const doVisualShift = (idA: number, idB: number) => {
+    const current = wss()
+    const fromIdx = current.findIndex(w => w.id === idA)
+    const toIdx = current.findIndex(w => w.id === idB)
+    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return
+    const next = [...current]
+    const [item] = next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, item)
+    setWss(next)
+    if (barVisible()) setCacheLastTimeRendered(next)
+  }
+
+  const doShift = (idA: number, idB: number) => {
+    const orderedIds = wss().map(w => w.id)
+    doVisualShift(idA, idB)
+    shiftWorkspaces(idA, idB, orderedIds, update)
+  }
+
   hypr.connect("notify::workspaces", update)
   hypr.connect("notify::focused-workspace", update)
   hypr.connect("notify::clients", update)
@@ -331,7 +406,7 @@ export default function Workspaces() {
     >
       <box cssClasses={["Workspaces"]} spacing={2}>
         <For each={() => barVisible() ? wss() : cacheLastTimeRendered()}>
-          {(ws) => <WsButton ws={ws} focusedId={focusedId} onSwap={doVisualSwap} getWsList={() => wss()} />}
+          {(ws) => <WsButton ws={ws} focusedId={focusedId} onSwap={doSwap} onShift={doShift} getWsList={() => wss()} />}
         </For>
       </box>
     </Gtk.Overlay>

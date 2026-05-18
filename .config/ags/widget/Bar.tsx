@@ -6,6 +6,7 @@ import Clock from "./bar/Clock"
 import Functions from "./bar/Functions"
 import Workspaces from "./bar/Workspaces"
 import MediaPlayer from "./bar/MediaPlayer"
+import GameIndicator from "./bar/GameIndicator"
 import SystemTray from "./bar/SystemTray"
 import Bluetooth from "./bar/Bluetooth"
 import Network from "./bar/Network"
@@ -109,7 +110,8 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         <Workspaces />
       </box>
       
-      <box $type="center" halign={Gtk.Align.CENTER}>
+      <box $type="center" halign={Gtk.Align.CENTER} spacing={8}>
+        <GameIndicator />
         <MediaPlayer />
       </box>
       
