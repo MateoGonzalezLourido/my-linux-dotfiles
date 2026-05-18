@@ -131,6 +131,11 @@ $orange: #fab387;
       transform: scale(1.04);
     }
 
+    &.ws-renumber-pending {
+      box-shadow: 0 0 0 1.5px rgba(250, 179, 135, 0.7);
+      transform: scale(1.04);
+    }
+
     &.ws-dragging {
       opacity: 0.82;
       // Transform transition intentionally omitted: the CSS provider sets

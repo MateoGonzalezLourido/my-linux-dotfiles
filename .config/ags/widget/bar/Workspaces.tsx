@@ -41,8 +41,18 @@ const shiftWorkspaces = async (idA: number, idB: number, orderedIds: number[], a
     }
     for (const addr of inFrom)
       await execAsync(["hyprctl", "dispatch", "movetoworkspacesilent", `${idB},address:${addr}`])
-    if (focusedWsId === idA)
-      await execAsync(["hyprctl", "dispatch", "workspace", String(idB)])
+    // Build full movement map for every ws involved in the cascade so focus
+    // follows regardless of which workspace the user was on.
+    const moved = new Map<number, number>()
+    moved.set(idA, idB)
+    if (fromIdx < toIdx) {
+      for (let i = fromIdx; i < toIdx; i++) moved.set(orderedIds[i + 1], orderedIds[i])
+    } else {
+      for (let i = fromIdx; i > toIdx; i--) moved.set(orderedIds[i - 1], orderedIds[i])
+    }
+    const newFocus = moved.get(focusedWsId)
+    if (newFocus !== undefined)
+      await execAsync(["hyprctl", "dispatch", "workspace", String(newFocus)])
   } catch (_) {}
   await new Promise<void>(r => setTimeout(r, 120))
   _swapping = false
@@ -108,14 +118,16 @@ const getClientIcons = (clients: any[]): ClientIcon[] => {
 // above other buttons without disrupting the Box layout at all.
 let _overlay: Gtk.Overlay | null = null
 
-function WsButton({ ws, focusedId, onSwap, onShift, getWsList }: {
+function WsButton({ ws, focusedId, onSwap, onShift, onRenumber, getWsList }: {
   ws: any
   focusedId: any
   onSwap: (a: number, b: number) => void
   onShift: (a: number, b: number) => void
+  onRenumber: (id: number, targetId: number) => void
   getWsList: () => any[]
 }) {
   const [hovered, setHovered] = createState<boolean>(false)
+  let ctrlAtPress = false
 
   const clientsB = focusedId((fId: number) => {
     const isHov = hovered()
@@ -167,12 +179,16 @@ function WsButton({ ws, focusedId, onSwap, onShift, getWsList }: {
 
   return (
     <box
+      focusable={true}
       cssClasses={focusedId((id: number) => id === ws.id ? ["ws-btn", "focused"] : ["ws-btn"])}
       valign={Gtk.Align.CENTER}
       $={(self) => {
         let pressStartTime = 0
         let readyTimer: ReturnType<typeof setTimeout> | null = null
         let dragActive = false
+        let didDrag = false
+        let pendingRenumber = false
+        let renumberTimeout: ReturnType<typeof setTimeout> | null = null
         let ghost: Gtk.Box | null = null
         let baseX = 0
         let grabX = 0
@@ -228,9 +244,27 @@ function WsButton({ ws, focusedId, onSwap, onShift, getWsList }: {
           self.set_opacity(1)
         }
 
+        const cancelRenumber = () => {
+          pendingRenumber = false
+          self.remove_css_class("ws-renumber-pending")
+          if (renumberTimeout !== null) { clearTimeout(renumberTimeout); renumberTimeout = null }
+        }
+
+        const startRenumber = () => {
+          pendingRenumber = true
+          self.add_css_class("ws-renumber-pending")
+          self.grab_focus()
+          renumberTimeout = setTimeout(cancelRenumber, 3000)
+        }
+
         const pressGesture = new Gtk.GestureClick()
-        pressGesture.connect("pressed", () => {
+        pressGesture.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        pressGesture.connect("pressed", (g: any) => {
           pressStartTime = Date.now()
+          didDrag = false
+          const event = (g as any).get_last_event(null)
+          const mods: number = event ? (event as any).get_modifier_state() : 0
+          ctrlAtPress = !!(mods & Gdk.ModifierType.CONTROL_MASK)
           readyTimer = setTimeout(() => {
             readyTimer = null
             self.add_css_class("ws-hold-ready")
@@ -239,6 +273,7 @@ function WsButton({ ws, focusedId, onSwap, onShift, getWsList }: {
         pressGesture.connect("released", () => {
           clearReady()
           pressStartTime = 0
+          if (!didDrag && ctrlAtPress) startRenumber()
         })
         self.add_controller(pressGesture)
 
@@ -253,6 +288,7 @@ function WsButton({ ws, focusedId, onSwap, onShift, getWsList }: {
           if (!dragActive) {
             if (Date.now() - pressStartTime < 300) return
             dragActive = true
+            didDrag = true
             clearReady()
             self.add_css_class("ws-dragging")
             setIsWsDragging(true)
@@ -286,6 +322,23 @@ function WsButton({ ws, focusedId, onSwap, onShift, getWsList }: {
         })
 
         self.add_controller(dragGesture)
+
+        const keyCtrl = new Gtk.EventControllerKey()
+        keyCtrl.connect("key-pressed", (_c: any, keyval: number) => {
+          if (!pendingRenumber) return false
+          if (keyval === 65307) { cancelRenumber(); return true }  // Escape
+          if (keyval >= 49 && keyval <= 57) {                      // '1'–'9'
+            cancelRenumber()
+            onRenumber(ws.id, keyval - 48)
+            return true
+          }
+          return false
+        })
+        self.add_controller(keyCtrl)
+
+        const focusCtrl = new Gtk.EventControllerFocus()
+        focusCtrl.connect("leave", () => cancelRenumber())
+        self.add_controller(focusCtrl)
       }}
     >
       <Gtk.EventControllerMotion
@@ -294,7 +347,7 @@ function WsButton({ ws, focusedId, onSwap, onShift, getWsList }: {
       />
       <button
         cssClasses={["ws-num-btn"]}
-        onClicked={() => ws.focus()}
+        onClicked={() => { if (!ctrlAtPress) ws.focus() }}
       >
         <label cssClasses={["ws-id"]} label={`${ws.id}`} />
       </button>
@@ -388,6 +441,12 @@ export default function Workspaces() {
     if (barVisible()) setCacheLastTimeRendered(next)
   }
 
+  const doRenumber = (fromId: number, toId: number) => {
+    if (fromId === toId) return
+    if (wss().some(w => w.id === toId)) doSwap(fromId, toId)
+    else swapWorkspaces(fromId, toId, update)
+  }
+
   const doShift = (idA: number, idB: number) => {
     const orderedIds = wss().map(w => w.id)
     doVisualShift(idA, idB)
@@ -406,7 +465,7 @@ export default function Workspaces() {
     >
       <box cssClasses={["Workspaces"]} spacing={2}>
         <For each={() => barVisible() ? wss() : cacheLastTimeRendered()}>
-          {(ws) => <WsButton ws={ws} focusedId={focusedId} onSwap={doSwap} onShift={doShift} getWsList={() => wss()} />}
+          {(ws) => <WsButton ws={ws} focusedId={focusedId} onSwap={doSwap} onShift={doShift} onRenumber={doRenumber} getWsList={() => wss()} />}
         </For>
       </box>
     </Gtk.Overlay>
