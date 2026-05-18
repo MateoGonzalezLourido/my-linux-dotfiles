@@ -179,6 +179,33 @@ try {
   }
 } catch(e) {}
 
+// Restore state from cache on startup. Uses idle_add (next event-loop tick, no
+// fixed delay) so D-Bus proxies have reported their real state before we compare.
+// Only acts when current state differs from cache — external changes are respected.
+GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+  try {
+    const [ok, content] = GLib.file_get_contents(SYSTEM_STATE_PATH)
+    if (ok) {
+      const saved = JSON.parse(new TextDecoder().decode(content))
+      const bt      = AstalBluetooth.get_default()
+      const network = AstalNetwork.get_default()
+      if (bt) {
+        if (saved.bluetooth === false && bt.isPowered)
+          execAsync(["bluetoothctl", "power", "off"]).catch(() => {})
+        else if (saved.bluetooth === true && !bt.isPowered)
+          execAsync(["bluetoothctl", "power", "on"]).catch(() => {})
+      }
+      if (network?.wifi) {
+        if (saved.wifi === false && network.wifi.enabled)
+          execAsync(["nmcli", "radio", "wifi", "off"]).catch(() => {})
+        else if (saved.wifi === true && !network.wifi.enabled)
+          execAsync(["nmcli", "radio", "wifi", "on"]).catch(() => {})
+      }
+    }
+  } catch(e) {}
+  return GLib.SOURCE_REMOVE
+})
+
 // ── Utilities ──────────────────────────────────────────────────────────────────
 
 function getTime() { return GLib.DateTime.new_now_local().format("%H:%M") ?? "" }

@@ -7,6 +7,7 @@ export const [nightLightActive, setNightLightActive] = createState(false)
 export const [nightLightTemp, setNightLightTemp] = createState(4500)
 export const [brightness, setBrightness] = createState(0.5)
 export const [isMenuOpen, setIsMenuOpen] = createState(false)
+export const [isWsDragging, setIsWsDragging] = createState(false)
 
 export const [osdVisible, setOsdVisible] = createState(false)
 export const [micOsdVisible, setMicOsdVisible] = createState(false)

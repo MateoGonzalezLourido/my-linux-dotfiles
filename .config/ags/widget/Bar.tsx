@@ -16,7 +16,7 @@ import Recording from "./bar/Recording"
 import MicIndicator from "./bar/MicIndicator"
 import NotificationButton from "./bar/NotificationButton"
 import PowerButton from "./bar/PowerButton"
-import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels } from "./state";
+import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
@@ -41,7 +41,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
       // Final check before hiding
-      if (!isHovered() && !anyPanelVisible.get()) {
+      if (!isHovered() && !anyPanelVisible.get() && !isWsDragging()) {
         setVisible(false)
         setWidgetsRefresh(false)
         setBarVisible(false)
@@ -60,6 +60,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
 
   isHovered.subscribe(checkVisibility)
   anyPanelVisible.subscribe(checkVisibility)
+  isWsDragging.subscribe((dragging) => { if (!dragging) checkVisibility() })
 
   const hotzone = <window
     name="bar-hotzone"
