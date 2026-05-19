@@ -1,14 +1,14 @@
 import AstalWp from "gi://AstalWp"
 import { createState } from "ags"
 import { Gtk, Gdk } from "ags/gtk4"
+import { showPixelVolOSD } from "../state"
 
 function volIcon(v: number, muted: boolean) {
   if (muted || v === 0) return "󰝟"
-  if (v < 0.20)         return "󰕿"
-  if (v < 0.40)         return "󰖀"
-  if (v < 0.60)         return "󰕾"
-  if (v < 0.80)         return ""
-  return ""
+  if (v < 0.25) return "󰕿"
+  if (v < 0.50) return "󰖀"
+  if (v < 0.75) return "󰕾"
+  return "󰕾"
 }
 
 export default function Volume() {
@@ -16,39 +16,33 @@ export default function Volume() {
   const speaker = wp?.audio?.defaultSpeaker
   if (!speaker) return (<box />)
 
-  const [icon, setIcon] = createState(volIcon(speaker.volume, speaker.mute))
-  const [muted, setMuted] = createState(speaker.mute)
-  const [volPercent, setVolPercent] = createState(Math.round(speaker.volume * 100))
+  const [icon, setIcon]           = createState(volIcon(speaker.volume, speaker.mute))
+  const [muted, setMuted]         = createState(speaker.mute)
 
-  const updateVars = () => {
+  const update = () => {
     setIcon(volIcon(speaker.volume, speaker.mute))
     setMuted(speaker.mute)
-    setVolPercent(Math.round(speaker.volume * 100))
   }
 
-  speaker.connect("notify::volume", updateVars)
-  speaker.connect("notify::mute", updateVars)
+  speaker.connect("notify::volume", update)
+  speaker.connect("notify::mute",   update)
 
   return (
     <button
-      cssClasses={muted((m) => m ? ["bt-muted"] : ["bt-normal"])}
-      tooltipText={volPercent((v) => `${v}`)}
+      cssClasses={muted((m) => m ? ["volume", "bt-muted"] : ["volume"])}
+      onClicked={() => { speaker.mute = !speaker.mute; showPixelVolOSD() }}
     >
-      <Gtk.GestureClick
-        button={Gdk.BUTTON_SECONDARY}
-        onPressed={() => { speaker.mute = !speaker.mute }}
-      />
       <label
-        cssClasses={muted((m) => m ? ["icon-muted"] : ["icon-normal"])}
+        cssClasses={muted((m) => m ? ["icon-muted"] : [])}
         label={icon}
       />
       <Gtk.EventControllerScroll
         flags={Gtk.EventControllerScrollFlags.VERTICAL}
         onScroll={(_self, _dx, dy) => {
-          speaker.volume = Math.max(0, Math.min(1, speaker.volume - dy * 0.05))
+          speaker.volume = Math.max(0, Math.min(1.5, speaker.volume - dy * 0.05))
+          showPixelVolOSD()
         }}
       />
     </button>
   )
 }
-

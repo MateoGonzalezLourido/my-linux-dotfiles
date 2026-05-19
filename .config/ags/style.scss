@@ -2495,3 +2495,904 @@ window.np-window.csd decoration {
   color: rgba(226, 226, 226, 0.3);
   margin: 0;
 }
+
+// ── Pixel Volume OSD ─────────────────────────────────────────────────────────
+
+@keyframes pv-rainbow {
+  0%   { color: #00c8ff; }
+  15%  { color: #20f080; }
+  30%  { color: #d4f020; }
+  45%  { color: #ffa000; }
+  60%  { color: #ff5000; }
+  75%  { color: #ff0080; }
+  90%  { color: #9f00e0; }
+  100% { color: #00c8ff; }
+}
+
+@keyframes pv-mute-blink {
+  0%,  49% { background-color: #cc0000; color: #000000; border-color: #ff0000; }
+  50%, 100% { background-color: #400000; color: #ff4444; border-color: #660000; }
+}
+
+@keyframes pv-slide-in {
+  from { opacity: 0; margin-top: -10px; }
+  to   { opacity: 1; margin-top: 0; }
+}
+
+window.pv-osd-window {
+  background-color: transparent;
+}
+
+.pv-container {
+  background-color: #080808;
+  border: 2px solid #ff8800;
+  border-radius: 0;
+  padding: 8px 10px;
+
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.20) 2px,
+    rgba(0, 0, 0, 0.20) 3px
+  );
+
+  box-shadow:
+    0 0 0 1px rgba(255, 136, 0, 0.22),
+    0 0 14px rgba(255, 136, 0, 0.15),
+    inset 0 0 20px rgba(0, 0, 0, 0.55);
+
+  animation: pv-slide-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pv-title {
+  font-family: "Press Start 2P", "JetBrainsMono Nerd Font", monospace;
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  margin: 0;
+  animation: pv-rainbow 3s linear infinite;
+}
+
+.pv-percent {
+  font-family: "Press Start 2P", "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 900;
+  margin: 0 2px 0 0;
+}
+
+.pv-percent-sym {
+  font-family: "Press Start 2P", "JetBrains Mono", monospace;
+  font-size: 6px;
+  margin: 0;
+  opacity: 0.65;
+}
+
+.pv-mute-btn {
+  background-color: #161616;
+  border: 1px solid #484848;
+  border-radius: 0;
+  padding: 1px 4px;
+  min-width: 0;
+  min-height: 0;
+  box-shadow: 1px 1px 0 #000000;
+  transition: none;
+
+  .pv-mute-label {
+    font-family: "Press Start 2P", "JetBrains Mono", monospace;
+    font-size: 7px;
+    color: #999999;
+    margin: 0;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  &:hover {
+    background-color: #242424;
+    border-color: #777777;
+    box-shadow: 1px 1px 0 #000000;
+    .pv-mute-label { color: #dddddd; }
+  }
+
+  &:active {
+    box-shadow: none;
+    transform: translate(1px, 1px);
+  }
+}
+
+.pv-muting {
+  animation: pv-mute-blink 380ms steps(1) infinite;
+
+  .pv-mute-label {
+    color: #ff4444;
+  }
+}
+
+// ── Calendar Panel ────────────────────────────────────────────────────────────
+
+$cal-bg:          rgba(8, 8, 12, 1);
+$cal-bg-surface:  rgba(255, 255, 255, 0.03);
+$cal-bg-surface2: rgba(255, 255, 255, 0.06);
+$cal-border:      rgba(255, 255, 255, 0.1);
+$cal-text:        #e2e2e2;
+$cal-text-dim:    rgba(226, 226, 226, 0.45);
+$cal-text-hint:   rgba(226, 226, 226, 0.25);
+$cal-blue:        #89b4fa;
+$cal-violet:      #cba6f7;
+$cal-accent-bg:   rgba(137, 180, 250, 0.12);
+$cal-accent-dim:  rgba(137, 180, 250, 0.7);
+$cal-danger:      #f38ba8;
+$cal-danger-bg:   rgba(243, 139, 168, 0.1);
+$cal-font:        "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+
+window.cal-panel,
+window.cal-panel.background,
+window.cal-panel.csd {
+  background-color: transparent;
+}
+
+window.cal-panel decoration,
+window.cal-panel.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background-color: transparent;
+  border-width: 0;
+}
+
+.cal-panel {
+  background-color: $cal-bg;
+  border-right: 1px solid $cal-border;
+  font-family: $cal-font;
+  font-size: 13px;
+  color: $cal-text;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6);
+
+  * { color: $cal-text; }
+
+  button {
+    background-color: transparent;
+    border-width: 0;
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
+    transition: all 120ms ease;
+  }
+}
+
+// ── Panel titlebar ────────────────────────────────────────────────────────────
+.cal-titlebar {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid $cal-border;
+  background: rgba(255, 255, 255, 0.01);
+  min-height: 46px;
+}
+
+.cal-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: $cal-text;
+  margin: 0;
+}
+
+// ── View tabs ─────────────────────────────────────────────────────────────────
+.cal-view-tabs {
+  background: $cal-bg-surface;
+  border-radius: 8px;
+  padding: 3px;
+  border: 1px solid $cal-border;
+  margin: 0 12px;
+}
+
+.cal-view-tab {
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: $cal-text-dim;
+  transition: background 150ms, color 150ms;
+  background-color: transparent;
+  border-width: 0;
+
+  &:hover {
+    background: $cal-bg-surface2;
+    color: $cal-text;
+  }
+
+  &.active {
+    background: rgba(137, 180, 250, 0.15);
+    color: $cal-blue;
+    border: 1px solid rgba(137, 180, 250, 0.25);
+  }
+}
+
+// ── Month nav ─────────────────────────────────────────────────────────────────
+.cal-month-nav {
+  padding: 14px 16px 10px;
+  min-height: 48px;
+}
+
+.cal-month-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-today-label {
+  font-size: 11px;
+  color: $cal-text-dim;
+  padding: 3px 8px;
+  border: 1px solid $cal-border;
+  border-radius: 6px;
+}
+
+// ── Weekday headers ───────────────────────────────────────────────────────────
+.cal-weekday-headers {
+  padding: 0 14px 4px;
+}
+
+.cal-wd-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: $cal-text-hint;
+  min-width: 46px;
+  padding: 4px 2px;
+  margin: 0;
+}
+
+// ── Days grid ─────────────────────────────────────────────────────────────────
+.cal-days-grid {
+  padding: 0 14px 14px;
+}
+
+.cal-month-grid {
+  padding: 0;
+}
+
+.cal-day-cell {
+  min-width: 46px;
+  min-height: 50px;
+  border-radius: 8px;
+  padding: 5px 3px 3px;
+  background-color: transparent;
+  border-width: 0;
+  transition: background 120ms;
+
+  &:hover {
+    background: $cal-bg-surface2;
+  }
+
+  &.other-month .cal-day-num {
+    color: $cal-text-hint;
+  }
+
+  &.today {
+    background: $cal-accent-bg;
+
+    .cal-day-num {
+      color: $cal-blue;
+      font-weight: 700;
+    }
+  }
+
+  &.selected {
+    background: rgba(137, 180, 250, 0.25);
+    border: 1px solid rgba(137, 180, 250, 0.4);
+
+    .cal-day-num {
+      color: $cal-blue;
+      font-weight: 700;
+    }
+
+    &:hover {
+      background: rgba(137, 180, 250, 0.35);
+    }
+  }
+}
+
+.cal-day-num {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-event-dots {
+  padding-top: 2px;
+}
+
+.cal-event-dot {
+  border-radius: 50%;
+  min-width: 5px;
+  min-height: 5px;
+}
+
+// ── Agenda view ───────────────────────────────────────────────────────────────
+.cal-agenda-view {
+  padding: 0;
+  border-left: 1px solid $cal-border;
+  min-width: 320px;
+}
+
+.cal-agenda-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid $cal-border;
+  min-height: 48px;
+}
+
+.cal-agenda-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-agenda-list {
+  padding: 0 14px;
+}
+
+.cal-agenda-date-header {
+  padding: 12px 4px 6px;
+
+  &.today .cal-agenda-date-label {
+    color: $cal-blue;
+    font-weight: 700;
+  }
+
+  &.past .cal-agenda-date-label {
+    color: $cal-text-hint;
+  }
+}
+
+.cal-agenda-date-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-agenda-day-events {
+  padding: 0 0 4px 8px;
+}
+
+.cal-agenda-event-row {
+  background: $cal-bg-surface;
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid $cal-border;
+  margin-bottom: 4px;
+
+  &:hover .cal-event-actions {
+    opacity: 1;
+  }
+}
+
+.cal-event-color-stripe {
+  border-radius: 2px;
+  min-height: 28px;
+  min-width: 3px;
+}
+
+.cal-event-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-event-time {
+  font-size: 10px;
+  color: $cal-text-dim;
+  margin-top: 2px;
+}
+
+.cal-event-desc {
+  font-size: 10px;
+  color: $cal-text-hint;
+  margin-top: 2px;
+}
+
+.cal-event-actions {
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.cal-agenda-separator {
+  background: $cal-border;
+  margin: 6px 0;
+  min-height: 1px;
+}
+
+.cal-agenda-empty {
+  padding: 40px 20px;
+}
+
+.cal-empty-icon {
+  font-size: 32px;
+  margin: 0;
+}
+
+.cal-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $cal-text-dim;
+  margin: 0;
+}
+
+.cal-empty-sub {
+  font-size: 11px;
+  color: $cal-text-hint;
+  margin: 0;
+}
+
+// ── Icon buttons ──────────────────────────────────────────────────────────────
+.cal-icon-btn {
+  padding: 5px 8px;
+  border: 1px solid $cal-border;
+  border-radius: 6px;
+  background-color: transparent;
+  color: $cal-text-dim;
+  font-size: 14px;
+  transition: background 120ms, color 120ms;
+  min-width: 28px;
+  min-height: 28px;
+
+  label { margin: 0; color: $cal-text-dim; }
+
+  &:hover {
+    background-color: $cal-bg-surface2;
+    label { color: $cal-text; }
+  }
+
+  &.small {
+    padding: 3px 6px;
+    font-size: 12px;
+    min-width: 22px;
+    min-height: 22px;
+  }
+
+  &.danger:hover {
+    background-color: $cal-danger-bg;
+    label { color: $cal-danger; }
+    border-color: rgba(243, 139, 168, 0.35);
+  }
+}
+
+// ── General buttons ───────────────────────────────────────────────────────────
+.cal-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 120ms, color 120ms;
+  border: 1px solid $cal-border;
+  color: $cal-text-dim;
+  background-color: transparent;
+  font-family: $cal-font;
+
+  label { margin: 0; }
+
+  &:hover {
+    background-color: $cal-bg-surface2;
+    color: $cal-text;
+  }
+
+  &.cal-btn-primary {
+    background-color: $cal-accent-bg;
+    color: $cal-blue;
+    border-color: rgba(137, 180, 250, 0.25);
+
+    label { color: $cal-blue; }
+
+    &:hover {
+      background-color: rgba(137, 180, 250, 0.22);
+    }
+  }
+
+  &.cal-btn-secondary {
+    background-color: rgba(0, 0, 0, 0);
+  }
+
+  &.small {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+}
+
+// ── Dialog ────────────────────────────────────────────────────────────────────
+.cal-dialog-backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  padding: 20px;
+}
+
+.cal-dialog-card {
+  background: rgba(14, 14, 22, 0.98);
+  border: 1px solid $cal-border;
+  border-radius: 14px;
+  padding: 20px;
+  min-width: 300px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.cal-dialog-header {
+  margin-bottom: 4px;
+}
+
+.cal-dialog-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-dialog-actions {
+  margin-top: 4px;
+}
+
+// ── Form elements ─────────────────────────────────────────────────────────────
+.cal-form-entry {
+  background: $cal-bg-surface;
+  border: 1px solid $cal-border;
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: $cal-text;
+  font-size: 12px;
+  font-family: $cal-font;
+  transition: border-color 120ms;
+
+  &:focus { border-color: $cal-blue; }
+}
+
+.cal-title-entry {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cal-time-entry {
+  min-width: 60px;
+}
+
+.cal-form-row {
+  /* align children via valign on widgets */
+}
+
+.cal-form-label {
+  font-size: 12px;
+  color: $cal-text-dim;
+  min-width: 80px;
+  margin: 0;
+}
+
+.cal-time-row {
+  /* timing row */
+}
+
+.cal-time-sep {
+  color: $cal-text-hint;
+  font-size: 14px;
+  margin: 0;
+}
+
+// GTK4 switch inside calendar
+.cal-panel switch {
+  background: $cal-bg-surface;
+  border: 1px solid $cal-border;
+  border-radius: 12px;
+  min-width: 40px;
+  min-height: 22px;
+
+  &:checked {
+    background: $cal-blue;
+    border-color: $cal-blue;
+  }
+
+  slider {
+    background: #fff;
+    border-radius: 50%;
+    min-width: 16px;
+    min-height: 16px;
+    margin: 2px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+// ── Color picker ──────────────────────────────────────────────────────────────
+.cal-color-row {
+  padding: 4px 0;
+}
+
+.cal-color-swatch {
+  min-width: 22px;
+  min-height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: border-color 120ms, opacity 120ms;
+  opacity: 0.8;
+
+  &:hover { opacity: 1; }
+
+  &.active {
+    border-color: $cal-text;
+    opacity: 1;
+  }
+}
+
+// ── Month view container ──────────────────────────────────────────────────────
+.cal-month-view {
+  min-width: 380px;
+}
+
+// ═══════════════════════════════════════════════════════════
+// JARVIS PANEL
+// ═══════════════════════════════════════════════════════════
+
+// ── Tokens ──────────────────────────────────────────────────
+$j-bg-shell:       rgba(9, 12, 20, 0.97);
+$j-bg-tabs:        rgba(6, 8, 15, 0.95);
+$j-bg-item:        rgba(122, 162, 247, 0.025);
+$j-bg-item-hover:  rgba(122, 162, 247, 0.07);
+$j-bg-item-active: rgba(122, 162, 247, 0.08);
+
+$j-accent:         #7aa2f7;
+$j-accent-teal:    #73daca;
+$j-accent-pink:    #ff79c6;
+$j-accent-purple:  #bb9af7;
+$j-accent-amber:   #e0af68;
+$j-accent-red:     #f7768e;
+
+$j-text-primary:   #c0caf5;
+$j-text-secondary: #565f89;
+$j-text-muted:     #2a3050;
+
+$j-border-subtle:  rgba(122, 162, 247, 0.07);
+$j-border-normal:  rgba(122, 162, 247, 0.11);
+$j-border-active:  rgba(122, 162, 247, 0.25);
+
+$j-radius:    20px;
+$j-radius-md: 11px;
+$j-radius-sm: 9px;
+$j-radius-xs: 7px;
+
+$j-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+$j-font-sans: 'Inter', system-ui, sans-serif;
+
+// ── Window ──────────────────────────────────────────────────
+.Jarvis {
+  background: transparent;
+}
+
+// ── Panel shell ─────────────────────────────────────────────
+.jarvis-panel {
+  background: $j-bg-shell;
+  border: 1px solid $j-border-normal;
+  border-bottom: none;
+  border-radius: $j-radius $j-radius 0 0;
+  min-width: 580px;
+}
+
+.jarvis-handle { padding: 10px 0 5px; }
+.handle-bar {
+  min-width: 40px;
+  min-height: 3px;
+  border-radius: 2px;
+  background: rgba(122, 162, 247, 0.18);
+}
+
+// ── Button resets ────────────────────────────────────────────
+.Jarvis button,
+.jarvis-panel button {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+}
+
+// ── Tabs bar ─────────────────────────────────────────────────
+.tabs-bar {
+  background: $j-bg-tabs;
+  border-bottom: 1px solid $j-border-subtle;
+  min-height: 32px;
+}
+
+.j-tab {
+  padding: 0 11px;
+  font-size: 10px;
+  font-family: $j-font-mono;
+  color: $j-text-muted;
+  border-right: 1px solid $j-border-subtle;
+  border-bottom: 2px solid transparent;
+  transition: all 100ms ease;
+  &:hover { background: $j-bg-item-hover; color: $j-text-secondary; }
+}
+.j-tab.active  { color: $j-text-primary; border-bottom-color: $j-accent; }
+.j-tab-home    { padding: 0 13px; }
+
+.tab-x {
+  padding: 0 2px;
+  color: $j-text-muted;
+  &:hover { color: $j-accent-red; }
+}
+
+.profile-btn {
+  padding: 0 10px;
+  color: $j-text-muted;
+  border-left: 1px solid $j-border-subtle;
+  &:hover { background: $j-bg-item-hover; color: $j-accent; }
+}
+
+.profile-dropdown {
+  background: $j-bg-shell;
+  border: 1px solid $j-border-normal;
+  border-radius: $j-radius-md;
+  padding: 8px 0;
+  min-width: 220px;
+}
+.pd-header {
+  font-size: 9px;
+  color: $j-text-muted;
+  padding: 0 12px 6px;
+  font-family: $j-font-mono;
+}
+.pd-save-input { padding: 0 8px 6px; }
+.pd-input {
+  background: $j-bg-item;
+  border: 1px solid $j-border-subtle;
+  border-radius: $j-radius-xs;
+  color: $j-text-primary;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+.pd-confirm { color: $j-accent; }
+
+.pd-action {
+  padding: 7px 12px;
+  &:hover { background: $j-bg-item-hover; }
+}
+.pd-action-danger { color: $j-accent-red; }
+.pd-action-ico {
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: 6px;
+}
+.pdai-save  { background: rgba(122, 162, 247, 0.1); color: $j-accent; }
+.pdai-clear { background: rgba(247, 118, 142, 0.1); color: $j-accent-red; }
+.pd-action-name { font-size: 11px; color: $j-text-primary; }
+.pd-action-sub  { font-size: 9px;  color: $j-text-muted; }
+
+.pd-profiles-label {
+  font-size: 9px;
+  color: $j-text-muted;
+  padding: 4px 12px 2px;
+  font-family: $j-font-mono;
+}
+.pd-profile-item {
+  padding: 5px 12px;
+  &:hover { background: $j-bg-item-hover; }
+}
+.pd-profile-dot {
+  min-width: 5px;
+  min-height: 5px;
+  border-radius: 50%;
+  background: $j-accent;
+}
+.pd-profile-name { font-size: 11px; color: $j-text-primary; }
+.pd-profile-meta { font-size: 9px;  color: $j-text-muted; }
+.pd-pa { color: $j-text-muted; &:hover { color: $j-accent; } }
+.pd-pa-del { &:hover { color: $j-accent-red; } }
+
+// ── Search ───────────────────────────────────────────────────
+.search-zone { padding: 12px 13px 10px; }
+.search-bar {
+  background: $j-bg-item;
+  border: 1px solid rgba(122, 162, 247, 0.1);
+  border-radius: $j-radius-md;
+  padding: 10px 13px;
+
+  image { color: $j-text-muted; }
+  text {
+    background: transparent;
+    color: $j-accent;
+    font-family: $j-font-mono;
+    font-size: 13px;
+  }
+  entry {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: $j-accent;
+    font-family: $j-font-mono;
+    font-size: 13px;
+  }
+}
+
+// ── Nav sections ─────────────────────────────────────────────
+.nav-sections {
+  padding: 8px 11px 6px;
+}
+.ns {
+  padding: 4px 8px;
+  border-radius: $j-radius-xs;
+  font-size: 10px;
+  color: $j-text-muted;
+  border: 1px solid transparent;
+  &:hover { color: $j-text-secondary; background: $j-bg-item-hover; border-color: $j-border-subtle; }
+  &.active { color: $j-accent; background: $j-bg-item-active; border-color: $j-border-active; }
+}
+.ns-reactive { color: $j-accent-teal; }
+.ns-reactive.active {
+  background: rgba(115, 218, 202, 0.08);
+  border-color: rgba(115, 218, 202, 0.25);
+}
+
+.section-content { min-height: 10px; }
+
+// ── Apps grid ────────────────────────────────────────────────
+.section-home { padding-bottom: 4px; }
+.apps-grid {
+  padding: 4px 9px 8px;
+}
+.app-item {
+  padding: 7px 2px;
+  border-radius: $j-radius-sm;
+  border: 1px solid transparent;
+  &:hover { background: $j-bg-item-hover; border-color: $j-border-subtle; }
+}
+.app-icon {
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: $j-radius-sm;
+  &.c-blue   { background: rgba(122, 162, 247, 0.1); color: $j-accent; }
+  &.c-red    { background: rgba(247, 118, 142, 0.1); color: $j-accent-red; }
+  &.c-purple { background: rgba(187, 154, 247, 0.1); color: $j-accent-purple; }
+  &.c-teal   { background: rgba(115, 218, 202, 0.1); color: $j-accent-teal; }
+  &.c-amber  { background: rgba(224, 175, 104, 0.1); color: $j-accent-amber; }
+  &.c-pink   { background: rgba(255, 121, 198, 0.1); color: $j-accent-pink; }
+  &.c-muted  { background: rgba(35, 42, 62, 0.9);    color: $j-text-muted; }
+}
+.app-label { font-size: 9px; color: $j-text-muted; }
+
+.j-hdiv { background: $j-border-subtle; min-height: 1px; margin: 0 11px; }
+
+// ── Quick actions ─────────────────────────────────────────────
+.qa-row { padding: 8px 9px; }
+.quick-action-btn {
+  padding: 9px 4px;
+  border-radius: $j-radius-sm;
+  background: $j-bg-item;
+  border: 1px solid $j-border-subtle;
+  &:hover { background: $j-bg-item-hover; border-color: $j-border-active; }
+}
+.qa-icon {
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: 6px;
+  &.c-blue   { background: rgba(122, 162, 247, 0.1); color: $j-accent; }
+  &.c-red    { background: rgba(247, 118, 142, 0.1); color: $j-accent-red; }
+  &.c-purple { background: rgba(187, 154, 247, 0.1); color: $j-accent-purple; }
+  &.c-teal   { background: rgba(115, 218, 202, 0.1); color: $j-accent-teal; }
+  &.c-amber  { background: rgba(224, 175, 104, 0.1); color: $j-accent-amber; }
+  &.c-pink   { background: rgba(255, 121, 198, 0.1); color: $j-accent-pink; }
+  &.c-muted  { background: rgba(35, 42, 62, 0.9);    color: $j-text-muted; }
+}
+.qa-label { font-size: 10px; color: $j-text-secondary; font-weight: 500; }
+
+// ── System strip ──────────────────────────────────────────────
+.sys-strip { padding: 8px 9px 10px; }
+.sys-card {
+  background: $j-bg-item;
+  border: 1px solid $j-border-subtle;
+  border-radius: 8px;
+  padding: 7px 9px;
+}
+.sys-label { font-size: 9px; color: $j-text-muted; font-family: $j-font-mono; }
+.sys-val   { font-size: 12px; font-weight: 500; color: $j-accent; font-family: $j-font-mono; }
+.sys-bar   { background: rgba(122, 162, 247, 0.07); border-radius: 2px; min-height: 2px; }
+.sys-fill  { border-radius: 2px; min-height: 2px; }
+.sf-blue   { background: rgba(122, 162, 247, 0.55); }
+.sf-pink   { background: rgba(247, 118, 142, 0.55); }
+.sf-teal   { background: rgba(115, 218, 202, 0.55); }
+.sf-amber  { background: rgba(224, 175, 104, 0.55); }
