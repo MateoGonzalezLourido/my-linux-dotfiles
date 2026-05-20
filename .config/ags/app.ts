@@ -9,7 +9,7 @@ import QuickSettings from "./widget/QuickSettings"
 import NotificationPopup from "./widget/notifications/NotificationPopup"
 import NotificationPanel from "./widget/notifications/NotificationPanel"
 import CalendarPanel from "./widget/CalendarPanel"
-import Jarvis from "./widget/jarvis/Jarvis"
+import Orion from "./widget/orion/Orion"
 
 app.start({
   css: style,
@@ -22,7 +22,7 @@ app.start({
     app.get_monitors().map(QuickSettings)
     app.get_monitors().map(NotificationPopup)
     app.get_monitors().map(NotificationPanel)
-    app.get_monitors().map(Jarvis)
+    app.get_monitors().map(Orion)
     try { app.get_monitors().map(CalendarPanel) } catch(e) { console.error("[app] CalendarPanel failed:", e) }
   },
 })
