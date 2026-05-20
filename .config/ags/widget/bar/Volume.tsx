@@ -32,6 +32,10 @@ export default function Volume() {
       cssClasses={muted((m) => m ? ["volume", "bt-muted"] : ["volume"])}
       onClicked={() => { speaker.mute = !speaker.mute; showPixelVolOSD() }}
     >
+      <Gtk.GestureClick
+        button={3}
+        onPressed={() => { speaker.mute = !speaker.mute; showPixelVolOSD() }}
+      />
       <label
         cssClasses={muted((m) => m ? ["icon-muted"] : [])}
         label={icon}

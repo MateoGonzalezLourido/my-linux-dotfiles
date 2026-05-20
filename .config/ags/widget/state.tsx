@@ -56,16 +56,19 @@ quickSettingsVisible.subscribe((v) => {
 // anyPanelVisible = true si CUALQUIER panel está abierto.
 // La barra observa esto para no ocultarse mientras haya un panel abierto.
 // Abrir un panel cierra el resto (exclusividad mutua).
+import { jarvisVisible } from "./jarvis/state"
+
 export const anyPanelVisible = {
-  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get(),
+  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get() || jarvisVisible.get(),
   subscribe: (cb: (v: boolean) => void) => {
-    const notify = () => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get())
+    const notify = () => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get() || jarvisVisible.get())
     powerMenuVisible.subscribe(notify)
     quickSettingsVisible.subscribe(notify)
     isMenuOpen.subscribe(notify)
     notifPanelVisible.subscribe(notify)
     isWsPreview.subscribe(notify)
     calendarVisible.subscribe(notify)
+    jarvisVisible.subscribe(notify)
   },
 }
 

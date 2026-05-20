@@ -10,6 +10,7 @@ import GameIndicator from "./bar/GameIndicator"
 import SystemTray from "./bar/SystemTray"
 import Bluetooth from "./bar/Bluetooth"
 import Network from "./bar/Network"
+import Volume from "./bar/Volume"
 import Battery from "./bar/Battery"
 import CpuRam from "./bar/CpuRam"
 import Recording from "./bar/Recording"
@@ -125,6 +126,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
             <Bluetooth />
             <MicIndicator />
             <Network />
+            <Volume />
             <Battery />
           </box>
         </button>
