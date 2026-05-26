@@ -25,13 +25,16 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   const [isHovered, setIsHovered] = createState(false)
   let hideTimer: ReturnType<typeof setTimeout> | null = null
   let showTimer: ReturnType<typeof setTimeout> | null = null
+  let shownAt = 0
   const BAR_HEIGHT = 38
+  const SHOW_LOCK_MS = 200
 
   function handleShow() {
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
     if (showTimer) clearTimeout(showTimer)
     setWidgetsRefresh(true)
     showTimer = setTimeout(() => {
+      shownAt = Date.now()
       setBarVisible(true)
       setVisible(true)
     }, 200)
@@ -41,8 +44,9 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
-      // Final check before hiding
       if (!isHovered() && !anyPanelVisible.get() && !isWsDragging()) {
+        // Protección: no cerrar si el bar acaba de abrirse
+        if (Date.now() - shownAt < SHOW_LOCK_MS) return
         setVisible(false)
         setWidgetsRefresh(false)
         setBarVisible(false)
@@ -65,7 +69,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
 
   const hotzone = <window
     name="bar-hotzone"
-    visible={true}
+    visible={visible((v) => !v)}
     gdkmonitor={gdkmonitor}
     layer={Astal.Layer.TOP}
     exclusivity={Astal.Exclusivity.NORMAL}

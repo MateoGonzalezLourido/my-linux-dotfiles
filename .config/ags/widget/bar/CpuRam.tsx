@@ -1,7 +1,8 @@
-import { createPoll } from "ags/time"
+import { createState, createEffect } from "ags"
 import { readFile } from "ags/file"
 import { Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
+import { widgetsRefresh } from "../state"
 
 function cpuUsage() {
   try {
@@ -25,10 +26,16 @@ function ramUsage() {
 }
 
 export default function CpuRam() {
-  const cpu = createPoll(0, 4000, cpuUsage)
-  const ram = createPoll(0, 4000, ramUsage)
+  const [cpu, setCpu] = createState(0)
+  const [ram, setRam] = createState<number | string>(0)
+  const [topProcs, setTopProcs] = createState("Cargando...")
 
-  const topProcs = createPoll("Cargando...", 5000, async () => {
+  const pollCpuRam = () => {
+    setCpu(cpuUsage())
+    setRam(ramUsage())
+  }
+
+  const pollTopProcs = async () => {
     try {
       const [cpuOut, ramOut] = await Promise.all([
         execAsync(["bash", "-c", "ps axch -o pcpu,comm --sort=-pcpu | head -n 1"]),
@@ -46,10 +53,28 @@ export default function CpuRam() {
         return `${parts.slice(1).join(" ")} (${gb}G)`
       }
 
-      return `CPU: ${parseCpu(cpuOut)}\nRAM: ${parseRam(ramOut)}`
+      setTopProcs(`CPU: ${parseCpu(cpuOut)}\nRAM: ${parseRam(ramOut)}`)
     } catch {
-      return "Error al obtener procesos"
+      setTopProcs("Error al obtener procesos")
     }
+  }
+
+  let cpuRamTimer: ReturnType<typeof setInterval> | null = null
+  let topProcsTimer: ReturnType<typeof setInterval> | null = null
+  let wasVisible = false
+
+  createEffect(() => {
+    const visible = widgetsRefresh()
+    if (visible && !wasVisible) {
+      pollCpuRam()
+      pollTopProcs()
+      cpuRamTimer = setInterval(pollCpuRam, 4000)
+      topProcsTimer = setInterval(pollTopProcs, 5000)
+    } else if (!visible && wasVisible) {
+      if (cpuRamTimer !== null) { clearInterval(cpuRamTimer); cpuRamTimer = null }
+      if (topProcsTimer !== null) { clearInterval(topProcsTimer); topProcsTimer = null }
+    }
+    wasVisible = visible
   })
 
   return (
@@ -70,4 +95,3 @@ export default function CpuRam() {
     </box>
   )
 }
-

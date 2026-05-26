@@ -13,16 +13,13 @@ export default function Clock() {
   let swInterval: number | null = null
   let startTime = 0
   //formato del reloj
-  const string_clock = () => {
-    const string = GLib.DateTime.new_now_local().format("%H:%M") ?? ""
-    if (barVisible()) cacheLastTimeRendered = string
-    return string
-  }
+  const string_clock = () => GLib.DateTime.new_now_local().format("%H:%M") ?? ""
+  let clockInterval: number | null = null
   //logica de timers para actualizar el reloj
   GLib.timeout_add(GLib.PRIORITY_DEFAULT, (60 - now.get_second()) * 1000, () => {
     setTime(string_clock())
 
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 60000, () => {
+    clockInterval = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 60000, () => {
       setTime(string_clock())
       return GLib.SOURCE_CONTINUE
     })
@@ -34,12 +31,9 @@ export default function Clock() {
     const h = Math.floor(secs / 3600)
     const m = Math.floor((secs % 3600) / 60)
     const s = secs % 60
-    const string = h > 0
+    return h > 0
       ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
       : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-    if (barVisible()) cacheLastTimeRendered = string
-    return string
-
   }
 
   function tick() {

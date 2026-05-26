@@ -122,7 +122,7 @@ setBrightness(dispConfig.brightness)
 setNightLightActive(dispConfig.nightLightActive)
 setNightLightTemp(dispConfig.nightLightTemp)
 
-execAsync(["bash", "-c", `brightnessctl s ${Math.round(dispConfig.brightness * 100)}%`]).catch(() => { })
+execAsync(["bash", "-c", `brightnessctl -n2 s ${Math.round(dispConfig.brightness * 100)}%`]).catch(() => { })
 if (dispConfig.nightLightActive) {
   execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${dispConfig.nightLightTemp} &`]).catch(() => { })
 }
@@ -262,9 +262,17 @@ function QsHeader() {
   const dnd = createBinding(notifd, "dontDisturb")
 
   GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-    setTime(getTime())
-    setDate(getDate())
+    if (quickSettingsVisible.get()) {
+      setTime(getTime())
+      setDate(getDate())
+    }
     return GLib.SOURCE_CONTINUE
+  })
+  quickSettingsVisible.subscribe((v) => {
+    if (v) {
+      setTime(getTime())
+      setDate(getDate())
+    }
   })
 
   return (
@@ -418,7 +426,11 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
     execAsync(["bash", "-c", "hyprctl activeworkspace -j | jq -r .monitor"]).then(m => setMonitor(m)).catch(() => { })
   }
   updateMonitor()
-  GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5000, () => { updateMonitor(); return GLib.SOURCE_CONTINUE })
+  GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5000, () => {
+    if (quickSettingsVisible.get()) updateMonitor()
+    return GLib.SOURCE_CONTINUE
+  })
+  quickSettingsVisible.subscribe((v) => { if (v) updateMonitor() })
 
   const wp = AstalWp.get_default()
   const speaker = wp?.audio?.defaultSpeaker
@@ -583,12 +595,13 @@ function QsMedia() {
     }
   }
 
-  // Initial update and interval
+  // Initial update and interval — skip when panel is closed
   update()
   const interval = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-    update()
+    if (quickSettingsVisible.get()) update()
     return GLib.SOURCE_CONTINUE
   })
+  quickSettingsVisible.subscribe((v) => { if (v) update() })
 
   const curTheme = themeIdx((i) => MEDIA_THEMES[i])
 
@@ -1207,18 +1220,13 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
 
   updateMonitors()
 
-  execAsync(["bash", "-c", "echo $(brightnessctl g) $(brightnessctl m)"]).then((out) => {
-    const [cur, max] = out.trim().split(" ").map(Number)
-    if (max > 0) setBrightness(cur / max)
-  }).catch(() => { })
-
   const brightScale = makeScale(
     ["qs-slider", "brightness"],
     () => brightness.get(),
     (v) => {
       setBrightness(v)
       saveDisplayConfig()
-      execAsync(["bash", "-c", `brightnessctl s ${Math.round(v * 100)}%`]).catch(() => { })
+      execAsync(["bash", "-c", `brightnessctl -n2 s ${Math.round(v * 100)}%`]).catch(() => { })
     },
     (cb) => brightness.subscribe(cb),
   )

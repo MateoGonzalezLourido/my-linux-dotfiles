@@ -1,5 +1,7 @@
 import { createState } from "ags"
 import { notifPanelVisible, closeNotifPanel } from "./notifications/store"
+import GLib from "gi://GLib"
+import GUdev from "gi://GUdev"
 
 export const [calendarVisible, setCalendarVisible] = createState(false)
 export function toggleCalendar() { setCalendarVisible(!calendarVisible.get()) }
@@ -100,3 +102,37 @@ export const [gameInfo, setGameInfo] = createState<{
   workspaceId: number
   fullscreen: number
 } | null>(null)
+
+// ── Brightness OSD ────────────────────────────────────────────────────────────
+export const [brightnessOsdVisible, setBrightnessOsdVisible] = createState(false)
+let _brightOsdTimer: number | null = null
+export function showBrightnessOSD() {
+  setBrightnessOsdVisible(true)
+  if (_brightOsdTimer) clearTimeout(_brightOsdTimer)
+  _brightOsdTimer = setTimeout(() => {
+    setBrightnessOsdVisible(false)
+    _brightOsdTimer = null
+  }, 2000)
+}
+
+// ── Brightness watcher via udev (event-driven, zero polling) ─────────────────
+// El kernel envía un uevent "change" en el subsistema "backlight" cada vez que
+// algo modifica el brillo, así que no necesitamos ningún timer.
+let _startupSuppressed = true
+setTimeout(() => { _startupSuppressed = false }, 5000)
+
+try {
+  const _backlightClient = new GUdev.Client({ subsystems: ["backlight"] })
+  const _dev = _backlightClient.query_by_sysfs_path("/sys/class/backlight/intel_backlight")
+  const _maxBright = _dev?.get_sysfs_attr_as_int("max_brightness") ?? 0
+
+  if (_dev && _maxBright > 0) {
+    setBrightness(_dev.get_sysfs_attr_as_int("brightness") / _maxBright)
+
+    _backlightClient.connect("uevent", (_c: GUdev.Client, action: string, device: GUdev.Device) => {
+      if (action !== "change") return
+      setBrightness(device.get_sysfs_attr_as_int_uncached("brightness") / _maxBright)
+      if (!_startupSuppressed) showBrightnessOSD()
+    })
+  }
+} catch {}

@@ -1,7 +1,7 @@
 import AstalWp from "gi://AstalWp"
 import { createState } from "ags"
 import { Gtk, Gdk } from "ags/gtk4"
-import { showPixelVolOSD } from "../state"
+import { showPixelVolOSD, barVisible, widgetsRefresh } from "../state"
 
 function volIcon(v: number, muted: boolean) {
   if (muted || v === 0) return "󰝟"
@@ -16,16 +16,25 @@ export default function Volume() {
   const speaker = wp?.audio?.defaultSpeaker
   if (!speaker) return (<box />)
 
-  const [icon, setIcon]           = createState(volIcon(speaker.volume, speaker.mute))
-  const [muted, setMuted]         = createState(speaker.mute)
+  const [icon, setIcon]   = createState(volIcon(speaker.volume, speaker.mute))
+  const [muted, setMuted] = createState(speaker.mute)
 
   const update = () => {
+    if (!barVisible.get()) return
     setIcon(volIcon(speaker.volume, speaker.mute))
     setMuted(speaker.mute)
   }
 
   speaker.connect("notify::volume", update)
   speaker.connect("notify::mute",   update)
+
+  // Al volver visible, sincronizar con el estado real del hardware
+  widgetsRefresh.subscribe((v) => {
+    if (v) {
+      setIcon(volIcon(speaker.volume, speaker.mute))
+      setMuted(speaker.mute)
+    }
+  })
 
   return (
     <button
