@@ -120,9 +120,10 @@ const getClientIcons = (clients: any[]): ClientIcon[] => {
 // above other buttons without disrupting the Box layout at all.
 let _overlay: Gtk.Overlay | null = null
 
-function WsButton({ ws, focusedId, onSwap, onShift, onRenumber, getWsList }: {
+function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, getWsList }: {
   ws: any
   focusedId: any
+  focusedAddress: any
   onSwap: (a: number, b: number) => void
   onShift: (a: number, b: number) => void
   onRenumber: (id: number, targetId: number) => void
@@ -192,6 +193,11 @@ function WsButton({ ws, focusedId, onSwap, onShift, onRenumber, getWsList }: {
     return (fId === ws.id || isHov) ? ws.allClients as ClientIcon[] : ws.uniqueClients as ClientIcon[]
   })
 
+  const activeIdxB = focusedAddress((fAddr: string) => {
+    const clients: ClientIcon[] = clientsB.get()
+    return clients.findIndex(c => c.address === fAddr)
+  })
+
   const fullscreen = (address: string) => {
     const addr = address.startsWith("0x") ? address : `0x${address}`
     execAsync(["hyprctl", "dispatch", "workspace", String(ws.id)])
@@ -217,17 +223,28 @@ function WsButton({ ws, focusedId, onSwap, onShift, onRenumber, getWsList }: {
           if (clients[i]) fullscreen(clients[i].address)
         }}
       />
-      <box>
+      <box
+        cssClasses={activeIdxB((activeIdx: number) =>
+          activeIdx === i ? ["ws-icon-wrap", "active-client"] : ["ws-icon-wrap"]
+        )}
+        halign={Gtk.Align.CENTER}
+        valign={Gtk.Align.CENTER}
+        hexpand={false}
+        vexpand={false}
+      >
         <label
           cssClasses={["ws-icons"]}
           label={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? c[i].icon : "")}
           visible={clientsB((c: ClientIcon[]) => !!(c[i]?.isGlyph))}
+          halign={Gtk.Align.CENTER}
+          valign={Gtk.Align.CENTER}
         />
         <Gtk.Image
           cssClasses={["ws-app-icon"]}
           iconName={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? "" : (c[i]?.icon ?? ""))}
           pixelSize={13}
           visible={clientsB((c: ClientIcon[]) => !!(c[i] && !c[i].isGlyph))}
+          halign={Gtk.Align.CENTER}
           valign={Gtk.Align.CENTER}
         />
       </box>
@@ -435,12 +452,16 @@ export default function Workspaces() {
 
   const [wss, setWss] = createState<any[]>([])
   const [focusedId, setFocusedId] = createState<number>(hypr.focusedWorkspace.id)
+  const [focusedAddress, setFocusedAddress] = createState<string>(
+    (hypr as any).focusedClient?.address ?? ""
+  )
 
   const update = () => {
     if (_swapping) return
     const allWorkspaces = hypr.get_workspaces()
     const fId = hypr.focusedWorkspace.id
     setFocusedId(fId)
+    setFocusedAddress((hypr as any).focusedClient?.address ?? "")
 
     const sorted = [...allWorkspaces].sort((a, b) => a.id - b.id)
     const globalIcons = new Set<string>()
@@ -518,6 +539,9 @@ export default function Workspaces() {
   hypr.connect("notify::workspaces", update)
   hypr.connect("notify::focused-workspace", update)
   hypr.connect("notify::clients", update)
+  hypr.connect("notify::focused-client", () => {
+    setFocusedAddress((hypr as any).focusedClient?.address ?? "")
+  })
 
   // Capture a screenshot whenever a workspace is focused so the preview
   // shows real content. 400ms delay lets Hyprland finish rendering the switch.
@@ -541,7 +565,7 @@ export default function Workspaces() {
     >
       <box cssClasses={["Workspaces"]} spacing={2}>
         <For each={() => barVisible() ? wss() : cacheLastTimeRendered()}>
-          {(ws) => <WsButton ws={ws} focusedId={focusedId} onSwap={doSwap} onShift={doShift} onRenumber={doRenumber} getWsList={() => wss()} />}
+          {(ws) => <WsButton ws={ws} focusedId={focusedId} focusedAddress={focusedAddress} onSwap={doSwap} onShift={doShift} onRenumber={doRenumber} getWsList={() => wss()} />}
         </For>
       </box>
     </Gtk.Overlay>

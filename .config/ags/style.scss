@@ -167,6 +167,17 @@ $orange: #fab387;
     .ws-app-icon {
       margin: 0;
     }
+
+    .ws-icon-wrap.active-client {
+      .ws-icons {
+        color: #ffffff;
+        text-shadow: 0 0 6px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.8);
+      }
+
+      .ws-app-icon {
+        -gtk-icon-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
+      }
+    }
   }
 }
 
