@@ -1,3 +1,5 @@
+@use 'widget/orion/orion';
+
 $bg-bar: rgba(8, 8, 12);
 $bg-pill: rgba(255, 255, 255, 0.07);
 $bg-pill-hover: rgba(0, 0, 0, 0.36);
@@ -195,7 +197,6 @@ popover.ws-preview-popover {
   background: #0e0e1a;
   border: 1px solid rgba(137, 180, 250, 0.18);
   border-radius: 6px;
-  overflow: hidden;
 }
 
 .ws-preview-empty {
@@ -355,6 +356,13 @@ popover.ws-preview-popover {
   &:hover {
     background-color: $bg-pill-hover;
   }
+}
+
+.cpuram-popup-label {
+  color: #cdd6f4;
+  font-family: 'JetBrains Mono';
+  font-size: 12px;
+  padding: 4px 8px;
 }
 
 .bar-pill {
@@ -3130,9 +3138,15 @@ window.cal-panel.csd decoration {
   }
 }
 
+.cal-color-purple { background-color: #7F77DD; }
+.cal-color-teal   { background-color: #1D9E75; }
+.cal-color-red    { background-color: #E24B4A; }
+.cal-color-amber  { background-color: #BA7517; }
+.cal-color-blue   { background-color: #378ADD; }
+.cal-color-pink   { background-color: #D4537E; }
+
 // ── Month view container ──────────────────────────────────────────────────────
 .cal-month-view {
   min-width: 380px;
 }
 
-@import 'widget/orion/orion';

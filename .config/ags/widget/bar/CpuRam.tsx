@@ -30,6 +30,47 @@ export default function CpuRam() {
   const [ram, setRam] = createState<number | string>(0)
   const [topProcs, setTopProcs] = createState("Cargando...")
 
+  let activePopover: Gtk.Popover | null = null
+  let activeLbl: Gtk.Label | null = null
+  let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+  topProcs.subscribe((t: string) => {
+    if (activeLbl) activeLbl.set_label(t)
+  })
+
+  const openPopover = (anchor: Gtk.Widget) => {
+    if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null }
+    if (activePopover) {
+      activePopover.popdown()
+      try { activePopover.unparent() } catch (_) {}
+      activePopover = null
+      activeLbl = null
+      return
+    }
+
+    const lbl = new Gtk.Label({ label: topProcs.get() })
+    lbl.add_css_class("cpuram-popup-label")
+    activeLbl = lbl
+
+    const pop = new Gtk.Popover()
+    pop.set_has_arrow(true)
+    pop.set_autohide(false)
+    pop.set_position(Gtk.PositionType.TOP)
+    pop.set_child(lbl)
+    pop.set_parent(anchor)
+    activePopover = pop
+
+    pop.connect("closed", () => {
+      activePopover = null
+      activeLbl = null
+      if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null }
+      try { pop.unparent() } catch (_) {}
+    })
+
+    pop.popup()
+    hideTimer = setTimeout(() => { pop.popdown(); hideTimer = null }, 3500)
+  }
+
   const pollCpuRam = () => {
     setCpu(cpuUsage())
     setRam(ramUsage())
@@ -78,11 +119,11 @@ export default function CpuRam() {
   })
 
   return (
-    <box
-      cssClasses={["cpuram"]}
-      spacing={4}
-      tooltipText={topProcs((t) => t)}
-    >
+    <box cssClasses={["cpuram"]} spacing={4}>
+      <Gtk.GestureClick
+        button={Gdk.BUTTON_PRIMARY}
+        onPressed={(g: any) => openPopover((g as Gtk.GestureClick).get_widget())}
+      />
       <Gtk.GestureClick
         button={Gdk.BUTTON_SECONDARY}
         onPressed={() => execAsync("kitty --class floating_terminal -e btop").catch(console.error)}

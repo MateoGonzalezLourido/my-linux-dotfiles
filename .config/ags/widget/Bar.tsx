@@ -26,12 +26,26 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   let hideTimer: ReturnType<typeof setTimeout> | null = null
   let showTimer: ReturnType<typeof setTimeout> | null = null
   let shownAt = 0
+  let lastY = 0
   const BAR_HEIGHT = 38
-  const SHOW_LOCK_MS = 200
+  // Cubre la animación CSS (300ms) para que lastY no tenga valores del bar oculto
+  const SHOW_LOCK_MS = 320
+  const CLOSE_GUARD_Y = 8
+
+  function trackMotion(x: number, y: number) {
+    setIsHovered(true)
+    if (visible()) lastY = y
+  }
+
+  function trackEnter(x: number, y: number) {
+    setIsHovered(true)
+    if (visible()) lastY = y
+  }
 
   function handleShow() {
-    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
     if (showTimer) clearTimeout(showTimer)
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+    if (!visible()) lastY = 0  // limpiar coordenada del bar oculto (y=38 relativo)
     setWidgetsRefresh(true)
     showTimer = setTimeout(() => {
       shownAt = Date.now()
@@ -42,11 +56,12 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
 
   function handleHide() {
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
+    if (!visible()) return
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
       if (!isHovered() && !anyPanelVisible.get() && !isWsDragging()) {
-        // Protección: no cerrar si el bar acaba de abrirse
         if (Date.now() - shownAt < SHOW_LOCK_MS) return
+        if (lastY <= CLOSE_GUARD_Y) return
         setVisible(false)
         setWidgetsRefresh(false)
         setBarVisible(false)
@@ -100,9 +115,9 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     cssClasses={visible((v) => v ? ["Bar", "bar-visible"] : ["Bar", "bar-hidden"])}
   >
     <Gtk.EventControllerMotion
-      onEnter={() => setIsHovered(true)}
+      onEnter={trackEnter}
       onLeave={() => setIsHovered(false)}
-      onMotion={() => setIsHovered(true)}
+      onMotion={trackMotion}
     />
     <Gtk.GestureClick
       onPressed={() => setIsHovered(true)}
@@ -113,12 +128,12 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         <Functions />
         <Workspaces />
       </box>
-      
+
       <box $type="center" halign={Gtk.Align.CENTER} spacing={8}>
         <GameIndicator />
         <MediaPlayer />
       </box>
-      
+
       <box $type="end" halign={Gtk.Align.END} spacing={6} css="margin-left: 20px;">
         <SystemTray />
         <NotificationButton />
