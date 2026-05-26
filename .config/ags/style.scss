@@ -2658,6 +2658,11 @@ window.cal-panel.csd decoration {
   border-width: 0;
 }
 
+window.cal-panel > box {
+  background-color: $cal-bg;
+  border-right: 1px solid $cal-border;
+}
+
 .cal-panel {
   background-color: $cal-bg;
   border-right: 1px solid $cal-border;
@@ -2682,7 +2687,7 @@ window.cal-panel.csd decoration {
 .cal-titlebar {
   padding: 12px 16px 10px;
   border-bottom: 1px solid $cal-border;
-  background: rgba(255, 255, 255, 0.01);
+  background-color: rgba(255, 255, 255, 0.01);
   min-height: 46px;
 }
 
@@ -2695,7 +2700,7 @@ window.cal-panel.csd decoration {
 
 // ── View tabs ─────────────────────────────────────────────────────────────────
 .cal-view-tabs {
-  background: $cal-bg-surface;
+  background-color: $cal-bg-surface;
   border-radius: 8px;
   padding: 3px;
   border: 1px solid $cal-border;
@@ -2713,12 +2718,12 @@ window.cal-panel.csd decoration {
   border-width: 0;
 
   &:hover {
-    background: $cal-bg-surface2;
+    background-color: $cal-bg-surface2;
     color: $cal-text;
   }
 
   &.active {
-    background: rgba(137, 180, 250, 0.15);
+    background-color: rgba(137, 180, 250, 0.15);
     color: $cal-blue;
     border: 1px solid rgba(137, 180, 250, 0.25);
   }
@@ -2776,10 +2781,8 @@ window.cal-panel.csd decoration {
   padding: 5px 3px 3px;
   background-color: transparent;
   border-width: 0;
-  transition: background 120ms;
-
   &:hover {
-    background: $cal-bg-surface2;
+    background-color: $cal-bg-surface2;
   }
 
   &.other-month .cal-day-num {
@@ -2787,7 +2790,7 @@ window.cal-panel.csd decoration {
   }
 
   &.today {
-    background: $cal-accent-bg;
+    background-color: $cal-accent-bg;
 
     .cal-day-num {
       color: $cal-blue;
@@ -2796,7 +2799,7 @@ window.cal-panel.csd decoration {
   }
 
   &.selected {
-    background: rgba(137, 180, 250, 0.25);
+    background-color: rgba(137, 180, 250, 0.25);
     border: 1px solid rgba(137, 180, 250, 0.4);
 
     .cal-day-num {
@@ -2805,7 +2808,7 @@ window.cal-panel.csd decoration {
     }
 
     &:hover {
-      background: rgba(137, 180, 250, 0.35);
+      background-color: rgba(137, 180, 250, 0.35);
     }
   }
 }
@@ -2877,7 +2880,7 @@ window.cal-panel.csd decoration {
 }
 
 .cal-agenda-event-row {
-  background: $cal-bg-surface;
+  background-color: $cal-bg-surface;
   border-radius: 8px;
   padding: 8px 10px;
   border: 1px solid $cal-border;
@@ -2919,7 +2922,7 @@ window.cal-panel.csd decoration {
 }
 
 .cal-agenda-separator {
-  background: $cal-border;
+  background-color: $cal-border;
   margin: 6px 0;
   min-height: 1px;
 }
@@ -3022,12 +3025,12 @@ window.cal-panel.csd decoration {
 
 // ── Dialog ────────────────────────────────────────────────────────────────────
 .cal-dialog-backdrop {
-  background: rgba(0, 0, 0, 0.55);
+  background-color: rgba(0, 0, 0, 0.55);
   padding: 20px;
 }
 
 .cal-dialog-card {
-  background: rgba(14, 14, 22, 0.98);
+  background-color: rgba(14, 14, 22, 0.98);
   border: 1px solid $cal-border;
   border-radius: 14px;
   padding: 20px;
@@ -3052,7 +3055,7 @@ window.cal-panel.csd decoration {
 
 // ── Form elements ─────────────────────────────────────────────────────────────
 .cal-form-entry {
-  background: $cal-bg-surface;
+  background-color: $cal-bg-surface;
   border: 1px solid $cal-border;
   border-radius: 8px;
   padding: 7px 10px;
@@ -3096,19 +3099,19 @@ window.cal-panel.csd decoration {
 
 // GTK4 switch inside calendar
 .cal-panel switch {
-  background: $cal-bg-surface;
+  background-color: $cal-bg-surface;
   border: 1px solid $cal-border;
   border-radius: 12px;
   min-width: 40px;
   min-height: 22px;
 
   &:checked {
-    background: $cal-blue;
+    background-color: $cal-blue;
     border-color: $cal-blue;
   }
 
   slider {
-    background: #fff;
+    background-color: #fff;
     border-radius: 50%;
     min-width: 16px;
     min-height: 16px;
