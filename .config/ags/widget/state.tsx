@@ -2,6 +2,7 @@ import { createState } from "ags"
 import { notifPanelVisible, closeNotifPanel } from "./notifications/store"
 import GLib from "gi://GLib"
 import GUdev from "gi://GUdev"
+import Gio from "gi://Gio"
 
 export const [calendarVisible, setCalendarVisible] = createState(false)
 export function toggleCalendar() { setCalendarVisible(!calendarVisible.get()) }
@@ -59,11 +60,12 @@ quickSettingsVisible.subscribe((v) => {
 // La barra observa esto para no ocultarse mientras haya un panel abierto.
 // Abrir un panel cierra el resto (exclusividad mutua).
 import { orionVisible } from "./orion/state"
+import { overviewVisible } from "./WorkspaceOverview/store"
 
 export const anyPanelVisible = {
-  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get() || orionVisible.get(),
+  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get() || orionVisible.get() || overviewVisible.get(),
   subscribe: (cb: (v: boolean) => void) => {
-    const notify = () => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get() || orionVisible.get())
+    const notify = () => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get() || orionVisible.get() || overviewVisible.get())
     powerMenuVisible.subscribe(notify)
     quickSettingsVisible.subscribe(notify)
     isMenuOpen.subscribe(notify)
@@ -71,6 +73,7 @@ export const anyPanelVisible = {
     isWsPreview.subscribe(notify)
     calendarVisible.subscribe(notify)
     orionVisible.subscribe(notify)
+    overviewVisible.subscribe(notify)
   },
 }
 
@@ -102,6 +105,19 @@ export const [gameInfo, setGameInfo] = createState<{
   workspaceId: number
   fullscreen: number
 } | null>(null)
+
+// ── Bar Pin (keybind toggle) ─────────────────────────────────────────────────
+export const [barPinnedByKey, setBarPinnedByKey] = createState(false)
+export function toggleBarPin() {
+  setBarPinnedByKey(!barPinnedByKey.get())
+}
+
+// Monitorea /tmp/ags-bar-toggle — el keybind de Hyprland escribe en ese archivo
+try {
+  const _barToggleFile = Gio.file_new_for_path("/tmp/ags-bar-toggle")
+  const _barToggleMonitor = _barToggleFile.monitor(Gio.FileMonitorFlags.NONE, null)
+  _barToggleMonitor.connect("changed", () => toggleBarPin())
+} catch (e) { console.error("[bar-toggle] monitor error:", e) }
 
 // ── Brightness OSD ────────────────────────────────────────────────────────────
 export const [brightnessOsdVisible, setBrightnessOsdVisible] = createState(false)

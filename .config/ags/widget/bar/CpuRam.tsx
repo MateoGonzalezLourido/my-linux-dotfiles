@@ -119,7 +119,7 @@ export default function CpuRam() {
   })
 
   return (
-    <box cssClasses={["cpuram"]} spacing={4}>
+    <box cssClasses={["cpuram"]} spacing={3}>
       <Gtk.GestureClick
         button={Gdk.BUTTON_PRIMARY}
         onPressed={(g: any) => openPopover((g as Gtk.GestureClick).get_widget())}
@@ -130,8 +130,7 @@ export default function CpuRam() {
       />
       <label cssClasses={["icon"]} label="󰻠" />
       <label cssClasses={["label"]} label={cpu((c) => `${c}%`)} />
-      <label cssClasses={[" label"]} label="|" />
-      <label cssClasses={["icon"]} label="󰍛" />
+      <label cssClasses={["icon", "icon-sep"]} label="󰍛" />
       <label cssClasses={["label"]} label={ram((r) => `${r}G`)} />
     </box>
   )

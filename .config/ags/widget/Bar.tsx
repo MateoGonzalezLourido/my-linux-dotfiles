@@ -17,7 +17,7 @@ import Recording from "./bar/Recording"
 import MicIndicator from "./bar/MicIndicator"
 import NotificationButton from "./bar/NotificationButton"
 import PowerButton from "./bar/PowerButton"
-import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging } from "./state";
+import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging, barPinnedByKey, setBarPinnedByKey } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
@@ -57,9 +57,10 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   function handleHide() {
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (!visible()) return
+    if (barPinnedByKey.get()) return
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
-      if (!isHovered() && !anyPanelVisible.get() && !isWsDragging()) {
+      if (!isHovered() && !anyPanelVisible.get() && !isWsDragging() && !barPinnedByKey.get()) {
         if (Date.now() - shownAt < SHOW_LOCK_MS) return
         if (lastY <= CLOSE_GUARD_Y) return
         setVisible(false)
@@ -81,6 +82,19 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   isHovered.subscribe(checkVisibility)
   anyPanelVisible.subscribe(checkVisibility)
   isWsDragging.subscribe((dragging) => { if (!dragging) checkVisibility() })
+
+  barPinnedByKey.subscribe((pinned) => {
+    if (pinned) {
+      if (showTimer) clearTimeout(showTimer)
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+      setWidgetsRefresh(true)
+      shownAt = Date.now()
+      setBarVisible(true)
+      setVisible(true)
+    } else {
+      checkVisibility()
+    }
+  })
 
   const hotzone = <window
     name="bar-hotzone"
@@ -116,7 +130,10 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   >
     <Gtk.EventControllerMotion
       onEnter={trackEnter}
-      onLeave={() => setIsHovered(false)}
+      onLeave={() => {
+        if (barPinnedByKey.get()) setBarPinnedByKey(false)
+        setIsHovered(false)
+      }}
       onMotion={trackMotion}
     />
     <Gtk.GestureClick
@@ -149,9 +166,11 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
             <Battery />
           </box>
         </button>
-        <CpuRam />
-        <Recording />
-        <PowerButton />
+        <box spacing={3}>
+          <CpuRam />
+          <Recording />
+          <PowerButton />
+        </box>
       </box>
     </centerbox>
   </window>
