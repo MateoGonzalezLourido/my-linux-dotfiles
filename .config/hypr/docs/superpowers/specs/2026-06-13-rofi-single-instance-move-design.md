@@ -4,11 +4,12 @@ Fecha: 2026-06-13
 
 ## Objetivo
 
-Cuando lanzo una app desde rofi (`SUPER+SPACE`), si esa app es *single-instance*
-(ya hay una ventana suya abierta y al relanzarla no se crea otra), traer la ventana
-existente a mi workspace actual y enfocarla. Si la app permite múltiples instancias
-(o es el primer arranque), no hacer nada: la ventana nueva ya nace en el workspace
-actual.
+Cuando lanzo una app desde rofi (`SUPER+SPACE`):
+
+1. Si la app es *single-instance* (ya hay una ventana suya abierta y al relanzarla no
+   se crea otra), traer la ventana existente a mi workspace actual y enfocarla.
+2. Si la app abre una ventana nueva, anclarla al workspace donde la lancé — aunque me
+   haya cambiado de workspace mientras cargaba (la trae en silencio, sin moverme).
 
 ## Realidad técnica que motiva el diseño
 
@@ -60,8 +61,11 @@ tiene `socat`/`nc`). Usa `hyprctl -j` para estado y dispatch.
 3. **Lanzar** `rofi -show drun` (bloquea hasta que el usuario elige o cancela; rofi
    lanza la app y termina).
 4. **Observar el socket de eventos** durante `TIMEOUT` (def. 5 s):
-   - `openwindow>>ADDR,...` con `ADDR` **no** en `before` → multi-instancia o primer
-     arranque. No hacer nada y salir. (La ventana nueva nace en el workspace actual.)
+   - `openwindow>>ADDR,...` con `ADDR` **no** en `before` → ventana nueva
+     (multi-instancia o primer arranque). **Anclarla al workspace de lanzamiento**: si
+     abrió en un workspace distinto de `target_ws` (porque me cambié de workspace
+     mientras cargaba), traerla con `movetoworkspacesilent target_ws,address:ADDR`
+     (silent = no me arrastra de vuelta). Salir.
    - `urgent>>ADDR` con `ADDR` **sí** en `before` → relanzamiento single-instance →
      si la ventana está en otro workspace, `movetoworkspace target_ws,address:ADDR`;
      luego `focuswindow address:ADDR`. Salir.
@@ -88,7 +92,7 @@ adivina por clase.
 
 | Situación al lanzar desde rofi | Resultado |
 |---|---|
-| App multi-instancia / primer arranque (aparece ventana nueva) | No hace nada; nace en workspace actual |
+| App multi-instancia / primer arranque (aparece ventana nueva) | Se ancla al workspace de lanzamiento (si me cambié, la trae en silencio) |
 | App single-instance, ventana en otro workspace, reenfoca la suya | Mueve esa ventana al workspace actual y la enfoca |
 | App single-instance ya en el workspace actual | El movimiento es no-op |
 | Cancelo rofi (Esc) | No hace nada |

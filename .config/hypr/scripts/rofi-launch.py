@@ -92,7 +92,13 @@ def main():
                 # openwindow>>ADDR,WORKSPACE,CLASS,TITLE  (ADDR sin "0x")
                 addr = "0x" + payload.split(",", 1)[0]
                 if addr not in before:
-                    return  # ventana nueva: multi-instancia / primer arranque
+                    # Ventana nueva (multi-instancia / primer arranque): anclarla al
+                    # workspace donde lancé la app. Si me cambié de workspace mientras
+                    # cargaba, la traigo de vuelta en silencio (sin arrastrarme a mí).
+                    if workspace_of(addr) != target_ws:
+                        dispatch("movetoworkspacesilent",
+                                 f"{target_ws},address:{addr}")
+                    return
 
             elif event == "urgent":
                 # urgent>>ADDR  (ADDR sin "0x")
