@@ -118,11 +118,16 @@ function saveDisplayConfig() {
 
 // ── Initial Display Load & Apply ──────────────────────────────────────────────
 const dispConfig = loadDisplayConfig()
-setBrightness(dispConfig.brightness)
+// brightness is NOT restored from cache: state.tsx already reads the real hardware
+// value from sysfs at startup, so applying the cache would override changes made
+// via keybindings between AGS sessions.
 setNightLightActive(dispConfig.nightLightActive)
 setNightLightTemp(dispConfig.nightLightTemp)
 
-execAsync(["bash", "-c", `brightnessctl -n2 s ${Math.round(dispConfig.brightness * 100)}%`]).catch(() => { })
+// Keep display.json in sync whenever brightness changes from any source
+// (slider, keybindings via udev, etc.) so the cache is never stale.
+brightness.subscribe(saveDisplayConfig)
+
 if (dispConfig.nightLightActive) {
   execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${dispConfig.nightLightTemp} &`]).catch(() => { })
 }
