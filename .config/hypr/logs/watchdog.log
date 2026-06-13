@@ -1,0 +1,105 @@
+[2026-05-27 00:40:47] === Watchdog iniciado (PID 631408) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-27 01:12:01] === Watchdog iniciado (PID 1783) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-27 01:12:06] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:12:06] REINICIO: compositor colgado
+[2026-05-27 01:12:07] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:12:27] Monitorización reanudada.
+[2026-05-27 01:12:32] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:12:32] REINICIO: compositor colgado
+[2026-05-27 01:12:34] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:12:54] Monitorización reanudada.
+[2026-05-27 01:12:59] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:12:59] REINICIO: compositor colgado
+[2026-05-27 01:13:00] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:14:00] === Watchdog iniciado (PID 5592) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-27 01:14:05] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:14:05] REINICIO: compositor colgado
+[2026-05-27 01:14:07] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:14:27] Monitorización reanudada.
+[2026-05-27 01:14:32] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:14:32] REINICIO: compositor colgado
+[2026-05-27 01:14:33] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:14:44] === Watchdog iniciado (PID 7676) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-27 01:14:49] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:14:49] REINICIO: compositor colgado
+[2026-05-27 01:14:50] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:15:10] Monitorización reanudada.
+[2026-05-27 01:15:15] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:15:15] REINICIO: compositor colgado
+[2026-05-27 01:15:17] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:15:37] Monitorización reanudada.
+[2026-05-27 01:15:42] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:15:42] REINICIO: compositor colgado
+[2026-05-27 01:15:43] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:16:03] Monitorización reanudada.
+[2026-05-27 01:16:08] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:16:08] REINICIO: compositor colgado
+[2026-05-27 01:16:09] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:16:29] Monitorización reanudada.
+[2026-05-27 01:16:34] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:16:34] REINICIO: compositor colgado
+[2026-05-27 01:16:36] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:16:56] Monitorización reanudada.
+[2026-05-27 01:17:01] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:17:01] REINICIO: compositor colgado
+[2026-05-27 01:17:02] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:17:22] Monitorización reanudada.
+[2026-05-27 01:17:27] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:17:27] REINICIO: compositor colgado
+[2026-05-27 01:17:28] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:17:48] Monitorización reanudada.
+[2026-05-27 01:17:53] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:17:53] REINICIO: compositor colgado
+[2026-05-27 01:17:55] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:18:27] === Watchdog iniciado (PID 1769) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-27 01:18:32] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:18:32] REINICIO: compositor colgado
+[2026-05-27 01:18:34] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:18:51] === Watchdog iniciado (PID 2544) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-27 01:18:56] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:18:56] REINICIO: compositor colgado
+[2026-05-27 01:18:57] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:19:17] Monitorización reanudada.
+[2026-05-27 01:19:22] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:19:22] REINICIO: compositor colgado
+[2026-05-27 01:19:24] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:19:44] Monitorización reanudada.
+[2026-05-27 01:19:49] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:19:49] REINICIO: compositor colgado
+[2026-05-27 01:19:50] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:20:10] Monitorización reanudada.
+[2026-05-27 01:20:15] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:20:15] REINICIO: compositor colgado
+[2026-05-27 01:20:16] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:20:36] Monitorización reanudada.
+[2026-05-27 01:20:41] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:20:41] REINICIO: compositor colgado
+[2026-05-27 01:20:43] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:21:03] Monitorización reanudada.
+[2026-05-27 01:21:08] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:21:08] REINICIO: compositor colgado
+[2026-05-27 01:21:09] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:21:29] Monitorización reanudada.
+[2026-05-27 01:21:34] ALERTA: Hyprland activo pero sin respuesta a hyprctl (timeout 3s)
+[2026-05-27 01:21:34] REINICIO: compositor colgado
+[2026-05-27 01:21:35] Esperando 20s para que Hyprland inicialice...
+[2026-05-27 01:21:47] === Watchdog iniciado (PID 11682) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-27 01:22:54] === Watchdog iniciado (PID 1766) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-27 07:41:05] === Watchdog iniciado (PID 1724) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-27 08:20:27] === Watchdog iniciado (PID 1695) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-05-30 00:50:31] === Watchdog iniciado (PID 1825) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-06-03 02:41:44] === Watchdog iniciado (PID 1696) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-06-03 03:52:37] === Watchdog iniciado (PID 1722) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-06-13 15:44:27] === Watchdog iniciado (PID 1759) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-06-13 15:52:08] === Watchdog iniciado (PID 26908) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-06-13 15:52:08] Esperando 45s de grace period para que Hyprland inicialice el socket...
+[2026-06-13 15:52:53] Grace period completado. Iniciando monitorización.
+[2026-06-13 15:55:15] === Watchdog iniciado (PID 1569) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-06-13 15:55:15] Esperando 45s de grace period para que Hyprland inicialice el socket...
+[2026-06-13 15:55:59] Grace period completado. Iniciando monitorización.
+[2026-06-13 17:14:26] === Watchdog iniciado (PID 1559) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-06-13 17:14:26] Esperando 45s de grace period para que Hyprland inicialice el socket...
+[2026-06-13 17:15:12] Grace period completado. Iniciando monitorización.
+[2026-06-13 19:06:32] === Watchdog iniciado (PID 1552) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-06-13 19:06:32] Esperando 45s de grace period para que Hyprland inicialice el socket...
+[2026-06-13 19:07:16] Grace period completado. Iniciando monitorización.
