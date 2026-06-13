@@ -30,73 +30,91 @@ export default function Battery() {
     return text
   }
 
-  const getGradient = () => {
+  const fillColor = () => {
     const p = bat.percentage * 100
-    const color = bat.charging ? "#6eff61ff" : (p <= 15 ? "#f38ba8" : "#f0f0f0ff")
+    if (bat.charging) return "#a6e3a1"   // verde
+    if (p <= 15) return "#f38ba8"        // rojo
+    return "#89b4fa"                     // azul
+  }
+
+  // Relleno proporcional dentro del cuerpo de la batería:
+  // color hasta el nivel actual, hueco oscuro el resto (texto blanco legible sobre ambos).
+  const getFill = () => {
+    const p = Math.round(bat.percentage * 100)
+    const color = fillColor()
     return `
-      background: linear-gradient(to right,
-        ${color} ${Math.round(p)}%,
-        rgba(255, 255, 255, 0.4) ${Math.round(p)}%
+      background: linear-gradient(to top,
+        ${color} ${p}%,
+        rgba(0, 0, 0, 0.40) ${p}%
       );
-      border-radius: 99px;
     `
   }
 
-  const [pctStr, setPctStr]   = createState(`${Math.round(bat.percentage * 100)}`)
+  const [pctStr, setPctStr]     = createState(`${Math.round(bat.percentage * 100)}`)
   const [charging, setCharging] = createState(bat.charging)
-  const [cssStr, setCssStr]   = createState(getGradient())
-  const [cssClass, setCssClass] = createState(
-    ["battery-pill", bat.percentage * 100 <= 15 ? "low" : "normal"]
+  const [cssStr, setCssStr]     = createState(getFill())
+  const [bodyClass, setBodyClass] = createState(
+    ["battery-body", bat.percentage * 100 <= 15 ? "low" : "normal"]
   )
-  const [tooltip, setTooltip] = createState(getTooltip())
+  const [tooltip, setTooltip]   = createState(getTooltip())
 
-  const updateVars = () => {
-    if (!barVisible.get()) return
+  const sync = () => {
     setPctStr(`${Math.round(bat.percentage * 100)}`)
     setCharging(bat.charging)
-    setCssStr(getGradient())
-    setCssClass(["battery-pill", bat.percentage * 100 <= 15 ? "low" : "normal"])
+    setCssStr(getFill())
+    setBodyClass(["battery-body", bat.percentage * 100 <= 15 ? "low" : "normal"])
     setTooltip(getTooltip())
   }
 
-  bat.connect("notify::percentage",   updateVars)
-  bat.connect("notify::charging",     updateVars)
+  const updateVars = () => {
+    if (!barVisible.get()) return
+    sync()
+  }
+
+  bat.connect("notify::percentage",    updateVars)
+  bat.connect("notify::charging",      updateVars)
   bat.connect("notify::time-to-empty", updateVars)
   bat.connect("notify::time-to-full",  updateVars)
   bat.connect("notify::energy-rate",   updateVars)
 
   // Al volver visible, sincronizar con el estado real del hardware
   widgetsRefresh.subscribe((v) => {
-    if (v) {
-      setPctStr(`${Math.round(bat.percentage * 100)}`)
-      setCharging(bat.charging)
-      setCssStr(getGradient())
-      setCssClass(["battery-pill", bat.percentage * 100 <= 15 ? "low" : "normal"])
-      setTooltip(getTooltip())
-    }
+    if (v) sync()
   })
 
   return (
     <box
-      cssClasses={cssClass}
-      css={cssStr}
-      tooltipText={tooltip}
-      spacing={0}
+      cssClasses={["battery"]}
+      orientation={Gtk.Orientation.VERTICAL}
       halign={Gtk.Align.CENTER}
+      valign={Gtk.Align.CENTER}
+      tooltipText={tooltip}
     >
-      <label
-        cssClasses={["battery-charging-icon"]}
-        label="󰂄"
-        visible={charging}
+      <box cssClasses={["battery-cap"]} halign={Gtk.Align.CENTER} />
+      <box
+        cssClasses={bodyClass}
+        css={cssStr}
+        orientation={Gtk.Orientation.VERTICAL}
+        halign={Gtk.Align.FILL}
         valign={Gtk.Align.CENTER}
-      />
-      <label
-        cssClasses={["battery-text"]}
-        label={pctStr}
-        valign={Gtk.Align.CENTER}
-        halign={Gtk.Align.CENTER}
-        xalign={0.5}
-      />
+      >
+        <label
+          cssClasses={["battery-charging-icon"]}
+          label=""
+          visible={charging}
+          halign={Gtk.Align.CENTER}
+        />
+        <label
+          cssClasses={["battery-text"]}
+          label={pctStr}
+          hexpand={true}
+          vexpand={true}
+          valign={Gtk.Align.CENTER}
+          halign={Gtk.Align.CENTER}
+          xalign={0.5}
+          yalign={0.5}
+        />
+      </box>
     </box>
   )
 }

@@ -242,7 +242,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         <Gtk.Image
           cssClasses={["ws-app-icon"]}
           iconName={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? "" : (c[i]?.icon ?? ""))}
-          pixelSize={13}
+          pixelSize={16}
           visible={clientsB((c: ClientIcon[]) => !!(c[i] && !c[i].isGlyph))}
           halign={Gtk.Align.CENTER}
           valign={Gtk.Align.CENTER}

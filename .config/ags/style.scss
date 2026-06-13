@@ -33,8 +33,8 @@ $orange: #fab387;
 .Bar {
   background-color: $bg-bar;
   color: $text;
-  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
-  font-size: 15px;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+  font-size: 17px;
   font-weight: 600;
   transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
   min-height: 38px;
@@ -42,6 +42,10 @@ $orange: #fab387;
   label {
     margin-top: 0px;
     margin-left: 0px;
+  }
+
+  image {
+    -gtk-icon-size: 18px;
   }
 }
 
@@ -61,9 +65,9 @@ $orange: #fab387;
 .clock {
   margin: 4px 4px;
   background-color: rgba(255, 255, 255, 0.03);
-  font-size: 14px;
+  font-size: 16px;
   color: #cba6f7;
-  font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono';
+  font-family: 'MesloLGS Nerd Font', 'MesloLGS Nerd Font';
   font-weight: 700;
   padding: 0 8px;
   border-radius: 6px;
@@ -97,8 +101,8 @@ $orange: #fab387;
   border-radius: 6px;
 
   & label {
-    font-family: 'JetBrainsMono Nerd Font';
-    font-size: 15px;
+    font-family: 'MesloLGS Nerd Font';
+    font-size: 17px;
     color: #89b4fa;
     border: none;
     padding: 0 2px;
@@ -121,7 +125,7 @@ $orange: #fab387;
                 color 300ms cubic-bezier(0.4, 0, 0.2, 1),
                 opacity 180ms ease;
     color: rgba(226, 226, 226, 0.4);
-    font-family: 'JetBrainsMono Nerd Font';
+    font-family: 'MesloLGS Nerd Font';
 
     &.focused {
       background: linear-gradient(135deg, #89b4fa, #cba6f7);
@@ -153,7 +157,7 @@ $orange: #fab387;
     button {
       all: unset;
       padding: 0 5px;
-      font-family: 'JetBrainsMono Nerd Font';
+      font-family: 'MesloLGS Nerd Font';
     }
 
     .ws-id {
@@ -216,7 +220,7 @@ popover.ws-preview-popover {
 .focused-client {
   padding: 0 6px;
   color: $text;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* Media Player Widget */
@@ -227,7 +231,7 @@ popover.ws-preview-popover {
   margin: 4px 4px;
   min-width: 0;
 
-  font-family: "JetBrainsMono Nerd Font", monospace;
+  font-family: "MesloLGS Nerd Font", monospace;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.92);
   border: none;
@@ -251,7 +255,7 @@ popover.ws-preview-popover {
       all: unset;
       padding: 0 3px;
       color: rgba(255, 255, 255, 0.9);
-      font-family: "JetBrainsMono Nerd Font", monospace;
+      font-family: "MesloLGS Nerd Font", monospace;
       font-size: 14px;
       transition: color 120ms ease;
 
@@ -299,39 +303,74 @@ popover.ws-preview-popover {
   }
 
   .game-icon {
-    font-family: 'JetBrainsMono Nerd Font';
-    font-size: 15px;
+    font-family: 'MesloLGS Nerd Font';
+    font-size: 17px;
     color: #cba6f7;
     margin-right: 6px;
     text-shadow: 0 0 6px rgba(203, 166, 247, 0.5);
   }
 
   .game-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-family: 'MesloLGS Nerd Font', monospace;
+    font-size: 14px;
     font-weight: 700;
     color: #e2e2e2;
   }
 }
 
-.battery-pill {
-  font-family: 'JetBrainsMono Nerd Font';
+.battery {
+  font-family: 'MesloLGS Nerd Font';
   margin: 9px 4px;
-  min-height: 13px;
-  min-width: 0;
-  border-radius: 99px;
-  padding: 0 5px;
 
+  // Cuerpo de la batería: contorno + relleno proporcional (css inline)
+  .battery-body {
+    min-width: 11px;
+    min-height: 14px;
+    padding: 1px 1px;
+    border: 1px solid rgba(205, 214, 244, 0.85);
+    border-radius: 3px;
+  }
+
+  // Borne (polo positivo) arriba, centrado
+  .battery-cap {
+    min-width: 5px;
+    min-height: 2px;
+    margin-bottom: 1px;
+    background-color: rgba(205, 214, 244, 0.75);
+    border-radius: 2px 2px 0 0;
+  }
+
+  &:hover .battery-cap {
+    background-color: rgba(205, 214, 244, 0.85);
+  }
+
+  // Texto blanco con contorno oscuro: legible sobre relleno y sobre hueco
   .battery-text {
-    font-size: 8px;
+    font-size: 7.6px;
     font-weight: 900;
-    color: #000000;
+    color: #ffffff;
+    text-shadow:
+      -0.7px -0.7px 0 #11111b,
+       0.7px -0.7px 0 #11111b,
+      -0.7px  0.7px 0 #11111b,
+       0.7px  0.7px 0 #11111b,
+       0 0 2px rgba(0, 0, 0, 0.9);
   }
 
   .battery-charging-icon {
-    font-size: 9px;
-    color: #000000;
+    font-size: 8px;
+    color: #fde98a;
     margin-right: 2px;
+    text-shadow:
+      -0.7px -0.7px 0 #11111b,
+       0.7px -0.7px 0 #11111b,
+      -0.7px  0.7px 0 #11111b,
+       0.7px  0.7px 0 #11111b;
+  }
+
+  // Aviso visual cuando la batería está baja
+  .battery-body.low {
+    border-color: #f38ba8;
   }
 }
 
@@ -342,15 +381,15 @@ popover.ws-preview-popover {
 
   label {
     color: #e2e2e2;
-    font-family: 'JetBrains Mono';
-    font-size: 11.5px;
+    font-family: 'MesloLGS Nerd Font';
+    font-size: 13px;
     font-weight: 500;
   }
 
   .icon {
     color: #87fae9;
-    font-family: 'JetBrainsMono Nerd Font';
-    font-size: 13.5px;
+    font-family: 'MesloLGS Nerd Font';
+    font-size: 15px;
     margin: 0 1px;
   }
 
@@ -365,13 +404,13 @@ popover.ws-preview-popover {
 
 .cpuram-popup-label {
   color: #cdd6f4;
-  font-family: 'JetBrains Mono';
+  font-family: 'MesloLGS Nerd Font';
   font-size: 12px;
   padding: 4px 8px;
 }
 
 .bar-pill {
-  font-size: 14px;
+  font-size: 16px;
   color: $text;
   border-radius: 8px;
   margin: 4px 2px;
@@ -381,7 +420,7 @@ popover.ws-preview-popover {
   }
 
   & button,
-  & box:not(.battery-pill) {
+  & box:not(.battery):not(.battery-body):not(.battery-cap) {
     margin: 0;
     background-color: transparent;
     padding: 0px 4px;
@@ -419,19 +458,19 @@ popover.ws-preview-popover {
   color: $text-dim;
 
   .icon-active {
-    font-family: 'JetBrainsMono Nerd Font';
-    font-size: 14px;
+    font-family: 'MesloLGS Nerd Font';
+    font-size: 16px;
     color: #cba6f7;
   }
 
   .icon-desactive {
-    font-family: 'JetBrainsMono Nerd Font';
-    font-size: 14px;
+    font-family: 'MesloLGS Nerd Font';
+    font-size: 16px;
     color: rgba(226, 226, 226, 0.45);
   }
 
   .label-number-notis {
-    font-family: 'JetBrains Mono';
+    font-family: 'MesloLGS Nerd Font';
     font-size: 10px;
     color: #cba6f7;
     font-weight: 700;
@@ -450,8 +489,8 @@ popover.ws-preview-popover {
 
 .network {
   color: #87fae9;
-  font-family: 'JetBrainsMono Nerd Font';
-  font-size: 14px;
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 16px;
 
   .network-icon-on {
     color: #87fae9;
@@ -468,8 +507,8 @@ popover.ws-preview-popover {
 
 .volume {
   color: $text;
-  font-family: 'JetBrainsMono Nerd Font';
-  font-size: 15px;
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 17px;
 
   &.muted {
     color: $text-dim;
@@ -486,12 +525,12 @@ popover.ws-preview-popover {
 
 .bar-nightlight {
   color: $orange;
-  font-family: 'JetBrainsMono Nerd Font';
-  font-size: 14px;
-  
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 16px;
+
   .bar-nightlight-label {
-    font-family: 'JetBrains Mono';
-    font-size: 11px;
+    font-family: 'MesloLGS Nerd Font';
+    font-size: 13px;
     font-weight: 700;
   }
 }
@@ -505,8 +544,8 @@ popover.ws-preview-popover {
   padding: 0 4px;
 
   .bluetooth-icon {
-    font-family: "JetBrainsMono Nerd Font";
-    font-size: 14px;
+    font-family: "MesloLGS Nerd Font";
+    font-size: 16px;
     color: $blue;
   }
 }
@@ -518,8 +557,8 @@ popover.ws-preview-popover {
   min-height: 30px;
   border-radius: 4px;
   border: none;
-  font-family: 'JetBrainsMono Nerd Font';
-  font-size: 15px;
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 17px;
   color: rgb(245, 50, 105);
 
   label {
@@ -555,7 +594,7 @@ popover.ws-preview-popover {
 .calendar-widget {
   background: transparent;
   color: $text;
-  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
   font-size: 12px;
 
   header {
@@ -719,7 +758,7 @@ popover.ws-preview-popover {
 }
 
 .osd-icon {
-  font-family: 'JetBrainsMono Nerd Font';
+  font-family: 'MesloLGS Nerd Font';
   font-size: 16px;
   color: #89b4fa;
 }
@@ -746,7 +785,7 @@ progressbar.osd-progress {
 }
 
 .osd-percentage {
-  font-family: 'JetBrains Mono';
+  font-family: 'MesloLGS Nerd Font';
   font-size: 12px;
   font-weight: 800;
   color: #e2e2e2;
@@ -818,7 +857,7 @@ window.qs-window.csd decoration {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(255, 255, 255, 0.02);
   min-width: 240px;
   color: $qs-text;
-  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", sans-serif;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", sans-serif;
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
@@ -830,7 +869,7 @@ window.qs-window.csd decoration {
   font-size: 22px;
   font-weight: 700;
   color: $qs-text;
-  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
   margin: 0;
 }
 
@@ -867,7 +906,7 @@ window.qs-window.csd decoration {
   }
 
   .qs-dnd-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 13px;
     margin: 0;
     padding: 0;
@@ -900,7 +939,7 @@ window.qs-window.csd decoration {
   }
 
   .qs-notif-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 13px;
     margin: 0;
     padding: 0;
@@ -936,7 +975,7 @@ window.qs-window.csd decoration {
   }
 
   .qs-tile-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 16px;
     margin: 0;
     min-width: 20px;
@@ -970,7 +1009,7 @@ window.qs-window.csd decoration {
   margin-top: 10px;
 
   .qs-media-art {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 24px;
     min-width: 40px;
     min-height: 40px;
@@ -995,7 +1034,7 @@ window.qs-window.csd decoration {
     background: transparent;
     border: none;
     color: $blue;
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 18px;
     padding: 4px;
     border-radius: 10px;
@@ -1043,7 +1082,7 @@ window.qs-window.csd decoration {
     background: transparent;
     border: none;
     color: $qs-text-dim;
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 12px;
     padding: 0 4px;
     border-radius: 4px;
@@ -1087,7 +1126,7 @@ window.qs-window.csd decoration {
 }
 
 .qs-section-icon {
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 12px;
   color: $qs-accent;
   margin: 0;
@@ -1340,7 +1379,7 @@ button.qs-toggle {
   min-height: 26px;
   padding: 0;
   color: $qs-text-dim;
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 13px;
   transition: all 100ms ease;
 
@@ -1363,7 +1402,7 @@ tooltip {
   padding: 2px 4px;
 
   label {
-    font-family: 'JetBrains Mono', 'Inter', sans-serif;
+    font-family: 'MesloLGS Nerd Font', 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     color: #e2e2e2;
@@ -1382,7 +1421,7 @@ tooltip {
   transition: all 120ms ease-out;
 
   label {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 13px;
     color: rgba(226, 226, 226, 0.45);
     margin: 0;
@@ -1515,7 +1554,7 @@ tooltip {
   .qs-wifi-portal-icon {
     font-size: 12px;
     color: rgba(255, 255, 255, 0.3);
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
   }
 
 
@@ -1545,7 +1584,7 @@ tooltip {
     }
 
     label {
-      font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
+      font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
       margin: 0;
     }
   }
@@ -1584,7 +1623,7 @@ tooltip {
   background: transparent;
   border: none;
   color: rgba(200, 190, 255, 0.55);
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 14px;
   padding: 0 4px;
   border-radius: 4px;
@@ -1631,7 +1670,7 @@ tooltip {
   }
 
   .qs-audio-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 12px;
     color: rgba(255, 255, 255, 0.35);
     min-width: 14px;
@@ -1647,7 +1686,7 @@ tooltip {
 
   .qs-audio-vol-pct {
     font-size: 9px;
-    font-family: "JetBrains Mono";
+    font-family: "MesloLGS Nerd Font";
     color: rgba(255, 255, 255, 0.28);
     min-width: 22px;
     margin: 0;
@@ -1711,7 +1750,7 @@ tooltip {
   }
 
   .nb-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 16px;
     color: rgba(226, 226, 226, 0.55);
     margin: 0;
@@ -1727,7 +1766,7 @@ tooltip {
   }
 
   .nb-badge {
-    font-family: "JetBrains Mono";
+    font-family: "MesloLGS Nerd Font";
     font-size: 10px;
     font-weight: 800;
     color: #cba6f7;
@@ -1750,7 +1789,7 @@ tooltip {
   animation: notif-slide-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
 
   .notif-popup-app-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 11px;
     margin: 0;
     margin-right: 4px;
@@ -1760,14 +1799,14 @@ tooltip {
     font-size: 10px;
     font-weight: 500;
     color: rgba(226, 226, 226, 0.4);
-    font-family: "JetBrains Mono";
+    font-family: "MesloLGS Nerd Font";
     margin: 0;
   }
 
   .notif-popup-dot {
     font-size: 10px;
     color: rgba(226, 226, 226, 0.25);
-    font-family: "JetBrains Mono";
+    font-family: "MesloLGS Nerd Font";
     margin: 0;
   }
 
@@ -1775,7 +1814,7 @@ tooltip {
     font-size: 11px;
     font-weight: 400;
     color: rgba(226, 226, 226, 0.85);
-    font-family: "JetBrains Mono";
+    font-family: "MesloLGS Nerd Font";
     margin: 0;
   }
 
@@ -1783,7 +1822,7 @@ tooltip {
     font-size: 10px;
     font-weight: 400;
     color: rgba(226, 226, 226, 0.45);
-    font-family: "JetBrains Mono";
+    font-family: "MesloLGS Nerd Font";
     margin: 0;
   }
 
@@ -1856,7 +1895,7 @@ window.np-window.csd decoration {
   border-top-right-radius: 0;
   min-width: 360px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
-  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
   color: #e2e2e2;
   animation: np-slide-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -1943,7 +1982,7 @@ window.np-window.csd decoration {
   }
 
   .np-btn-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 12px;
     color: rgba(226, 226, 226, 0.45);
     margin: 0;
@@ -1954,7 +1993,7 @@ window.np-window.csd decoration {
   font-size: 9px;
   font-weight: 700;
   color: #f38ba8;
-  font-family: "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 
@@ -2032,7 +2071,7 @@ window.np-window.csd decoration {
 }
 
 .np-empty-icon {
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 28px;
   color: rgba(226, 226, 226, 0.12);
   margin: 0;
@@ -2068,7 +2107,7 @@ window.np-window.csd decoration {
 }
 
 .np-group-chevron {
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 11px;
   color: rgba(226, 226, 226, 0.4);
   margin: 0;
@@ -2133,7 +2172,7 @@ window.np-window.csd decoration {
   }
 
   .notif-checkbox-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 12px;
     color: rgba(226, 226, 226, 0.4);
     margin: 0;
@@ -2160,7 +2199,7 @@ window.np-window.csd decoration {
   padding: 0;
 
   .notif-app-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 15px;
     margin: 0;
     padding: 0;
@@ -2177,21 +2216,21 @@ window.np-window.csd decoration {
   font-size: 10px;
   font-weight: 500;
   color: rgba(226, 226, 226, 0.4);
-  font-family: "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 
 .notif-dot {
   font-size: 10px;
   color: rgba(226, 226, 226, 0.25);
-  font-family: "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 
 .notif-timestamp {
   font-size: 9px;
   color: rgba(226, 226, 226, 0.25);
-  font-family: "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 
@@ -2199,7 +2238,7 @@ window.np-window.csd decoration {
   font-size: 11px;
   font-weight: 400;
   color: rgba(226, 226, 226, 0.85);
-  font-family: "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 
@@ -2207,7 +2246,7 @@ window.np-window.csd decoration {
   font-size: 10px;
   font-weight: 400;
   color: rgba(226, 226, 226, 0.45);
-  font-family: "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 
@@ -2223,7 +2262,7 @@ window.np-window.csd decoration {
   min-height: 28px;
   padding: 0;
   transition: all 100ms ease;
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 12px;
   color: rgba(226, 226, 226, 0.4);
 
@@ -2288,7 +2327,7 @@ window.np-window.csd decoration {
   padding: 4px 8px;
   font-size: 11px;
   color: #e2e2e2;
-  font-family: "JetBrains Mono";
+  font-family: "MesloLGS Nerd Font";
 }
 
 .notif-reply-send {
@@ -2315,7 +2354,7 @@ window.np-window.csd decoration {
   min-height: 28px;
   padding: 0;
   transition: all 100ms ease;
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 12px;
   color: rgba(226, 226, 226, 0.4);
 
@@ -2345,7 +2384,7 @@ window.np-window.csd decoration {
   min-height: 28px;
   padding: 0;
   transition: all 100ms ease;
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 14px;
   color: rgba(226, 226, 226, 0.55);
 
@@ -2371,7 +2410,7 @@ window.np-window.csd decoration {
   min-height: 28px;
   padding: 0;
   transition: all 100ms ease;
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 13px;
   color: rgba(226, 226, 226, 0.4);
 
@@ -2415,7 +2454,7 @@ window.np-window.csd decoration {
   min-height: 30px;
 
   .ns-app-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 15px;
     margin: 0;
   }
@@ -2449,7 +2488,7 @@ window.np-window.csd decoration {
   }
 
   .ns-mute-icon {
-    font-family: "JetBrainsMono Nerd Font";
+    font-family: "MesloLGS Nerd Font";
     font-size: 13px;
     color: rgba(226, 226, 226, 0.5);
     margin: 0;
@@ -2490,7 +2529,7 @@ window.np-window.csd decoration {
   min-height: 26px;
   padding: 0;
   transition: all 100ms ease;
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 13px;
   color: rgba(226, 226, 226, 0.4);
 
@@ -2508,7 +2547,7 @@ window.np-window.csd decoration {
 }
 
 .ns-empty-icon {
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-size: 32px;
   color: rgba(226, 226, 226, 0.15);
   margin: 0;
@@ -2570,7 +2609,7 @@ window.pv-osd-window {
 }
 
 .pv-title {
-  font-family: "Press Start 2P", "JetBrainsMono Nerd Font", monospace;
+  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
   font-size: 7px;
   letter-spacing: 0.5px;
   margin: 0;
@@ -2578,14 +2617,14 @@ window.pv-osd-window {
 }
 
 .pv-percent {
-  font-family: "Press Start 2P", "JetBrains Mono", monospace;
+  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
   font-size: 9px;
   font-weight: 900;
   margin: 0 2px 0 0;
 }
 
 .pv-percent-sym {
-  font-family: "Press Start 2P", "JetBrains Mono", monospace;
+  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
   font-size: 6px;
   margin: 0;
   opacity: 0.65;
@@ -2602,7 +2641,7 @@ window.pv-osd-window {
   transition: none;
 
   .pv-mute-label {
-    font-family: "Press Start 2P", "JetBrains Mono", monospace;
+    font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
     font-size: 7px;
     color: #999999;
     margin: 0;
@@ -2646,7 +2685,7 @@ $cal-accent-bg:   rgba(137, 180, 250, 0.12);
 $cal-accent-dim:  rgba(137, 180, 250, 0.7);
 $cal-danger:      #f38ba8;
 $cal-danger-bg:   rgba(243, 139, 168, 0.1);
-$cal-font:        "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+$cal-font:        "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
 
 window.cal-panel,
 window.cal-panel.background,

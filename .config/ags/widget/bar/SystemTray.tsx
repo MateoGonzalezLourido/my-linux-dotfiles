@@ -34,7 +34,7 @@ export default function SystemTray() {
             >
               <image
                 gicon={createBinding(item, "gicon")}
-                iconSize={Gtk.IconSize.NORMAL}
+                pixelSize={18}
               />
             </menubutton>
           </box>
