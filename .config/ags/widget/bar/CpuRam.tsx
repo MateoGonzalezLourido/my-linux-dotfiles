@@ -2,7 +2,7 @@ import { createState, createEffect } from "ags"
 import { readFile } from "ags/file"
 import { Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
-import { widgetsRefresh, openBarMenu, closeBarMenu } from "../state"
+import { widgetsRefresh, openBarMenu, closeBarMenu, panelAutoClose } from "../state"
 
 function cpuUsage() {
   try {
@@ -34,7 +34,11 @@ export default function CpuRam() {
   let activePopover: Gtk.Popover | null = null
   let activeCpuLbl: Gtk.Label | null = null
   let activeRamLbl: Gtk.Label | null = null
-  let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+  // Auto-cierre por hover: se mantiene mientras el ratón esté sobre el popover o
+  // sobre el botón que lo invoca; se cierra (con gracia) al salir de ambas zonas,
+  // igual que un panel. Sustituye al antiguo timer fijo de 3.5s.
+  const autoClose = panelAutoClose(() => { if (activePopover) activePopover.popdown() }, 250)
 
   cpuTop.subscribe((t: string) => { if (activeCpuLbl) activeCpuLbl.set_label(t) })
   ramTop.subscribe((t: string) => { if (activeRamLbl) activeRamLbl.set_label(t) })
@@ -43,6 +47,11 @@ export default function CpuRam() {
   const buildPopupCard = () => {
     const card = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 0 })
     card.add_css_class("cpuram-popup")
+
+    const cardMotion = new Gtk.EventControllerMotion()
+    cardMotion.connect("enter", () => autoClose.onEnter())
+    cardMotion.connect("leave", () => autoClose.onLeave())
+    card.add_controller(cardMotion)
 
     const header = new Gtk.Label({ label: "Procesos top", xalign: 0 })
     header.add_css_class("cpuram-popup-header")
@@ -68,7 +77,6 @@ export default function CpuRam() {
   }
 
   const openPopover = (anchor: Gtk.Widget) => {
-    if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null }
     if (activePopover) {
       activePopover.popdown()
       try { activePopover.unparent() } catch (_) {}
@@ -92,13 +100,11 @@ export default function CpuRam() {
       activePopover = null
       activeCpuLbl = null
       activeRamLbl = null
-      if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null }
       try { pop.unparent() } catch (_) {}
       closeBarMenu()
     })
 
     pop.popup()
-    hideTimer = setTimeout(() => { pop.popdown(); hideTimer = null }, 3500)
   }
 
   const pollCpuRam = () => {
@@ -152,6 +158,8 @@ export default function CpuRam() {
 
   return (
     <box cssClasses={["cpuram"]} spacing={3}>
+      {/* Mantiene el popover abierto mientras el ratón esté sobre el botón */}
+      <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
       <Gtk.GestureClick
         button={Gdk.BUTTON_PRIMARY}
         onPressed={(g: any) => openPopover((g as Gtk.GestureClick).get_widget())}

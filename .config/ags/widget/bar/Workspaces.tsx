@@ -7,7 +7,7 @@ import { createState, For } from "ags"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 
-import { barVisible, setIsWsDragging, setIsWsPreview } from "../state.tsx"
+import { barVisible, setIsWsDragging, setIsWsPreview, panelAutoClose } from "../state.tsx"
 import { getIcon } from "./appIcons"
 
 // Blocks update() while hyprctl commands are in flight so intermediate
@@ -133,6 +133,11 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
   let ctrlAtPress = false
   let _preview: Gtk.Popover | null = null
 
+  // Auto-cierre por hover: igual que el popover de CPU/RAM. Se mantiene mientras
+  // el ratón esté sobre la preview o sobre el botón de número que la invoca, y
+  // se cierra (con gracia) al salir de ambas zonas.
+  const previewAutoClose = panelAutoClose(() => { if (_preview) _preview.popdown() }, 250)
+
   const showPreview = (anchor: Gtk.Widget) => {
     if (_preview) { _preview.popdown(); return }
 
@@ -142,6 +147,11 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
     const outer = new Gtk.Box()
     outer.add_css_class("ws-preview-bg")
     outer.set_size_request(PW, PH)
+
+    const previewMotion = new Gtk.EventControllerMotion()
+    previewMotion.connect("enter", () => previewAutoClose.onEnter())
+    previewMotion.connect("leave", () => previewAutoClose.onLeave())
+    outer.add_controller(previewMotion)
 
     if (GLib.file_test(path, GLib.FileTest.EXISTS)) {
       try {
@@ -173,7 +183,9 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
     }
 
     const popover = new Gtk.Popover()
+    popover.add_css_class("ws-preview-popover")
     popover.set_has_arrow(false)
+    popover.set_autohide(false)
     popover.set_position(Gtk.PositionType.TOP)
     popover.set_child(outer)
     popover.set_parent(anchor)
@@ -424,6 +436,8 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         cssClasses={["ws-num-btn"]}
         onClicked={() => { if (!ctrlAtPress) ws.focus() }}
       >
+        {/* Mantiene la preview abierta mientras el ratón esté sobre el número */}
+        <Gtk.EventControllerMotion onEnter={previewAutoClose.onEnter} onLeave={previewAutoClose.onLeave} />
         <Gtk.GestureClick
           button={3}
           onPressed={(g: any) => showPreview((g as any).get_widget())}
