@@ -2,7 +2,7 @@ import { createState, createEffect } from "ags"
 import { readFile } from "ags/file"
 import { Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
-import { widgetsRefresh } from "../state"
+import { widgetsRefresh, openBarMenu, closeBarMenu } from "../state"
 
 function cpuUsage() {
   try {
@@ -28,15 +28,44 @@ function ramUsage() {
 export default function CpuRam() {
   const [cpu, setCpu] = createState(0)
   const [ram, setRam] = createState<number | string>(0)
-  const [topProcs, setTopProcs] = createState("Cargando...")
+  const [cpuTop, setCpuTop] = createState("Cargando…")
+  const [ramTop, setRamTop] = createState("Cargando…")
 
   let activePopover: Gtk.Popover | null = null
-  let activeLbl: Gtk.Label | null = null
+  let activeCpuLbl: Gtk.Label | null = null
+  let activeRamLbl: Gtk.Label | null = null
   let hideTimer: ReturnType<typeof setTimeout> | null = null
 
-  topProcs.subscribe((t: string) => {
-    if (activeLbl) activeLbl.set_label(t)
-  })
+  cpuTop.subscribe((t: string) => { if (activeCpuLbl) activeCpuLbl.set_label(t) })
+  ramTop.subscribe((t: string) => { if (activeRamLbl) activeRamLbl.set_label(t) })
+
+  // Tarjeta del popover: cabecera + dos filas (CPU / RAM) con icono y proceso top.
+  const buildPopupCard = () => {
+    const card = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 0 })
+    card.add_css_class("cpuram-popup")
+
+    const header = new Gtk.Label({ label: "Procesos top", xalign: 0 })
+    header.add_css_class("cpuram-popup-header")
+    card.append(header)
+
+    const mkRow = (icon: string, kind: string, initial: string) => {
+      const row = new Gtk.Box({ spacing: 8 })
+      row.add_css_class("cpuram-popup-row")
+      const ic = new Gtk.Label({ label: icon })
+      ic.add_css_class("cpuram-popup-ic")
+      ic.add_css_class(kind)
+      const val = new Gtk.Label({ label: initial, xalign: 0 })
+      val.add_css_class("cpuram-popup-val")
+      row.append(ic)
+      row.append(val)
+      card.append(row)
+      return val
+    }
+
+    activeCpuLbl = mkRow("󰻠", "cpu", cpuTop.get())
+    activeRamLbl = mkRow("󰍛", "ram", ramTop.get())
+    return card
+  }
 
   const openPopover = (anchor: Gtk.Widget) => {
     if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null }
@@ -44,27 +73,28 @@ export default function CpuRam() {
       activePopover.popdown()
       try { activePopover.unparent() } catch (_) {}
       activePopover = null
-      activeLbl = null
+      activeCpuLbl = null
+      activeRamLbl = null
       return
     }
 
-    const lbl = new Gtk.Label({ label: topProcs.get() })
-    lbl.add_css_class("cpuram-popup-label")
-    activeLbl = lbl
-
     const pop = new Gtk.Popover()
+    pop.add_css_class("cpuram-popover")
     pop.set_has_arrow(true)
     pop.set_autohide(false)
     pop.set_position(Gtk.PositionType.TOP)
-    pop.set_child(lbl)
+    pop.set_child(buildPopupCard())
     pop.set_parent(anchor)
     activePopover = pop
+    openBarMenu()
 
     pop.connect("closed", () => {
       activePopover = null
-      activeLbl = null
+      activeCpuLbl = null
+      activeRamLbl = null
       if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null }
       try { pop.unparent() } catch (_) {}
+      closeBarMenu()
     })
 
     pop.popup()
@@ -94,9 +124,11 @@ export default function CpuRam() {
         return `${parts.slice(1).join(" ")} (${gb}G)`
       }
 
-      setTopProcs(`CPU: ${parseCpu(cpuOut)}\nRAM: ${parseRam(ramOut)}`)
+      setCpuTop(parseCpu(cpuOut))
+      setRamTop(parseRam(ramOut))
     } catch {
-      setTopProcs("Error al obtener procesos")
+      setCpuTop("—")
+      setRamTop("—")
     }
   }
 

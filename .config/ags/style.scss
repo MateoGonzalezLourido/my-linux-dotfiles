@@ -402,11 +402,94 @@ popover.ws-preview-popover {
   }
 }
 
-.cpuram-popup-label {
-  color: #cdd6f4;
+// ── Popover CPU/RAM (procesos top) ─────────────────────────────────────────
+popover.cpuram-popover {
+  > contents {
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  > arrow {
+    background: #0e0e1a;
+    border: none;
+  }
+}
+
+.cpuram-popup {
+  background: #0e0e1a;
+  border: 1px solid rgba(137, 180, 250, 0.18);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 170px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.cpuram-popup-header {
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: rgba(226, 226, 226, 0.4);
+  margin-bottom: 6px;
+}
+
+.cpuram-popup-row {
+  padding: 2px 0;
+}
+
+.cpuram-popup-ic {
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 14px;
+  min-width: 18px;
+
+  &.cpu { color: #87fae9; }
+  &.ram { color: #89b4fa; }
+}
+
+.cpuram-popup-val {
   font-family: 'MesloLGS Nerd Font';
   font-size: 12px;
-  padding: 4px 8px;
+  font-weight: 500;
+  color: #cdd6f4;
+}
+
+// ── Tray: botón de icono + menú de contexto nativo ─────────────────────────
+.tray-item {
+  border-radius: 7px;
+  padding: 0 3px;
+  margin: 4px 1px;
+  min-height: 28px;
+  transition: background-color 140ms ease;
+
+  &:hover {
+    background-color: $bg-pill-hover;
+  }
+}
+
+popover.menu {
+  > contents {
+    background: #0e0e1a;
+    border: 1px solid rgba(137, 180, 250, 0.18);
+    border-radius: 10px;
+    padding: 5px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  }
+
+  modelbutton {
+    border-radius: 6px;
+    padding: 5px 12px;
+    min-height: 26px;
+    font-family: 'MesloLGS Nerd Font', 'Inter', sans-serif;
+    font-size: 12px;
+    color: #cdd6f4;
+
+    &:hover {
+      background-color: rgba(137, 180, 250, 0.16);
+      color: #ffffff;
+    }
+  }
 }
 
 .bar-pill {

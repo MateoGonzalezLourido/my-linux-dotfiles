@@ -1,7 +1,7 @@
 import AstalTray from "gi://AstalTray"
 import { createBinding, For } from "ags"
 import { Gtk } from "ags/gtk4"
-import { setIsMenuOpen } from "../state"
+import { openBarMenu, closeBarMenu } from "../state"
 
 export default function SystemTray() {
   const tray  = AstalTray.get_default()
@@ -27,14 +27,15 @@ export default function SystemTray() {
           >
             <menubutton
               cssName="icon-bare"
+              cssClasses={["tray-item"]}
               focusable={true}
               menuModel={createBinding(item, "menuModel").as(mm => mm || null)}
               tooltipMarkup={createBinding(item, "tooltipMarkup")}
-              onNotifyActive={(self) => setIsMenuOpen(self.active)}
+              onNotifyActive={(self) => self.active ? openBarMenu() : closeBarMenu()}
             >
               <image
                 gicon={createBinding(item, "gicon")}
-                pixelSize={18}
+                pixelSize={17}
               />
             </menubutton>
           </box>

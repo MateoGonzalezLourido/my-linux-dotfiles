@@ -110,6 +110,22 @@ export function panelAutoClose(close: () => void, graceMs = 300) {
   }
 }
 
+// ── Menús/popovers transitorios anclados al bar ───────────────────────────────
+// Menús de contexto del tray, popover de CPU/RAM, etc. Al abrirse roban el
+// puntero y el bar recibe un "leave", así que necesitan mantenerlo visible.
+// isMenuOpen (en panelStates) ya lo logra, pero con un contador de referencias
+// soportamos varios abiertos a la vez sin que el cierre de uno apague el estado
+// mientras otro sigue abierto. Usa openBarMenu()/closeBarMenu() en pareja.
+let _barMenuCount = 0
+export function openBarMenu() {
+  _barMenuCount++
+  setIsMenuOpen(true)
+}
+export function closeBarMenu() {
+  _barMenuCount = Math.max(0, _barMenuCount - 1)
+  if (_barMenuCount === 0) setIsMenuOpen(false)
+}
+
 export function openPowerMenu() {
   setQuickSettingsVisible(false)
   setPowerMenuVisible(true)
