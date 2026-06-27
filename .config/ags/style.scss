@@ -202,6 +202,8 @@ popover.ws-preview-popover {
   background: #0e0e1a;
   border: 1px solid rgba(137, 180, 250, 0.18);
   border-radius: 6px;
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
 }
 
 .ws-preview-empty {
@@ -417,6 +419,18 @@ popover.cpuram-popover {
   }
 }
 
+// Entrada rápida y "líquida": fade + scale con leve rebote elástico.
+@keyframes pop-liquid-in {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .cpuram-popup {
   background: #0e0e1a;
   border: 1px solid rgba(137, 180, 250, 0.18);
@@ -424,6 +438,8 @@ popover.cpuram-popover {
   padding: 8px 10px;
   min-width: 170px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
 }
 
 .cpuram-popup-header {
