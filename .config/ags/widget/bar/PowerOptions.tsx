@@ -2,28 +2,12 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import { createState } from "ags"
-import { powerMenuVisible, closeAllPanels } from "../state"
+import { powerMenuVisible, closeAllPanels, panelAutoClose } from "../state"
 
 export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
     const { TOP, RIGHT } = Astal.WindowAnchor
     const [hovered, setHovered] = createState<string | null>(null)
-    let hoverTimeout: number | null = null
-
-    const clearTimer = () => {
-        if (hoverTimeout !== null) {
-            GLib.source_remove(hoverTimeout)
-            hoverTimeout = null
-        }
-    }
-
-    const startTimer = () => {
-        clearTimer()
-        hoverTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
-            closeAllPanels()
-            hoverTimeout = null
-            return GLib.SOURCE_REMOVE
-        })
-    }
+    const autoClose = panelAutoClose(closeAllPanels, 300)
 
     const handleAction = (command: string) => {
         execAsync(command)
@@ -89,8 +73,8 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
                 orientation={Gtk.Orientation.VERTICAL}
             >
                 <Gtk.EventControllerMotion
-                    onEnter={clearTimer}
-                    onLeave={startTimer}
+                    onEnter={autoClose.onEnter}
+                    onLeave={autoClose.onLeave}
                 />
                 <box
                     cssClasses={["power-menu-strip"]}

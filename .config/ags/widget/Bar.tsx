@@ -96,6 +96,20 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     }
   })
 
+  // Auto-ocultado inicial: el bar arranca visible para que se vea al iniciar
+  // sesión, pero checkVisibility() solo corre dentro de los .subscribe(), que no
+  // disparan en el arranque. Sin esto, el bar quedaba fijo hasta el primer hover.
+  // Tras un breve margen, si no hay hover ni paneles abiertos, se oculta solo.
+  // (Hide directo: omite los guards de flicker —lastY/SHOW_LOCK— que no aplican
+  // en el arranque, donde lastY=0 los bloquearía.)
+  setTimeout(() => {
+    if (!isHovered() && !anyPanelVisible.get() && !isWsDragging() && !barPinnedByKey.get()) {
+      setVisible(false)
+      setWidgetsRefresh(false)
+      setBarVisible(false)
+    }
+  }, 2000)
+
   const hotzone = <window
     name="bar-hotzone"
     visible={visible((v) => !v)}

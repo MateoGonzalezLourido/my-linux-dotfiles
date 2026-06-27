@@ -12,6 +12,7 @@ import AstalMpris from "gi://AstalMpris"
 import {
   quickSettingsVisible,
   closeAllPanels,
+  panelAutoClose,
   nightLightActive,
   setNightLightActive,
   nightLightTemp,
@@ -1916,6 +1917,8 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     }
   })
 
+  const qsAutoClose = panelAutoClose(closeAllPanels, 300)
+
   const result = <window
     name="quick-settings"
     visible={quickSettingsVisible}
@@ -1951,6 +1954,8 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
         spacing={3}
         overflow={Gtk.Overflow.HIDDEN}
       >
+        {/* Auto-cierre al salir el ratón (mismo patrón que NotificationPanel) */}
+        <Gtk.EventControllerMotion onEnter={qsAutoClose.onEnter} onLeave={qsAutoClose.onLeave} />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={3} visible={qsView((v) => v === "main")}>
           <QsHeader />
           <QsTiles

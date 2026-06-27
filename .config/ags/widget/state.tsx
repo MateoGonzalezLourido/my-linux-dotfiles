@@ -62,19 +62,52 @@ quickSettingsVisible.subscribe((v) => {
 import { orionVisible } from "./orion/state"
 import { overviewVisible } from "./WorkspaceOverview/store"
 
+// ── Registro centralizado de paneles ─────────────────────────────────────────
+// Única fuente de verdad. Para que un panel nuevo mantenga la barra visible
+// mientras está abierto, basta con añadir su estado a este array (antes la lista
+// se duplicaba en get() y subscribe(), con riesgo de que divergieran).
+type PanelState = { get: () => boolean; subscribe: (cb: (v: boolean) => void) => unknown }
+
+const panelStates: PanelState[] = [
+  powerMenuVisible,
+  quickSettingsVisible,
+  isMenuOpen,
+  notifPanelVisible,
+  isWsPreview,
+  calendarVisible,
+  orionVisible,
+  overviewVisible,
+]
+
 export const anyPanelVisible = {
-  get: () => powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get() || orionVisible.get() || overviewVisible.get(),
+  get: () => panelStates.some((s) => s.get()),
   subscribe: (cb: (v: boolean) => void) => {
-    const notify = () => cb(powerMenuVisible.get() || quickSettingsVisible.get() || isMenuOpen.get() || notifPanelVisible.get() || isWsPreview.get() || calendarVisible.get() || orionVisible.get() || overviewVisible.get())
-    powerMenuVisible.subscribe(notify)
-    quickSettingsVisible.subscribe(notify)
-    isMenuOpen.subscribe(notify)
-    notifPanelVisible.subscribe(notify)
-    isWsPreview.subscribe(notify)
-    calendarVisible.subscribe(notify)
-    orionVisible.subscribe(notify)
-    overviewVisible.subscribe(notify)
+    const notify = () => cb(panelStates.some((s) => s.get()))
+    panelStates.forEach((s) => s.subscribe(notify))
   },
+}
+
+// ── Auto-cierre de paneles al salir el ratón ──────────────────────────────────
+// Devuelve handlers onEnter/onLeave para un <Gtk.EventControllerMotion>. Al
+// salir el puntero del panel se espera graceMs y se cierra; al volver a entrar
+// se cancela. Centraliza el patrón que ya usaban PowerOptions y NotificationPanel
+// para que todos los paneles del bar se comporten igual.
+export function panelAutoClose(close: () => void, graceMs = 300) {
+  let timer: number | null = null
+  const cancel = () => {
+    if (timer !== null) { GLib.source_remove(timer); timer = null }
+  }
+  return {
+    onEnter: cancel,
+    onLeave: () => {
+      cancel()
+      timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, graceMs, () => {
+        close()
+        timer = null
+        return GLib.SOURCE_REMOVE
+      })
+    },
+  }
 }
 
 export function openPowerMenu() {
