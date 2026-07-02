@@ -288,7 +288,7 @@ function QsHeader() {
         <label cssClasses={["qs-clock"]} label={time} halign={Gtk.Align.START} />
         <label cssClasses={["qs-date"]} label={date} halign={Gtk.Align.START} />
       </box>
-      <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END}>
+      <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} css="margin-left: 8px;">
         <button
           cssClasses={notifs((n) => n.length > 0 ? ["qs-notif-btn", "has-notifs"] : ["qs-notif-btn"])}
           tooltipText="Notificaciones"
@@ -471,7 +471,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   }
 
   return (
-    <box cssClasses={["qs-tiles"]} spacing={6}>
+    <box cssClasses={["qs-tiles"]} spacing={6} hexpand homogeneous>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
         <QsTile
           icon="󰤨"
