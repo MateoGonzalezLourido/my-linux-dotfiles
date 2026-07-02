@@ -641,6 +641,22 @@ popover.menu {
     background-color: rgba(226, 226, 226, 0.18);
   }
 
+  // Portal cautivo: asociado al AP pero requiere iniciar sesión.
+  &.portal .network-bar.active {
+    background-color: #fab387;
+  }
+  // Asociado pero sin internet real (LIMITED/NONE).
+  &.limited .network-bar.active {
+    background-color: #f9e2af;
+  }
+
+  .network-status-glyph {
+    font-size: 11px;
+    margin-left: 2px;
+  }
+  &.portal .network-status-glyph  { color: #fab387; }
+  &.limited .network-status-glyph { color: #f9e2af; }
+
   &.disconnected {
     color: $text-dim;
   }

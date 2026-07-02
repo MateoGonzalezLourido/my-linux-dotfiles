@@ -318,9 +318,7 @@ const formatSpeed = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)}M`
 }
 
-GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-  if (!quickSettingsVisible.get()) return GLib.SOURCE_CONTINUE
-
+const sampleNetSpeed = () => {
   execAsync(["bash", "-c", "cat /proc/net/dev"]).then(out => {
     const lines = out.trim().split("\n")
     let totalDown = 0, totalUp = 0
@@ -346,7 +344,27 @@ GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
     }
     lastBytes = { down: totalDown, up: totalUp, time: now }
   }).catch(() => { })
-  return GLib.SOURCE_CONTINUE
+}
+
+// El muestreo de velocidad solo corre mientras QS está abierto (se abre poco):
+// arranca al abrir y se detiene al cerrar, en vez de un timer eterno gateado que
+// despertaba la CPU 1×/s siempre. Al abrir se resiembra lastBytes para que el
+// primer tick no calcule un pico sobre todo el tiempo que estuvo cerrado.
+let netSpeedTimer: number | null = null
+quickSettingsVisible.subscribe((v) => {
+  if (v) {
+    if (netSpeedTimer !== null) return
+    lastBytes = { up: 0, down: 0, time: 0 }
+    sampleNetSpeed()
+    netSpeedTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+      sampleNetSpeed()
+      return GLib.SOURCE_CONTINUE
+    })
+  } else if (netSpeedTimer !== null) {
+    GLib.source_remove(netSpeedTimer)
+    netSpeedTimer = null
+    setNetSpeed({ up: "0B", down: "0B" })
+  }
 })
 
 function QsTile({ icon, label, subtitle, active, onToggle, onSecondaryClick, onRightClick }: {
@@ -773,6 +791,24 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
     })
   }
 
+  // Refresco periódico del modo "apps". Se detiene al salir del modo apps Y al
+  // cerrar el panel (antes seguía ejecutando pactl cada 2 s con el panel cerrado
+  // si se cerraba estando en modo apps). Se reanuda si el panel se reabre en apps.
+  let appsRefreshId: number | null = null
+  const stopAppsRefresh = () => {
+    if (appsRefreshId !== null) { clearInterval(appsRefreshId); appsRefreshId = null }
+  }
+  const startAppsRefresh = () => {
+    if (appsRefreshId !== null) return
+    loadStreams()
+    appsRefreshId = setInterval(loadStreams, 2000)
+  }
+  audioMode.subscribe((v) => { if (v !== "apps") stopAppsRefresh() })
+  quickSettingsVisible.subscribe((v) => {
+    if (!v) stopAppsRefresh()
+    else if (audioMode.get() === "apps") startAppsRefresh()
+  })
+
   const speakers = createBinding(wp.audio, "speakers")
   const defaultSpeaker = createBinding(wp.audio, "defaultSpeaker")
 
@@ -796,17 +832,7 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
           onClicked={() => {
             const next = audioMode.get() === "devices" ? "apps" : "devices"
             setAudioMode(next)
-            if (next === "apps") {
-              loadStreams()
-              // Start periodic refresh
-              const id = setInterval(loadStreams, 2000)
-              const sub = audioMode.subscribe((v) => {
-                if (v !== "apps") {
-                  clearInterval(id)
-                  sub()
-                }
-              })
-            }
+            if (next === "apps") startAppsRefresh()
           }}
           tooltipText={audioMode((m) => m === "devices" ? "Mezcla de aplicaciones" : "Dispositivos de salida")}
         ><label label={audioMode((m) => m === "devices" ? "󰓃" : "󰋎")} /></button>
@@ -1031,6 +1057,22 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
     }).catch(() => setStreams([]))
   }
 
+  // Ver nota en QsAudioMenu: el refresco de apps se detiene al cerrar el panel.
+  let appsRefreshId: number | null = null
+  const stopAppsRefresh = () => {
+    if (appsRefreshId !== null) { clearInterval(appsRefreshId); appsRefreshId = null }
+  }
+  const startAppsRefresh = () => {
+    if (appsRefreshId !== null) return
+    loadMicStreams()
+    appsRefreshId = setInterval(loadMicStreams, 2000)
+  }
+  audioMode.subscribe((v) => { if (v !== "apps") stopAppsRefresh() })
+  quickSettingsVisible.subscribe((v) => {
+    if (!v) stopAppsRefresh()
+    else if (audioMode.get() === "apps") startAppsRefresh()
+  })
+
   const microphones = createBinding(wp.audio, "microphones")
   const defaultMic = createBinding(wp.audio, "defaultMicrophone")
 
@@ -1051,16 +1093,7 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
           onClicked={() => {
             const next = audioMode.get() === "devices" ? "apps" : "devices"
             setAudioMode(next)
-            if (next === "apps") {
-              loadMicStreams()
-              const id = setInterval(loadMicStreams, 2000)
-              const sub = audioMode.subscribe((v) => {
-                if (v !== "apps") {
-                  clearInterval(id)
-                  sub()
-                }
-              })
-            }
+            if (next === "apps") startAppsRefresh()
           }}
           tooltipText={audioMode((m) => m === "devices" ? "Mezcla de aplicaciones" : "Dispositivos de entrada")}
         ><label label={audioMode((m) => m === "devices" ? "󰓃" : "󰋎")} /></button>
@@ -1384,6 +1417,22 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     setDevices(bt.get_devices())
   }
 
+  // Timers del escaneo, a nivel de componente para poder cancelarlos al cerrar.
+  let scanStartTimer: number | null = null
+  let scanInterval: number | null = null
+  let scanStopTimer: number | null = null
+
+  const stopScan = () => {
+    if (scanStartTimer !== null) { clearTimeout(scanStartTimer); scanStartTimer = null }
+    if (scanInterval !== null) { clearInterval(scanInterval); scanInterval = null }
+    if (scanStopTimer !== null) { clearTimeout(scanStopTimer); scanStopTimer = null }
+    if (scanning.get()) {
+      try { bt.adapter?.stop_discovery() } catch {}
+      setBuffering(false)
+      setScanning(false)
+    }
+  }
+
   const scan = (duration: number = 15000) => {
     if (scanning.get()) return
     const adapter = bt.adapter
@@ -1395,22 +1444,28 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     setScanning(true)
     setBuffering(true)
     adapter.start_discovery()
-    
-    setTimeout(() => {
+
+    scanStartTimer = setTimeout(() => {
+      scanStartTimer = null
       setBuffering(false)
       update()
-      
-      const interval = setInterval(update, 1000)
-      
+
+      scanInterval = setInterval(update, 1000)
+
       const remaining = Math.max(0, duration - 2000)
-      setTimeout(() => {
-        adapter.stop_discovery()
-        clearInterval(interval)
+      scanStopTimer = setTimeout(() => {
+        scanStopTimer = null
+        try { adapter.stop_discovery() } catch {}
+        if (scanInterval !== null) { clearInterval(scanInterval); scanInterval = null }
         setScanning(false)
         update()
       }, remaining)
     }, 2000)
   }
+
+  // Al cerrar el panel: cortar el discovery y todos sus timers (antes la radio
+  // seguía escaneando en background hasta agotar el `duration`).
+  quickSettingsVisible.subscribe((v) => { if (!v) stopScan() })
 
   // Update once on mount and when powered/devices change
   bt.connect("notify::is-powered", update)
@@ -1616,8 +1671,6 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   )
 
   const [apsVar, setApsVar] = createState<any[]>(wifi.get_access_points())
-  wifi.connect("notify::access-points", () => setApsVar(wifi.get_access_points()))
-
   const [passwordTarget, setPasswordTarget] = createState<string | null>(null)
   const [passwordStr, setPasswordStr] = createState("")
   const [wifiState, setWifiState] = createState({ ssid: wifi.ssid || "", connecting: null as string | null })
@@ -1635,34 +1688,64 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
       .then((out) => setSavedSsids(out.split("\n").filter(Boolean)))
       .catch(() => { })
   }
-  updateSaved()
   savedSsids.subscribe(() => setWifiState({ ...wifiState() }))
 
+  // Solo procesamos señales de red mientras la vista WiFi está visible. Con QS
+  // cerrado (qsView vuelve a "main") o en otra pestaña las ignoramos: antes cada
+  // notify::connectivity lanzaba un pipeline nmcli|grep|cut aunque nadie mirara,
+  // y una conexión dispara varias transiciones seguidas.
+  const inWifiView = () => qsView.get() === "wifi"
+
+  wifi.connect("notify::access-points", () => { if (inWifiView()) setApsVar(wifi.get_access_points()) })
   wifi.connect("notify::active-access-point", () => {
+    if (!inWifiView()) return
     setApsVar(wifi.get_access_points())
+    setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
+  })
+  wifi.connect("notify::ssid", () => {
+    if (!inWifiView()) return
     setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
   })
   network.connect("notify::connectivity", () => {
+    if (!inWifiView()) return
     setWifiState({ ...wifiState() })
     updateSaved()
   })
-  wifi.connect("notify::ssid", () => {
-    setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
-  })
 
-  // Force cache population on startup
-  execAsync(["nmcli", "device", "wifi", "list"]).then(() => {
-    setApsVar(wifi.get_access_points())
-  }).catch(e => console.error(e))
-
-  const rescan = () => {
+  // NM rechaza rescans muy seguidos (~10s). El escaneo automático al abrir la vista
+  // respeta ese margen; el botón manual fuerza el intento.
+  let lastScan = 0
+  const rescan = (force = false) => {
     if (scanning.get()) return
+    const now = Date.now()
+    if (!force && now - lastScan < 10000) {
+      setApsVar(wifi.get_access_points())
+      updateSaved()
+      return
+    }
+    lastScan = now
     setScanning(true)
     execAsync(["nmcli", "device", "wifi", "rescan"]).finally(() => {
       setTimeout(() => setScanning(false), 2000)
       updateSaved()
+      setApsVar(wifi.get_access_points())
     })
   }
+
+  // Al entrar en la vista WiFi: refresco inmediato desde la caché de NM + lista de
+  // guardadas + escaneo activo (throttled). Reemplaza el rescan que hacía onWifiClick
+  // y el `nmcli device wifi list` de arranque por monitor; ahora todo es perezoso.
+  qsView.subscribe((v) => {
+    if (v !== "wifi") return
+    setApsVar(wifi.get_access_points())
+    setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
+    updateSaved()
+    rescan()
+    // Fuerza a NM a re-evaluar la conectividad ahora (en vez de esperar su chequeo
+    // periódico de ~5 min). Así, si el usuario acaba de iniciar sesión en el portal,
+    // el estado portal→full se limpia al instante tanto aquí como en el glifo del bar.
+    execAsync(["nmcli", "networking", "connectivity", "check"]).catch(() => { })
+  })
 
   const wifiEnabled = createBinding(wifi, "enabled")
 
@@ -1678,7 +1761,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
         ><label label="󰒓" /></button>
         <button
           cssClasses={scanning((s) => s ? ["qs-icon-btn", "scanning"] : ["qs-icon-btn"])}
-          onClicked={rescan}
+          onClicked={() => rescan(true)}
           tooltipText="Buscar redes"
         ><label label="󰑐" /></button>
         <button
@@ -1955,10 +2038,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
         <box orientation={Gtk.Orientation.VERTICAL} spacing={3} visible={qsView((v) => v === "main")}>
           <QsHeader />
           <QsTiles
-            onWifiClick={() => {
-              setQsView("wifi")
-              execAsync(["nmcli", "device", "wifi", "rescan"]).catch(() => { })
-            }}
+            onWifiClick={() => setQsView("wifi")}
             onBluetoothClick={() => setQsView("bluetooth")}
             onDisplayClick={() => setQsView("display")}
             onAudioClick={() => setQsView("audio")}

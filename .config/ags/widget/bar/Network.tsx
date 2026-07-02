@@ -1,7 +1,7 @@
 import AstalNetwork from "gi://AstalNetwork"
-import { For, createBinding, createState } from "ags"
+import { For, createState } from "ags"
 import { Gtk } from "ags/gtk4"
-import { execAsync } from "ags/process"
+import { barVisible, widgetsRefresh } from "../state"
 
 const BARS = 4
 
@@ -13,8 +13,15 @@ function activeBars(strength: number) {
   return 0
 }
 
-function barClasses(strength: number, connected: boolean) {
-  const active = connected ? activeBars(strength) : 0
+// Estado de red que el bar necesita representar:
+//   connected → asociado con internet real (FULL)
+//   portal    → asociado pero requiere login (portal cautivo)
+//   limited   → asociado pero sin internet real (LIMITED/NONE)
+//   offline   → sin AP asociado
+type NetState = "connected" | "portal" | "limited" | "offline"
+
+function barClasses(strength: number, state: NetState) {
+  const active = state === "offline" ? 0 : activeBars(strength)
 
   return Array.from({ length: BARS }, (_, i) => {
     const classes = ["network-bar", `bar-${i + 1}`]
@@ -23,7 +30,6 @@ function barClasses(strength: number, connected: boolean) {
   })
 }
 
-
 export default function Network() {
   const network = AstalNetwork.get_default()
   const wifi    = network.wifi
@@ -31,7 +37,7 @@ export default function Network() {
     return (
       <box cssClasses={["network", "network-off"]} valign={Gtk.Align.CENTER}>
         <box cssClasses={["network-bars"]} spacing={1} valign={Gtk.Align.CENTER}>
-          <For each={barClasses(0, false)}>
+          <For each={barClasses(0, "offline")}>
             {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
           </For>
         </box>
@@ -39,27 +45,59 @@ export default function Network() {
     )
   }
 
-  const internet = createBinding(wifi, "internet")
-  const ssid = createBinding(wifi, "ssid")
-  const [bars, setBars] = createState(
-    barClasses(wifi.strength ?? 0, wifi.internet === AstalNetwork.Internet.CONNECTED)
-  )
+  const C = AstalNetwork.Connectivity
 
-  const updateBars = () => {
-    setBars(barClasses(wifi.strength ?? 0, wifi.internet === AstalNetwork.Internet.CONNECTED))
+  // Derivado puramente de señales: sin polling. El bar solo muestra; el clic cae
+  // al botón del pill (Bar.tsx) que abre QuickSettings, donde está la gestión real.
+  const computeState = (): NetState => {
+    if (!wifi.ssid) return "offline"
+    switch (network.connectivity) {
+      case C.PORTAL: return "portal"
+      case C.LIMITED:
+      case C.NONE: return "limited"
+      default: return "connected"   // FULL / UNKNOWN
+    }
   }
 
-  wifi.connect("notify::strength", updateBars)
-  wifi.connect("notify::internet", updateBars)
+  const computeTip = (s: NetState) => {
+    const name = wifi.ssid || "Sin conexión"
+    return s === "portal"  ? `${name} · Inicia sesión (portal cautivo)`
+      : s === "limited" ? `${name} · Sin internet`
+      : s === "offline" ? "Sin conexión"
+      : name
+  }
+
+  const [state, setState] = createState<NetState>(computeState())
+  const [bars, setBars] = createState(barClasses(wifi.strength ?? 0, computeState()))
+  const [tip, setTip] = createState(computeTip(computeState()))
+
+  const sync = () => {
+    const s = computeState()
+    setState(s)
+    setBars(barClasses(wifi.strength ?? 0, s))
+    setTip(computeTip(s))
+  }
+
+  // Mientras el bar está oculto no re-renderizamos: los últimos valores quedan
+  // "cacheados" en el estado del widget. Al volver visible (widgetsRefresh) se
+  // recomputa desde el estado real de NetworkManager. Mismo patrón que Battery/Volume.
+  const update = () => { if (!barVisible.get()) return; sync() }
+
+  wifi.connect("notify::strength", update)
+  wifi.connect("notify::ssid", update)
+  wifi.connect("notify::internet", update)
+  network.connect("notify::connectivity", update)
+
+  widgetsRefresh.subscribe((v) => { if (v) sync() })
 
   return (
-    <button
-      cssClasses={["network"]}
-      tooltipText={ssid((s) => s || "Disconnected")}
-      onClicked={() => execAsync(["bash", "-c", `${SRC}/scripts/wifi-panel.sh`])}
+    <box
+      cssClasses={state((s) => ["network", s])}
+      valign={Gtk.Align.CENTER}
+      tooltipText={tip}
     >
       <box
-        cssClasses={internet((i) => i === AstalNetwork.Internet.CONNECTED ? ["network-bars"] : ["network-bars", "offline"])}
+        cssClasses={state((s) => s === "offline" ? ["network-bars", "offline"] : ["network-bars"])}
         spacing={1}
         valign={Gtk.Align.CENTER}
       >
@@ -67,6 +105,11 @@ export default function Network() {
           {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
         </For>
       </box>
-    </button>
+      <label
+        cssClasses={["network-status-glyph"]}
+        label={state((s) => s === "portal" || s === "limited" ? "󰀦" : "")}
+        visible={state((s) => s === "portal" || s === "limited")}
+      />
+    </box>
   )
 }
