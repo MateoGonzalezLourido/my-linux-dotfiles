@@ -328,7 +328,7 @@ popover.ws-preview-popover {
 
   .battery-body {
     min-width: 19px;
-    min-height: 12px;
+    min-height: 10px;
     padding: 2px 2px;
     border: 1px solid rgba(205, 214, 244, 0.65);
     border-radius: 3px;
@@ -543,7 +543,7 @@ popover.menu {
   }
 
   & button,
-  & box:not(.battery):not(.battery-body):not(.battery-cap):not(.battery-seg) {
+  & box:not(.battery):not(.battery-body):not(.battery-cap):not(.battery-seg):not(.network-bars):not(.network-bar) {
     margin: 0;
     background-color: transparent;
     padding: 0px 4px;
@@ -615,12 +615,29 @@ popover.menu {
   font-family: 'MesloLGS Nerd Font';
   font-size: 16px;
 
-  .network-icon-on {
-    color: #87fae9;
+  .network-bars {
+    min-width: 17px;
+    min-height: 14px;
   }
 
-  .network-icon-off {
-    color: rgba(226, 226, 226, 0.45);
+  .network-bar {
+    min-width: 3px;
+    border-radius: 1px;
+    background-color: rgba(226, 226, 226, 0.18);
+
+    &.active {
+      background-color: #87fae9;
+    }
+
+    &.bar-1 { min-height: 4px; }
+    &.bar-2 { min-height: 7px; }
+    &.bar-3 { min-height: 10px; }
+    &.bar-4 { min-height: 13px; }
+  }
+
+  .network-bars.offline .network-bar,
+  &.network-off .network-bar {
+    background-color: rgba(226, 226, 226, 0.18);
   }
 
   &.disconnected {
