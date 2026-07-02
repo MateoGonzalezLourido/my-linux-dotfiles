@@ -4,6 +4,8 @@ import { Gtk } from "ags/gtk4"
 import { barVisible, widgetsRefresh } from "../state"
 
 const SEGMENTS = 5
+const LOW_BATTERY_THRESHOLD = 10
+const WARN_BATTERY_THRESHOLD = 15
 
 export default function Battery() {
   const bat = AstalBattery.get_default()
@@ -35,14 +37,15 @@ export default function Battery() {
   const statusClass = () => {
     const p = bat.percentage * 100
     if (bat.charging) return "charging"
-    if (p <= 15) return "low"
+    if (p <= LOW_BATTERY_THRESHOLD) return "low"
     return "normal"
   }
 
   const getSegmentClasses = () => {
     const pct = Math.round(bat.percentage * 100)
     const charging = bat.charging && pct < 100 && bat.state !== AstalBattery.State.FULLY_CHARGED
-    const low = !bat.charging && pct <= 15
+    const low = !bat.charging && pct <= LOW_BATTERY_THRESHOLD
+    const warnLow = !charging && !low && pct <= WARN_BATTERY_THRESHOLD
     const segmentSize = 100 / SEGMENTS
     const active = Math.min(SEGMENTS - 1, Math.floor(pct / (100 / SEGMENTS)))
     const filled = charging
@@ -53,7 +56,7 @@ export default function Battery() {
     const draining = Math.max(0, filled - 1)
     const segmentStart = draining * segmentSize
     const segmentMiddle = segmentStart + segmentSize / 2
-    const warnSegment = !charging && !low && pct < 100 && pct <= segmentMiddle
+    const warnSegment = !charging && !low && pct < 100 && (pct <= segmentMiddle || warnLow)
 
     return Array.from({ length: SEGMENTS }, (_, i) => {
       const classes = ["battery-seg"]
