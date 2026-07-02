@@ -93,24 +93,13 @@ $orange: #fab387;
 }
 
 .own-functions {
-  border: none;
-  background-color: rgba(255, 255, 255, 0.03);
-  padding: 0 4px;
-  margin: 4px 4px;
-  min-height: 30px;
-  border-radius: 6px;
-
   & label {
     font-family: 'MesloLGS Nerd Font';
     font-size: 17px;
     color: #89b4fa;
     border: none;
-    padding: 0 2px;
-    margin-top: 1px;
-  }
-
-  &:hover {
-    background-color: $bg-pill-hover;
+    padding: 0;
+    margin: 0 0 0 -2px;
   }
 }
 
@@ -130,7 +119,7 @@ $orange: #fab387;
     &.focused {
       background: linear-gradient(135deg, #89b4fa, #cba6f7);
       color: #11111b;
-      box-shadow: 0 2px 8px rgba(137, 180, 250, 0.3);
+      box-shadow: 0 1px 4px rgba(137, 180, 250, 0.3);
     }
 
     &.ws-hold-ready {
@@ -573,6 +562,14 @@ popover.menu {
   &:hover {
     background-color: rgba(255, 255, 255, 0.07);
   }
+}
+
+.bar-pill.own-functions {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  min-width: 30px;
+  padding: 0;
 }
 
 .bar-pill.clock-pill {

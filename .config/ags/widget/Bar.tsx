@@ -156,8 +156,10 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     <centerbox css="margin-left: 9px; margin-right: 10px;">
       <box $type="start" halign={Gtk.Align.START} spacing={6}>
         <Clock />
-        <Functions />
-        <Workspaces />
+        <box spacing={1}>
+          <Functions />
+          <Workspaces />
+        </box>
       </box>
 
       <box $type="center" halign={Gtk.Align.CENTER} spacing={8}>
