@@ -1719,6 +1719,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   let lastScan = 0
   const rescan = (force = false) => {
     if (scanning.get()) return
+    if (!wifi.enabled) return   // radio apagada: escanear es imposible y nmcli falla
     const now = Date.now()
     if (!force && now - lastScan < 10000) {
       setApsVar(wifi.get_access_points())
@@ -1742,11 +1743,16 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
     setApsVar(wifi.get_access_points())
     setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
     updateSaved()
-    rescan()
-    // Fuerza a NM a re-evaluar la conectividad ahora (en vez de esperar su chequeo
-    // periódico de ~5 min). Así, si el usuario acaba de iniciar sesión en el portal,
-    // el estado portal→full se limpia al instante tanto aquí como en el glifo del bar.
-    execAsync(["nmcli", "networking", "connectivity", "check"]).catch(() => { })
+    // Con la radio apagada no tiene sentido escanear ni sondear conectividad:
+    // ambos nmcli fallarían/serían inútiles. La lista de guardadas (updateSaved)
+    // sí se muestra para poder reconectar al reactivar el WiFi.
+    if (wifi.enabled) {
+      rescan()
+      // Fuerza a NM a re-evaluar la conectividad ahora (en vez de esperar su chequeo
+      // periódico de ~5 min). Así, si el usuario acaba de iniciar sesión en el portal,
+      // el estado portal→full se limpia al instante tanto aquí como en el glifo del bar.
+      execAsync(["nmcli", "networking", "connectivity", "check"]).catch(() => { })
+    }
   })
 
   const wifiEnabled = createBinding(wifi, "enabled")
