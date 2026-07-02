@@ -21,6 +21,7 @@ import {
   setQsView,
   infoSsid,
   setInfoSsid,
+  openSettingsPanel,
 
   brightness,
   setBrightness
@@ -1358,7 +1359,7 @@ function QsFooter() {
 
       <button
         cssClasses={["qs-footer-btn"]}
-        tooltipText="Configuración (próximamente)"
+        onClicked={() => openSettingsPanel()}
       >
         <label label="󰒓" />
       </button>

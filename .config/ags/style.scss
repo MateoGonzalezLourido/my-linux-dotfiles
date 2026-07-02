@@ -1895,37 +1895,50 @@ tooltip {
 
 // ── Notification Button ───────────────────────────────────────────────────────
 .nb-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  padding: 5px 10px;
-  margin: 3px 2px;
-  border-radius: 10px;
-  transition: all 150ms ease-out;
+  background: rgba(255, 255, 255, 0.024);
+  border: 1px solid rgba(255, 255, 255, 0.018);
+  padding: 0 5px;
+  margin: 4px 2px;
+  min-height: 30px;
+  border-radius: 7px;
+  transition: background-color 140ms ease, border-color 140ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.13);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.075);
   }
 
   &.panel-open {
-    background: rgba(203, 166, 247, 0.18);
-    border-color: rgba(203, 166, 247, 0.35);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.075);
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.055);
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .nb-content {
+    margin: 0;
+    padding: 0;
   }
 
   .nb-icon {
     font-family: "MesloLGS Nerd Font";
     font-size: 16px;
-    color: rgba(226, 226, 226, 0.55);
+    color: rgba(226, 226, 226, 0.48);
     margin: 0;
 
     &.has-notifs { color: #cba6f7; }
-    &.dnd        { color: #f38ba8; }
+    &.dnd        { color: rgb(245, 50, 105); }
   }
 
   .nb-badge-pill {
-    background: rgba(203, 166, 247, 0.22);
-    border-radius: 6px;
-    padding: 1px 5px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
   }
 
   .nb-badge {
@@ -2044,13 +2057,13 @@ window.np-window.csd decoration {
 
 .np-bar-connector {
   background-color: transparent;
-  background-image: radial-gradient(circle at 0% 100%, transparent 18px, rgba(12, 12, 18, 0.97) 18.5px);
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, $bg-bar 18.5px);
   min-width: 18px;
   min-height: 18px;
 }
 
 .np-panel {
-  background: rgba(12, 12, 18, 0.98);
+  background: $bg-bar;
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-left: none;
   border-radius: 14px;
@@ -3490,6 +3503,73 @@ window.cal-panel > box {
   padding: 8px 12px 4px;
   margin: 0 8px;
 }
+
+/* ── General settings window (QuickSettings gear) — left vertical nav ── */
+.sp-window { background: transparent; }
+.sp-backdrop { background: rgba(0, 0, 0, 0.5); }
+.sp-panel {
+  min-width: 820px;
+  min-height: 560px;
+  background: #08080c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.sp-nav {
+  min-width: 190px;
+  padding: 16px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+.sp-nav-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font";
+  margin: 2px 8px 10px;
+}
+.sp-nav-item {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: rgba(226, 226, 226, 0.6);
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  transition: all 120ms ease;
+  &:hover { background: rgba(255, 255, 255, 0.05); color: #e2e2e2; }
+  &.active { background: rgba(203, 166, 247, 0.15); color: #cba6f7; }
+  .sp-nav-icon { font-family: "MesloLGS Nerd Font"; font-size: 14px; }
+}
+
+.sp-content { padding: 18px 20px; }
+
+.sp-section { }
+.sp-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+}
+
+.sp-energy-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px 14px;
+  .sp-energy-icon { font-family: "MesloLGS Nerd Font"; font-size: 18px; color: #89b4fa; }
+  .sp-energy-status { font-size: 13px; font-weight: 600; color: #e2e2e2; font-family: "MesloLGS Nerd Font"; }
+  .sp-energy-status.active { color: #fab387; }
+  .sp-energy-icon { color: #a6e3a1; }
+  .sp-energy-sub { font-size: 11px; color: rgba(226, 226, 226, 0.5); font-family: "MesloLGS Nerd Font"; }
+}
+
+.sp-field { }
+.sp-field-label { font-size: 12px; color: #e2e2e2; font-family: "MesloLGS Nerd Font"; }
+.sp-field-value { font-size: 12px; font-weight: 700; color: #cba6f7; font-family: "MesloLGS Nerd Font"; }
+.sp-field-hint { font-size: 10px; color: rgba(226, 226, 226, 0.4); font-family: "MesloLGS Nerd Font"; }
 
 /* ── Centered notification-settings window (Phase 5) ────────────────── */
 .nsw-window {

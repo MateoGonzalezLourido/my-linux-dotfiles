@@ -10,6 +10,7 @@ import NotificationPopup from "./widget/notifications/NotificationPopup"
 import NotificationPanel from "./widget/notifications/NotificationPanel"
 import SettingsWindow from "./widget/notifications/settings/SettingsWindow"
 import CalendarPanel from "./widget/CalendarPanel"
+import SettingsPanel from "./widget/SettingsPanel"
 import Orion from "./widget/orion/Orion"
 import WorkspaceOverview from "./widget/WorkspaceOverview/index"
 import { startCleanupEngine } from "./widget/notifications/cleanup/cleanupEngine"
@@ -30,6 +31,7 @@ app.start({
     app.get_monitors().map(Orion)
     app.get_monitors().map(WorkspaceOverview)
     try { app.get_monitors().map(CalendarPanel) } catch(e) { console.error("[app] CalendarPanel failed:", e) }
+    app.get_monitors().map(SettingsPanel)
     startCleanupEngine()
     runAppSettingsMigration()
   },

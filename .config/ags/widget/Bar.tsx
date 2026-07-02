@@ -165,7 +165,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         <MediaPlayer />
       </box>
 
-      <box $type="end" halign={Gtk.Align.END} spacing={6} css="margin-left: 20px;">
+      <box $type="end" halign={Gtk.Align.END} spacing={2} css="margin-left: 20px;">
         <SystemTray />
         <NotificationButton />
         <button
