@@ -27,6 +27,7 @@ import {
   setBrightness
 } from "./state"
 import { openNotifPanel } from "./notifications/store"
+import { clipWindowInputToContent } from "./inputRegion"
 
 // ── Auto-Switch Audio (Switch-on-Connect) ───────────────────────────────────
 try {
@@ -1877,6 +1878,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   const MS_IN     = 200
 
   let win: any = null
+  let qsPanelRef: any = null
   let animId: number | null = null
   const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 
@@ -1946,6 +1948,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
         orientation={Gtk.Orientation.VERTICAL}
         spacing={3}
         overflow={Gtk.Overflow.HIDDEN}
+        $={(self: any) => { qsPanelRef = self }}
       >
         {/* Auto-cierre al salir el ratón (mismo patrón que NotificationPanel) */}
         <Gtk.EventControllerMotion onEnter={qsAutoClose.onEnter} onLeave={qsAutoClose.onLeave} />
@@ -1989,6 +1992,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     </window>
 
   win = result
+  clipWindowInputToContent(result, qsPanelRef)
   return result
 }
 
