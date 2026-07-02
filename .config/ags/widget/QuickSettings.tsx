@@ -265,7 +265,6 @@ function QsHeader() {
   const [time, setTime] = createState(getTime())
   const [date, setDate] = createState(getDate())
   const notifs = createBinding(notifd, "notifications")
-  const dnd = createBinding(notifd, "dontDisturb")
 
   GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
     if (quickSettingsVisible.get()) {
@@ -288,13 +287,6 @@ function QsHeader() {
         <label cssClasses={["qs-date"]} label={date} halign={Gtk.Align.START} />
       </box>
       <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END}>
-        <button
-          cssClasses={dnd((d) => d ? ["qs-dnd-btn", "active"] : ["qs-dnd-btn"])}
-          onClicked={() => { notifd.dontDisturb = !notifd.dontDisturb }}
-          tooltipText="No molestar"
-        >
-          <label cssClasses={["qs-dnd-icon"]} label="󰪑" />
-        </button>
         <button
           cssClasses={notifs((n) => n.length > 0 ? ["qs-notif-btn", "has-notifs"] : ["qs-notif-btn"])}
           tooltipText="Notificaciones"
@@ -1917,7 +1909,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     }
   })
 
-  const qsAutoClose = panelAutoClose(closeAllPanels, 300)
+  const qsAutoClose = panelAutoClose(closeAllPanels, 300, quickSettingsVisible)
 
   const result = <window
     name="quick-settings"

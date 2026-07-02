@@ -1,13 +1,11 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
-import { createState } from "ags"
 import { powerMenuVisible, closeAllPanels, panelAutoClose } from "../state"
 
 export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
-    const { TOP, RIGHT } = Astal.WindowAnchor
-    const [hovered, setHovered] = createState<string | null>(null)
-    const autoClose = panelAutoClose(closeAllPanels, 300)
+    const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
+    const autoClose = panelAutoClose(closeAllPanels, 300, powerMenuVisible)
 
     const handleAction = (command: string) => {
         execAsync(command)
@@ -17,22 +15,40 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
 
     const PowerButtonAction = ({ id, icon, label, command }: { id: string, icon: string, label: string, command: string }) => (
         <button
-            cssClasses={hovered((h) => ["power-button", id, h === id ? "highlighted" : ""])}
+            cssClasses={["power-button", id]}
             onClicked={() => handleAction(command)}
             focusable={false}
         >
-            <Gtk.EventControllerMotion
-                onEnter={() => setHovered(id)}
-                onLeave={() => setHovered(null)}
-            />
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={6} halign={Gtk.Align.CENTER} hexpand>
-                <label
-                    cssClasses={["power-icon"]}
-                    label={icon}
+            <box
+                cssClasses={["power-button-content"]}
+                orientation={Gtk.Orientation.VERTICAL}
+                spacing={8}
+                halign={Gtk.Align.CENTER}
+                valign={Gtk.Align.CENTER}
+                hexpand
+                vexpand
+            >
+                <box
+                    cssClasses={["power-icon-frame"]}
                     halign={Gtk.Align.CENTER}
-                    xalign={0.5}
-                    hexpand
-                />
+                    valign={Gtk.Align.CENTER}
+                    widthRequest={56}
+                    heightRequest={56}
+                >
+                    <label
+                        cssClasses={["power-icon"]}
+                        label={icon}
+                        halign={Gtk.Align.CENTER}
+                        valign={Gtk.Align.CENTER}
+                        xalign={0.5}
+                        yalign={0.5}
+                        justify={Gtk.Justification.CENTER}
+                        widthRequest={56}
+                        heightRequest={56}
+                        hexpand
+                        vexpand
+                    />
+                </box>
                 <label
                     cssClasses={["power-label"]}
                     label={label}
@@ -44,22 +60,42 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
         </button>
     )
 
-    powerMenuVisible.subscribe((v) => {
-        if (!v) setHovered(null)
-    })
+    const panel = (
+        <box
+            cssClasses={["power-menu-container"]}
+            orientation={Gtk.Orientation.VERTICAL}
+            halign={Gtk.Align.CENTER}
+            valign={Gtk.Align.CENTER}
+        >
+            <Gtk.EventControllerMotion
+                onEnter={autoClose.onEnter}
+                onLeave={autoClose.onLeave}
+            />
+            <box
+                cssClasses={["power-menu-strip"]}
+                spacing={0}
+                valign={Gtk.Align.CENTER}
+            >
+                <PowerButtonAction id="lock" icon="󰌾" label="Bloquear" command="hyprlock" />
+                <PowerButtonAction id="logout" icon="󰍃" label="Salir" command="hyprctl dispatch exit" />
+                <PowerButtonAction id="suspend" icon="󰏤" label="Suspender" command="systemctl suspend" />
+                <PowerButtonAction id="shutdown" icon="󰐥" label="Apagar" command="systemctl poweroff" />
+                <PowerButtonAction id="hibernate" icon="󰒲" label="Hibernar" command="systemctl hibernate" />
+                <PowerButtonAction id="reboot" icon="󰜉" label="Reiniciar" command="systemctl reboot" />
+            </box>
+        </box>
+    ) as unknown as Gtk.Widget
 
     return (
         <window
             name="power-menu"
             visible={powerMenuVisible}
             gdkmonitor={gdkmonitor}
-            layer={Astal.Layer.TOP}
-            exclusivity={Astal.Exclusivity.NORMAL}
+            layer={Astal.Layer.OVERLAY}
+            anchor={TOP | BOTTOM | LEFT | RIGHT}
+            exclusivity={Astal.Exclusivity.IGNORE}
             keymode={Astal.Keymode.ON_DEMAND}
-            anchor={TOP | RIGHT}
             application={app}
-            marginTop={48}
-            marginRight={8}
             cssClasses={["power-window"]}
         >
             <Gtk.EventControllerKey
@@ -68,28 +104,21 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
                     return false
                 }}
             />
-            <box
-                cssClasses={["power-menu-container"]}
-                orientation={Gtk.Orientation.VERTICAL}
-            >
-                <Gtk.EventControllerMotion
-                    onEnter={autoClose.onEnter}
-                    onLeave={autoClose.onLeave}
+            <box cssClasses={["power-menu-overlay"]} hexpand vexpand>
+                <Gtk.GestureClick
+                    onPressed={(self: Gtk.GestureClick, _n: number, x: number, y: number) => {
+                        const backdrop = self.get_widget() as Gtk.Widget
+                        const hit = backdrop.pick(x, y, 0)
+                        let w: Gtk.Widget | null = hit
+                        while (w && w !== backdrop) {
+                            if (w === panel) return
+                            w = w.get_parent()
+                        }
+                        closeAllPanels()
+                    }}
                 />
-                <box
-                    cssClasses={["power-menu-strip"]}
-                    spacing={0}
-                    valign={Gtk.Align.CENTER}
-                >
-                    <PowerButtonAction id="lock" icon="󰌾" label="Lock" command="hyprlock" />
-                    <PowerButtonAction id="logout" icon="󰍃" label="Logout" command="hyprctl dispatch exit" />
-                    <PowerButtonAction id="suspend" icon="󰏤" label="Suspend" command="systemctl suspend" />
-                    <PowerButtonAction id="shutdown" icon="󰐥" label="Shutdown" command="systemctl poweroff" />
-                    <PowerButtonAction id="hibernate" icon="󰒲" label="Hibernate" command="systemctl hibernate" />
-                    <PowerButtonAction id="reboot" icon="󰜉" label="Reboot" command="systemctl reboot" />
-                </box>
+                {panel as unknown as any}
             </box>
         </window>
     )
 }
-

@@ -1,5 +1,5 @@
 import app from "ags/gtk4/app"
-import style from "./style.scss"
+import style from "./out.css"
 import Bar from "./widget/Bar"
 import PowerOptions from "./widget/bar/PowerOptions"
 import MicOSD from "./widget/MicOSD"

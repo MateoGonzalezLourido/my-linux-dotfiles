@@ -46,6 +46,15 @@ export function showPixelMicOSD() {
 // Cada panel tiene su propio estado. anyPanelVisible se deriva de ellos.
 export const [powerMenuVisible, setPowerMenuVisible] = createState(false)
 export const [quickSettingsVisible, setQuickSettingsVisible] = createState(false)
+
+// Ventana de ajustes general (abierta desde el engranaje de QuickSettings). Es un
+// overlay a pantalla completa e independiente del ciclo de vida de los paneles del
+// bar, igual que la ventana de ajustes de notificaciones.
+export const [settingsPanelVisible, setSettingsPanelVisible] = createState(false)
+export function openSettingsPanel() {
+  closeAllPanels()
+  setSettingsPanelVisible(true)
+}
 export const [qsView, setQsView] = createState<"main" | "wifi" | "bluetooth" | "display" | "audio" | "mic">("main")
 export const [infoSsid, setInfoSsid] = createState<string | null>(null)
 
@@ -92,15 +101,36 @@ export const anyPanelVisible = {
 // salir el puntero del panel se espera graceMs y se cierra; al volver a entrar
 // se cancela. Centraliza el patrón que ya usaban PowerOptions y NotificationPanel
 // para que todos los paneles del bar se comporten igual.
-export function panelAutoClose(close: () => void, graceMs = 300) {
+//
+// `visible` (opcional): el estado de visibilidad del panel. Con él se activan dos
+// protecciones contra el auto-cierre espurio al abrir un panel desde OTRO panel
+// (p.ej. el botón de notificaciones de QuickSettings, que cierra QS y abre el panel
+// de notificaciones dejando un hueco entre el botón y el panel nuevo):
+//   1. El ratón DEBE haber entrado en el panel al menos una vez antes de que un
+//      "leave" pueda armar el cierre. Así, abrir un panel y no llegar a pasar el
+//      ratón por encima nunca lo cierra solo.
+//   2. Un "leave" disparado mientras el panel ya no es visible (unmap) se ignora,
+//      evitando que un panel que se está cerrando arme un closeAllPanels tardío
+//      que arrastre al panel recién abierto.
+type BoolAccessor = { get: () => boolean; subscribe: (cb: (v: boolean) => void) => unknown }
+export function panelAutoClose(close: () => void, graceMs = 300, visible?: BoolAccessor) {
   let timer: number | null = null
+  let hasEntered = false
   const cancel = () => {
     if (timer !== null) { GLib.source_remove(timer); timer = null }
   }
+  // Cada vez que el panel se abre, exige un nuevo "enter" real antes de auto-cerrar.
+  if (visible) {
+    visible.subscribe(() => {
+      if (visible.get()) { hasEntered = false; cancel() }
+    })
+  }
   return {
-    onEnter: cancel,
+    onEnter: () => { hasEntered = true; cancel() },
     onLeave: () => {
       cancel()
+      if (visible && !hasEntered) return           // aún no se ha pasado el ratón por encima
+      if (visible && !visible.get()) return         // el panel ya se está cerrando
       timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, graceMs, () => {
         close()
         timer = null

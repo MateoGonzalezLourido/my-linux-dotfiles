@@ -447,7 +447,7 @@ popover.cpuram-popover {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.6px;
-  color: rgba(226, 226, 226, 0.4);
+  color: rgba(226, 226, 226, 0.56);
   margin-bottom: 6px;
 }
 
@@ -753,92 +753,104 @@ popover.menu {
 }
 
 // ── Power Menu (Design as per reference image) ───────────────────────────────
+.power-window {
+  background: transparent;
+}
+
 .power-menu-overlay {
   background-color: rgba(20, 20, 20, 0.3);
   backdrop-filter: blur(14px);
 }
 
 .power-menu-strip {
-  background-color: rgb(30, 30, 46);
-  border-radius: 20px;
-  padding: 10px 5px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  min-height: 80px;
+  background: rgb(30, 30, 46);
+  border-radius: 16px;
+  padding: 0;
+  border: none;
+  min-height: 148px;
+  box-shadow: none;
 }
 
 .power-button {
   all: unset;
-  padding: 12px 20px;
-  transition: all 80ms ease-in-out;
+  padding: 34px 30px;
+  transition:
+    box-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
   color: rgba(226, 226, 226, 0.4);
-  min-width: 90px;
+  min-width: 128px;
+  min-height: 148px;
+  border-radius: 10px;
+  border: none;
+  background: rgb(30, 30, 46);
+  box-shadow: none;
+  margin: 0 2px;
+
+  .power-button-content {
+    min-height: 148px;
+  }
+
+  .power-icon-frame {
+    margin: 0;
+  }
 
   .power-icon {
-    font-size: 24px;
+    font-family: "MesloLGS Nerd Font", monospace;
+    font-size: 44px;
+    min-width: 56px;
+    min-height: 56px;
     color: #ffffff;
-    transition: all 80ms ease-in-out;
-    opacity: 0.5;
+    transition:
+      transform 120ms cubic-bezier(0.16, 1, 0.3, 1),
+      text-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity: 0.62;
     margin: 0;
   }
 
   .power-label {
-    font-size: 10px;
-    font-weight: 500;
-    margin: 5px 0 0 0;
-    opacity: 0.5; // Visible by default
-    transition: all 80ms ease-in-out;
+    font-size: 15px;
+    font-weight: 700;
+    margin: 12px 0 0 0;
+    opacity: 0.62; // Visible by default
+    transition: none;
   }
 
   &:hover {
-
-    .power-icon,
-    .power-label {
-      opacity: 0.8;
-    }
-
-    .power-icon {
-      transform: scale(1.1);
-    }
-  }
-
-  &.highlighted {
     background: linear-gradient(135deg, rgb(137, 180, 250), #cba6f7);
-    backdrop-filter: blur(30px);
-    border-radius: 16px;
-    padding: 20px 22px;
-    margin: -10px 4px;
     color: #ffffff;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px) scaleY(1.045);
+    box-shadow: none;
 
     .power-icon {
-      font-size: 36px;
       opacity: 1;
-      text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+      transform: translateY(-1px) scale(1.16);
+      text-shadow:
+        0 0 14px rgba(255, 255, 255, 0.42),
+        0 0 26px rgba(203, 166, 247, 0.32);
       margin: 0;
     }
 
     .power-label {
-      font-weight: 800;
-      font-size: 14px;
       opacity: 1;
-      margin: 10px 0 0 0;
     }
+  }
 
-    &:hover {
-      transform: scale(1.02);
-    }
+  &:active {
+    transform: translateY(1px) scale(1.025);
+    box-shadow: none;
   }
 }
 
-.power-button:first-child {
-  border-top-left-radius: 40px;
-  border-bottom-left-radius: 40px;
+.power-button:first-child,
+.power-button.lock {
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
 }
 
-.power-button:last-child {
-  border-top-right-radius: 40px;
-  border-bottom-right-radius: 40px;
+.power-button:last-child,
+.power-button.reboot {
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 // ── OSD (On Screen Display) ──────────────────────────────────────────────────
@@ -3453,4 +3465,3 @@ window.cal-panel > box {
   border-radius: 6px;
   padding: 6px 8px;
 }
-
