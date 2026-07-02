@@ -87,12 +87,17 @@ export default function Clock() {
   return (
     <button
       valign={Gtk.Align.CENTER}
-      cssClasses={running((r) => r ? ["clock", "stopwatch"] : ["clock"])}
+      cssClasses={["bar-pill-btn"]}
     >
-      <label label={running((r) => r
-        ? (barVisible() ? formatSW(stopwatch()) : cacheLastTimeRendered)
-        : (barVisible() ? time() : cacheLastTimeRendered)
-      )} />
+      <box
+        cssClasses={running((r) => r ? ["bar-pill", "clock", "clock-pill", "stopwatch"] : ["bar-pill", "clock", "clock-pill"])}
+        valign={Gtk.Align.CENTER}
+      >
+        <label halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} hexpand label={running((r) => r
+          ? (barVisible() ? formatSW(stopwatch()) : cacheLastTimeRendered)
+          : (barVisible() ? time() : cacheLastTimeRendered)
+        )} />
+      </box>
       <Gtk.GestureClick
         button={1}
         onPressed={() => toggleCalendar()}
