@@ -558,6 +558,22 @@ popover.menu {
   }
 }
 
+.bar-status-pair {
+  .bar-pill.nb-pill,
+  .bar-pill.qs-system-pill {
+    border: none;
+    box-shadow: none;
+  }
+
+  .bar-pill.nb-pill {
+    margin-right: 0;
+  }
+
+  .bar-pill.qs-system-pill {
+    margin-left: 0;
+  }
+}
+
 @keyframes pulse {
 
   0%,
@@ -1910,59 +1926,26 @@ tooltip {
 }
 
 // ── Notification Button ───────────────────────────────────────────────────────
-.nb-btn {
-  background: rgba(255, 255, 255, 0.024);
-  border: 1px solid rgba(255, 255, 255, 0.018);
-  padding: 0 5px;
-  margin: 4px 2px;
-  min-height: 30px;
-  border-radius: 7px;
-  transition: background-color 140ms ease, border-color 140ms ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.07);
-    border-color: rgba(255, 255, 255, 0.075);
-  }
-
-  &.panel-open {
-    background: rgba(255, 255, 255, 0.07);
-    border-color: rgba(255, 255, 255, 0.075);
-  }
-
-  &:active {
-    background: rgba(255, 255, 255, 0.055);
-    border-color: rgba(255, 255, 255, 0.05);
-  }
-
-  .nb-content {
-    margin: 0;
-    padding: 0;
-  }
+.bar-pill.nb-pill {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0;
+  min-width: 28px;
 
   .nb-icon {
     font-family: "MesloLGS Nerd Font";
     font-size: 16px;
     color: rgba(226, 226, 226, 0.48);
-    margin: 0;
+    margin-left: -2px;
 
     &.has-notifs { color: #cba6f7; }
     &.dnd        { color: rgb(245, 50, 105); }
   }
 
-  .nb-badge-pill {
-    min-width: 0;
-    min-height: 0;
-    padding: 0;
-    background: transparent;
-    border: none;
-  }
-
-  .nb-badge {
-    font-family: "MesloLGS Nerd Font";
-    font-size: 10px;
-    font-weight: 800;
-    color: #cba6f7;
-    margin: 0;
+  &.panel-open {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.075);
   }
 }
 

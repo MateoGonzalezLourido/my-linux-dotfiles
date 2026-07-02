@@ -167,19 +167,21 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
 
       <box $type="end" halign={Gtk.Align.END} spacing={2} css="margin-left: 20px;">
         <SystemTray />
-        <NotificationButton />
-        <button
-          cssClasses={["bar-pill-btn"]}
-          onClicked={() => quickSettingsVisible.get() ? closeAllPanels() : openQuickSettings()}
-        >
-          <box cssClasses={["bar-pill"]}>
-            <Bluetooth />
-            <MicIndicator />
-            <Network />
-            <Volume />
-            <Battery />
-          </box>
-        </button>
+        <box cssClasses={["bar-status-pair"]} spacing={0}>
+          <NotificationButton />
+          <button
+            cssClasses={["bar-pill-btn"]}
+            onClicked={() => quickSettingsVisible.get() ? closeAllPanels() : openQuickSettings()}
+          >
+            <box cssClasses={["bar-pill", "qs-system-pill"]}>
+              <Bluetooth />
+              <MicIndicator />
+              <Network />
+              <Volume />
+              <Battery />
+            </box>
+          </button>
+        </box>
         <box spacing={3}>
           <CpuRam />
           <Recording />
