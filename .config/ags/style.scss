@@ -108,6 +108,7 @@ $orange: #fab387;
     padding: 4px 7px;
     border-radius: 8px;
     margin: 4px 2px;
+    min-height: 22px;
     background-color: rgba(255, 255, 255, 0.03);
     transition: background 300ms cubic-bezier(0.4, 0, 0.2, 1),
                 box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -146,22 +147,50 @@ $orange: #fab387;
     button {
       all: unset;
       padding: 0 5px;
+      min-height: 18px;
       font-family: 'MesloLGS Nerd Font';
+    }
+
+    .ws-num-btn,
+    .ws-icon-btn,
+    .ws-icon-wrap {
+      min-height: 18px;
+    }
+
+    .ws-image-btn {
+      min-width: 19px;
+      padding: 0;
+    }
+
+    .ws-image-wrap {
+      min-width: 14px;
+    }
+
+    .ws-apps {
+      margin-left: -3px;
     }
 
     .ws-id {
       font-size: 12px;
       font-weight: 700;
-      margin-top: 1px;
+      margin: 1px 0 0 -3px;
+      min-height: 16px;
     }
 
     .ws-icons {
       font-size: 13px;
       margin-top: 1px;
+      min-height: 16px;
+    }
+
+    .ws-glyph-icon {
+      font-size: 17px;
+      margin-left: -2px;
     }
 
     .ws-app-icon {
       margin: 0;
+      min-height: 16px;
     }
 
     .ws-icon-wrap.active-client {

@@ -220,7 +220,11 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
 
   const iconBtn = (i: number) => (
     <button
-      cssClasses={["ws-icon-btn"]}
+      cssClasses={clientsB((c: ClientIcon[]) => [
+        "ws-icon-btn",
+        c[i]?.isGlyph ? "ws-glyph-btn" : "ws-image-btn",
+      ])}
+      widthRequest={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? -1 : 19)}
       onClicked={() => ws.focus()}
       visible={clientsB((c: ClientIcon[]) => i < c.length)}
       tooltipText={clientsB((c: ClientIcon[]) => c[i]?.tooltip ?? "")}
@@ -236,23 +240,28 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         }}
       />
       <box
-        cssClasses={activeIdxB((activeIdx: number) =>
-          activeIdx === i ? ["ws-icon-wrap", "active-client"] : ["ws-icon-wrap"]
-        )}
+        cssClasses={activeIdxB((activeIdx: number) => {
+          const client = clientsB.get()[i]
+          return [
+            "ws-icon-wrap",
+            client?.isGlyph ? "ws-glyph-wrap" : "ws-image-wrap",
+            activeIdx === i ? "active-client" : "",
+          ].filter(Boolean)
+        })}
         halign={Gtk.Align.CENTER}
         valign={Gtk.Align.CENTER}
         hexpand={false}
         vexpand={false}
       >
         <label
-          cssClasses={["ws-icons"]}
+          cssClasses={["ws-icons", "ws-glyph-icon"]}
           label={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? c[i].icon : "")}
           visible={clientsB((c: ClientIcon[]) => !!(c[i]?.isGlyph))}
           halign={Gtk.Align.CENTER}
           valign={Gtk.Align.CENTER}
         />
         <Gtk.Image
-          cssClasses={["ws-app-icon"]}
+          cssClasses={["ws-app-icon", "ws-image-icon"]}
           iconName={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? "" : (c[i]?.icon ?? ""))}
           pixelSize={16}
           visible={clientsB((c: ClientIcon[]) => !!(c[i] && !c[i].isGlyph))}
@@ -449,7 +458,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
         transitionDuration={250}
       >
-        <box spacing={0}>
+        <box cssClasses={["ws-apps"]} spacing={0}>
           {iconBtn(0)}
           {iconBtn(1)}
           {iconBtn(2)}
