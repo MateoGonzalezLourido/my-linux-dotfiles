@@ -369,19 +369,19 @@ quickSettingsVisible.subscribe(() => {
   }
 })
 
-function QsTile({ icon, label, subtitle, active, onToggle, onSecondaryClick, onRightClick }: {
-  icon: any, label: any, subtitle: any, active: any, onToggle: () => void, onSecondaryClick?: () => void, onRightClick?: () => void
+function QsTile({ icon, label, subtitle, active, onToggle, onSecondaryClick, onRightClick, subtitleWidthRequest }: {
+  icon: any, label: any, subtitle: any, active: any, onToggle: () => void, onSecondaryClick?: () => void, onRightClick?: () => void, subtitleWidthRequest?: number
 }) {
   const classes = typeof active === "function"
     ? active((a: boolean) => a ? ["qs-tile", "active"] : ["qs-tile"])
     : (active ? ["qs-tile", "active"] : ["qs-tile"])
   return (
-    <button cssClasses={classes} onClicked={onToggle}>
+    <button cssClasses={classes} onClicked={onToggle} hexpand>
       <Gtk.GestureClick
         button={Gdk.BUTTON_SECONDARY}
         onPressed={onRightClick}
       />
-      <box spacing={6} valign={Gtk.Align.CENTER}>
+      <box spacing={6} valign={Gtk.Align.CENTER} hexpand>
         <label cssClasses={["qs-tile-icon"]} label={icon} />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0} hexpand>
           <label cssClasses={["qs-tile-label"]} label={label} halign={Gtk.Align.START} />
@@ -389,6 +389,8 @@ function QsTile({ icon, label, subtitle, active, onToggle, onSecondaryClick, onR
             cssClasses={["qs-tile-sub"]}
             label={subtitle}
             halign={Gtk.Align.START}
+            xalign={0}
+            widthRequest={subtitleWidthRequest}
             ellipsize={3}
           />
         </box>
@@ -475,6 +477,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           icon="󰤨"
           label={wifi ? createBinding(wifi, "ssid")((s) => s || "Wi-Fi") : "Wi-Fi"}
           subtitle={netSpeed((s) => `󰇚${s.down} 󰕒${s.up}`)}
+          subtitleWidthRequest={96}
           active={wifiEnabled ? wifiEnabled : false}
           onToggle={onWifiClick}
           onSecondaryClick={onWifiClick}
@@ -1963,6 +1966,8 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
 
 export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   const { TOP, RIGHT } = Astal.WindowAnchor
+  const PANEL_TOTAL_WIDTH = 350
+  const PANEL_PANEL_WIDTH = 330
   const PANEL_TOP = 37
   const SLIDE_PX  = 20
   const MS_IN     = 200
@@ -2015,6 +2020,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     keymode={Astal.Keymode.ON_DEMAND}
     anchor={TOP | RIGHT}
     application={app}
+    widthRequest={PANEL_TOTAL_WIDTH}
     marginTop={PANEL_TOP}
     marginRight={0}
     decorated={false}
@@ -2040,6 +2046,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
         orientation={Gtk.Orientation.VERTICAL}
         spacing={3}
         overflow={Gtk.Overflow.HIDDEN}
+        widthRequest={PANEL_PANEL_WIDTH}
         $={(self: any) => { qsPanelRef = self }}
       >
         {/* Auto-cierre al salir el ratón (mismo patrón que NotificationPanel) */}

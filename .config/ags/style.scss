@@ -1104,11 +1104,12 @@ window.qs-window > box,
   border-right: none;
   border-top-right-radius: 0;
   border-top-left-radius: 0;
-  border-bottom-left-radius: 24px;
-  border-bottom-right-radius: 24px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   padding: 10px;
   box-shadow: none;
-  min-width: 240px;
+  min-width: 330px;
+  max-width: 330px;
   color: $qs-text;
   font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", sans-serif;
 }
@@ -2121,12 +2122,14 @@ window.np-window.csd decoration {
 
 .np-panel {
   background: $bg-bar;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-left: none;
+  border: none;
   border-radius: 14px;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  min-width: 360px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  min-width: 349px;
+  max-width: 349px;
   box-shadow: none;
   font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
   color: #e2e2e2;
