@@ -18,11 +18,13 @@ export default function Volume() {
 
   const [icon, setIcon]   = createState(volIcon(speaker.volume, speaker.mute))
   const [muted, setMuted] = createState(speaker.mute)
+  const [tooltip, setTooltip] = createState(`${Math.round(speaker.volume * 100)}`)
 
   const update = () => {
     if (!barVisible.get()) return
     setIcon(volIcon(speaker.volume, speaker.mute))
     setMuted(speaker.mute)
+    setTooltip(`${Math.round(speaker.volume * 100)}`)
   }
 
   speaker.connect("notify::volume", update)
@@ -33,12 +35,14 @@ export default function Volume() {
     if (v) {
       setIcon(volIcon(speaker.volume, speaker.mute))
       setMuted(speaker.mute)
+      setTooltip(`${Math.round(speaker.volume * 100)}`)
     }
   })
 
   return (
     <button
       cssClasses={muted((m) => m ? ["volume", "bt-muted"] : ["volume"])}
+      tooltipText={tooltip}
       onClicked={() => { speaker.mute = !speaker.mute; showPixelVolOSD() }}
     >
       <Gtk.GestureClick
