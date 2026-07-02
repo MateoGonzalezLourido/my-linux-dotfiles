@@ -3296,3 +3296,111 @@ window.cal-panel > box {
   min-width: 380px;
 }
 
+/* ── Notification settings tabs (Phase 3) ───────────────────────────── */
+.st-tabbar { padding: 2px; }
+.st-tab {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: rgba(226, 226, 226, 0.5);
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  transition: all 120ms ease;
+  &:hover { background: rgba(255, 255, 255, 0.05); color: #e2e2e2; }
+  &.active { background: rgba(203, 166, 247, 0.15); color: #cba6f7; }
+}
+.st-tab-hint { font-size: 10px; color: rgba(226, 226, 226, 0.4); font-family: "MesloLGS Nerd Font"; }
+.st-add-btn {
+  background: rgba(166, 227, 161, 0.12);
+  border: 1px solid rgba(166, 227, 161, 0.3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: #a6e3a1;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 11px;
+  &:hover { background: rgba(166, 227, 161, 0.2); }
+}
+
+/* ── Rule rows + editor (Phase 3) ───────────────────────────────────── */
+.re-row {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.re-row-name { font-size: 12px; color: #e2e2e2; font-family: "MesloLGS Nerd Font"; font-weight: 500; }
+.re-row-summary { font-size: 10px; color: rgba(226, 226, 226, 0.45); font-family: "MesloLGS Nerd Font"; }
+.re-row-body { font-size: 9px; color: rgba(226, 226, 226, 0.3); font-family: "MesloLGS Nerd Font"; }
+.re-badge {
+  font-size: 9px; color: rgba(226, 226, 226, 0.5);
+  background: rgba(255, 255, 255, 0.06); border-radius: 4px; padding: 1px 5px;
+  font-family: "MesloLGS Nerd Font";
+}
+.re-edit-btn, .re-delete, .re-save, .re-advanced-toggle, .re-seg, .re-toggle {
+  font-family: "MesloLGS Nerd Font"; transition: all 100ms ease; border-radius: 6px;
+}
+.re-edit-btn {
+  background: transparent; border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 30px; min-height: 30px; color: rgba(226, 226, 226, 0.6);
+  &:hover { background: rgba(255, 255, 255, 0.08); color: #e2e2e2; }
+}
+.re-panel { padding: 4px 2px; }
+.re-section { font-size: 11px; color: #cba6f7; font-family: "MesloLGS Nerd Font"; font-weight: 600; margin-top: 4px; }
+.re-field { }
+.re-field-label { font-size: 10px; color: rgba(226, 226, 226, 0.5); font-family: "MesloLGS Nerd Font"; }
+.re-entry {
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px; padding: 4px 8px; font-size: 11px; color: #e2e2e2; font-family: "MesloLGS Nerd Font";
+}
+.re-seg, .re-toggle {
+  background: transparent; border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 3px 8px; font-size: 10px; color: rgba(226, 226, 226, 0.55);
+  &:hover { background: rgba(255, 255, 255, 0.06); color: #e2e2e2; }
+  &.active { background: rgba(137, 180, 250, 0.18); border-color: rgba(137, 180, 250, 0.4); color: #89b4fa; }
+}
+.re-toggle {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+.re-advanced-toggle { background: transparent; border: none; color: rgba(226, 226, 226, 0.5); font-size: 11px; padding: 2px 0; }
+.re-save {
+  background: rgba(137, 180, 250, 0.15); border: 1px solid rgba(137, 180, 250, 0.3);
+  padding: 6px; color: #89b4fa; font-size: 12px;
+  &:hover { background: rgba(137, 180, 250, 0.25); }
+}
+.re-delete {
+  background: rgba(243, 139, 168, 0.12); border: 1px solid rgba(243, 139, 168, 0.3);
+  padding: 6px 12px; color: #f38ba8; font-size: 12px;
+  &:hover { background: rgba(243, 139, 168, 0.22); }
+}
+.re-hint { font-size: 9px; color: rgba(226, 226, 226, 0.4); font-family: "MesloLGS Nerd Font"; }
+
+/* ── Centered notification-settings window (Phase 5) ────────────────── */
+.nsw-window {
+  background: transparent;
+}
+.nsw-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+.nsw-panel {
+  min-width: 760px;
+  min-height: 620px;
+  background: #08080c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+.re-error {
+  font-size: 10px;
+  color: #f38ba8;
+  font-family: "MesloLGS Nerd Font";
+  background: rgba(243, 139, 168, 0.1);
+  border: 1px solid rgba(243, 139, 168, 0.3);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+

@@ -8,9 +8,12 @@ import PixelMicOSD from "./widget/PixelMicOSD"
 import QuickSettings from "./widget/QuickSettings"
 import NotificationPopup from "./widget/notifications/NotificationPopup"
 import NotificationPanel from "./widget/notifications/NotificationPanel"
+import SettingsWindow from "./widget/notifications/settings/SettingsWindow"
 import CalendarPanel from "./widget/CalendarPanel"
 import Orion from "./widget/orion/Orion"
 import WorkspaceOverview from "./widget/WorkspaceOverview/index"
+import { startCleanupEngine } from "./widget/notifications/cleanup/cleanupEngine"
+import { runAppSettingsMigration } from "./widget/notifications/settings/runMigration"
 
 app.start({
   css: style,
@@ -23,8 +26,11 @@ app.start({
     app.get_monitors().map(QuickSettings)
     app.get_monitors().map(NotificationPopup)
     app.get_monitors().map(NotificationPanel)
+    app.get_monitors().map(SettingsWindow)
     app.get_monitors().map(Orion)
     app.get_monitors().map(WorkspaceOverview)
     try { app.get_monitors().map(CalendarPanel) } catch(e) { console.error("[app] CalendarPanel failed:", e) }
+    startCleanupEngine()
+    runAppSettingsMigration()
   },
 })
