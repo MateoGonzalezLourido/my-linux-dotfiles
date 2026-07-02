@@ -30,9 +30,10 @@ export default function Volume() {
   speaker.connect("notify::volume", update)
   speaker.connect("notify::mute",   update)
 
-  // Al volver visible, sincronizar con el estado real del hardware
-  widgetsRefresh.subscribe((v) => {
-    if (v) {
+  // Al volver visible, sincronizar con el estado real del hardware.
+  // gnim invoca el callback sin argumentos → hay que leer .get().
+  widgetsRefresh.subscribe(() => {
+    if (widgetsRefresh.get()) {
       setIcon(volIcon(speaker.volume, speaker.mute))
       setMuted(speaker.mute)
       setTooltip(`${Math.round(speaker.volume * 100)}`)

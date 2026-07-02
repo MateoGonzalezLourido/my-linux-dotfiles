@@ -275,8 +275,8 @@ function QsHeader() {
     }
     return GLib.SOURCE_CONTINUE
   })
-  quickSettingsVisible.subscribe((v) => {
-    if (v) {
+  quickSettingsVisible.subscribe(() => {
+    if (quickSettingsVisible.get()) {
       setTime(getTime())
       setDate(getDate())
     }
@@ -351,8 +351,10 @@ const sampleNetSpeed = () => {
 // despertaba la CPU 1×/s siempre. Al abrir se resiembra lastBytes para que el
 // primer tick no calcule un pico sobre todo el tiempo que estuvo cerrado.
 let netSpeedTimer: number | null = null
-quickSettingsVisible.subscribe((v) => {
-  if (v) {
+// OJO: el callback de subscribe en gnim se invoca SIN argumentos, hay que leer
+// .get() dentro (no `subscribe((v) => …)`, que daría v === undefined siempre).
+quickSettingsVisible.subscribe(() => {
+  if (quickSettingsVisible.get()) {
     if (netSpeedTimer !== null) return
     lastBytes = { up: 0, down: 0, time: 0 }
     sampleNetSpeed()
@@ -448,7 +450,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
     if (quickSettingsVisible.get()) updateMonitor()
     return GLib.SOURCE_CONTINUE
   })
-  quickSettingsVisible.subscribe((v) => { if (v) updateMonitor() })
+  quickSettingsVisible.subscribe(() => { if (quickSettingsVisible.get()) updateMonitor() })
 
   const wp = AstalWp.get_default()
   const speaker = wp?.audio?.defaultSpeaker
@@ -619,7 +621,7 @@ function QsMedia() {
     if (quickSettingsVisible.get()) update()
     return GLib.SOURCE_CONTINUE
   })
-  quickSettingsVisible.subscribe((v) => { if (v) update() })
+  quickSettingsVisible.subscribe(() => { if (quickSettingsVisible.get()) update() })
 
   const curTheme = themeIdx((i) => MEDIA_THEMES[i])
 
@@ -803,9 +805,9 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
     loadStreams()
     appsRefreshId = setInterval(loadStreams, 2000)
   }
-  audioMode.subscribe((v) => { if (v !== "apps") stopAppsRefresh() })
-  quickSettingsVisible.subscribe((v) => {
-    if (!v) stopAppsRefresh()
+  audioMode.subscribe(() => { if (audioMode.get() !== "apps") stopAppsRefresh() })
+  quickSettingsVisible.subscribe(() => {
+    if (!quickSettingsVisible.get()) stopAppsRefresh()
     else if (audioMode.get() === "apps") startAppsRefresh()
   })
 
@@ -1067,9 +1069,9 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
     loadMicStreams()
     appsRefreshId = setInterval(loadMicStreams, 2000)
   }
-  audioMode.subscribe((v) => { if (v !== "apps") stopAppsRefresh() })
-  quickSettingsVisible.subscribe((v) => {
-    if (!v) stopAppsRefresh()
+  audioMode.subscribe(() => { if (audioMode.get() !== "apps") stopAppsRefresh() })
+  quickSettingsVisible.subscribe(() => {
+    if (!quickSettingsVisible.get()) stopAppsRefresh()
     else if (audioMode.get() === "apps") startAppsRefresh()
   })
 
@@ -1465,7 +1467,7 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
 
   // Al cerrar el panel: cortar el discovery y todos sus timers (antes la radio
   // seguía escaneando en background hasta agotar el `duration`).
-  quickSettingsVisible.subscribe((v) => { if (!v) stopScan() })
+  quickSettingsVisible.subscribe(() => { if (!quickSettingsVisible.get()) stopScan() })
 
   // Update once on mount and when powered/devices change
   bt.connect("notify::is-powered", update)
@@ -1569,8 +1571,8 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   }
 
   if (!(globalThis as any)._btAutoScanSub) {
-    (globalThis as any)._btAutoScanSub = qsView.subscribe((view) => {
-      if (view === "bluetooth" && bt.isPowered && !scanning.get()) {
+    (globalThis as any)._btAutoScanSub = qsView.subscribe(() => {
+      if (qsView.get() === "bluetooth" && bt.isPowered && !scanning.get()) {
         scan(5000)
       }
     })
@@ -1735,8 +1737,8 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   // Al entrar en la vista WiFi: refresco inmediato desde la caché de NM + lista de
   // guardadas + escaneo activo (throttled). Reemplaza el rescan que hacía onWifiClick
   // y el `nmcli device wifi list` de arranque por monitor; ahora todo es perezoso.
-  qsView.subscribe((v) => {
-    if (v !== "wifi") return
+  qsView.subscribe(() => {
+    if (qsView.get() !== "wifi") return
     setApsVar(wifi.get_access_points())
     setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
     updateSaved()
@@ -1983,11 +1985,13 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     step()
   }
 
-  // Subscribe fires BEFORE the visible binding, so margin is set before window maps
-  quickSettingsVisible.subscribe((v: boolean) => {
+  // Subscribe fires BEFORE the visible binding, so margin is set before window maps.
+  // El callback de gnim no recibe el valor: hay que leer .get() (con `(v)` el slide
+  // de apertura no ocurría porque v era undefined y siempre caía en el else).
+  quickSettingsVisible.subscribe(() => {
     if (!win) return
     if (animId !== null) { GLib.source_remove(animId); animId = null }
-    if (v) {
+    if (quickSettingsVisible.get()) {
       win.marginTop = PANEL_TOP - SLIDE_PX
       animateTo(PANEL_TOP, MS_IN)
     } else {

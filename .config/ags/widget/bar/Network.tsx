@@ -88,7 +88,8 @@ export default function Network() {
   wifi.connect("notify::internet", update)
   network.connect("notify::connectivity", update)
 
-  widgetsRefresh.subscribe((v) => { if (v) sync() })
+  // gnim invoca el callback sin argumentos → leer .get() (con `(v)` no sincronizaba).
+  widgetsRefresh.subscribe(() => { if (widgetsRefresh.get()) sync() })
 
   return (
     <box

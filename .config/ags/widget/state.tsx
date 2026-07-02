@@ -58,8 +58,8 @@ export function openSettingsPanel() {
 export const [qsView, setQsView] = createState<"main" | "wifi" | "bluetooth" | "display" | "audio" | "mic">("main")
 export const [infoSsid, setInfoSsid] = createState<string | null>(null)
 
-quickSettingsVisible.subscribe((v) => {
-  if (!v) {
+quickSettingsVisible.subscribe(() => {
+  if (!quickSettingsVisible.get()) {
     setQsView("main")
     setInfoSsid(null)
   }

@@ -86,9 +86,10 @@ export default function Battery() {
   bat.connect("notify::time-to-full",  updateVars)
   bat.connect("notify::energy-rate",   updateVars)
 
-  // Al volver visible, sincronizar con el estado real del hardware
-  widgetsRefresh.subscribe((v) => {
-    if (v) sync()
+  // Al volver visible, sincronizar con el estado real del hardware.
+  // gnim invoca el callback sin argumentos → hay que leer .get().
+  widgetsRefresh.subscribe(() => {
+    if (widgetsRefresh.get()) sync()
   })
 
   return (
