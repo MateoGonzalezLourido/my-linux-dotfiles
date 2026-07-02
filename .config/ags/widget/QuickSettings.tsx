@@ -631,7 +631,6 @@ function QsMedia() {
       visible={hasPlayer}
       orientation={Gtk.Orientation.VERTICAL}
       spacing={4}
-      css={curTheme((t) => `background-color: ${t.bg}; border-color: ${t.border};`)}
     >
       <box spacing={4} visible={numPlayers((n) => n > 1)} css="margin-bottom: 2px;">
         <label 
@@ -2085,4 +2084,3 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   clipWindowInputToContent(result, qsPanelRef)
   return result
 }
-
