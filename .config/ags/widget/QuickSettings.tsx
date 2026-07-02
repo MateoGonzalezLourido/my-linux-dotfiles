@@ -1963,7 +1963,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
 
 export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   const { TOP, RIGHT } = Astal.WindowAnchor
-  const PANEL_TOP = 38
+  const PANEL_TOP = 37
   const SLIDE_PX  = 20
   const MS_IN     = 200
 
