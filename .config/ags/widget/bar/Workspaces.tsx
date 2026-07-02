@@ -91,9 +91,13 @@ const swapWorkspaces = async (idA: number, idB: number, afterSwap?: () => void) 
 interface ClientIcon {
   icon: string
   address: string
+  appClass: string
   isGlyph: boolean
   tooltip: string
 }
+
+const cssSafeAppClass = (cls: string): string =>
+  cls.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "app"
 
 const formatAppName = (cls: string): string =>
   cls.split(/[-_\s]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
@@ -111,8 +115,8 @@ const getClientIcons = (clients: any[]): ClientIcon[] => {
     .map(c => {
       const glyph = getIcon(c.class)
       const tooltip = buildTooltip(c.class, c.title)
-      if (glyph) return { icon: glyph, address: c.address, isGlyph: true, tooltip }
-      return { icon: c.class, address: c.address, isGlyph: false, tooltip }
+      if (glyph) return { icon: glyph, address: c.address, appClass: c.class, isGlyph: true, tooltip }
+      return { icon: c.class, address: c.address, appClass: c.class, isGlyph: false, tooltip }
     })
 }
 
@@ -224,7 +228,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         "ws-icon-btn",
         c[i]?.isGlyph ? "ws-glyph-btn" : "ws-image-btn",
       ])}
-      widthRequest={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? -1 : 19)}
+      widthRequest={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? -1 : 20)}
       onClicked={() => ws.focus()}
       visible={clientsB((c: ClientIcon[]) => i < c.length)}
       tooltipText={clientsB((c: ClientIcon[]) => c[i]?.tooltip ?? "")}
@@ -254,7 +258,11 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         vexpand={false}
       >
         <label
-          cssClasses={["ws-icons", "ws-glyph-icon"]}
+          cssClasses={clientsB((c: ClientIcon[]) => [
+            "ws-icons",
+            "ws-glyph-icon",
+            c[i]?.isGlyph ? `ws-glyph-${cssSafeAppClass(c[i].appClass)}` : "",
+          ].filter(Boolean))}
           label={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? c[i].icon : "")}
           visible={clientsB((c: ClientIcon[]) => !!(c[i]?.isGlyph))}
           halign={Gtk.Align.CENTER}
