@@ -82,6 +82,7 @@ export default function Battery() {
 
   bat.connect("notify::percentage",    updateVars)
   bat.connect("notify::charging",      updateVars)
+  bat.connect("notify::state",         updateVars)   // cargando→cargado (FULLY_CHARGED)
   bat.connect("notify::time-to-empty", updateVars)
   bat.connect("notify::time-to-full",  updateVars)
   bat.connect("notify::energy-rate",   updateVars)
