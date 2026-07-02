@@ -3377,6 +3377,56 @@ window.cal-panel > box {
 }
 .re-hint { font-size: 9px; color: rgba(226, 226, 226, 0.4); font-family: "MesloLGS Nerd Font"; }
 
+/* ── Color picker (rules + apps) ─────────────────────────────────────── */
+.cp-auto {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.6);
+  font-family: "MesloLGS Nerd Font";
+  transition: all 100ms ease;
+  &:hover { background: rgba(255, 255, 255, 0.06); color: #e2e2e2; }
+  &.active { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.35); color: #e2e2e2; }
+}
+.cp-swatch {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  transition: all 100ms ease;
+  &:hover { border-color: rgba(255, 255, 255, 0.5); }
+  &.active { border: 2px solid #ffffff; }
+  .cp-swatch-check {
+    font-family: "MesloLGS Nerd Font";
+    font-size: 12px;
+    color: rgba(8, 8, 12, 0.85);
+  }
+}
+
+/* Per-app color button in the Apps tab (shows the effective accent). */
+.ns-color-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  &:hover { border-color: rgba(255, 255, 255, 0.5); }
+  &.open { border: 2px solid #ffffff; }
+  .ns-color-check {
+    font-family: "MesloLGS Nerd Font";
+    font-size: 12px;
+    color: rgba(8, 8, 12, 0.85);
+  }
+}
+.ns-color-editor {
+  padding: 8px 12px 4px;
+  margin: 0 8px;
+}
+
 /* ── Centered notification-settings window (Phase 5) ────────────────── */
 .nsw-window {
   background: transparent;
