@@ -1,7 +1,9 @@
 import AstalBattery from "gi://AstalBattery"
-import { createState } from "ags"
+import { For, createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import { barVisible, widgetsRefresh } from "../state"
+
+const SEGMENTS = 5
 
 export default function Battery() {
   const bat = AstalBattery.get_default()
@@ -30,39 +32,46 @@ export default function Battery() {
     return text
   }
 
-  const fillColor = () => {
+  const statusClass = () => {
     const p = bat.percentage * 100
-    if (bat.charging) return "#a6e3a1"   // verde
-    if (p <= 15) return "#f38ba8"        // rojo
-    return "#89b4fa"                     // azul
+    if (bat.charging) return "charging"
+    if (p <= 15) return "low"
+    return "normal"
   }
 
-  // Relleno proporcional dentro del cuerpo de la batería:
-  // color hasta el nivel actual, hueco oscuro el resto (texto blanco legible sobre ambos).
-  const getFill = () => {
-    const p = Math.round(bat.percentage * 100)
-    const color = fillColor()
-    return `
-      background: linear-gradient(to top,
-        ${color} ${p}%,
-        rgba(0, 0, 0, 0.40) ${p}%
-      );
-    `
+  const getSegmentClasses = () => {
+    const pct = Math.round(bat.percentage * 100)
+    const charging = bat.charging && pct < 100 && bat.state !== AstalBattery.State.FULLY_CHARGED
+    const low = !bat.charging && pct <= 15
+    const segmentSize = 100 / SEGMENTS
+    const active = Math.min(SEGMENTS - 1, Math.floor(pct / (100 / SEGMENTS)))
+    const filled = charging
+      ? active
+      : pct > 0
+        ? Math.ceil(pct / (100 / SEGMENTS))
+        : 0
+    const draining = Math.max(0, filled - 1)
+    const segmentStart = draining * segmentSize
+    const segmentMiddle = segmentStart + segmentSize / 2
+    const warnSegment = !charging && !low && pct < 100 && pct <= segmentMiddle
+
+    return Array.from({ length: SEGMENTS }, (_, i) => {
+      const classes = ["battery-seg"]
+      if (i < filled) classes.push("filled")
+      if (warnSegment && i === draining) classes.push("warn")
+      if (charging && i === active) classes.push("charging-blink")
+      if (low && i === 0) classes.push("low-blink", "filled")
+      return classes
+    })
   }
 
-  const [pctStr, setPctStr]     = createState(`${Math.round(bat.percentage * 100)}`)
-  const [charging, setCharging] = createState(bat.charging)
-  const [cssStr, setCssStr]     = createState(getFill())
-  const [bodyClass, setBodyClass] = createState(
-    ["battery-body", bat.percentage * 100 <= 15 ? "low" : "normal"]
-  )
+  const [bodyClass, setBodyClass] = createState(["battery-body", statusClass()])
+  const [segmentClasses, setSegmentClasses] = createState(getSegmentClasses())
   const [tooltip, setTooltip]   = createState(getTooltip())
 
   const sync = () => {
-    setPctStr(`${Math.round(bat.percentage * 100)}`)
-    setCharging(bat.charging)
-    setCssStr(getFill())
-    setBodyClass(["battery-body", bat.percentage * 100 <= 15 ? "low" : "normal"])
+    setBodyClass(["battery-body", statusClass()])
+    setSegmentClasses(getSegmentClasses())
     setTooltip(getTooltip())
   }
 
@@ -85,36 +94,24 @@ export default function Battery() {
   return (
     <box
       cssClasses={["battery"]}
-      orientation={Gtk.Orientation.VERTICAL}
+      orientation={Gtk.Orientation.HORIZONTAL}
+      spacing={3}
       halign={Gtk.Align.CENTER}
       valign={Gtk.Align.CENTER}
       tooltipText={tooltip}
     >
-      <box cssClasses={["battery-cap"]} halign={Gtk.Align.CENTER} />
       <box
         cssClasses={bodyClass}
-        css={cssStr}
-        orientation={Gtk.Orientation.VERTICAL}
-        halign={Gtk.Align.FILL}
+        orientation={Gtk.Orientation.HORIZONTAL}
+        spacing={1}
+        halign={Gtk.Align.CENTER}
         valign={Gtk.Align.CENTER}
       >
-        <label
-          cssClasses={["battery-charging-icon"]}
-          label=""
-          visible={charging}
-          halign={Gtk.Align.CENTER}
-        />
-        <label
-          cssClasses={["battery-text"]}
-          label={pctStr}
-          hexpand={true}
-          vexpand={true}
-          valign={Gtk.Align.CENTER}
-          halign={Gtk.Align.CENTER}
-          xalign={0.5}
-          yalign={0.5}
-        />
+        <For each={segmentClasses}>
+          {(classes) => <box cssClasses={classes} />}
+        </For>
       </box>
+      <box cssClasses={["battery-cap"]} valign={Gtk.Align.CENTER} />
     </box>
   )
 }
