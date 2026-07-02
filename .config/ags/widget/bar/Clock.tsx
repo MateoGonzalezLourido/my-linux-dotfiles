@@ -65,22 +65,22 @@ export default function Clock() {
 
   let wasVisible = widgetsRefresh()
 
+  // Único dependency del efecto: widgetsRefresh (visibilidad). running/time/stopwatch
+  // se leen con .get() (sin trackear) para no re-ejecutar el efecto en cada tick.
   createEffect(() => {
     const visible = widgetsRefresh()
     if (visible && !wasVisible) {
-      cacheLastTimeRendered = time()
-      if (running()) {
-        if (swInterval !== null) {
-          GLib.source_remove(swInterval)
-          swInterval = null
-        }
+      // Al mostrarse: si el cronómetro corría, reanudar sus ticks por segundo.
+      if (running.get()) {
+        if (swInterval !== null) { GLib.source_remove(swInterval); swInterval = null }
         tick()
       }
-    } else if (!visible) {
-      if (swInterval !== null) {
-        GLib.source_remove(swInterval)
-        swInterval = null
-      }
+    } else if (!visible && wasVisible) {
+      // Al ocultarse: congelar la etiqueta en lo que se muestra AHORA (antes se
+      // cacheaba al mostrarse, quedando hasta 1 min desfasado durante el ocultado)
+      // y parar el tick por segundo del cronómetro.
+      cacheLastTimeRendered = running.get() ? formatSW(stopwatch.get()) : time.get()
+      if (swInterval !== null) { GLib.source_remove(swInterval); swInterval = null }
     }
     wasVisible = visible
   })
