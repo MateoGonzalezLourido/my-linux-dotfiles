@@ -170,6 +170,14 @@ $orange: #fab387;
       margin-left: -3px;
     }
 
+    .ws-icon-separator {
+      min-width: 1px;
+      min-height: 10px;
+      margin: 4px 1px;
+      background-color: currentColor;
+      opacity: 0.35;
+    }
+
     .ws-id {
       font-size: 12px;
       font-weight: 700;

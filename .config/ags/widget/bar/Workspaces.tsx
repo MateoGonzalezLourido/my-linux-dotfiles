@@ -468,8 +468,11 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
       >
         <box cssClasses={["ws-apps"]} spacing={0}>
           {iconBtn(0)}
+          <box cssClasses={["ws-icon-separator"]} visible={clientsB((c: ClientIcon[]) => c.length > 1)} />
           {iconBtn(1)}
+          <box cssClasses={["ws-icon-separator"]} visible={clientsB((c: ClientIcon[]) => c.length > 2)} />
           {iconBtn(2)}
+          <box cssClasses={["ws-icon-separator"]} visible={clientsB((c: ClientIcon[]) => c.length > 3)} />
           {iconBtn(3)}
         </box>
       </revealer>
