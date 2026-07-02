@@ -157,7 +157,7 @@ export default function CpuRam() {
   })
 
   return (
-    <box cssClasses={["cpuram"]} spacing={3}>
+    <box cssClasses={["bar-pill", "cpuram"]} spacing={3}>
       {/* Mantiene el popover abierto mientras el ratón esté sobre el botón */}
       <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
       <Gtk.GestureClick

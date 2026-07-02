@@ -401,10 +401,6 @@ popover.ws-preview-popover {
 }
 
 .cpuram {
-  border-radius: 8px;
-  padding: 1px 6px;
-  margin: 4px 2px;
-
   label {
     color: #e2e2e2;
     font-family: 'MesloLGS Nerd Font';
@@ -421,10 +417,6 @@ popover.ws-preview-popover {
 
   .icon-sep {
     margin-left: 5px;
-  }
-
-  &:hover {
-    background-color: $bg-pill-hover;
   }
 }
 
@@ -571,6 +563,15 @@ popover.menu {
 
   .bar-pill.qs-system-pill {
     margin-left: 0;
+  }
+}
+
+.bar-pill.cpuram {
+  border: none;
+  box-shadow: none;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.07);
   }
 }
 
