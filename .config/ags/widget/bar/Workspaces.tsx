@@ -228,7 +228,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         "ws-icon-btn",
         c[i]?.isGlyph ? "ws-glyph-btn" : "ws-image-btn",
       ])}
-      widthRequest={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? -1 : 20)}
+      widthRequest={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? 16 : 20)}
       onClicked={() => ws.focus()}
       visible={clientsB((c: ClientIcon[]) => i < c.length)}
       tooltipText={clientsB((c: ClientIcon[]) => c[i]?.tooltip ?? "")}
