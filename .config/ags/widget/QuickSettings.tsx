@@ -9,6 +9,7 @@ import AstalNetwork from "gi://AstalNetwork"
 import AstalBluetooth from "gi://AstalBluetooth"
 import AstalNotifd from "gi://AstalNotifd"
 import AstalMpris from "gi://AstalMpris"
+import GdkPixbuf from "gi://GdkPixbuf"
 import {
   quickSettingsVisible,
   closeAllPanels,
@@ -28,6 +29,7 @@ import {
 } from "./state"
 import { openNotifPanel } from "./notifications/store"
 import { clipWindowInputToContent } from "./inputRegion"
+import * as Spotify from "./services/spotify/SpotifyService"
 
 // ── Auto-Switch Audio (Switch-on-Connect) ───────────────────────────────────
 try {
@@ -784,8 +786,38 @@ function QsMedia() {
   const [numPlayers, setNumPlayers] = createState(0)
   const [playerName, setPlayerName] = createState("")
   const [themeIdx, setThemeIdx] = createState(0)
+  const [trackId, setTrackIdState] = createState<string | null>(null)
+  const [isAdState, setIsAd] = createState(false)
+  const [liked, setLiked] = createState(false)
+  const [likeVisible, setLikeVisible] = createState(false)
+  const [canLike, setCanLike] = createState(false)
+  let lastQueriedId: string | null = null
+
+  // El corazón solo aplica con cuenta Premium (los endpoints /me/tracks dan 403 en
+  // free). isPremium() implica estar configurado. Se resuelve una vez (async) y se
+  // cachea aquí para leerlo síncronamente en update(); si no es Premium, el corazón
+  // no llega a mostrarse.
+  Spotify.isPremium().then(setCanLike)
 
   let currentP: any = null
+
+  // AstalMpris no está descargando la carátula (deja la URL https, que GTK4 no puede
+  // pintar en CSS). La descargamos nosotros a ~/.cache/ags/media/ una vez por álbum y
+  // usamos la ruta local. Rutas locales / vacío se pasan tal cual.
+  let lastCoverUrl = ""
+  const resolveCover = (raw: string) => {
+    if (!raw) { lastCoverUrl = ""; setCover(""); return }
+    if (!raw.startsWith("http")) { setCover(raw); return } // ya es ruta local
+    if (raw === lastCoverUrl) return // ya descargada o en curso para este álbum
+    lastCoverUrl = raw
+    const dir = `${GLib.get_user_cache_dir()}/ags/media`
+    const name = (raw.split("/").pop() || "cover").split("?")[0]
+    const path = `${dir}/${name}`
+    if (GLib.file_test(path, GLib.FileTest.EXISTS)) { setCover(path); return }
+    execAsync(["bash", "-c", `mkdir -p '${dir}' && curl -sfL -o '${path}' '${raw}'`])
+      .then(() => setCover(path))
+      .catch(() => setCover(""))
+  }
 
   const update = () => {
     const players = mpris.players
@@ -809,10 +841,35 @@ function QsMedia() {
 
     currentP = p
     setHasPlayer(true)
-    setTitle(p.title || "Sin título")
-    setArtist(p.artist || "Artista desconocido")
+    const rawTrackId = p.trackid || ""
+    const ad = Spotify.isAd(rawTrackId)
+    const id = Spotify.parseTrackId(rawTrackId)
+    const isSpotify = (p.bus_name || "").includes("spotify")
+    setIsAd(ad)
+
+    if (ad) {
+      setTitle("Anuncio")
+      setArtist("")
+    } else {
+      setTitle(p.title || "Sin título")
+      setArtist(p.artist || "Artista desconocido")
+    }
+
+    setLikeVisible(isSpotify && canLike.get() && !ad && id !== null)
+
+    // Consultar "liked" solo al CAMBIAR de track (no en cada tick de 1 s).
+    if (!ad && id && canLike.get()) {
+      if (id !== lastQueriedId) {
+        lastQueriedId = id
+        setTrackIdState(id)
+        Spotify.isLiked(id).then(setLiked)
+      }
+    } else {
+      lastQueriedId = null
+    }
+
     setIsPlaying(p.playback_status === AstalMpris.PlaybackStatus.PLAYING)
-    setCover(p.cover_art || "")
+    resolveCover(p.cover_art || p.art_url || "")
     setPlayerName(p.identity || p.bus_name.split(".").pop() || "Player")
     if (p.length > 0) setProg(p.position / p.length)
 
@@ -851,12 +908,49 @@ function QsMedia() {
 
   const curTheme = themeIdx((i) => MEDIA_THEMES[i])
 
-  return (
+  // Fondo con Gtk.Picture (el background-image CSS no renderiza en este contenedor).
+  const coverPicture = new Gtk.Picture()
+  coverPicture.set_content_fit(Gtk.ContentFit.COVER)
+  coverPicture.set_can_shrink(true)
+  coverPicture.set_hexpand(true)
+  coverPicture.set_vexpand(true)
+
+  // La Picture propaga el tamaño natural de la imagen (grande) y desbordaba la tarjeta.
+  // Un ScrolledWindow con propagate_natural_height=false + min/max_content_height=70
+  // CORTA la altura del fondo a 70px pase lo que pase con la imagen. Es el hijo
+  // principal del Overlay; así el Overlay no puede crecer más de 70.
+  const CARD_H = 70
+  const bgCap = new Gtk.ScrolledWindow()
+  bgCap.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
+  bgCap.set_propagate_natural_height(false)
+  bgCap.set_min_content_height(CARD_H)
+  bgCap.set_max_content_height(CARD_H)
+  bgCap.set_hexpand(true)
+  bgCap.set_child(coverPicture)
+  const applyCover = () => {
+    const c = cover.get()
+    if (!c || isAdState.get() || c.startsWith("http")) { coverPicture.set_paintable(null); return }
+    const path = c.startsWith("file://") ? c.slice(7) : c
+    try {
+      const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+      coverPicture.set_paintable(Gdk.Texture.new_for_pixbuf(pixbuf))
+    } catch (_) { coverPicture.set_paintable(null) }
+  }
+  cover.subscribe(applyCover)
+  isAdState.subscribe(applyCover)
+  applyCover()
+
+  const mediaContent = (
     <box
-      cssClasses={["qs-media"]}
-      visible={hasPlayer}
       orientation={Gtk.Orientation.VERTICAL}
       spacing={4}
+      hexpand
+      heightRequest={70}
+      css={createComputed(() => {
+        // Scrim (background-color, que sí renderiza) solo cuando hay carátula visible.
+        const scrim = (cover.get() && !isAdState.get()) ? "background-color: rgba(8,8,12,0.5); " : ""
+        return scrim + "padding: 8px 10px;"
+      })}
     >
       <box spacing={4} visible={numPlayers((n) => n > 1)} css="margin-bottom: 2px;">
         <label 
@@ -882,20 +976,28 @@ function QsMedia() {
         </box>
       </box>
 
-      <box spacing={10}>
-        <box 
-          cssClasses={["qs-media-art"]} 
-          css={cover((c) => c ? `background-image: url('${c}'); background-size: cover; background-position: center; border-radius: 8px;` : "")}
-          valign={Gtk.Align.CENTER}
-          halign={Gtk.Align.CENTER}
-        >
-          <label label="󰎈" visible={cover((c) => !c)} css={curTheme((t) => `color: ${t.accent};`)} />
-        </box>
+      <box spacing={10} vexpand valign={Gtk.Align.CENTER}>
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand valign={Gtk.Align.CENTER}>
           <label cssClasses={["qs-media-title"]} label={title} halign={Gtk.Align.START} ellipsize={3} />
           <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
         </box>
         <box spacing={2} valign={Gtk.Align.CENTER}>
+          <button
+            cssClasses={["qs-media-btn", "qs-media-like"]}
+            visible={likeVisible}
+            onClicked={() => {
+              const id = trackId.get()
+              if (!id) return
+              const next = !liked.get()
+              setLiked(next) // optimista
+              Spotify.setLiked(id, next).then((ok) => { if (!ok) setLiked(!next) })
+            }}
+            css={createComputed(() => liked.get()
+              ? "color: #f38ba8;"
+              : `color: ${MEDIA_THEMES[themeIdx.get()].accent};`)}
+          >
+            <label label={liked((v) => v ? "󰋑" : "󰋕")} />
+          </button>
           <button cssClasses={["qs-media-btn"]} onClicked={() => {
             const p = mpris.players[playerIndex.get()]
             if (p) {
@@ -928,6 +1030,21 @@ function QsMedia() {
         hexpand
         css={curTheme((t) => `trough { background: rgba(255,255,255,0.1); } progress { background: ${t.accent}; }`)}
       />
+    </box>
+  )
+
+  return (
+    <box
+      cssClasses={["qs-media"]}
+      visible={hasPlayer}
+      overflow={Gtk.Overflow.HIDDEN}
+      css="padding: 0;"
+    >
+      <Gtk.Overlay $={(self: any) => {
+        self.set_child(bgCap)
+        self.add_overlay(mediaContent)
+        self.set_measure_overlay(mediaContent, true)
+      }} />
     </box>
   )
 }

@@ -1352,10 +1352,14 @@ window.qs-window > box,
 
 // ── Media Player ──────────────────────────────────────────────────────────────
 .qs-media {
-  background: rgba(137, 180, 250, 0.04);
-  border: 1px solid rgba(137, 180, 250, 0.1);
+  // background-color (NO el shorthand `background`): el shorthand incluye
+  // `background-image: none` y pisaba la carátula que se pone inline con css=.
+  background-color: rgba(137, 180, 250, 0.04);
+  border: none;
   border-radius: 20px;
-  padding: 10px;
+  // padding 0: la carátula (Gtk.Picture de fondo) va a sangre; el padding real lo
+  // pone el contenido interno. overflow hidden en el box recorta la imagen al radio.
+  padding: 0;
   margin-top: 10px;
 
   .qs-media-art {
@@ -1400,6 +1404,12 @@ window.qs-window > box,
     label {
       margin: 0;
     }
+  }
+
+  .qs-media-like {
+    // Hereda tamaño/estilo de .qs-media-btn; el color lo fija el css inline
+    // (rojo cuando está en "Me gusta", acento del tema cuando no).
+    min-width: 24px;
   }
 
   progressbar.qs-media-progress {
