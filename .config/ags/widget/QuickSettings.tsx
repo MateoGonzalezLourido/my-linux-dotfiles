@@ -484,7 +484,6 @@ function QsHeader() {
       <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} css="margin-left: 8px;">
         <button
           cssClasses={notifs((n) => n.length > 0 ? ["qs-notif-btn", "has-notifs"] : ["qs-notif-btn"])}
-          tooltipText="Notificaciones"
           onClicked={() => {
             closeAllPanels()
             openNotifPanel()
