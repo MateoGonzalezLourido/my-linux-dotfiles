@@ -282,17 +282,23 @@ function QsHeader() {
   const [date, setDate] = createState(getDate())
   const notifs = createBinding(notifd, "notifications")
 
-  GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-    if (quickSettingsVisible.get()) {
-      setTime(getTime())
-      setDate(getDate())
-    }
-    return GLib.SOURCE_CONTINUE
-  })
+  // El reloj solo corre con el panel abierto: al cerrar se remueve el timer en
+  // vez de dejarlo despertando cada segundo para nada (patrón de netSpeedTimer).
+  let clockTimer: number | null = null
   quickSettingsVisible.subscribe(() => {
     if (quickSettingsVisible.get()) {
       setTime(getTime())
       setDate(getDate())
+      if (clockTimer === null) {
+        clockTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+          setTime(getTime())
+          setDate(getDate())
+          return GLib.SOURCE_CONTINUE
+        })
+      }
+    } else if (clockTimer !== null) {
+      GLib.source_remove(clockTimer)
+      clockTimer = null
     }
   })
 
@@ -482,11 +488,23 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
     execAsync(["bash", "-c", "hyprctl activeworkspace -j | jq -r .monitor"]).then(m => setMonitor(m)).catch(() => { })
   }
   updateMonitor()
-  GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5000, () => {
-    if (quickSettingsVisible.get()) updateMonitor()
-    return GLib.SOURCE_CONTINUE
+  // Igual que el reloj: el sondeo del monitor solo corre con el panel abierto y
+  // se remueve al cerrar en vez de despertar cada 5s (patrón de netSpeedTimer).
+  let monitorTimer: number | null = null
+  quickSettingsVisible.subscribe(() => {
+    if (quickSettingsVisible.get()) {
+      updateMonitor()
+      if (monitorTimer === null) {
+        monitorTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5000, () => {
+          updateMonitor()
+          return GLib.SOURCE_CONTINUE
+        })
+      }
+    } else if (monitorTimer !== null) {
+      GLib.source_remove(monitorTimer)
+      monitorTimer = null
+    }
   })
-  quickSettingsVisible.subscribe(() => { if (quickSettingsVisible.get()) updateMonitor() })
 
   const wp = AstalWp.get_default()
   const speaker = wp?.audio?.defaultSpeaker
