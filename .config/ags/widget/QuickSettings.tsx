@@ -842,11 +842,17 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
     loadStreams()
     appsRefreshId = setInterval(loadStreams, 2000)
   }
-  audioMode.subscribe(() => { if (audioMode.get() !== "apps") stopAppsRefresh() })
-  quickSettingsVisible.subscribe(() => {
-    if (!quickSettingsVisible.get()) stopAppsRefresh()
-    else if (audioMode.get() === "apps") startAppsRefresh()
-  })
+  // El sondeo (pactl cada 2 s) solo debe correr cuando ESTA sección es visible:
+  // panel abierto ∧ vista "audio" ∧ modo apps. Antes solo miraba quickSettingsVisible,
+  // así que al pulsar "atrás" (qsView→"main") o al reabrir el panel (qsView se resetea
+  // a "main" pero audioMode seguía en "apps") el sondeo seguía en segundo plano fuera
+  // de la sección. Escuchar también qsView cierra ese hueco.
+  const shouldRefresh = () =>
+    quickSettingsVisible.get() && qsView.get() === "audio" && audioMode.get() === "apps"
+  const syncRefresh = () => { if (shouldRefresh()) startAppsRefresh(); else stopAppsRefresh() }
+  audioMode.subscribe(syncRefresh)
+  quickSettingsVisible.subscribe(syncRefresh)
+  qsView.subscribe(syncRefresh)
 
   const speakers = createBinding(wp.audio, "speakers")
   const defaultSpeaker = createBinding(wp.audio, "defaultSpeaker")
@@ -869,9 +875,9 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
         <button
           cssClasses={["qs-icon-btn"]}
           onClicked={() => {
-            const next = audioMode.get() === "devices" ? "apps" : "devices"
-            setAudioMode(next)
-            if (next === "apps") startAppsRefresh()
+            // setAudioMode dispara syncRefresh (suscrito a audioMode), que arranca o
+            // detiene el sondeo según corresponda.
+            setAudioMode(audioMode.get() === "devices" ? "apps" : "devices")
           }}
           tooltipText={audioMode((m) => m === "devices" ? "Mezcla de aplicaciones" : "Dispositivos de salida")}
         ><label label={audioMode((m) => m === "devices" ? "󰓃" : "󰋎")} /></button>
@@ -1118,11 +1124,15 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
     loadMicStreams()
     appsRefreshId = setInterval(loadMicStreams, 2000)
   }
-  audioMode.subscribe(() => { if (audioMode.get() !== "apps") stopAppsRefresh() })
-  quickSettingsVisible.subscribe(() => {
-    if (!quickSettingsVisible.get()) stopAppsRefresh()
-    else if (audioMode.get() === "apps") startAppsRefresh()
-  })
+  // Mismo gating que en QsAudioMenu: el sondeo solo corre con el panel abierto ∧
+  // vista "mic" ∧ modo apps, escuchando también qsView para no seguir sondeando al
+  // salir de la sección o al reabrir el panel en otra vista.
+  const shouldRefresh = () =>
+    quickSettingsVisible.get() && qsView.get() === "mic" && audioMode.get() === "apps"
+  const syncRefresh = () => { if (shouldRefresh()) startAppsRefresh(); else stopAppsRefresh() }
+  audioMode.subscribe(syncRefresh)
+  quickSettingsVisible.subscribe(syncRefresh)
+  qsView.subscribe(syncRefresh)
 
   const microphones = createBinding(wp.audio, "microphones")
   const defaultMic = createBinding(wp.audio, "defaultMicrophone")
@@ -1142,9 +1152,7 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
         <button
           cssClasses={["qs-icon-btn"]}
           onClicked={() => {
-            const next = audioMode.get() === "devices" ? "apps" : "devices"
-            setAudioMode(next)
-            if (next === "apps") startAppsRefresh()
+            setAudioMode(audioMode.get() === "devices" ? "apps" : "devices")
           }}
           tooltipText={audioMode((m) => m === "devices" ? "Mezcla de aplicaciones" : "Dispositivos de entrada")}
         ><label label={audioMode((m) => m === "devices" ? "󰓃" : "󰋎")} /></button>
