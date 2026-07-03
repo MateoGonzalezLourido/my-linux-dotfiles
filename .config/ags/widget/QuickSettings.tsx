@@ -789,6 +789,14 @@ function cssRgbToTuple(rgb: string): [number, number, number] {
   return [values[0], values[1], values[2]]
 }
 
+function formatMediaTime(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0:00"
+  const total = Math.floor(value)
+  const minutes = Math.floor(total / 60)
+  const seconds = total % 60
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`
+}
+
 function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number] {
   const pixels = pixbuf.get_pixels()
   const width = pixbuf.get_width()
@@ -796,7 +804,7 @@ function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number]
   const channels = pixbuf.get_n_channels()
   const rowstride = pixbuf.get_rowstride()
   const step = Math.max(1, Math.floor(Math.min(width, height) / 28))
-  const buckets = new Map<string, { r: number; g: number; b: number; weight: number }>()
+  const buckets = new Map<string, { r: number; g: number; b: number; sat: number; lum: number; count: number }>()
 
   for (let y = 0; y < height; y += step) {
     const row = y * rowstride
@@ -810,32 +818,46 @@ function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number]
       const sat = max === 0 ? 0 : (max - min) / max
       const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
 
-      if (lum < 24 || lum > 232 || sat < 0.12) continue
+      if (lum < 18 || lum > 220 || sat < 0.08) continue
 
-      const qr = r >> 4
-      const qg = g >> 4
-      const qb = b >> 4
+      const qr = r >> 5
+      const qg = g >> 5
+      const qb = b >> 5
       const key = `${qr},${qg},${qb}`
-      const weight = sat * (1 - Math.abs(lum - 128) / 128)
-      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, weight: 0 }
-      bucket.r += r * weight
-      bucket.g += g * weight
-      bucket.b += b * weight
-      bucket.weight += weight
+      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, sat: 0, lum: 0, count: 0 }
+      bucket.r += r
+      bucket.g += g
+      bucket.b += b
+      bucket.sat += sat
+      bucket.lum += lum
+      bucket.count += 1
       buckets.set(key, bucket)
     }
   }
 
-  let best: { r: number; g: number; b: number; weight: number } | null = null
+  let best: { r: number; g: number; b: number; sat: number; lum: number; count: number } | null = null
+  let bestScore = 0
   for (const bucket of buckets.values()) {
-    if (!best || bucket.weight > best.weight) best = bucket
+    const sat = bucket.sat / bucket.count
+    const lum = bucket.lum / bucket.count
+    const rAvg = bucket.r / bucket.count
+    const gAvg = bucket.g / bucket.count
+    const bAvg = bucket.b / bucket.count
+    // Spotify-like: prefer broad, darker/muted album colors over tiny bright accents.
+    const darkFit = Math.max(0.2, 1 - Math.abs(lum - 82) / 150)
+    const warmBias = Math.max(0.75, Math.min(1.35, 1 + (rAvg - bAvg) / 260 + (rAvg - gAvg) / 520))
+    const score = bucket.count * (0.55 + sat) * darkFit * warmBias
+    if (!best || score > bestScore) {
+      best = bucket
+      bestScore = score
+    }
   }
-  if (!best || best.weight <= 0) return hexToRgb(MEDIA_THEMES[0].accent)
+  if (!best || best.count <= 0) return hexToRgb(MEDIA_THEMES[0].accent)
 
   return [
-    Math.round(best.r / best.weight),
-    Math.round(best.g / best.weight),
-    Math.round(best.b / best.weight),
+    Math.round(best.r / best.count),
+    Math.round(best.g / best.count),
+    Math.round(best.b / best.count),
   ]
 }
 
@@ -847,6 +869,8 @@ function QsMedia() {
   const [artist, setArtist] = createState("")
   const [isPlaying, setIsPlaying] = createState(false)
   const [prog, setProg] = createState(0)
+  const [positionLabel, setPositionLabel] = createState("0:00")
+  const [durationLabel, setDurationLabel] = createState("0:00")
   const [hasPlayer, setHasPlayer] = createState(false)
   const [cover, setCover] = createState("")
   const [playerIndex, setPlayerIndex] = createState(0)
@@ -939,7 +963,15 @@ function QsMedia() {
     setIsPlaying(p.playback_status === AstalMpris.PlaybackStatus.PLAYING)
     resolveCover(p.cover_art || p.art_url || "")
     setPlayerName(p.identity || p.bus_name.split(".").pop() || "Player")
-    if (p.length > 0) setProg(p.position / p.length)
+    if (p.length > 0) {
+      setProg(p.position / p.length)
+      setPositionLabel(formatMediaTime(p.position))
+      setDurationLabel(formatMediaTime(p.length))
+    } else {
+      setProg(0)
+      setPositionLabel("0:00")
+      setDurationLabel("0:00")
+    }
 
     // Fallback theme for non-cover UI. The background filter uses the real cover color.
     setThemeIdx(0)
@@ -1042,6 +1074,39 @@ function QsMedia() {
   cover.subscribe(queueCoverScrim)
   isAdState.subscribe(queueCoverScrim)
 
+  const progressArea = new Gtk.DrawingArea()
+  progressArea.set_can_target(false)
+  progressArea.set_hexpand(true)
+  progressArea.set_content_width(1)
+  progressArea.set_content_height(7)
+  progressArea.set_draw_func((_area, cr, width, height) => {
+    const radius = Math.min(height / 2, 3)
+    const drawRoundRect = (x: number, y: number, w: number, h: number) => {
+      const r = Math.min(radius, w / 2, h / 2)
+      cr.newPath()
+      cr.arc(x + w - r, y + r, r, -Math.PI / 2, 0)
+      cr.arc(x + w - r, y + h - r, r, 0, Math.PI / 2)
+      cr.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI)
+      cr.arc(x + r, y + r, r, Math.PI, 1.5 * Math.PI)
+      cr.closePath()
+    }
+
+    const y = Math.max(0, (height - 5) / 2)
+    drawRoundRect(0, y, width, 5)
+    cr.setSourceRGBA(0, 0, 0, 0.42)
+    cr.fill()
+
+    const fillW = Math.max(0, Math.min(width, width * prog.get()))
+    if (fillW <= 0) return
+    const [r, g, b] = cssRgbToTuple(coverAccent.get())
+    drawRoundRect(0, y, fillW, 5)
+    cr.setSourceRGBA(r / 255, g / 255, b / 255, 1)
+    cr.fill()
+  })
+  const queueProgress = () => progressArea.queue_draw()
+  prog.subscribe(queueProgress)
+  coverAccent.subscribe(queueProgress)
+
   const mediaContent = (
     <box
       orientation={Gtk.Orientation.VERTICAL}
@@ -1080,12 +1145,13 @@ function QsMedia() {
           <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
         </box>
       </box>
-      <Gtk.ProgressBar
-        cssClasses={["qs-media-progress"]}
-        fraction={prog}
-        hexpand
-        css={curTheme((t) => `color: ${t.accent};`)}
-      />
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={1} css="margin: 0 4px;">
+        {progressArea}
+        <box>
+          <label cssClasses={["qs-media-time"]} label={positionLabel} halign={Gtk.Align.START} hexpand />
+          <label cssClasses={["qs-media-time"]} label={durationLabel} halign={Gtk.Align.END} />
+        </box>
+      </box>
       <box spacing={2} halign={Gtk.Align.CENTER} valign={Gtk.Align.END}>
         <button
           cssClasses={["qs-media-btn", "qs-media-like"]}

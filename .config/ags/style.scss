@@ -1355,6 +1355,14 @@ window.qs-window > box,
     min-width: 24px;
   }
 
+  .qs-media-time {
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.72);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
+    margin-top: 0;
+  }
+
   progressbar.qs-media-progress {
     min-height: 5px;
     margin: 0 4px;
