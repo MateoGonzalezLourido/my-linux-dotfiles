@@ -916,10 +916,10 @@ function QsMedia() {
   coverPicture.set_vexpand(true)
 
   // La Picture propaga el tamaño natural de la imagen (grande) y desbordaba la tarjeta.
-  // Un ScrolledWindow con propagate_natural_height=false + min/max_content_height=70
-  // CORTA la altura del fondo a 70px pase lo que pase con la imagen. Es el hijo
-  // principal del Overlay; así el Overlay no puede crecer más de 70.
-  const CARD_H = 70
+  // Un ScrolledWindow con propagate_natural_height=false + min/max_content_height
+  // CORTA la altura del fondo pase lo que pase con la imagen. Es el hijo principal
+  // del Overlay; así el Overlay no puede crecer más que la tarjeta.
+  const CARD_H = 100
   const bgCap = new Gtk.ScrolledWindow()
   bgCap.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
   bgCap.set_propagate_natural_height(false)
@@ -945,11 +945,11 @@ function QsMedia() {
       orientation={Gtk.Orientation.VERTICAL}
       spacing={4}
       hexpand
-      heightRequest={70}
+      heightRequest={CARD_H}
       css={createComputed(() => {
         // Scrim (background-color, que sí renderiza) solo cuando hay carátula visible.
         const scrim = (cover.get() && !isAdState.get()) ? "background-color: rgba(8,8,12,0.5); " : ""
-        return scrim + "padding: 8px 10px;"
+        return scrim + "padding: 8px 10px 2px;"
       })}
     >
       <box spacing={4} visible={numPlayers((n) => n > 1)} css="margin-bottom: 2px;">
@@ -981,55 +981,55 @@ function QsMedia() {
           <label cssClasses={["qs-media-title"]} label={title} halign={Gtk.Align.START} ellipsize={3} />
           <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
         </box>
-        <box spacing={2} valign={Gtk.Align.CENTER}>
-          <button
-            cssClasses={["qs-media-btn", "qs-media-like"]}
-            visible={likeVisible}
-            onClicked={() => {
-              const id = trackId.get()
-              if (!id) return
-              const next = !liked.get()
-              setLiked(next) // optimista
-              Spotify.setLiked(id, next).then((ok) => { if (!ok) setLiked(!next) })
-            }}
-            css={createComputed(() => liked.get()
-              ? "color: #f38ba8;"
-              : `color: ${MEDIA_THEMES[themeIdx.get()].accent};`)}
-          >
-            <label label={liked((v) => v ? "󰋑" : "󰋕")} />
-          </button>
-          <button cssClasses={["qs-media-btn"]} onClicked={() => {
-            const p = mpris.players[playerIndex.get()]
-            if (p) {
-              const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
-              execAsync(["playerctl", "-p", name, "previous"]).catch(() => {})
-            }
-          }} css={curTheme((t) => `color: ${t.accent};`)}>
-            <label label="󰒮" />
-          </button>
-          <button cssClasses={["qs-media-btn"]} onClicked={() => {
-            const p = mpris.players[playerIndex.get()]
-            if (p) p.play_pause()
-          }} css={curTheme((t) => `color: ${t.accent};`)}>
-            <label label={isPlaying((v) => v ? "󰏤" : "󰐊")} />
-          </button>
-          <button cssClasses={["qs-media-btn"]} onClicked={() => {
-            const p = mpris.players[playerIndex.get()]
-            if (p) {
-              const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
-              execAsync(["playerctl", "-p", name, "next"]).catch(() => {})
-            }
-          }} css={curTheme((t) => `color: ${t.accent};`)}>
-            <label label="󰒭" />
-          </button>
-        </box>
       </box>
       <Gtk.ProgressBar
         cssClasses={["qs-media-progress"]}
         fraction={prog}
         hexpand
-        css={curTheme((t) => `trough { background: rgba(255,255,255,0.1); } progress { background: ${t.accent}; }`)}
+        css={curTheme((t) => `color: ${t.accent};`)}
       />
+      <box spacing={2} halign={Gtk.Align.CENTER} valign={Gtk.Align.END}>
+        <button
+          cssClasses={["qs-media-btn", "qs-media-like"]}
+          visible={likeVisible}
+          onClicked={() => {
+            const id = trackId.get()
+            if (!id) return
+            const next = !liked.get()
+            setLiked(next) // optimista
+            Spotify.setLiked(id, next).then((ok) => { if (!ok) setLiked(!next) })
+          }}
+          css={createComputed(() => liked.get()
+            ? "color: #f38ba8;"
+            : `color: ${MEDIA_THEMES[themeIdx.get()].accent};`)}
+        >
+          <label label={liked((v) => v ? "󰋑" : "󰋕")} />
+        </button>
+        <button cssClasses={["qs-media-btn"]} onClicked={() => {
+          const p = mpris.players[playerIndex.get()]
+          if (p) {
+            const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
+            execAsync(["playerctl", "-p", name, "previous"]).catch(() => {})
+          }
+        }} css={curTheme((t) => `color: ${t.accent};`)}>
+          <label label="󰒮" />
+        </button>
+        <button cssClasses={["qs-media-btn"]} onClicked={() => {
+          const p = mpris.players[playerIndex.get()]
+          if (p) p.play_pause()
+        }} css={curTheme((t) => `color: ${t.accent};`)}>
+          <label label={isPlaying((v) => v ? "󰏤" : "󰐊")} />
+        </button>
+        <button cssClasses={["qs-media-btn"]} onClicked={() => {
+          const p = mpris.players[playerIndex.get()]
+          if (p) {
+            const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
+            execAsync(["playerctl", "-p", name, "next"]).catch(() => {})
+          }
+        }} css={curTheme((t) => `color: ${t.accent};`)}>
+          <label label="󰒭" />
+        </button>
+      </box>
     </box>
   )
 

@@ -1361,6 +1361,7 @@ window.qs-window > box,
   // pone el contenido interno. overflow hidden en el box recorta la imagen al radio.
   padding: 0;
   margin-top: 10px;
+  min-height: 100px;
 
   .qs-media-art {
     font-family: "MesloLGS Nerd Font";
@@ -1374,13 +1375,15 @@ window.qs-window > box,
   .qs-media-title {
     font-size: 12px;
     font-weight: 600;
-    color: $qs-text;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1), 0 0 6px rgba(0, 0, 0, 0.85);
     margin: 0;
   }
 
   .qs-media-artist {
     font-size: 11px;
-    color: $qs-text-dim;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1), 0 0 6px rgba(0, 0, 0, 0.85);
     margin: 0;
   }
 
@@ -1390,15 +1393,16 @@ window.qs-window > box,
     color: $blue;
     font-family: "MesloLGS Nerd Font";
     font-size: 18px;
-    padding: 4px;
-    border-radius: 10px;
-    transition: all 200ms ease;
+    padding: 1px 4px;
+    border-radius: 7px;
+    transition: opacity 200ms ease, background 200ms ease;
+    transform: none;
     opacity: 0.8;
 
     &:hover {
       opacity: 1;
       background: rgba(137, 180, 250, 0.1);
-      transform: scale(1.1);
+      transform: none;
     }
 
     label {
@@ -1413,18 +1417,22 @@ window.qs-window > box,
   }
 
   progressbar.qs-media-progress {
-    min-height: 3px;
+    min-height: 5px;
+    margin: 0 4px;
 
     trough {
-      min-height: 3px;
+      min-height: 5px;
       border-radius: 99px;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
     }
 
     progress {
-      min-height: 3px;
+      min-height: 5px;
       border-radius: 99px;
-      background: $blue;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
     }
   }
 
@@ -1434,7 +1442,7 @@ window.qs-window > box,
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: $blue;
-    opacity: 0.7;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1), 0 0 6px rgba(0, 0, 0, 0.85);
     margin-bottom: 4px;
   }
 
