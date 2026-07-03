@@ -186,11 +186,16 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           </button>
         </box>
         <box spacing={3}>
+          <Recording />
           {/* CPU/RAM es una "función" del menú del logo Arch: desactivada por
               defecto. Al montarse solo cuando cpuRamEnabled es true, su polling y
-              procesos `ps` no existen mientras la función esté apagada. */}
-          <With value={cpuRamEnabled}>{(on: boolean) => on && <CpuRam />}</With>
-          <Recording />
+              procesos `ps` no existen mientras la función esté apagada. Va dentro
+              de su propio contenedor para que, al montarlo <With> dinámicamente,
+              quede siempre fijo aquí (inmediatamente a la izquierda de Power) y no
+              se inserte al final del box. */}
+          <box valign={Gtk.Align.CENTER}>
+            <With value={cpuRamEnabled}>{(on: boolean) => on && <CpuRam />}</With>
+          </box>
           <PowerButton />
         </box>
       </box>

@@ -124,3 +124,6 @@
 [2026-07-03 02:56:50] === Watchdog iniciado (PID 1569) | unidad: wayland-wm@hyprland.desktop.service ===
 [2026-07-03 02:56:50] Esperando 45s de grace period para que Hyprland inicialice el socket...
 [2026-07-03 02:57:35] Grace period completado. Iniciando monitorización.
+[2026-07-03 14:24:40] === Watchdog iniciado (PID 1572) | unidad: wayland-wm@hyprland.desktop.service ===
+[2026-07-03 14:24:40] Esperando 45s de grace period para que Hyprland inicialice el socket...
+[2026-07-03 14:25:25] Grace period completado. Iniciando monitorización.
