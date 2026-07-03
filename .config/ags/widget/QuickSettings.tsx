@@ -431,7 +431,6 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   const network = AstalNetwork.get_default()
   const wifi = network.wifi
   const bt = AstalBluetooth.get_default()
-  const [dpmsOn, setDpmsOn] = createState(true)
   const [monitor, setMonitor] = createState("Monitor")
 
   // Bluetooth Icon logic
@@ -1356,11 +1355,6 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
       <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
         <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
         <label cssClasses={["qs-section-label"]} label="Pantalla y Brillo" hexpand halign={Gtk.Align.START} />
-        <button
-          cssClasses={["qs-icon-btn"]}
-          onClicked={() => execAsync("hyprctl dispatch dpms toggle")}
-          tooltipText="Apagar/Encender DPMS"
-        ><label label="󰐥" /></button>
       </box>
 
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
