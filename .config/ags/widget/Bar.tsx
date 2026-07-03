@@ -7,7 +7,7 @@ import Clock from "./bar/Clock"
 import Functions, { FunctionsMenu } from "./bar/Functions"
 import Workspaces from "./bar/Workspaces"
 import GameIndicator from "./bar/GameIndicator"
-import SystemTray from "./bar/SystemTray"
+import SystemTray, { SystemTrayMenu } from "./bar/SystemTray"
 import Bluetooth from "./bar/Bluetooth"
 import Network from "./bar/Network"
 import Volume from "./bar/Volume"
@@ -200,5 +200,5 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     </centerbox>
   </window>
 
-  return [hotzone, bar, FunctionsMenu(gdkmonitor)]
+  return [hotzone, bar, FunctionsMenu(gdkmonitor), SystemTrayMenu(gdkmonitor)]
 }
