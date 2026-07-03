@@ -260,67 +260,6 @@ popover.ws-preview-popover {
   font-size: 16px;
 }
 
-/* Media Player Widget */
-.mpris-widget {
-  background: linear-gradient(135deg, #1a9944, #1db954);
-  border-radius: 999px;
-  padding: 3px 10px 3px 10px;
-  margin: 4px 4px;
-  min-width: 0;
-
-  font-family: "MesloLGS Nerd Font", monospace;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.92);
-  border: none;
-  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
-
-
-
-  .title-scroll-container {
-    min-width: 190px;
-  }
-
-  .title-text {
-    font-size: 12px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.95);
-    animation: marquee 9s linear infinite;
-  }
-
-  .controls {
-    button {
-      all: unset;
-      padding: 0 3px;
-      color: rgba(255, 255, 255, 0.9);
-      font-family: "MesloLGS Nerd Font", monospace;
-      font-size: 14px;
-      transition: color 120ms ease;
-
-      &:hover {
-        color: #ffffff;
-      }
-
-      &:disabled {
-        color: rgba(255, 255, 255, 0.3);
-      }
-    }
-
-    .play-pause {
-      font-size: 15px;
-    }
-  }
-}
-
-@keyframes marquee {
-  from {
-    transform: translateX(0px);
-  }
-
-  to {
-    transform: translateX(-245px);
-  }
-}
-
 /* Game Indicator Widget */
 .game-indicator {
   background: linear-gradient(135deg, rgba(203, 166, 247, 0.22), rgba(137, 180, 250, 0.22));
