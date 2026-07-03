@@ -522,6 +522,93 @@ popover.cpuram-popover {
   color: #cdd6f4;
 }
 
+// ── Menú de funciones (panel propio del logo Arch) ─────────────────────────
+.fn-menu-window {
+  background: transparent;
+}
+
+.fn-menu {
+  background: #0e0e1a;
+  border: 1px solid rgba(137, 180, 250, 0.18);
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.fn-menu-header {
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: rgba(226, 226, 226, 0.56);
+  margin-bottom: 6px;
+}
+
+.fn-menu-button {
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+
+  &:hover {
+    background: rgba(137, 180, 250, 0.12);
+  }
+
+  &:active {
+    background: rgba(137, 180, 250, 0.18);
+  }
+
+  &.active {
+    background: rgba(137, 180, 250, 0.08);
+  }
+}
+
+.fn-menu-row {
+  padding: 5px 6px;
+  min-height: 28px;
+}
+
+.fn-menu-ic {
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 15px;
+  min-width: 20px;
+  color: #89b4fa;
+}
+
+.fn-menu-label {
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 12px;
+  font-weight: 500;
+  color: #cdd6f4;
+}
+
+.fn-menu-state {
+  border-radius: 999px;
+  min-width: 38px;
+  padding: 2px 7px;
+  background: rgba(255, 255, 255, 0.06);
+
+  label {
+    font-family: 'MesloLGS Nerd Font';
+    font-size: 9px;
+    font-weight: 800;
+    color: rgba(226, 226, 226, 0.55);
+  }
+}
+
+.fn-menu-button.active .fn-menu-state {
+  background: rgba(137, 180, 250, 0.22);
+
+  label {
+    color: #89b4fa;
+  }
+}
+
 // ── Tray: botón de icono + menú de contexto nativo ─────────────────────────
 .tray-item {
   border-radius: 7px;

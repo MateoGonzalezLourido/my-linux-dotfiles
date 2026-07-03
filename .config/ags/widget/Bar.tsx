@@ -1,9 +1,10 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState } from "ags"
+import { createState, With } from "ags"
+import { cpuRamEnabled } from "./bar/functions/state"
 
 import Clock from "./bar/Clock"
-import Functions from "./bar/Functions"
+import Functions, { FunctionsMenu } from "./bar/Functions"
 import Workspaces from "./bar/Workspaces"
 import MediaPlayer from "./bar/MediaPlayer"
 import GameIndicator from "./bar/GameIndicator"
@@ -185,7 +186,10 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           </button>
         </box>
         <box spacing={3}>
-          <CpuRam />
+          {/* CPU/RAM es una "función" del menú del logo Arch: desactivada por
+              defecto. Al montarse solo cuando cpuRamEnabled es true, su polling y
+              procesos `ps` no existen mientras la función esté apagada. */}
+          <With value={cpuRamEnabled}>{(on: boolean) => on && <CpuRam />}</With>
           <Recording />
           <PowerButton />
         </box>
@@ -193,5 +197,5 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     </centerbox>
   </window>
 
-  return [hotzone, bar]
+  return [hotzone, bar, FunctionsMenu(gdkmonitor)]
 }

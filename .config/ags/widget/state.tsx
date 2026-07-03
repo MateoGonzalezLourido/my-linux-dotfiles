@@ -46,6 +46,7 @@ export function showPixelMicOSD() {
 // Cada panel tiene su propio estado. anyPanelVisible se deriva de ellos.
 export const [powerMenuVisible, setPowerMenuVisible] = createState(false)
 export const [quickSettingsVisible, setQuickSettingsVisible] = createState(false)
+export const [functionsMenuVisible, setFunctionsMenuVisible] = createState(false)
 
 // Ventana de ajustes general (abierta desde el engranaje de QuickSettings). Es un
 // overlay a pantalla completa e independiente del ciclo de vida de los paneles del
@@ -80,6 +81,7 @@ type PanelState = { get: () => boolean; subscribe: (cb: (v: boolean) => void) =>
 const panelStates: PanelState[] = [
   powerMenuVisible,
   quickSettingsVisible,
+  functionsMenuVisible,
   isMenuOpen,
   notifPanelVisible,
   isWsPreview,
@@ -158,11 +160,13 @@ export function closeBarMenu() {
 
 export function openPowerMenu() {
   setQuickSettingsVisible(false)
+  setFunctionsMenuVisible(false)
   setPowerMenuVisible(true)
 }
 
 export function openQuickSettings() {
   setPowerMenuVisible(false)
+  setFunctionsMenuVisible(false)
   setQuickSettingsVisible(true)
   closeNotifPanel()
 }
@@ -170,6 +174,7 @@ export function openQuickSettings() {
 export function closeAllPanels() {
   setPowerMenuVisible(false)
   setQuickSettingsVisible(false)
+  setFunctionsMenuVisible(false)
   setQsView("main")
   setInfoSsid(null)
   closeNotifPanel()

@@ -1,28 +1,31 @@
-import { createState, createEffect } from "ags"
-import { readFile } from "ags/file"
+import { createState, createEffect, onCleanup } from "ags"
+import { readFileAsync } from "ags/file"
 import { Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import { widgetsRefresh, openBarMenu, closeBarMenu, panelAutoClose } from "../state"
 
-function cpuUsage() {
+// Lee /proc/stat y devuelve los jiffies acumulados desde el arranque. El uso de
+// CPU NO se puede calcular de una sola muestra (eso da el promedio desde el boot,
+// prácticamente constante); hay que comparar el delta entre dos muestras.
+async function readCpuSample(): Promise<{ total: number; idle: number } | null> {
   try {
-    const parts = readFile("/proc/stat").split("\n")[0].trim().split(/\s+/).slice(1).map(Number)
-    const idle = parts[3]
+    const parts = (await readFileAsync("/proc/stat")).split("\n")[0].trim().split(/\s+/).slice(1).map(Number)
+    const idle = parts[3] + (parts[4] || 0) // idle + iowait = tiempo no ocupado
     const total = parts.reduce((a, b) => a + b, 0)
-    return Math.round(100 - (idle / total) * 100)
-  } catch { return 0 }
+    return { total, idle }
+  } catch { return null }
 }
 
-function ramUsage() {
+// GiB usados según MemAvailable (estimación del kernel de RAM realmente libre,
+// más fiable que total-free-buffers-cached, que infravalora lo disponible).
+async function ramUsedGb(): Promise<number | null> {
   try {
-    const lines = readFile("/proc/meminfo").split("\n")
+    const lines = (await readFileAsync("/proc/meminfo")).split("\n")
     const get = (k: string) => parseInt(lines.find((l) => l.startsWith(k))?.split(/\s+/)[1] ?? "0")
     const total = get("MemTotal:")
-    const free = get("MemFree:")
-    const bufs = get("Buffers:")
-    const cache = get("Cached:")
-    return ((total - free - bufs - cache) / 1024 / 1024).toFixed(1)
-  } catch { return 0 }
+    const avail = get("MemAvailable:")
+    return (total - avail) / 1024 / 1024
+  } catch { return null }
 }
 
 export default function CpuRam() {
@@ -107,9 +110,22 @@ export default function CpuRam() {
     pop.popup()
   }
 
-  const pollCpuRam = () => {
-    setCpu(cpuUsage())
-    setRam(ramUsage())
+  // Muestra anterior de /proc/stat para el cálculo por delta. Persiste entre
+  // ocultado/mostrado a propósito: la primera lectura tras reaparecer promedia el
+  // intervalo oculto, dando de inmediato un valor útil en vez de un 0 transitorio.
+  let prevCpu: { total: number; idle: number } | null = null
+
+  const pollCpuRam = async () => {
+    const [sample, ramGb] = await Promise.all([readCpuSample(), ramUsedGb()])
+    if (sample) {
+      if (prevCpu) {
+        const dTotal = sample.total - prevCpu.total
+        const dIdle = sample.idle - prevCpu.idle
+        if (dTotal > 0) setCpu(Math.max(0, Math.min(100, Math.round(100 * (1 - dIdle / dTotal)))))
+      }
+      prevCpu = sample
+    }
+    if (ramGb !== null) setRam(ramGb.toFixed(1))
   }
 
   const pollTopProcs = async () => {
@@ -154,6 +170,16 @@ export default function CpuRam() {
       if (topProcsTimer !== null) { clearInterval(topProcsTimer); topProcsTimer = null }
     }
     wasVisible = visible
+  })
+
+  // Al desactivar la función CPU/RAM, Bar.tsx desmonta este widget via <With>.
+  // Los setInterval son JS puro y no se paran solos al destruir el widget, así que
+  // los limpiamos aquí explícitamente (y cerramos el popover si estuviera abierto).
+  onCleanup(() => {
+    if (cpuRamTimer !== null) { clearInterval(cpuRamTimer); cpuRamTimer = null }
+    if (topProcsTimer !== null) { clearInterval(topProcsTimer); topProcsTimer = null }
+    // popdown() dispara el handler "closed", que ya hace unparent + closeBarMenu.
+    if (activePopover) { try { activePopover.popdown() } catch (_) {} }
   })
 
   return (
