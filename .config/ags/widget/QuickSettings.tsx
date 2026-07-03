@@ -770,7 +770,74 @@ const MEDIA_THEMES = [
   { bg: "rgba(148, 226, 213, 0.08)", border: "rgba(148, 226, 213, 0.2)", accent: "#94e2d5" },
 ]
 
-const playerThemes = new Map<string, number>()
+function hexToRgb(hex: string): [number, number, number] {
+  const raw = hex.replace("#", "")
+  return [
+    parseInt(raw.slice(0, 2), 16),
+    parseInt(raw.slice(2, 4), 16),
+    parseInt(raw.slice(4, 6), 16),
+  ]
+}
+
+function rgbToCss([r, g, b]: [number, number, number]): string {
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+function cssRgbToTuple(rgb: string): [number, number, number] {
+  const values = rgb.match(/\d+/g)?.map(Number)
+  if (!values || values.length < 3) return hexToRgb(MEDIA_THEMES[0].accent)
+  return [values[0], values[1], values[2]]
+}
+
+function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number] {
+  const pixels = pixbuf.get_pixels()
+  const width = pixbuf.get_width()
+  const height = pixbuf.get_height()
+  const channels = pixbuf.get_n_channels()
+  const rowstride = pixbuf.get_rowstride()
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 28))
+  const buckets = new Map<string, { r: number; g: number; b: number; weight: number }>()
+
+  for (let y = 0; y < height; y += step) {
+    const row = y * rowstride
+    for (let x = 0; x < width; x += step) {
+      const i = row + x * channels
+      const r = pixels[i]
+      const g = pixels[i + 1]
+      const b = pixels[i + 2]
+      const max = Math.max(r, g, b)
+      const min = Math.min(r, g, b)
+      const sat = max === 0 ? 0 : (max - min) / max
+      const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+      if (lum < 24 || lum > 232 || sat < 0.12) continue
+
+      const qr = r >> 4
+      const qg = g >> 4
+      const qb = b >> 4
+      const key = `${qr},${qg},${qb}`
+      const weight = sat * (1 - Math.abs(lum - 128) / 128)
+      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, weight: 0 }
+      bucket.r += r * weight
+      bucket.g += g * weight
+      bucket.b += b * weight
+      bucket.weight += weight
+      buckets.set(key, bucket)
+    }
+  }
+
+  let best: { r: number; g: number; b: number; weight: number } | null = null
+  for (const bucket of buckets.values()) {
+    if (!best || bucket.weight > best.weight) best = bucket
+  }
+  if (!best || best.weight <= 0) return hexToRgb(MEDIA_THEMES[0].accent)
+
+  return [
+    Math.round(best.r / best.weight),
+    Math.round(best.g / best.weight),
+    Math.round(best.b / best.weight),
+  ]
+}
 
 function QsMedia() {
   const mpris = AstalMpris.get_default()
@@ -786,6 +853,7 @@ function QsMedia() {
   const [numPlayers, setNumPlayers] = createState(0)
   const [playerName, setPlayerName] = createState("")
   const [themeIdx, setThemeIdx] = createState(0)
+  const [coverAccent, setCoverAccent] = createState(MEDIA_THEMES[0].accent)
   const [trackId, setTrackIdState] = createState<string | null>(null)
   const [isAdState, setIsAd] = createState(false)
   const [liked, setLiked] = createState(false)
@@ -873,13 +941,8 @@ function QsMedia() {
     setPlayerName(p.identity || p.bus_name.split(".").pop() || "Player")
     if (p.length > 0) setProg(p.position / p.length)
 
-    // Assign and persist theme for this player instance
-    let tIdx = playerThemes.get(p.bus_name)
-    if (tIdx === undefined) {
-      tIdx = Math.floor(Math.random() * MEDIA_THEMES.length)
-      playerThemes.set(p.bus_name, tIdx)
-    }
-    setThemeIdx(tIdx)
+    // Fallback theme for non-cover UI. The background filter uses the real cover color.
+    setThemeIdx(0)
   }
 
   const nextPlayer = () => {
@@ -933,6 +996,7 @@ function QsMedia() {
     const path = c.startsWith("file://") ? c.slice(7) : c
     try {
       const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+      setCoverAccent(rgbToCss(dominantPixbufColor(pixbuf)))
       coverPicture.set_paintable(Gdk.Texture.new_for_pixbuf(pixbuf))
     } catch (_) { coverPicture.set_paintable(null) }
   }
@@ -940,17 +1004,51 @@ function QsMedia() {
   isAdState.subscribe(applyCover)
   applyCover()
 
+  const colorFilter = new Gtk.DrawingArea()
+  colorFilter.set_can_target(false)
+  colorFilter.set_halign(Gtk.Align.FILL)
+  colorFilter.set_valign(Gtk.Align.FILL)
+  colorFilter.set_hexpand(true)
+  colorFilter.set_vexpand(true)
+  colorFilter.set_content_width(1)
+  colorFilter.set_content_height(CARD_H)
+  colorFilter.set_draw_func((_area, cr, width, height) => {
+    if (!cover.get() || isAdState.get()) return
+    const [r, g, b] = cssRgbToTuple(coverAccent.get())
+    cr.setSourceRGBA(r / 255, g / 255, b / 255, 0.42)
+    cr.rectangle(0, 0, width, height)
+    cr.fill()
+  })
+  const queueColorFilter = () => colorFilter.queue_draw()
+  cover.subscribe(queueColorFilter)
+  isAdState.subscribe(queueColorFilter)
+  coverAccent.subscribe(queueColorFilter)
+
+  const coverScrim = new Gtk.DrawingArea()
+  coverScrim.set_can_target(false)
+  coverScrim.set_halign(Gtk.Align.FILL)
+  coverScrim.set_valign(Gtk.Align.FILL)
+  coverScrim.set_hexpand(true)
+  coverScrim.set_vexpand(true)
+  coverScrim.set_content_width(1)
+  coverScrim.set_content_height(CARD_H)
+  coverScrim.set_draw_func((_area, cr, width, height) => {
+    if (!cover.get() || isAdState.get()) return
+    cr.setSourceRGBA(0, 0, 0, 0.58)
+    cr.rectangle(0, 0, width, height)
+    cr.fill()
+  })
+  const queueCoverScrim = () => coverScrim.queue_draw()
+  cover.subscribe(queueCoverScrim)
+  isAdState.subscribe(queueCoverScrim)
+
   const mediaContent = (
     <box
       orientation={Gtk.Orientation.VERTICAL}
       spacing={4}
       hexpand
       heightRequest={CARD_H}
-      css={createComputed(() => {
-        // Scrim (background-color, que sí renderiza) solo cuando hay carátula visible.
-        const scrim = (cover.get() && !isAdState.get()) ? "background-color: rgba(8,8,12,0.5); " : ""
-        return scrim + "padding: 8px 10px 2px;"
-      })}
+      css="background-color: transparent; padding: 8px 10px 2px;"
     >
       <box spacing={4} visible={numPlayers((n) => n > 1)} css="margin-bottom: 2px;">
         <label 
@@ -1039,6 +1137,8 @@ function QsMedia() {
     >
       <Gtk.Overlay $={(self: any) => {
         self.set_child(bgCap)
+        self.add_overlay(colorFilter)
+        self.add_overlay(coverScrim)
         self.add_overlay(mediaContent)
         self.set_measure_overlay(mediaContent, true)
       }} />
