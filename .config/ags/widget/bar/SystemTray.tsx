@@ -17,7 +17,10 @@ const [activeTrayItem, setActiveTrayItem] = createState<AstalTray.TrayItem | nul
 
 function closeTrayMenu() {
   setTrayMenuVisible(false)
-  setActiveTrayItem(null)
+  GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+    if (!trayMenuVisible.get()) setActiveTrayItem(null)
+    return GLib.SOURCE_REMOVE
+  })
 }
 
 function toggleTrayMenu(item: AstalTray.TrayItem) {
@@ -81,7 +84,7 @@ function activateTrayAction(action: string, target: GLib.Variant | null) {
       try { return actionGroup.has_action(candidate) } catch (_) { return false }
     }) ?? candidates[0]
 
-    actionGroup.activate_action(name, target)
+    actionGroup.activate_action(name, target ? target.ref() : null)
   } catch (error) {
     console.error(`[tray] failed to activate action ${action}:`, error)
   }
@@ -170,7 +173,7 @@ function TrayMenuModel({ model, depth = 0 }: { model: Gio.MenuModel; depth?: num
       <TrayMenuButton
         label={label ?? action ?? ""}
         action={action}
-        target={model.get_item_attribute_value(index, "target", null)}
+        target={model.get_item_attribute_value(index, "target", null)?.ref_sink() ?? null}
         depth={depth}
       />
     )

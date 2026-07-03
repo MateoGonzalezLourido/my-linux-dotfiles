@@ -131,3 +131,9 @@
 [2026-07-03 14:24:47] [warning] Errores en el arranque — 2 fuente(s) con errores: kernel,python, — revisa: journalctl -b -p err
 [2026-07-03 14:24:47] Healthcheck completado: 1 problema(s) notificado(s)
 [2026-07-03 14:24:47] === Boot healthcheck END ===
+[2026-07-03 18:23:23] === Boot healthcheck START ===
+[2026-07-03 18:23:23] Hardware discovered: battery=true nvidia=true nvme=true sata=false fans=true swap=true bt=true audio=true net=true usb=true
+[2026-07-03 18:23:23] [warning] Errores en el arranque — 2 fuente(s) con errores: kernel,python, — revisa: journalctl -b -p err
+[2026-07-03 18:23:23] [warning] Errores USB en el arranque — 2 error(s) USB en el journal — revisa: journalctl -b | grep -i 'usb.*error'
+[2026-07-03 18:23:23] Healthcheck completado: 2 problema(s) notificado(s)
+[2026-07-03 18:23:23] === Boot healthcheck END ===
