@@ -1,278 +1,95 @@
-import app from "ags/gtk4/app"
 import AstalTray from "gi://AstalTray"
-import Gio from "gi://Gio"
-import GLib from "gi://GLib"
-import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createBinding, createState, For, With } from "ags"
-import {
-  closeAllPanels,
-  panelAutoClose,
-  setTrayMenuVisible,
-  trayMenuVisible,
-} from "../state"
+import { Gtk } from "ags/gtk4"
+import { createBinding, For } from "ags"
+import { openBarMenu, closeBarMenu, panelAutoClose } from "../state"
 
+// Prefijos de action group que exponen los menús StatusNotifierItem (dbusmenu.* …).
 const ACTION_GROUP_NAMES = ["dbusmenu", "tray", "indicator", "item", "app", "unity"]
 
-const [activeTrayItem, setActiveTrayItem] = createState<AstalTray.TrayItem | null>(null)
+// Un icono del tray = un Gtk.MenuButton cuyo popover se construye desde el
+// menuModel del item. Clave: GTK lee y renderiza el GMenuModel remoto (D-Bus)
+// **en C**, gestionando el ciclo de vida de los GVariant internamente. Antes se
+// escrapeaba el modelo a mano desde JS (get_item_attribute_value + deep_unpack),
+// lo que dejaba GVariants colgantes al reabrir el menú → use-after-free en
+// g_variant_classify → SIGSEGV. Con el popover nativo ese fallo es imposible.
+function TrayItemButton({ item }: { item: AstalTray.TrayItem }) {
+  let opened = false
+  let button: Gtk.MenuButton | null = null
 
-function closeTrayMenu() {
-  setTrayMenuVisible(false)
-  GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-    if (!trayMenuVisible.get()) setActiveTrayItem(null)
-    return GLib.SOURCE_REMOVE
-  })
-}
+  // Cierre por hover con gracia, igual que CpuRam y los paneles del bar: en vez
+  // del autohide nativo de GTK (que en layer-shell no cierra bien), el menú se
+  // cierra al salir el ratón del icono y del propio menú.
+  const autoClose = panelAutoClose(() => button?.get_popover()?.popdown(), 250)
 
-function toggleTrayMenu(item: AstalTray.TrayItem) {
-  const sameItemOpen = trayMenuVisible.get() && activeTrayItem.get()?.itemId === item.itemId
-
-  if (sameItemOpen) {
-    closeTrayMenu()
-    return
-  }
-
-  closeAllPanels()
-  try { item.about_to_show() } catch (_) {}
-  setActiveTrayItem(item)
-  setTrayMenuVisible(true)
-}
-
-function insertTrayActions(widget: Gtk.Widget, actionGroup: Gio.ActionGroup | null) {
-  for (const name of ACTION_GROUP_NAMES) {
-    widget.insert_action_group(name, actionGroup)
-  }
-}
-
-function variantToString(value: GLib.Variant | null): string | null {
-  if (!value) return null
-
-  try {
-    const unpacked = value.deep_unpack()
-    return typeof unpacked === "string" ? unpacked : String(unpacked)
-  } catch (_) {
-    return null
-  }
-}
-
-function menuLabel(model: Gio.MenuModel, index: number): string | null {
-  const label = variantToString(model.get_item_attribute_value(index, "label", null))
-  return label?.replace(/_/g, "").trim() || null
-}
-
-function menuAction(model: Gio.MenuModel, index: number): string | null {
-  return variantToString(model.get_item_attribute_value(index, "action", null))
-}
-
-function localActionName(action: string): string {
-  for (const prefix of ACTION_GROUP_NAMES) {
-    const fullPrefix = `${prefix}.`
-    if (action.startsWith(fullPrefix)) return action.slice(fullPrefix.length)
-  }
-
-  return action
-}
-
-function activateTrayAction(action: string, target: GLib.Variant | null) {
-  const actionGroup = activeTrayItem.get()?.actionGroup
-  if (!actionGroup) return
-
-  const localName = localActionName(action)
-  const candidates = localName === action ? [action] : [localName, action]
-
-  try {
-    const name = candidates.find((candidate) => {
-      try { return actionGroup.has_action(candidate) } catch (_) { return false }
-    }) ?? candidates[0]
-
-    actionGroup.activate_action(name, target ? target.ref() : null)
-  } catch (error) {
-    console.error(`[tray] failed to activate action ${action}:`, error)
-  }
-}
-
-function TrayMenuHeader({ label, depth }: { label: string; depth: number }) {
   return (
-    <label
-      cssClasses={depth > 0 ? ["tray-menu-header", "nested"] : ["tray-menu-header"]}
-      label={label}
-      xalign={0}
-    />
-  )
-}
-
-function TrayMenuSeparator() {
-  return <Gtk.Separator orientation={Gtk.Orientation.HORIZONTAL} cssClasses={["tray-menu-separator"]} />
-}
-
-function TrayMenuButton({
-  label,
-  action,
-  target,
-  depth,
-  fallback,
-}: {
-  label: string
-  action: string | null
-  target: GLib.Variant | null
-  depth: number
-  fallback?: () => void
-}) {
-  return (
-    <button
-      cssClasses={depth > 0 ? ["fn-menu-button", "tray-menu-button", "nested"] : ["fn-menu-button", "tray-menu-button"]}
+    <menubutton
+      cssClasses={["icon-bare", "tray-item"]}
       focusable={false}
-      sensitive={Boolean(action || fallback)}
-      $={(self) => {
-        self.connect("clicked", () => {
-          if (action) activateTrayAction(action, target)
-          else if (fallback) fallback()
-          closeTrayMenu()
-        })
-      }}
-    >
-      <box cssClasses={["fn-menu-row", "tray-menu-row"]} spacing={8}>
-        <label
-          cssClasses={["fn-menu-label", "tray-menu-label"]}
-          label={label}
-          xalign={0}
-          hexpand
-          ellipsize={3}
-        />
-      </box>
-    </button>
-  )
-}
+      tooltipMarkup={createBinding(item, "tooltipMarkup")}
+      menuModel={createBinding(item, "menuModel")}
+      $={(self: Gtk.MenuButton) => {
+        button = self
 
-function TrayMenuModel({ model, depth = 0 }: { model: Gio.MenuModel; depth?: number }) {
-  const rows = []
-  const total = model.get_n_items()
+        // Inserta el/los action group del item para que sus acciones resuelvan.
+        // Se refresca en cada apertura por si la app cambia el grupo.
+        const applyGroup = () => {
+          const g = item.actionGroup ?? null
+          for (const name of ACTION_GROUP_NAMES) self.insert_action_group(name, g)
+        }
+        applyGroup()
 
-  for (let index = 0; index < total; index++) {
-    const label = menuLabel(model, index)
-    const section = model.get_item_link(index, "section")
-    const submenu = model.get_item_link(index, "submenu")
-
-    if (section) {
-      if (index > 0) rows.push(<TrayMenuSeparator />)
-      if (label) rows.push(<TrayMenuHeader label={label} depth={depth} />)
-      rows.push(<TrayMenuModel model={section} depth={depth} />)
-      continue
-    }
-
-    if (submenu) {
-      if (index > 0) rows.push(<TrayMenuSeparator />)
-      if (label) rows.push(<TrayMenuHeader label={label} depth={depth} />)
-      rows.push(<TrayMenuModel model={submenu} depth={depth + 1} />)
-      continue
-    }
-
-    const action = menuAction(model, index)
-    if (!label && !action) continue
-
-    rows.push(
-      <TrayMenuButton
-        label={label ?? action ?? ""}
-        action={action}
-        target={model.get_item_attribute_value(index, "target", null)?.ref_sink() ?? null}
-        depth={depth}
-      />
-    )
-  }
-
-  return <box orientation={Gtk.Orientation.VERTICAL}>{rows}</box>
-}
-
-function TrayMenuContent({ item }: { item: AstalTray.TrayItem }) {
-  const model = item.menuModel
-
-  return (
-    <box cssClasses={["fn-menu", "tray-menu"]} orientation={Gtk.Orientation.VERTICAL}>
-      <label
-        cssClasses={["fn-menu-header", "tray-menu-title"]}
-        label={item.title || item.id || "Aplicación"}
-        xalign={0}
-      />
-      {model && model.get_n_items() > 0 ? (
-        <TrayMenuModel model={model} />
-      ) : (
-        <TrayMenuButton
-          label="Abrir"
-          action={null}
-          target={null}
-          depth={0}
-          fallback={() => item.activate(0, 0)}
-        />
-      )}
-    </box>
-  )
-}
-
-export function SystemTrayMenu(gdkmonitor: Gdk.Monitor) {
-  const { TOP, RIGHT } = Astal.WindowAnchor
-  const autoClose = panelAutoClose(closeTrayMenu, 300, trayMenuVisible)
-
-  return (
-    <window
-      name="system-tray-menu"
-      visible={trayMenuVisible}
-      gdkmonitor={gdkmonitor}
-      layer={Astal.Layer.TOP}
-      exclusivity={Astal.Exclusivity.NORMAL}
-      keymode={Astal.Keymode.ON_DEMAND}
-      anchor={TOP | RIGHT}
-      application={app}
-      widthRequest={230}
-      marginTop={37}
-      marginRight={126}
-      decorated={false}
-      cssClasses={["fn-menu-window", "tray-menu-window"]}
-      $={(self) => {
-        insertTrayActions(self, activeTrayItem.get()?.actionGroup ?? null)
-        activeTrayItem.subscribe((item) => {
-          insertTrayActions(self, item?.actionGroup ?? null)
-        })
-      }}
-    >
-      <Gtk.EventControllerKey
-        onKeyPressed={(_self, keyval) => {
-          if (keyval === Gdk.KEY_Escape) {
-            closeTrayMenu()
-            return true
+        // El popover se autocrea desde menuModel: lo estilamos (.tray-popover),
+        // le quitamos la flecha, desactivamos el autohide nativo y enganchamos el
+        // cierre por hover para que desaparezca como el resto de paneles.
+        const setupPopover = () => {
+          const pop = self.get_popover()
+          if (!pop) return
+          pop.add_css_class("tray-popover")
+          pop.set_has_arrow(false)
+          pop.set_autohide(false)
+          if (!(pop as any)._traySetup) {
+            ;(pop as any)._traySetup = true
+            const motion = new Gtk.EventControllerMotion()
+            motion.connect("enter", () => autoClose.onEnter())
+            motion.connect("leave", () => autoClose.onLeave())
+            pop.add_controller(motion)
+            pop.connect("closed", () => {
+              if (opened) { opened = false; closeBarMenu() }
+            })
           }
-          return false
-        }}
-      />
-      <box orientation={Gtk.Orientation.VERTICAL}>
-        <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
-        <With value={activeTrayItem}>
-          {(item) => item ? <TrayMenuContent item={item} /> : <box />}
-        </With>
-      </box>
-    </window>
+        }
+        setupPopover()
+
+        // Mantén el bar visible mientras el menú esté abierto y avisa a la app.
+        self.connect("notify::active", () => {
+          if (self.active) {
+            applyGroup()
+            setupPopover()
+            try { item.about_to_show() } catch (_) {}
+            if (!opened) { opened = true; openBarMenu() }
+          } else if (opened) {
+            opened = false
+            closeBarMenu()
+          }
+        })
+      }}
+    >
+      {/* El icono y el propio botón forman parte de la zona de hover: pasar del
+          icono al menú (o al revés) no lo cierra; salir de ambos sí. */}
+      <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
+      <image gicon={createBinding(item, "gicon")} pixelSize={17} />
+    </menubutton>
   )
 }
 
 export default function SystemTray() {
-  const tray  = AstalTray.get_default()
+  const tray = AstalTray.get_default()
   const items = createBinding(tray, "items")
 
   return (
     <box spacing={2}>
       <For each={items}>
-        {(item) => (
-          <button
-            cssName="icon-bare"
-            cssClasses={["tray-item"]}
-            focusable={false}
-            tooltipMarkup={createBinding(item, "tooltipMarkup")}
-            onClicked={() => toggleTrayMenu(item)}
-          >
-            <image
-              gicon={createBinding(item, "gicon")}
-              pixelSize={17}
-            />
-          </button>
-        )}
+        {(item) => <TrayItemButton item={item} />}
       </For>
     </box>
   )

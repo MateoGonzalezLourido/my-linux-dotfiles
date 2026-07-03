@@ -559,57 +559,97 @@ popover.cpuram-popover {
   &:hover {
     background-color: $bg-pill-hover;
   }
-}
 
-.tray-menu-window {
-  background: transparent;
-}
+  // Menú nativo de GTK: el Gtk.MenuButton envuelve el icono en un <button>
+  // interno con estilo de tema; lo aplanamos para que solo se vea el icono.
+  > button {
+    background: none;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    min-height: 28px;
+    padding: 0;
 
-.tray-menu {
-  min-width: 180px;
-}
-
-.tray-menu-button {
-  &.nested {
-    .tray-menu-row {
-      padding-left: 18px;
+    &:hover,
+    &:active,
+    &:checked {
+      background: none;
     }
   }
 }
 
-.tray-menu-row {
-  min-height: 27px;
+// ── Menú del tray: Gtk.PopoverMenu nativo, estilado como los .fn-menu ─────────
+popover.tray-popover {
+  // Nodo popover externo: quitar todo el marco/sombra/padding del tema.
+  // Solo debe verse el contenedor > contents estilado abajo.
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
 
-  label {
+  > arrow {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  // Contenedor del menú (mismo look que .fn-menu / .ws-preview-bg)
+  > contents {
+    min-width: 190px;
+    padding: 6px;
+    background: #0e0e1a;
+    border: 1px solid rgba(137, 180, 250, 0.18);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    transform-origin: top center;
+    animation: pop-liquid-in 200ms cubic-bezier(0.22, 1.2, 0.36, 1);
+  }
+
+  // Cada fila del menú
+  modelbutton {
+    border-radius: 8px;
+    padding: 7px 10px;
+    min-height: 26px;
+    margin: 1px 0;
     color: #cdd6f4;
+    font-family: 'MesloLGS Nerd Font', 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background-color 120ms ease;
+
+    &:hover,
+    &:focus {
+      background: rgba(137, 180, 250, 0.14);
+      color: #ffffff;
+    }
+
+    &:active {
+      background: rgba(137, 180, 250, 0.22);
+    }
+
+    &:disabled {
+      color: rgba(205, 214, 244, 0.35);
+    }
+
+    // marcas de check/radio y flecha de submenú
+    check,
+    radio,
+    arrow {
+      color: #89b4fa;
+      min-width: 14px;
+      min-height: 14px;
+    }
   }
-}
 
-.tray-menu-label {
-  font-family: 'MesloLGS Nerd Font', 'Inter', sans-serif;
-  font-size: 12px;
-}
-
-.tray-menu-header {
-  padding: 5px 10px 3px;
-  font-family: 'MesloLGS Nerd Font', 'Inter', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  color: rgba(205, 214, 244, 0.6);
-  text-transform: uppercase;
-
-  &.nested {
-    padding-left: 20px;
+  // Separadores entre secciones
+  separator {
+    margin: 5px 4px;
+    min-height: 1px;
+    background: rgba(137, 180, 250, 0.14);
   }
-}
-
-.tray-menu-separator {
-  margin: 4px 6px;
-  background-color: rgba(205, 214, 244, 0.12);
-}
-
-.tray-menu-title {
-  margin-bottom: 6px;
 }
 
 .bar-pill {
