@@ -723,6 +723,11 @@ popover.menu {
     background-color: #f9e2af;
   }
 
+  // Glyph de ethernet (reemplaza las barras cuando el medio activo es cable).
+  .network-wired-glyph {
+    font-size: 15px;
+  }
+
   .network-status-glyph {
     font-size: 11px;
     margin-left: 2px;
@@ -776,7 +781,11 @@ popover.menu {
   .bluetooth-icon {
     font-family: "MesloLGS Nerd Font";
     font-size: 16px;
-    color: $blue;
+    color: #6c7086;              // gris: activo pero sin dispositivo conectado
+  }
+
+  &.connected .bluetooth-icon {
+    color: $violet;              // morado: hay un dispositivo conectado
   }
 }
 

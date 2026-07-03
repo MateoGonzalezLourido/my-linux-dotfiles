@@ -433,8 +433,29 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
     return { label: conn.alias || conn.name, icon }
   }
 
-  const wifiEnabled = wifi ? createBinding(wifi, "enabled") : null
-  const wifiConnected = wifi ? createBinding(wifi, "internet") : null
+  // Tile de red consciente de ethernet: si network.primary es WIRED y el cable
+  // está activo, el tile muestra Ethernet; si no, comportamiento WiFi de siempre.
+  const NET_P  = AstalNetwork.Primary
+  const NET_DS = AstalNetwork.DeviceState
+  const ETHERNET_GLYPH = "󰈀"   // nf-md-ethernet
+  const computeNetTile = () => {
+    const wired = network.wired
+    const onWired = network.primary === NET_P.WIRED
+      && !!wired && wired.state === NET_DS.ACTIVATED
+    if (onWired) return { icon: ETHERNET_GLYPH, label: "Ethernet", active: true }
+    return { icon: "󰤨", label: wifi?.ssid || "Wi-Fi", active: wifi?.enabled ?? false }
+  }
+  const [netTile, setNetTile] = createState(computeNetTile())
+  const syncNetTile = () => setNetTile(computeNetTile())
+  network.connect("notify::primary", syncNetTile)
+  network.connect("notify::wired", syncNetTile)
+  network.connect("notify::wifi", syncNetTile)
+  if (wifi) {
+    wifi.connect("notify::ssid", syncNetTile)
+    wifi.connect("notify::enabled", syncNetTile)
+  }
+  if (network.wired) network.wired.connect("notify::state", syncNetTile)
+
   const btPowered = createBinding(bt, "isPowered")
   const btDevices = createBinding(bt, "devices")
 
@@ -474,11 +495,11 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
     <box cssClasses={["qs-tiles"]} spacing={6} hexpand homogeneous>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
         <QsTile
-          icon="󰤨"
-          label={wifi ? createBinding(wifi, "ssid")((s) => s || "Wi-Fi") : "Wi-Fi"}
+          icon={netTile((t) => t.icon)}
+          label={netTile((t) => t.label)}
           subtitle={netSpeed((s) => `󰇚${s.down} 󰕒${s.up}`)}
           subtitleWidthRequest={96}
-          active={wifiEnabled ? wifiEnabled : false}
+          active={netTile((t) => t.active)}
           onToggle={onWifiClick}
           onSecondaryClick={onWifiClick}
           onRightClick={() => wifi && execAsync(["bash", "-c", wifi.enabled ? "nmcli radio wifi off" : "nmcli radio wifi on"])}
@@ -1471,11 +1492,14 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   // seguía escaneando en background hasta agotar el `duration`).
   quickSettingsVisible.subscribe(() => { if (!quickSettingsVisible.get()) stopScan() })
 
-  // Update once on mount and when powered/devices change
-  bt.connect("notify::is-powered", update)
-  bt.connect("notify::devices", update)
-  bt.connect("device-added", update)
-  bt.connect("device-removed", update)
+  // Solo refrescamos la lista mientras la vista Bluetooth está visible. Con el QS
+  // cerrado o en otra pestaña ignoramos las señales: antes cada notify::devices
+  // reconstruía la lista aunque nadie la mirara (mismo patrón que el menú WiFi).
+  const inBtView = () => qsView.get() === "bluetooth"
+  bt.connect("notify::is-powered", () => { if (inBtView()) update() })
+  bt.connect("notify::devices", () => { if (inBtView()) update() })
+  bt.connect("device-added", () => { if (inBtView()) update() })
+  bt.connect("device-removed", () => { if (inBtView()) update() })
 
   const isMac = (str: string) => /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/i.test(str)
   const hasRealName = (dev: any) => {
@@ -1572,13 +1596,14 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     )
   }
 
-  if (!(globalThis as any)._btAutoScanSub) {
-    (globalThis as any)._btAutoScanSub = qsView.subscribe(() => {
-      if (qsView.get() === "bluetooth" && bt.isPowered && !scanning.get()) {
-        scan(5000)
-      }
-    })
-  }
+  // Al entrar en la vista Bluetooth: refresco inmediato desde la caché + escaneo
+  // activo corto (throttled por el guard de `scanning`). Per-instancia, sin fugas
+  // en globalThis; al salir, stopScan() (ligado a quickSettingsVisible) corta todo.
+  qsView.subscribe(() => {
+    if (qsView.get() !== "bluetooth") { stopScan(); return }
+    update()
+    if (bt.isPowered && !scanning.get()) scan(5000)
+  })
 
   return (
     <box cssClasses={["qs-bluetooth-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>

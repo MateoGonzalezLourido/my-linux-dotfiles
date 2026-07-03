@@ -4,6 +4,7 @@ import { Gtk } from "ags/gtk4"
 import { barVisible, widgetsRefresh } from "../state"
 
 const BARS = 4
+const ETHERNET_GLYPH = "󰈀"   // nf-md-ethernet
 
 function activeBars(strength: number) {
   if (strength >= 80) return 4
@@ -13,15 +14,16 @@ function activeBars(strength: number) {
   return 0
 }
 
-// Estado de red que el bar necesita representar:
-//   connected → asociado con internet real (FULL)
-//   portal    → asociado pero requiere login (portal cautivo)
-//   limited   → asociado pero sin internet real (LIMITED/NONE)
-//   offline   → sin AP asociado
-type NetState = "connected" | "portal" | "limited" | "offline"
+// Dos ejes derivados puramente de señales (sin polling):
+//   kind    → qué medio está activo (cable / wifi / ninguno)
+//   quality → calidad del enlace activo (internet real, portal, sin internet)
+type NetKind    = "wired" | "wifi" | "none"
+type NetQuality = "connected" | "portal" | "limited" | "offline"
 
-function barClasses(strength: number, state: NetState) {
-  const active = state === "offline" ? 0 : activeBars(strength)
+// Las barras solo tienen sentido para wifi; con cable se muestra un glyph y con
+// "none" se pintan atenuadas.
+function barClasses(strength: number, kind: NetKind) {
+  const active = kind === "wifi" ? activeBars(strength) : 0
 
   return Array.from({ length: BARS }, (_, i) => {
     const classes = ["network-bar", `bar-${i + 1}`]
@@ -32,84 +34,115 @@ function barClasses(strength: number, state: NetState) {
 
 export default function Network() {
   const network = AstalNetwork.get_default()
-  const wifi    = network.wifi
-  if (!wifi) {
-    return (
-      <box cssClasses={["network", "network-off"]} valign={Gtk.Align.CENTER}>
-        <box cssClasses={["network-bars"]} spacing={1} valign={Gtk.Align.CENTER}>
-          <For each={barClasses(0, "offline")}>
-            {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
-          </For>
-        </box>
-      </box>
-    )
+
+  const P  = AstalNetwork.Primary
+  const C  = AstalNetwork.Connectivity
+  const DS = AstalNetwork.DeviceState
+
+  const wiredUp = () => {
+    const w = network.wired
+    return !!w && w.state === DS.ACTIVATED
+  }
+  const wifiUp = () => {
+    const w = network.wifi
+    return !!w && !!w.ssid
   }
 
-  const C = AstalNetwork.Connectivity
+  // Criterio principal: network.primary (lo que NM enruta). Si primary viene
+  // UNKNOWN/inconsistente, se resuelve por disponibilidad, con cable preferente.
+  const computeKind = (): NetKind => {
+    if (network.primary === P.WIRED && wiredUp()) return "wired"
+    if (network.primary === P.WIFI  && wifiUp())  return "wifi"
+    if (wiredUp()) return "wired"
+    if (wifiUp())  return "wifi"
+    return "none"
+  }
 
-  // Derivado puramente de señales: sin polling. El bar solo muestra; el clic cae
-  // al botón del pill (Bar.tsx) que abre QuickSettings, donde está la gestión real.
-  const computeState = (): NetState => {
-    if (!wifi.ssid) return "offline"
+  // connectivity es global en NM: aplica al medio activo sea cable o wifi.
+  const computeQuality = (kind: NetKind): NetQuality => {
+    if (kind === "none") return "offline"
     switch (network.connectivity) {
       case C.PORTAL: return "portal"
       case C.LIMITED:
-      case C.NONE: return "limited"
-      default: return "connected"   // FULL / UNKNOWN
+      case C.NONE:   return "limited"
+      default:       return "connected"   // FULL / UNKNOWN
     }
   }
 
-  const computeTip = (s: NetState) => {
-    const name = wifi.ssid || "Sin conexión"
-    return s === "portal"  ? `${name} · Inicia sesión (portal cautivo)`
-      : s === "limited" ? `${name} · Sin internet`
-      : s === "offline" ? "Sin conexión"
-      : name
+  const computeTip = (kind: NetKind, quality: NetQuality) => {
+    const suffix = quality === "portal"  ? " · Inicia sesión (portal cautivo)"
+                 : quality === "limited" ? " · Sin internet"
+                 : ""
+    if (kind === "wired") return `Ethernet${suffix}`
+    if (kind === "wifi")  return `${network.wifi?.ssid || "Wi-Fi"}${suffix}`
+    return "Sin conexión"
   }
 
-  const [state, setState] = createState<NetState>(computeState())
-  const [bars, setBars] = createState(barClasses(wifi.strength ?? 0, computeState()))
-  const [tip, setTip] = createState(computeTip(computeState()))
-
-  const sync = () => {
-    const s = computeState()
-    setState(s)
-    setBars(barClasses(wifi.strength ?? 0, s))
-    setTip(computeTip(s))
+  const snapshot = () => {
+    const kind = computeKind()
+    const quality = computeQuality(kind)
+    return {
+      kind,
+      quality,
+      bars: barClasses(network.wifi?.strength ?? 0, kind),
+      tip: computeTip(kind, quality),
+    }
   }
 
-  // Mientras el bar está oculto no re-renderizamos: los últimos valores quedan
-  // "cacheados" en el estado del widget. Al volver visible (widgetsRefresh) se
-  // recomputa desde el estado real de NetworkManager. Mismo patrón que Battery/Volume.
+  const [snap, setSnap] = createState(snapshot())
+  const sync = () => setSnap(snapshot())
+
+  // Mientras el bar está oculto no re-renderizamos: el último valor queda
+  // "cacheado" en el estado del widget. Al volver visible (widgetsRefresh) se
+  // recomputa desde el estado real de NetworkManager. Mismo patrón que Battery.
   const update = () => { if (!barVisible.get()) return; sync() }
 
-  wifi.connect("notify::strength", update)
-  wifi.connect("notify::ssid", update)
-  wifi.connect("notify::internet", update)
+  const wifi = network.wifi
+  if (wifi) {
+    wifi.connect("notify::strength", update)
+    wifi.connect("notify::ssid", update)
+    wifi.connect("notify::internet", update)
+  }
+  // El objeto Wired persiste mientras exista el dispositivo (aunque el cable esté
+  // fuera → state UNAVAILABLE); basta suscribirse una vez a su state/internet.
+  const wired = network.wired
+  if (wired) {
+    wired.connect("notify::state", update)
+    wired.connect("notify::internet", update)
+  }
   network.connect("notify::connectivity", update)
+  network.connect("notify::primary", update)
+  network.connect("notify::wired", update)
+  network.connect("notify::wifi", update)
 
   // gnim invoca el callback sin argumentos → leer .get() (con `(v)` no sincronizaba).
   widgetsRefresh.subscribe(() => { if (widgetsRefresh.get()) sync() })
 
   return (
     <box
-      cssClasses={state((s) => ["network", s])}
+      cssClasses={snap((s) => ["network", s.kind === "wired" ? "wired" : s.quality])}
       valign={Gtk.Align.CENTER}
-      tooltipText={tip}
+      tooltipText={snap((s) => s.tip)}
     >
       <box
-        cssClasses={state((s) => s === "offline" ? ["network-bars", "offline"] : ["network-bars"])}
+        cssClasses={snap((s) => s.kind === "none" ? ["network-bars", "offline"] : ["network-bars"])}
         spacing={1}
         valign={Gtk.Align.CENTER}
+        visible={snap((s) => s.kind !== "wired")}
       >
-        <For each={bars}>
+        <For each={snap((s) => s.bars)}>
           {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
         </For>
       </box>
       <label
+        cssClasses={["network-wired-glyph"]}
+        label={ETHERNET_GLYPH}
+        visible={snap((s) => s.kind === "wired")}
+      />
+      <label
         cssClasses={["network-status-glyph"]}
-        label={state((s) => s === "portal" || s === "limited" ? "󰀦" : "")}
-        visible={state((s) => s === "portal" || s === "limited")}
+        label="󰀦"
+        visible={snap((s) => s.quality === "portal" || s.quality === "limited")}
       />
     </box>
   )

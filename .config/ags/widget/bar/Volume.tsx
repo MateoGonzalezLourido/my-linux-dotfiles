@@ -3,10 +3,31 @@ import { createState } from "ags"
 import { Gtk, Gdk } from "ags/gtk4"
 import { showPixelVolOSD, barVisible, widgetsRefresh } from "../state"
 
-function volIcon(v: number, muted: boolean) {
-  if (muted || v === 0) return "󰝟"
-  if (v < 0.25) return "󰕿"
-  if (v < 0.50) return "󰖀"
+const HEADSET_ICON = "󰋋"   // nf-md-headphones
+
+// ¿La salida por defecto son auriculares/cascos (BT o cable)? En el perfil UCM
+// "HiFi" cada salida es un sink propio, así que el node.name trae "Headphones"
+// al enchufar por cable; para BT, WirePlumber marca el icono "audio-headset"/
+// "audio-headphones". Miramos icon + name + description para cubrir ambos casos.
+function isHeadset(s: AstalWp.Endpoint | null): boolean {
+  if (!s) return false
+  const hay = `${s.icon ?? ""} ${s.name ?? ""} ${s.description ?? ""}`.toLowerCase()
+  return /head(set|phone)|auric|earbud|earphone|hands[-_ ]?free/.test(hay)
+}
+
+const isMutedVol = (s: AstalWp.Endpoint) => s.mute || s.volume === 0
+
+// Cascos silenciados: mostramos el mismo 󰋋 y le pintamos una diagonal encima
+// (ver slashArea). El glifo propio "headphones-off" sale tofu en esta Meslo.
+const isHeadsetMuted = (s: AstalWp.Endpoint | null) => !!s && isHeadset(s) && isMutedVol(s)
+
+function speakerIcon(s: AstalWp.Endpoint | null): string {
+  if (!s) return "󰝟"
+  const head = isHeadset(s)
+  if (isMutedVol(s)) return head ? HEADSET_ICON : "󰝟"   // 󰋋 (se tacha con la diagonal)
+  if (head) return HEADSET_ICON
+  if (s.volume < 0.25) return "󰕿"
+  if (s.volume < 0.50) return "󰖀"
   return "󰕾"
 }
 
@@ -18,15 +39,49 @@ export default function Volume() {
   let speaker = audio.defaultSpeaker
   if (!speaker) return (<box />)
 
-  const [icon, setIcon]   = createState(volIcon(speaker.volume, speaker.mute))
+  const [icon, setIcon]   = createState(speakerIcon(speaker))
   const [muted, setMuted] = createState(speaker.mute)
   const [tooltip, setTooltip] = createState(`${Math.round(speaker.volume * 100)}`)
+  const [slashed, setSlashed] = createState(isHeadsetMuted(speaker))
+
+  // Diagonal (esquina inferior-izq → superior-der) sobre el icono de cascos.
+  // Trazo con "recorte": primero una línea del color del bar (efecto de corte) y
+  // encima la línea clara, para que se lea nítida sobre el glifo.
+  const slashArea = new Gtk.DrawingArea()
+  slashArea.set_can_target(false)          // no roba clic/scroll del botón
+  slashArea.set_halign(Gtk.Align.FILL)
+  slashArea.set_valign(Gtk.Align.FILL)
+  slashArea.set_visible(slashed.get())
+  slashArea.set_draw_func((_a, cr, width, height) => {
+    // Diagonal corta y centrada sobre el glifo (no de esquina a esquina).
+    const cx = width / 2, cy = height / 2
+    const r = Math.min(width, height) * 0.42    // media longitud del trazo
+    const u = Math.SQRT1_2                       // dirección ↙→↗ normalizada
+    const x0 = cx - r * u, y0 = cy + r * u, x1 = cx + r * u, y1 = cy - r * u
+    // Banda diagonal como paralelogramo relleno (evita depender de stroke).
+    const band = (half: number) => {
+      const dx = x1 - x0, dy = y1 - y0
+      const len = Math.hypot(dx, dy) || 1
+      const nx = (-dy / len) * half, ny = (dx / len) * half
+      cr.moveTo(x0 + nx, y0 + ny)
+      cr.lineTo(x1 + nx, y1 + ny)
+      cr.lineTo(x1 - nx, y1 - ny)
+      cr.lineTo(x0 - nx, y0 - ny)
+      cr.closePath()
+      cr.fill()
+    }
+    // recorte con el color del bar (#08080c) y encima la línea clara
+    cr.setSourceRGBA(8 / 255, 8 / 255, 12 / 255, 1);          band(1.5)
+    cr.setSourceRGBA(226 / 255, 226 / 255, 226 / 255, 0.9);   band(0.8)
+  })
+  slashed.subscribe(() => { slashArea.set_visible(slashed.get()); slashArea.queue_draw() })
 
   const sync = () => {
     if (!speaker) return
-    setIcon(volIcon(speaker.volume, speaker.mute))
+    setIcon(speakerIcon(speaker))
     setMuted(speaker.mute)
     setTooltip(`${Math.round(speaker.volume * 100)}`)
+    setSlashed(isHeadsetMuted(speaker))
   }
 
   // Cachea con el bar oculto: no re-renderiza, mantiene el último estado.
@@ -37,20 +92,36 @@ export default function Volume() {
   // `speaker`: si no, el icono quedaría del dispositivo viejo y —peor— el clic/scroll
   // controlaría el volumen del dispositivo equivocado. La referencia se actualiza
   // siempre (para las interacciones); el render respeta barVisible vía update().
-  let volId = 0, muteId = 0
+  let volId = 0, muteId = 0, iconId = 0, descId = 0
   const bindSpeaker = (s: AstalWp.Endpoint | null) => {
-    if (speaker && volId) { speaker.disconnect(volId); speaker.disconnect(muteId) }
+    if (speaker && volId) {
+      speaker.disconnect(volId); speaker.disconnect(muteId)
+      speaker.disconnect(iconId); speaker.disconnect(descId)
+    }
     speaker = s
-    volId = muteId = 0
+    volId = muteId = iconId = descId = 0
     if (speaker) {
       volId  = speaker.connect("notify::volume", update)
       muteId = speaker.connect("notify::mute",   update)
+      // notify::icon / ::description delatan cascos y cubren el cambio de puerto
+      // (cascos↔altavoz) sin cambio de sink, y su poblado tardío en el arranque.
+      iconId = speaker.connect("notify::icon",        update)
+      descId = speaker.connect("notify::description", update)
     }
     update()
   }
   bindSpeaker(speaker)
 
   audio.connect("notify::default-speaker", () => bindSpeaker(audio.defaultSpeaker))
+
+  // Al arrancar, WirePlumber puede no haber poblado aún icon/name/description del
+  // endpoint, y además barVisible es false los primeros ~2s (update() se ignora),
+  // así que la detección de cascos fallaba hasta el primer hover. Forzamos varios
+  // sync() diferidos —sync() no está gateado por barVisible— para fijar el estado
+  // correcto desde el inicio.
+  setTimeout(sync, 400)
+  setTimeout(sync, 1200)
+  setTimeout(sync, 3000)
 
   // Al volver visible, sincronizar con el estado real del hardware.
   // gnim invoca el callback sin argumentos → hay que leer .get().
@@ -68,10 +139,12 @@ export default function Volume() {
         button={Gdk.BUTTON_SECONDARY}
         onPressed={toggleMute}
       />
-      <label
-        cssClasses={muted((m) => m ? ["icon-muted"] : [])}
-        label={icon}
-      />
+      <Gtk.Overlay $={(self) => { self.add_overlay(slashArea) }}>
+        <label
+          cssClasses={muted((m) => m ? ["icon-muted"] : [])}
+          label={icon}
+        />
+      </Gtk.Overlay>
       <Gtk.EventControllerScroll
         flags={Gtk.EventControllerScrollFlags.VERTICAL}
         onScroll={(_self, _dx, dy) => {
