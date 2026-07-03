@@ -31,6 +31,26 @@ import { openNotifPanel } from "./notifications/store"
 import { clipWindowInputToContent } from "./inputRegion"
 import * as Spotify from "./services/spotify/SpotifyService"
 
+const WIFI_SIGNAL_BARS = 4
+
+function activeWifiBars(strength: number) {
+  if (strength >= 80) return 4
+  if (strength >= 60) return 3
+  if (strength >= 35) return 2
+  if (strength >= 15) return 1
+  return 0
+}
+
+function wifiSignalBarClasses(strength: number) {
+  const active = activeWifiBars(strength)
+
+  return Array.from({ length: WIFI_SIGNAL_BARS }, (_, i) => {
+    const classes = ["qs-wifi-signal-bar", `bar-${i + 1}`]
+    if (i < active) classes.push("active")
+    return classes
+  })
+}
+
 // ── Auto-Switch Audio (Switch-on-Connect) ───────────────────────────────────
 try {
   const wp = AstalWp.get_default()
@@ -561,8 +581,8 @@ quickSettingsVisible.subscribe(() => {
   }
 })
 
-function QsTile({ icon, label, subtitle, active, onToggle, onSecondaryClick, onRightClick, subtitleWidthRequest }: {
-  icon: any, label: any, subtitle: any, active: any, onToggle: () => void, onSecondaryClick?: () => void, onRightClick?: () => void, subtitleWidthRequest?: number
+function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onSecondaryClick, onRightClick, subtitleWidthRequest }: {
+  icon: any, iconWidget?: any, label: any, subtitle: any, active: any, onToggle: () => void, onSecondaryClick?: () => void, onRightClick?: () => void, subtitleWidthRequest?: number
 }) {
   const classes = typeof active === "function"
     ? active((a: boolean) => a ? ["qs-tile", "active"] : ["qs-tile"])
@@ -574,7 +594,7 @@ function QsTile({ icon, label, subtitle, active, onToggle, onSecondaryClick, onR
         onPressed={onRightClick}
       />
       <box spacing={6} valign={Gtk.Align.CENTER} hexpand>
-        <label cssClasses={["qs-tile-icon"]} label={icon} />
+        {iconWidget || <label cssClasses={["qs-tile-icon"]} label={icon} />}
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0} hexpand>
           <label cssClasses={["qs-tile-label"]} label={label} halign={Gtk.Align.START} />
           <label
@@ -644,8 +664,10 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   if (wifi) {
     wifi.connect("notify::ssid", syncNetTile)
     wifi.connect("notify::enabled", syncNetTile)
+    wifi.connect("notify::strength", syncNetTile)
   }
   if (network.wired) network.wired.connect("notify::state", syncNetTile)
+  const wifiStrength = wifi ? createBinding(wifi, "strength") : null
 
   const btPowered = createBinding(bt, "isPowered")
   const btDevices = createBinding(bt, "devices")
@@ -699,6 +721,25 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
         <QsTile
           icon={netTile((t) => t.icon)}
+          iconWidget={
+            <box cssClasses={["qs-tile-net-icon"]} valign={Gtk.Align.CENTER}>
+              <label
+                cssClasses={["qs-tile-icon"]}
+                label={ETHERNET_GLYPH}
+                visible={netTile((t) => t.icon === ETHERNET_GLYPH)}
+              />
+              <box
+                cssClasses={["qs-tile-icon", "qs-tile-wifi-signal"]}
+                spacing={1}
+                valign={Gtk.Align.CENTER}
+                visible={netTile((t) => t.icon !== ETHERNET_GLYPH)}
+              >
+                <For each={wifiStrength ? wifiStrength((s) => wifiSignalBarClasses(s ?? 0)) : () => wifiSignalBarClasses(0)}>
+                  {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
+                </For>
+              </box>
+            </box>
+          }
           label={netTile((t) => t.label)}
           subtitle={netSpeed((s) => `󰇚${s.down} 󰕒${s.up}`)}
           subtitleWidthRequest={96}
@@ -1861,14 +1902,15 @@ function QsFooter() {
       ) : (
         <label cssClasses={["qs-avatar"]} label={initials} />
       )}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={1} hexpand>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={1} hexpand valign={Gtk.Align.CENTER}>
         <label cssClasses={["qs-username"]} label={user} halign={Gtk.Align.START} />
         <label cssClasses={["qs-hostname"]} label={`@${host}`} halign={Gtk.Align.START} />
       </box>
 
       <button
-        cssClasses={["qs-footer-btn"]}
+        cssClasses={["qs-icon-btn", "qs-user-settings-btn"]}
         onClicked={() => openSettingsPanel()}
+        valign={Gtk.Align.CENTER}
       >
         <label label="󰒓" />
       </button>
@@ -2063,12 +2105,10 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
         <button
           cssClasses={["qs-icon-btn"]}
           onClicked={() => execAsync("blueman-manager")}
-          tooltipText="Ajustes avanzados"
         ><label label="󰒓" /></button>
         <button
           cssClasses={scanning((s) => s ? ["qs-icon-btn", "scanning"] : ["qs-icon-btn"])}
           onClicked={() => scan()}
-          tooltipText="Buscar dispositivos"
         ><label label="󰑐" /></button>
         <button
           cssClasses={btPowered((p) => p ? ["qs-toggle", "on"] : ["qs-toggle"])}
@@ -2242,12 +2282,10 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
         <button
           cssClasses={["qs-icon-btn"]}
           onClicked={() => execAsync("nm-connection-editor")}
-          tooltipText="Ajustes avanzados"
         ><label label="󰒓" /></button>
         <button
           cssClasses={scanning((s) => s ? ["qs-icon-btn", "scanning"] : ["qs-icon-btn"])}
           onClicked={() => rescan(true)}
-          tooltipText="Buscar redes"
         ><label label="󰑐" /></button>
         <button
           cssClasses={wifiEnabled((e) => e ? ["qs-toggle", "on"] : ["qs-toggle"])}
@@ -2285,7 +2323,6 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
             return unique
           }}>
             {(ap: any) => {
-              const icon = ap.iconName || "network-wireless-signal-good-symbolic"
               const isSecure = ap.flags > 0 || ap.wpaFlags > 0 || ap.rsnFlags > 0
 
               let secType = "Abierta · Portal Cautivo"
@@ -2364,7 +2401,11 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                     onPressed={() => setInfoSsid(infoSsid() === ap.ssid ? null : ap.ssid)}
                   />
                   <box spacing={8}>
-                    <Gtk.Image iconName={icon} cssClasses={["qs-wifi-icon"]} />
+                    <box cssClasses={["qs-wifi-icon", "qs-wifi-signal"]} spacing={1} valign={Gtk.Align.CENTER}>
+                      <For each={() => wifiSignalBarClasses(ap.strength ?? 0)}>
+                        {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
+                      </For>
+                    </box>
                     <box orientation={Gtk.Orientation.VERTICAL} hexpand>
                       <label label={ap.ssid} halign={Gtk.Align.START} ellipsize={3} cssClasses={["qs-wifi-name"]} />
                       <label label={netSpeed((ns) => {

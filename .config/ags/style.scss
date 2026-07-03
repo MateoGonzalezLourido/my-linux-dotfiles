@@ -9,7 +9,7 @@ $text: #e2e2e2;
 $text-dim: rgba(226, 226, 226, 0.45);
 $blue: #89b4fa;
 $violet: #cba6f7;
-$red: #f38ba8;
+$red: rgb(245, 50, 105);
 $orange: #fab387;
 
 // ── Reset botones GTK4 dentro de la bar ───────────────────────────────────────
@@ -1344,6 +1344,34 @@ window.qs-window > box,
     min-width: 20px;
   }
 
+  .qs-tile-net-icon {
+    min-width: 20px;
+  }
+
+  .qs-tile-wifi-signal {
+    min-width: 17px;
+    min-height: 14px;
+  }
+
+  .qs-wifi-signal-bar {
+    min-width: 3px;
+    border-radius: 1px;
+    background-color: rgba(226, 226, 226, 0.18);
+
+    &.active {
+      background-color: rgba(255, 255, 255, 0.82);
+    }
+
+    &.bar-1 { min-height: 4px; }
+    &.bar-2 { min-height: 7px; }
+    &.bar-3 { min-height: 10px; }
+    &.bar-4 { min-height: 13px; }
+  }
+
+  &.active .qs-wifi-signal-bar.active {
+    background-color: $qs-accent;
+  }
+
   .qs-tile-label {
     font-size: 11px;
     font-weight: 700;
@@ -1683,48 +1711,58 @@ scale.qs-slider {
   }
 }
 
-// ── Night light toggle ────────────────────────────────────────────────────────
+// ── Quick settings toggle ─────────────────────────────────────────────────────
 button.qs-toggle {
   background: transparent;
   border: none;
+  box-shadow: none;
   padding: 0;
-  min-width: 34px;
-  min-height: 18px;
+  min-width: 28px;
+  min-height: 16px;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &:focus {
+    outline: none;
+  }
 
   .qs-toggle-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
-    min-width: 30px;
-    min-height: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 300ms ease;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    min-width: 26px;
+    min-height: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    transition: background-color 160ms ease, border-color 160ms ease;
   }
 
   .qs-toggle-dot {
-    background: rgba(255, 255, 255, 0.4);
-    border-radius: 50%;
-    min-width: 10px;
-    min-height: 10px;
-    margin: 2px 2px;
-    transition: all 300ms cubic-bezier(0.2, 1, 0.2, 1);
+    background: rgba(255, 255, 255, 0.55);
+    border-radius: 2px;
+    min-width: 8px;
+    min-height: 8px;
+    margin: 2px 3px;
+    transition: margin-left 160ms ease, background-color 160ms ease;
 
     &.on {
-      background: $qs-accent;
-      margin-left: 16px;
-      box-shadow: 0 0 10px $qs-accent;
+      background: #ffffff;
+      margin-left: 15px;
     }
   }
 
   &.on .qs-toggle-track {
-    background: rgba(0, 242, 255, 0.15);
-    border-color: rgba(0, 242, 255, 0.4);
+    background: rgba(0, 242, 255, 0.42);
+    border-color: rgba(0, 242, 255, 0.9);
   }
 }
 
 // ── Footer ────────────────────────────────────────────────────────────────────
 .qs-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.07);
-  padding-top: 8px;
+  padding-top: 10px;
   margin-top: 2px;
 }
 
@@ -1732,8 +1770,8 @@ button.qs-toggle {
   background: rgba(139, 120, 255, 0.2);
   border: 1px solid rgba(139, 120, 255, 0.3);
   border-radius: 50%;
-  min-width: 28px;
-  min-height: 28px;
+  min-width: 30px;
+  min-height: 30px;
   color: $qs-accent2;
   font-size: 10px;
   font-weight: 700;
@@ -1742,8 +1780,8 @@ button.qs-toggle {
 
 .qs-avatar-img {
   border-radius: 50%;
-  min-width: 28px;
-  min-height: 28px;
+  min-width: 30px;
+  min-height: 30px;
   border: 1px solid rgba(139, 120, 255, 0.3);
   background-size: cover;
   background-position: center;
@@ -1755,39 +1793,18 @@ button.qs-toggle {
 
 
 .qs-username {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1;
   font-weight: 600;
   color: $qs-text;
   margin: 0;
 }
 
 .qs-hostname {
-  font-size: 9px;
+  font-size: 10px;
+  line-height: 1;
   color: $qs-text-dim;
   margin: 0;
-}
-
-.qs-footer-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 8px;
-  min-width: 26px;
-  min-height: 26px;
-  padding: 0;
-  color: $qs-text-dim;
-  font-family: "MesloLGS Nerd Font";
-  font-size: 13px;
-  transition: all 100ms ease;
-
-  &:hover {
-    background: rgba(139, 120, 255, 0.18);
-    border-color: rgba(139, 120, 255, 0.3);
-    color: $qs-accent2;
-  }
-
-  label {
-    margin: 0;
-  }
 }
 
 // ── Tooltip Global ────────────────────────────────────────────────────────────
@@ -1836,6 +1853,16 @@ tooltip {
   &.scanning label { color: #a78bfa; }
 }
 
+button.qs-user-settings-btn {
+  min-width: 26px;
+  min-height: 26px;
+
+  label {
+    font-size: 15px;
+    margin: 0 2px 0 0;
+  }
+}
+
 // ── Wi-Fi Menu ────────────────────────────────────────────────────────────────
 .qs-wifi-menu {
   background: transparent;
@@ -1845,7 +1872,24 @@ tooltip {
 
 .qs-wifi-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  padding-bottom: 6px;
+  padding-bottom: 3px;
+  min-height: 22px;
+
+  button.qs-icon-btn {
+    min-width: 20px;
+    min-height: 20px;
+    padding: 1px;
+    border-radius: 5px;
+
+    label {
+      font-size: 13px;
+    }
+  }
+
+  .qs-section-label {
+    font-size: 12px;
+    line-height: 1;
+  }
 }
 
 .qs-wifi-list-scroll {
@@ -1892,8 +1936,12 @@ tooltip {
   }
 
   &.active {
-    background: rgba(139, 120, 255, 0.15);
-    border-color: rgba(139, 120, 255, 0.3);
+    background: rgba(0, 242, 255, 0.12);
+    border-color: rgba(0, 242, 255, 0.35);
+
+    .qs-wifi-signal-bar.active {
+      background-color: #00f2ff;
+    }
   }
 
   &.portal {
@@ -1901,8 +1949,8 @@ tooltip {
     border-color: rgba(255, 123, 0, 0.4);
     box-shadow: 0 0 15px rgba(255, 123, 0, 0.1);
 
-    .qs-wifi-icon {
-      color: #ff7b00;
+    .qs-wifi-signal-bar.active {
+      background-color: #fab387;
     }
 
     .qs-wifi-name {
@@ -1916,11 +1964,11 @@ tooltip {
   }
 
   &.known {
-    background: rgba(255, 60, 120, 0.03);
-    border-color: rgba(255, 60, 120, 0.1);
+    background: rgba(245, 50, 105, 0.03);
+    border-color: rgba(245, 50, 105, 0.1);
 
-    .qs-wifi-icon {
-      color: rgba(255, 60, 120, 0.5);
+    .qs-wifi-signal-bar.active {
+      background-color: rgba(245, 50, 105, 0.62);
     }
 
     .qs-wifi-name {
@@ -1929,8 +1977,23 @@ tooltip {
   }
 
   .qs-wifi-icon {
-    font-size: 16px;
-    color: #c4b8ff;
+    min-width: 17px;
+    min-height: 14px;
+  }
+
+  .qs-wifi-signal-bar {
+    min-width: 3px;
+    border-radius: 1px;
+    background-color: rgba(226, 226, 226, 0.18);
+
+    &.active {
+      background-color: rgba(255, 255, 255, 0.82);
+    }
+
+    &.bar-1 { min-height: 4px; }
+    &.bar-2 { min-height: 7px; }
+    &.bar-3 { min-height: 10px; }
+    &.bar-4 { min-height: 13px; }
   }
 
   .qs-wifi-name {
