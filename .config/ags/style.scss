@@ -1211,7 +1211,7 @@ window.qs-window > box,
   min-width: 0;
   min-height: 0;
   padding: 0;
-  margin: 0;
+  margin: 0 4px 0 0;
   color: rgba(255, 255, 255, 0.4);
   transition: color 150ms ease;
 
@@ -1229,7 +1229,7 @@ window.qs-window > box,
 
   .qs-notif-icon {
     font-family: "MesloLGS Nerd Font";
-    font-size: 13px;
+    font-size: 17px;
     margin: 0;
     padding: 0;
   }
