@@ -1329,7 +1329,7 @@ window.qs-window > box,
   .qs-media-btn {
     background: transparent;
     border: none;
-    color: $blue;
+    color: #ffffff;
     font-family: "MesloLGS Nerd Font";
     font-size: 18px;
     padding: 1px 4px;
@@ -1337,10 +1337,11 @@ window.qs-window > box,
     transition: opacity 200ms ease, background 200ms ease;
     transform: none;
     opacity: 0.8;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1), 0 0 6px rgba(0, 0, 0, 0.85);
 
     &:hover {
       opacity: 1;
-      background: rgba(137, 180, 250, 0.1);
+      background: rgba(255, 255, 255, 0.12);
       transform: none;
     }
 
@@ -1350,8 +1351,7 @@ window.qs-window > box,
   }
 
   .qs-media-like {
-    // Hereda tamaño/estilo de .qs-media-btn; el color lo fija el css inline
-    // (rojo cuando está en "Me gusta", acento del tema cuando no).
+    // Hereda tamaño/estilo de .qs-media-btn; los botones de acción se mantienen blancos.
     min-width: 24px;
   }
 

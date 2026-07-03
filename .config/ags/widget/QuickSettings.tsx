@@ -999,9 +999,6 @@ function QsMedia() {
             setLiked(next) // optimista
             Spotify.setLiked(id, next).then((ok) => { if (!ok) setLiked(!next) })
           }}
-          css={createComputed(() => liked.get()
-            ? "color: #f38ba8;"
-            : `color: ${MEDIA_THEMES[themeIdx.get()].accent};`)}
         >
           <label label={liked((v) => v ? "󰋑" : "󰋕")} />
         </button>
@@ -1011,13 +1008,13 @@ function QsMedia() {
             const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
             execAsync(["playerctl", "-p", name, "previous"]).catch(() => {})
           }
-        }} css={curTheme((t) => `color: ${t.accent};`)}>
+        }}>
           <label label="󰒮" />
         </button>
         <button cssClasses={["qs-media-btn"]} onClicked={() => {
           const p = mpris.players[playerIndex.get()]
           if (p) p.play_pause()
-        }} css={curTheme((t) => `color: ${t.accent};`)}>
+        }}>
           <label label={isPlaying((v) => v ? "󰏤" : "󰐊")} />
         </button>
         <button cssClasses={["qs-media-btn"]} onClicked={() => {
@@ -1026,7 +1023,7 @@ function QsMedia() {
             const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
             execAsync(["playerctl", "-p", name, "next"]).catch(() => {})
           }
-        }} css={curTheme((t) => `color: ${t.accent};`)}>
+        }}>
           <label label="󰒭" />
         </button>
       </box>
