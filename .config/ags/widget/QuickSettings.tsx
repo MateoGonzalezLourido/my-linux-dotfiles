@@ -1,6 +1,6 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState, For } from "ags"
+import { createState, For, createComputed } from "ags"
 import { createBinding } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
@@ -224,6 +224,20 @@ function toDb(v: number) {
   // PulseAudio/Pipewire use a cubic curve for perceived volume
   // dB = 20 * log10(v^3) = 60 * log10(v)
   return (60 * Math.log10(v)).toFixed(0)
+}
+
+/** Etiqueta legible y DISTINGUIBLE para un endpoint de audio.
+ * Varios sinks/sources de la misma tarjeta comparten el mismo prefijo largo en
+ * `description` (p.ej. "…HD Audio Speaker", "…HD Audio HDMI / DisplayPort 1
+ * Output"); con ellipsize al final se recorta justo la parte única y las filas
+ * se ven idénticas. Preferimos la descripción de perfil / nick del nodo, que es
+ * corta y única ("Speaker", "HDMI / DisplayPort 1 Output", "HDMI 1"). */
+function endpointLabel(e: AstalWp.Endpoint): string {
+  const profile = e.get_pw_property("device.profile.description")
+  if (profile) return profile
+  const nick = e.get_pw_property("node.nick")
+  if (nick) return nick
+  return e.description || e.name || "Desconocido"
 }
 
 const getBand = (freq: number) => {
@@ -877,6 +891,18 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                 {(s: AstalWp.Endpoint) => {
                   const vol = createBinding(s, "volume")
                   const mute = createBinding(s, "mute")
+                  // El resaltado del dispositivo activo se deriva del propio
+                  // `is_default` del endpoint (reactivo y correcto al entrar).
+                  // `notify::default-speaker` del objeto Audio NO se dispara en
+                  // esta versión de AstalWp y su id llega sin resolver (0) al
+                  // construirse el panel, por eso antes nada salía en azul.
+                  // `localDefaultSpkId` se conserva como override optimista para
+                  // feedback instantáneo al pulsar.
+                  const isDefault = createBinding(s, "isDefault")
+                  const activeClasses = createComputed(() =>
+                    (isDefault() || localDefaultSpkId() === s.id)
+                      ? ["qs-audio-item", "active"]
+                      : ["qs-audio-item"])
 
                   // Apply device preset if new
                   if (s.name && !handledDevices.has(`spk:${s.name}`)) {
@@ -917,12 +943,12 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                   }
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={localDefaultSpkId((id) => id === s.id ? ["qs-audio-item", "active"] : ["qs-audio-item"])}>
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={activeClasses}>
                       <button onClicked={activate} cssClasses={["qs-audio-card-btn"]} hexpand>
-                        <label cssClasses={["qs-audio-name"]} label={s.description || s.name || "Desconocido"} ellipsize={3} halign={Gtk.Align.START} />
+                        <label cssClasses={["qs-audio-name"]} label={endpointLabel(s)} ellipsize={3} halign={Gtk.Align.START} />
                       </button>
                       <box spacing={5} valign={Gtk.Align.CENTER}>
-                        <label cssClasses={["qs-audio-icon"]} label={vol((v) => volIcon(v, s.mute))} />
+                        <label cssClasses={["qs-audio-icon"]} label={createComputed(() => volIcon(vol(), mute()))} />
                         {scale}
                         <label cssClasses={["qs-audio-vol-pct"]} label={vol((v) => `${Math.round(v * 100)}`)} />
                       </box>
@@ -1138,6 +1164,14 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
                 {(m: AstalWp.Endpoint) => {
                   const vol = createBinding(m, "volume")
                   const mute = createBinding(m, "mute")
+                  // Ver nota en QsAudioMenu: el resaltado se deriva del propio
+                  // `is_default` del endpoint (reactivo/correcto al entrar), no del
+                  // `notify::default-microphone` del objeto Audio, que no se dispara.
+                  const isDefault = createBinding(m, "isDefault")
+                  const activeClasses = createComputed(() =>
+                    (isDefault() || localDefaultMicId() === m.id)
+                      ? ["qs-audio-item", "active"]
+                      : ["qs-audio-item"])
 
                   // Apply device preset if new
                   if (m.name && !handledDevices.has(`mic:${m.name}`)) {
@@ -1178,9 +1212,9 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
                   }
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={localDefaultMicId((id) => id === m.id ? ["qs-audio-item", "active"] : ["qs-audio-item"])}>
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={activeClasses}>
                       <button onClicked={activate} cssClasses={["qs-audio-card-btn"]} hexpand>
-                        <label cssClasses={["qs-audio-name"]} label={m.description || m.name || "Desconocido"} ellipsize={3} halign={Gtk.Align.START} />
+                        <label cssClasses={["qs-audio-name"]} label={endpointLabel(m)} ellipsize={3} halign={Gtk.Align.START} />
                       </button>
                       <box spacing={5} valign={Gtk.Align.CENTER}>
                         <label cssClasses={["qs-audio-icon"]} label={mute((v) => v ? "󰍭" : "󰍬")} />
