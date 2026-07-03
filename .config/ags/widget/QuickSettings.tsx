@@ -1217,7 +1217,7 @@ function QsMedia() {
           <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
         </box>
       </box>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={1}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
         {progressArea}
         <box>
           <label cssClasses={["qs-media-time"]} label={positionLabel} halign={Gtk.Align.START} hexpand />
