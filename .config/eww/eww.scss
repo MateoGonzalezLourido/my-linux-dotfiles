@@ -1,0 +1,41 @@
+* {
+  all: unset;
+  font-family: "JetBrains Mono", "Monospace", monospace;
+}
+
+.osd-container {
+  background: rgba(15, 15, 20, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(255,255,255,0.04);
+  backdrop-filter: blur(20px);
+}
+
+.osd-icon {
+  font-size: 22px;
+  color: #e0e0ff;
+  min-width: 28px;
+}
+
+.osd-label {
+  font-size: 10px;
+  color: rgba(180, 180, 210, 0.6);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.osd-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  min-height: 4px;
+  min-width: 200px;
+}
+
+.osd-fill {
+  background: linear-gradient(90deg, #7c6af7, #a78bfa);
+  border-radius: 99px;
+  min-height: 4px;
+  transition: min-width 150ms ease;
+}
