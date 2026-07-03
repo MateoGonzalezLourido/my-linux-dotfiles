@@ -1393,6 +1393,13 @@ window.qs-window > box,
     margin-bottom: 4px;
   }
 
+  .qs-media-spotify-logo {
+    font-family: "MesloLGS Nerd Font";
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 1), 0 0 8px rgba(0, 0, 0, 0.85);
+  }
+
   .qs-media-switch {
     background: transparent;
     border: none;

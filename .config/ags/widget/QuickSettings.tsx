@@ -783,6 +783,73 @@ function rgbToCss([r, g, b]: [number, number, number]): string {
   return `rgb(${r}, ${g}, ${b})`
 }
 
+function rgbToHsl([r, g, b]: [number, number, number]): [number, number, number] {
+  const rn = r / 255
+  const gn = g / 255
+  const bn = b / 255
+  const max = Math.max(rn, gn, bn)
+  const min = Math.min(rn, gn, bn)
+  const l = (max + min) / 2
+  if (max === min) return [0, 0, l]
+
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  let h = 0
+  if (max === rn) h = (gn - bn) / d + (gn < bn ? 6 : 0)
+  else if (max === gn) h = (bn - rn) / d + 2
+  else h = (rn - gn) / d + 4
+  return [h / 6, s, l]
+}
+
+function hslToRgb([h, s, l]: [number, number, number]): [number, number, number] {
+  if (s === 0) {
+    const v = Math.round(l * 255)
+    return [v, v, v]
+  }
+
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1
+    if (t > 1) t -= 1
+    if (t < 1 / 6) return p + (q - p) * 6 * t
+    if (t < 1 / 2) return q
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+    return p
+  }
+
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+  const p = 2 * l - q
+  return [
+    Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+    Math.round(hue2rgb(p, q, h) * 255),
+    Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
+  ]
+}
+
+function spotifyLikeAccent(rgb: [number, number, number]): [number, number, number] {
+  let [h, s, l] = rgbToHsl(rgb)
+  const sourceL = l
+
+  // The mobile UI appears to preserve hue but compensate luminance: dark cover
+  // colors become lighter, while very light colors become stronger.
+  l = Math.max(0.48, Math.min(0.82, 0.68 - (sourceL - 0.5) * 0.48))
+
+  if (s < 0.14) {
+    // Near-grayscale covers in Spotify's mobile UI often get a soft warm
+    // yellow/olive tint instead of staying neutral gray.
+    h = 0.18
+    s = 0.36
+    l = Math.max(l, 0.64)
+  } else if (sourceL > 0.62) {
+    s = Math.min(1, s * 1.25)
+  } else if (sourceL < 0.42 && s > 0.58) {
+    s *= 0.78
+  } else {
+    s = Math.min(1, s * 1.08)
+  }
+
+  return hslToRgb([h, s, l])
+}
+
 function cssRgbToTuple(rgb: string): [number, number, number] {
   const values = rgb.match(/\d+/g)?.map(Number)
   if (!values || values.length < 3) return hexToRgb(MEDIA_THEMES[0].accent)
@@ -883,6 +950,7 @@ function QsMedia() {
   const [liked, setLiked] = createState(false)
   const [likeVisible, setLikeVisible] = createState(false)
   const [canLike, setCanLike] = createState(false)
+  const [isSpotifyPlayer, setIsSpotifyPlayer] = createState(false)
   let lastQueriedId: string | null = null
 
   // El corazón solo aplica con cuenta Premium (los endpoints /me/tracks dan 403 en
@@ -916,6 +984,7 @@ function QsMedia() {
     setNumPlayers(players.length)
     if (players.length === 0) {
       setHasPlayer(false)
+      setIsSpotifyPlayer(false)
       return
     }
 
@@ -928,6 +997,7 @@ function QsMedia() {
     const p = players[idx]
     if (!p) {
       setHasPlayer(false)
+      setIsSpotifyPlayer(false)
       return
     }
 
@@ -937,6 +1007,7 @@ function QsMedia() {
     const ad = Spotify.isAd(rawTrackId)
     const id = Spotify.parseTrackId(rawTrackId)
     const isSpotify = (p.bus_name || "").includes("spotify")
+    setIsSpotifyPlayer(isSpotify)
     setIsAd(ad)
 
     if (ad) {
@@ -1015,6 +1086,7 @@ function QsMedia() {
   // CORTA la altura del fondo pase lo que pase con la imagen. Es el hijo principal
   // del Overlay; así el Overlay no puede crecer más que la tarjeta.
   const CARD_H = 100
+  const MEDIA_PAD_X = 14
   const bgCap = new Gtk.ScrolledWindow()
   bgCap.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
   bgCap.set_propagate_natural_height(false)
@@ -1028,7 +1100,7 @@ function QsMedia() {
     const path = c.startsWith("file://") ? c.slice(7) : c
     try {
       const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
-      setCoverAccent(rgbToCss(dominantPixbufColor(pixbuf)))
+      setCoverAccent(rgbToCss(spotifyLikeAccent(dominantPixbufColor(pixbuf))))
       coverPicture.set_paintable(Gdk.Texture.new_for_pixbuf(pixbuf))
     } catch (_) { coverPicture.set_paintable(null) }
   }
@@ -1113,7 +1185,7 @@ function QsMedia() {
       spacing={4}
       hexpand
       heightRequest={CARD_H}
-      css="background-color: transparent; padding: 8px 10px 2px;"
+      css={`background-color: transparent; padding: 8px ${MEDIA_PAD_X}px 2px;`}
     >
       <box spacing={4} visible={numPlayers((n) => n > 1)} css="margin-bottom: 2px;">
         <label 
@@ -1145,7 +1217,7 @@ function QsMedia() {
           <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
         </box>
       </box>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={1} css="margin: 0 4px;">
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={1}>
         {progressArea}
         <box>
           <label cssClasses={["qs-media-time"]} label={positionLabel} halign={Gtk.Align.START} hexpand />
@@ -1194,6 +1266,17 @@ function QsMedia() {
     </box>
   )
 
+  const spotifyLogo = (
+    <label
+      cssClasses={["qs-media-spotify-logo"]}
+      label="󰓇"
+      visible={isSpotifyPlayer}
+      halign={Gtk.Align.END}
+      valign={Gtk.Align.START}
+      css={`margin-top: 8px; margin-right: ${MEDIA_PAD_X}px;`}
+    />
+  )
+
   return (
     <box
       cssClasses={["qs-media"]}
@@ -1206,6 +1289,7 @@ function QsMedia() {
         self.add_overlay(colorFilter)
         self.add_overlay(coverScrim)
         self.add_overlay(mediaContent)
+        self.add_overlay(spotifyLogo)
         self.set_measure_overlay(mediaContent, true)
       }} />
     </box>
