@@ -703,6 +703,13 @@ popover.cpuram-popover {
   animation: pulse 1s infinite;
 }
 
+// Micro en uso pero silenciado: se sigue mostrando, pero sin el rojo
+// pulsante (que implica "captando"). Gris atenuado y estático.
+.mic-indicator.muted {
+  color: $text-dim;
+  animation: none;
+}
+
 .notifications {
   padding: 0 5px;
   color: $text-dim;
