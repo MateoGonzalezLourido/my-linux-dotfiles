@@ -90,6 +90,177 @@ function saveAudioPresets(p: Record<string, number>) {
   })
 }
 
+// ── Shared audio-apps polling ───────────────────────────────────────────────────
+// Presets y sondeo de "mezcla de aplicaciones" viven a nivel de módulo, no por
+// instancia. Antes cada QsAudioMenu/QsMicMenu (uno por monitor) tenía su propio
+// intervalo y su propio setStreams: con 2+ monitores se lanzaban N sondeos pactl y
+// se aplicaban los presets N veces (doble set-*-volume). Ahora un único poller con
+// refcount alimenta a todas las instancias, y una guardia por firma evita reconstruir
+// la lista cuando nada cambió (antes <For> recreaba TODAS las filas cada 2 s porque
+// pactl devuelve objetos nuevos y la clave por defecto es identidad por referencia).
+const EXCLUDE_CLIENTS = ["pactl", "gjs", "astal", "pipewire", "wireplumber", "xdg-desktop-portal", "hyprland", "gsd-color", "gjs-console", "pavucontrol"]
+
+// Estado de presets compartido (una sola fuente; antes dos states podían divergir).
+const [audioPresets, setAudioPresets] = createState<Record<string, number>>(loadAudioPresets())
+
+// Firma estable: nombre|índice|volumen por stream. Si no cambia, no tocamos el state
+// y <For> no reconstruye nada.
+function streamsSignature(arr: any[]): string {
+  return arr.map(si => {
+    const p = si.properties || {}
+    const name = p["application.name"] || p["node.name"] || p["media.name"] || "App"
+    const volObj = si.volume || {}
+    const ch = Object.keys(volObj)
+    const vp = ch.length ? volObj[ch[0]].value_percent : (si.isSilent ? "silent" : "-")
+    return `${name}|${si.index}|${vp}`
+  }).join(";")
+}
+
+// ── Speaker apps poller ──
+const [spkAppStreams, setSpkAppStreams] = createState<any[]>([])
+let spkLastInteraction = 0
+const spkHandledStreams = new Set<number>()
+let spkSig = ""
+let spkPollId: number | null = null
+let spkRefs = 0
+
+function loadSpkStreams() {
+  if (Date.now() - spkLastInteraction < 2500) return
+  Promise.all([
+    execAsync(["bash", "-c", "pactl -f json list sink-inputs 2>/dev/null"]).catch(() => "[]"),
+    execAsync(["bash", "-c", "pactl -f json list clients 2>/dev/null"]).catch(() => "[]")
+  ]).then(([inputsStr, clientsStr]) => {
+    try {
+      const inputs = JSON.parse(inputsStr)
+      const clients = JSON.parse(clientsStr)
+      const inputsArr = Array.isArray(inputs) ? inputs : (inputs ? [inputs] : [])
+      const clientsArr = Array.isArray(clients) ? clients : (clients ? [clients] : [])
+      const clientMap = new Map()
+      clientsArr.forEach(c => clientMap.set(String(c.index), c))
+      const activeAppNames = new Set<string>()
+      const presetsNow = audioPresets.get()
+
+      const enhanced = inputsArr.map(si => {
+        const client = clientMap.get(String(si.client))
+        if (client) si.properties = { ...client.properties, ...si.properties }
+        const name = si.properties?.["application.name"] || si.properties?.["node.name"] || "App"
+        const key = `app:spk:${name.toLowerCase()}`
+        activeAppNames.add(name.toLowerCase())
+        if (!spkHandledStreams.has(si.index)) {
+          const p = presetsNow[key]
+          if (p !== undefined) execAsync(["pactl", "set-sink-input-volume", `${si.index}`, `${Math.round(p * 100)}%`]).catch(() => { })
+          spkHandledStreams.add(si.index)
+        }
+        return si
+      })
+
+      const silentApps: any[] = []
+      clientsArr.forEach(c => {
+        const name = c.properties?.["application.name"]
+        if (!name) return
+        const lowerName = name.toLowerCase()
+        if (activeAppNames.has(lowerName) || EXCLUDE_CLIENTS.some(e => lowerName.includes(e))) return
+        activeAppNames.add(lowerName)
+        silentApps.push({ index: -1, client: c.index, properties: c.properties, volume: null, isSilent: true })
+      })
+
+      const next = [...enhanced, ...silentApps]
+      const sig = streamsSignature(next)
+      if (sig !== spkSig) { spkSig = sig; setSpkAppStreams(next) }
+    } catch (e) {
+      if (spkSig !== "") { spkSig = ""; setSpkAppStreams([]) }
+    }
+  }).catch(() => { if (spkSig !== "") { spkSig = ""; setSpkAppStreams([]) } })
+}
+
+function startSpkPoll() {
+  spkRefs++
+  if (spkPollId !== null) return
+  loadSpkStreams()
+  spkPollId = setInterval(loadSpkStreams, 2000)
+}
+function stopSpkPoll() {
+  spkRefs = Math.max(0, spkRefs - 1)
+  if (spkRefs === 0 && spkPollId !== null) { clearInterval(spkPollId); spkPollId = null }
+}
+
+// ── Microphone apps poller ──
+// Solo apps que REALMENTE capturan (source-outputs activos). Un "client" de Pulse no
+// implica captura, así que aquí no añadimos apps "silenciosas" (antes metía Spotify,
+// navegadores, etc. como si grabaran).
+const [micAppStreams, setMicAppStreams] = createState<any[]>([])
+let micLastInteraction = 0
+const micHandledStreams = new Set<number>()
+let micSig = ""
+let micPollId: number | null = null
+let micRefs = 0
+
+function loadMicStreams() {
+  if (Date.now() - micLastInteraction < 2500) return
+  Promise.all([
+    execAsync(["bash", "-c", "pactl -f json list source-outputs 2>/dev/null"]).catch(() => "[]"),
+    execAsync(["bash", "-c", "pactl -f json list clients 2>/dev/null"]).catch(() => "[]")
+  ]).then(([inputsStr, clientsStr]) => {
+    try {
+      const inputs = JSON.parse(inputsStr)
+      const clients = JSON.parse(clientsStr)
+      const inputsArr = Array.isArray(inputs) ? inputs : (inputs ? [inputs] : [])
+      const clientsArr = Array.isArray(clients) ? clients : (clients ? [clients] : [])
+      const clientMap = new Map()
+      clientsArr.forEach(c => clientMap.set(String(c.index), c))
+      const presetsNow = audioPresets.get()
+
+      const enhanced = inputsArr.map(si => {
+        const client = clientMap.get(String(si.client))
+        if (client) si.properties = { ...client.properties, ...si.properties }
+        const name = si.properties?.["application.name"] || si.properties?.["node.name"] || "App"
+        const key = `app:mic:${name.toLowerCase()}`
+        if (!micHandledStreams.has(si.index)) {
+          const p = presetsNow[key]
+          if (p !== undefined) execAsync(["pactl", "set-source-output-volume", `${si.index}`, `${Math.round(p * 100)}%`]).catch(() => { })
+          micHandledStreams.add(si.index)
+        }
+        return si
+      })
+
+      const sig = streamsSignature(enhanced)
+      if (sig !== micSig) { micSig = sig; setMicAppStreams(enhanced) }
+    } catch (e) {
+      if (micSig !== "") { micSig = ""; setMicAppStreams([]) }
+    }
+  }).catch(() => { if (micSig !== "") { micSig = ""; setMicAppStreams([]) } })
+}
+
+function startMicPoll() {
+  micRefs++
+  if (micPollId !== null) return
+  loadMicStreams()
+  micPollId = setInterval(loadMicStreams, 2000)
+}
+function stopMicPoll() {
+  micRefs = Math.max(0, micRefs - 1)
+  if (micRefs === 0 && micPollId !== null) { clearInterval(micPollId); micPollId = null }
+}
+
+// Throttle de escritura durante el arrastre: change-value se dispara en cada píxel, así
+// que en vez de un pactl por tick coalescemos a ~60 ms con "trailing" (último valor gana).
+function makeVolThrottle(apply: (v: number) => void) {
+  let lastVol = 0
+  let lastTs = 0
+  let timer: number | null = null
+  return (v: number) => {
+    lastVol = v
+    if (timer !== null) return
+    const wait = Math.max(0, 60 - (Date.now() - lastTs))
+    timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, wait, () => {
+      timer = null
+      lastTs = Date.now()
+      apply(lastVol)
+      return GLib.SOURCE_REMOVE
+    })
+  }
+}
+
 const DISPLAY_CONFIG_PATH = `${GLib.get_user_config_dir()}/ags/config/display.json`
 
 function loadDisplayConfig() {
@@ -766,10 +937,12 @@ function QsMedia() {
 function QsAudioMenu({ onBack }: { onBack: () => void }) {
   const wp = AstalWp.get_default()
   const [audioMode, setAudioMode] = createState<"devices" | "apps">("devices")
-  const [streams, setStreams] = createState<any[]>([])
-  const [lastInteraction, setLastInteraction] = createState(0)
-  const [presets, setPresets] = createState<Record<string, number>>(loadAudioPresets())
-  const handledStreams = new Set<number>()
+  // Estado de apps y presets compartidos a nivel de módulo (ver bloque "Shared
+  // audio-apps polling"). `presets`/`setPresets` se mantienen como alias para no tocar
+  // el resto de la función.
+  const streams = spkAppStreams
+  const presets = audioPresets
+  const setPresets = setAudioPresets
   const handledDevices = new Set<string>()
 
   function volIcon(v: number, m: boolean) {
@@ -779,94 +952,18 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
     return "󰕾"
   }
 
-  function loadStreams() {
-    if (Date.now() - lastInteraction.get() < 2500) return
-
-    Promise.all([
-      execAsync(["bash", "-c", "pactl -f json list sink-inputs 2>/dev/null"]).catch(() => "[]"),
-      execAsync(["bash", "-c", "pactl -f json list clients 2>/dev/null"]).catch(() => "[]")
-    ]).then(([inputsStr, clientsStr]) => {
-      try {
-        const inputs = JSON.parse(inputsStr)
-        const clients = JSON.parse(clientsStr)
-        const inputsArr = Array.isArray(inputs) ? inputs : (inputs ? [inputs] : [])
-        const clientsArr = Array.isArray(clients) ? clients : (clients ? [clients] : [])
-
-        const clientMap = new Map()
-        clientsArr.forEach(c => clientMap.set(String(c.index), c))
-
-        const activeAppNames = new Set<string>()
-        const exclude = ["pactl", "gjs", "astal", "pipewire", "wireplumber", "xdg-desktop-portal", "hyprland", "gsd-color", "gjs-console", "pavucontrol"]
-
-        const enhanced = inputsArr.map(si => {
-          const client = clientMap.get(String(si.client))
-          if (client) {
-            si.properties = { ...client.properties, ...si.properties }
-          }
-          const name = si.properties?.["application.name"] || si.properties?.["node.name"] || "App"
-          const key = `app:spk:${name.toLowerCase()}`
-          activeAppNames.add(name.toLowerCase())
-
-          // Apply preset if new
-          if (!handledStreams.has(si.index)) {
-            const p = presets.get()[key]
-            if (p !== undefined) {
-              execAsync(["pactl", "set-sink-input-volume", `${si.index}`, `${Math.round(p * 100)}%`]).catch(() => { })
-            }
-            handledStreams.add(si.index)
-          }
-          return si
-        })
-
-        // Add silent apps
-        const silentApps: any[] = []
-        clientsArr.forEach(c => {
-          const name = c.properties?.["application.name"]
-          if (!name) return
-          const lowerName = name.toLowerCase()
-          if (activeAppNames.has(lowerName) || exclude.some(e => lowerName.includes(e))) return
-          
-          activeAppNames.add(lowerName) // Avoid duplicates
-          silentApps.push({
-            index: -1, // No active stream
-            client: c.index,
-            properties: c.properties,
-            volume: null,
-            isSilent: true
-          })
-        })
-
-        setStreams([...enhanced, ...silentApps])
-      } catch (e) {
-        console.error("Parse error in loadStreams:", e)
-        setStreams([])
-      }
-    }).catch((err) => {
-      console.error("loadStreams error:", err)
-      setStreams([])
-    })
-  }
-
-  // Refresco periódico del modo "apps". Se detiene al salir del modo apps Y al
-  // cerrar el panel (antes seguía ejecutando pactl cada 2 s con el panel cerrado
-  // si se cerraba estando en modo apps). Se reanuda si el panel se reabre en apps.
-  let appsRefreshId: number | null = null
-  const stopAppsRefresh = () => {
-    if (appsRefreshId !== null) { clearInterval(appsRefreshId); appsRefreshId = null }
-  }
-  const startAppsRefresh = () => {
-    if (appsRefreshId !== null) return
-    loadStreams()
-    appsRefreshId = setInterval(loadStreams, 2000)
-  }
-  // El sondeo (pactl cada 2 s) solo debe correr cuando ESTA sección es visible:
-  // panel abierto ∧ vista "audio" ∧ modo apps. Antes solo miraba quickSettingsVisible,
-  // así que al pulsar "atrás" (qsView→"main") o al reabrir el panel (qsView se resetea
-  // a "main" pero audioMode seguía en "apps") el sondeo seguía en segundo plano fuera
-  // de la sección. Escuchar también qsView cierra ese hueco.
+  // Esta instancia solo declara si "quiere" el sondeo (panel abierto ∧ vista "audio" ∧
+  // modo apps); el poller compartido con refcount lo arranca/detiene según haya ≥1
+  // instancia activa. `wanting` evita contar mal el refcount al re-disparar syncRefresh.
+  let wanting = false
   const shouldRefresh = () =>
     quickSettingsVisible.get() && qsView.get() === "audio" && audioMode.get() === "apps"
-  const syncRefresh = () => { if (shouldRefresh()) startAppsRefresh(); else stopAppsRefresh() }
+  const syncRefresh = () => {
+    const want = shouldRefresh()
+    if (want === wanting) return
+    wanting = want
+    if (want) startSpkPoll(); else stopSpkPoll()
+  }
   audioMode.subscribe(syncRefresh)
   quickSettingsVisible.subscribe(syncRefresh)
   qsView.subscribe(syncRefresh)
@@ -985,7 +1082,7 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={audioMode((m) => m === "apps")}>
             <label cssClasses={["qs-dropdown-header"]} label="MEZCLA DE APLICACIONES" halign={Gtk.Align.START} />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-              <For each={() => streams()}>
+              <For each={streams}>
                 {(si: any) => {
                   const props = si.properties || {}
                   const name = props["application.name"]
@@ -1004,22 +1101,23 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
 
                   const [currentVol, setCurrentVol] = createState(initialVol)
 
+                  const applyVol = makeVolThrottle((v) => {
+                    if (si.index !== -1) execAsync(["pactl", "set-sink-input-volume", `${si.index}`, `${Math.round(v * 100)}%`]).catch(() => { })
+                  })
                   const isMedia = name.toLowerCase().includes("spotify") || si.properties?.["media.name"]
                   const streamScale = makeScale(
                     isMedia ? ["qs-slider", "media"] : ["qs-slider", "app"],
                     () => currentVol.get(),
                     (v) => {
                       setCurrentVol(v)
-                      setLastInteraction(Date.now())
+                      spkLastInteraction = Date.now()
                       // Update preset
                       const p = { ...presets.get() }
                       p[key] = v
                       setPresets(p)
                       saveAudioPresets(p)
-                      // Apply to stream if active
-                      if (si.index !== -1) {
-                        execAsync(["pactl", "set-sink-input-volume", `${si.index}`, `${Math.round(v * 100)}%`]).catch(() => { })
-                      }
+                      // Apply to stream if active (throttled)
+                      applyVol(v)
                     },
                   )
                   const icon = props["application.icon_name"]
@@ -1059,94 +1157,26 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
 function QsMicMenu({ onBack }: { onBack: () => void }) {
   const wp = AstalWp.get_default()
   const [audioMode, setAudioMode] = createState<"devices" | "apps">("devices")
-  const [streams, setStreams] = createState<any[]>([])
-  const [lastInteraction, setLastInteraction] = createState(0)
-  const [presets, setPresets] = createState<Record<string, number>>(loadAudioPresets())
-  const handledStreams = new Set<number>()
+  // Estado de apps y presets compartidos a nivel de módulo (ver "Shared audio-apps
+  // polling"). `presets`/`setPresets` como alias para no tocar el resto de la función.
+  const streams = micAppStreams
+  const presets = audioPresets
+  const setPresets = setAudioPresets
   const handledDevices = new Set<string>()
 
   if (!wp.audio) return <box />
 
-  function loadMicStreams() {
-    if (Date.now() - lastInteraction.get() < 2500) return
-
-    Promise.all([
-      execAsync(["bash", "-c", "pactl -f json list source-outputs 2>/dev/null"]).catch(() => "[]"),
-      execAsync(["bash", "-c", "pactl -f json list clients 2>/dev/null"]).catch(() => "[]")
-    ]).then(([inputsStr, clientsStr]) => {
-      try {
-        const inputs = JSON.parse(inputsStr)
-        const clients = JSON.parse(clientsStr)
-        const inputsArr = Array.isArray(inputs) ? inputs : (inputs ? [inputs] : [])
-        const clientsArr = Array.isArray(clients) ? clients : (clients ? [clients] : [])
-
-        const clientMap = new Map()
-        clientsArr.forEach(c => clientMap.set(String(c.index), c))
-
-        const activeAppNames = new Set<string>()
-        const exclude = ["pactl", "gjs", "astal", "pipewire", "wireplumber", "xdg-desktop-portal", "hyprland", "gsd-color", "gjs-console", "pavucontrol"]
-
-        const enhanced = inputsArr.map(si => {
-          const client = clientMap.get(String(si.client))
-          if (client) {
-            si.properties = { ...client.properties, ...si.properties }
-          }
-          const name = si.properties?.["application.name"] || si.properties?.["node.name"] || "App"
-          const key = `app:mic:${name.toLowerCase()}`
-          activeAppNames.add(name.toLowerCase())
-
-          // Apply preset if new
-          if (!handledStreams.has(si.index)) {
-            const p = presets.get()[key]
-            if (p !== undefined) {
-              execAsync(["pactl", "set-source-output-volume", `${si.index}`, `${Math.round(p * 100)}%`]).catch(() => { })
-            }
-            handledStreams.add(si.index)
-          }
-          return si
-        })
-
-        // Add silent apps
-        const silentApps: any[] = []
-        clientsArr.forEach(c => {
-          const name = c.properties?.["application.name"]
-          if (!name) return
-          const lowerName = name.toLowerCase()
-          if (activeAppNames.has(lowerName) || exclude.some(e => lowerName.includes(e))) return
-          
-          activeAppNames.add(lowerName)
-          silentApps.push({
-            index: -1,
-            client: c.index,
-            properties: c.properties,
-            volume: null,
-            isSilent: true
-          })
-        })
-
-        setStreams([...enhanced, ...silentApps])
-      } catch (e) {
-        setStreams([])
-      }
-    }).catch(() => setStreams([]))
-  }
-
-  // Ver nota en QsAudioMenu: el refresco de apps se detiene al cerrar el panel.
-  let appsRefreshId: number | null = null
-  const stopAppsRefresh = () => {
-    if (appsRefreshId !== null) { clearInterval(appsRefreshId); appsRefreshId = null }
-  }
-  const startAppsRefresh = () => {
-    if (appsRefreshId !== null) return
-    loadMicStreams()
-    appsRefreshId = setInterval(loadMicStreams, 2000)
-  }
-  // Mismo gating que en QsAudioMenu: el sondeo solo corre con el panel abierto ∧
-  // vista "mic" ∧ modo apps, escuchando también qsView para no seguir sondeando al
-  // salir de la sección o al reabrir el panel en otra vista.
+  // Gating idéntico al de QsAudioMenu pero para la vista "mic". El poller compartido
+  // (con refcount) se arranca/detiene según haya ≥1 instancia queriéndolo.
+  let wanting = false
   const shouldRefresh = () =>
     quickSettingsVisible.get() && qsView.get() === "mic" && audioMode.get() === "apps"
-  const syncRefresh = () => { if (shouldRefresh()) startAppsRefresh(); else stopAppsRefresh() }
+  const syncRefresh = () => {
+    const want = shouldRefresh()
+    if (want === wanting) return
+    wanting = want
+    if (want) startMicPoll(); else stopMicPoll()
+  }
   audioMode.subscribe(syncRefresh)
   quickSettingsVisible.subscribe(syncRefresh)
   qsView.subscribe(syncRefresh)
@@ -1256,7 +1286,7 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={audioMode((m) => m === "apps")}>
             <label cssClasses={["qs-dropdown-header"]} label="MEZCLA DE ENTRADAS" halign={Gtk.Align.START} />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-              <For each={() => streams()}>
+              <For each={streams}>
                 {(si: any) => {
                   const props = si.properties || {}
                   const name = props["application.name"]
@@ -1264,7 +1294,9 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
                     || props["media.name"]
                     || props["application.process.binary"]
                     || "App"
-                  const key = `mic:${name.toLowerCase()}`
+                  // Clave unificada con el poller (antes la fila guardaba con `mic:` pero
+                  // el poller aplicaba con `app:mic:`, así que el preset no se releía).
+                  const key = `app:mic:${name.toLowerCase()}`
 
                   const volObj = si.volume || {}
                   const channels = Object.keys(volObj)
@@ -1275,19 +1307,20 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
 
                   const [currentVol, setCurrentVol] = createState(initialVol)
 
+                  const applyVol = makeVolThrottle((v) => {
+                    if (si.index !== -1) execAsync(["pactl", "set-source-output-volume", `${si.index}`, `${Math.round(v * 100)}%`]).catch(() => { })
+                  })
                   const streamScale = makeScale(
                     ["qs-slider", "mic"],
                     () => currentVol.get(),
                     (v) => {
                       setCurrentVol(v)
-                      setLastInteraction(Date.now())
+                      micLastInteraction = Date.now()
                       const p = { ...presets.get() }
                       p[key] = v
                       setPresets(p)
                       saveAudioPresets(p)
-                      if (si.index !== -1) {
-                        execAsync(["pactl", "set-source-output-volume", `${si.index}`, `${Math.round(v * 100)}%`]).catch(() => { })
-                      }
+                      applyVol(v)
                     },
                   )
                   const icon = props["application.icon_name"]
