@@ -652,6 +652,32 @@ popover.tray-popover {
   }
 }
 
+// ── Overflow del tray: botón flecha + popover en rejilla (estilo Windows) ─────
+.tray-overflow {
+  min-width: 20px;
+
+  label {
+    font-family: 'MesloLGS Nerd Font';
+    color: #89b4fa;
+    font-size: 14px;
+    margin: 0 3px;
+  }
+}
+
+// Popover del overflow: reusa el marco de .tray-popover pero como rejilla de
+// iconos en vez de lista, así que se ajusta al contenido sin ancho mínimo.
+popover.tray-overflow-popover > contents {
+  min-width: unset;
+  padding: 5px;
+}
+
+.tray-overflow-grid {
+  // Los .tray-item hijos ya traen su propio hover/estilo; aquí solo el hueco.
+  > box {
+    margin: 0;
+  }
+}
+
 .bar-pill {
   font-size: 16px;
   color: $text;
