@@ -10,6 +10,7 @@ import AstalBluetooth from "gi://AstalBluetooth"
 import AstalNotifd from "gi://AstalNotifd"
 import AstalMpris from "gi://AstalMpris"
 import GdkPixbuf from "gi://GdkPixbuf"
+import cairo from "gi://cairo"
 import {
   quickSettingsVisible,
   closeAllPanels,
@@ -865,29 +866,27 @@ function hslToRgb([h, s, l]: [number, number, number]): [number, number, number]
   ]
 }
 
-function spotifyLikeAccent(rgb: [number, number, number]): [number, number, number] {
-  let [h, s, l] = rgbToHsl(rgb)
-  const sourceL = l
+// One UI 8 deriva de la semilla una paleta tonal APAGADA (muteada): tanto el
+// tinte del fondo como el seekbar tienen saturación baja. Medido sobre la misma
+// carátula, Samsung usa fondo≈HSL(_,0.36,0.18) y seekbar≈HSL(_,0.21,0.51). El
+// hue se preserva siempre; lo que corregimos aquí es la SATURACIÓN (antes íbamos
+// demasiado saturados) y clavamos el tono.
 
-  // The mobile UI appears to preserve hue but compensate luminance: dark cover
-  // colors become lighter, while very light colors become stronger.
-  l = Math.max(0.48, Math.min(0.82, 0.68 - (sourceL - 0.5) * 0.48))
+// Tinte del fondo: oscuro y MUTEADO. Se pinta a alpha bajo para que la carátula
+// se siga viendo por debajo (como en el teléfono).
+function oneUiBgTone(rgb: [number, number, number]): [number, number, number] {
+  const [h, s] = rgbToHsl(rgb)
+  const sat = Math.min(0.42, s * 0.6 + 0.06) // apagado, tope ~Samsung 0.36–0.42
+  const lum = 0.18 + Math.min(1, s) * 0.05   // ~0.18–0.23
+  return hslToRgb([h, sat, lum])
+}
 
-  if (s < 0.14) {
-    // Near-grayscale covers in Spotify's mobile UI often get a soft warm
-    // yellow/olive tint instead of staying neutral gray.
-    h = 0.18
-    s = 0.36
-    l = Math.max(l, 0.64)
-  } else if (sourceL > 0.62) {
-    s = Math.min(1, s * 1.25)
-  } else if (sourceL < 0.42 && s > 0.58) {
-    s *= 0.78
-  } else {
-    s = Math.min(1, s * 1.08)
-  }
-
-  return hslToRgb([h, s, l])
+// Seekbar / acento activo: mismo hue, periwinkle MUTEADO y de tono medio,
+// legible sobre el fondo oscuro (Samsung ≈ HSL(_,0.21,0.51)).
+function oneUiFgTone(rgb: [number, number, number]): [number, number, number] {
+  const [h, s] = rgbToHsl(rgb)
+  const sat = Math.min(0.30, s * 0.4 + 0.08)
+  return hslToRgb([h, sat, 0.55])
 }
 
 function cssRgbToTuple(rgb: string): [number, number, number] {
@@ -904,6 +903,11 @@ function formatMediaTime(value: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`
 }
 
+// Extrae el color "semilla" de la carátula igual que hace la máquina monet de
+// One UI 8 (Material Color Utilities → Score): puntúa por CROMA + población, sin
+// sesgo de luminancia. El código viejo penalizaba/premiaba por luminancia
+// ("darkFit") y calidez ("warmBias"), lo que a veces elegía un color distinto al
+// de Samsung → de ahí las inversiones "aquí oscuro / allí claro".
 function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number] {
   const pixels = pixbuf.get_pixels()
   const width = pixbuf.get_width()
@@ -911,7 +915,8 @@ function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number]
   const channels = pixbuf.get_n_channels()
   const rowstride = pixbuf.get_rowstride()
   const step = Math.max(1, Math.floor(Math.min(width, height) / 28))
-  const buckets = new Map<string, { r: number; g: number; b: number; sat: number; lum: number; count: number }>()
+  const buckets = new Map<string, { r: number; g: number; b: number; chroma: number; count: number }>()
+  let total = 0
 
   for (let y = 0; y < height; y += step) {
     const row = y * rowstride
@@ -922,38 +927,42 @@ function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number]
       const b = pixels[i + 2]
       const max = Math.max(r, g, b)
       const min = Math.min(r, g, b)
-      const sat = max === 0 ? 0 : (max - min) / max
+      const chroma = max - min // 0..255, proxy perceptual de croma (HCT-lite)
       const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
 
-      if (lum < 18 || lum > 220 || sat < 0.08) continue
+      total += 1
+      // Descarta casi-negro, casi-blanco y casi-gris; el resto SÍ compite,
+      // incluidos colores oscuros y saturados (Samsung sí los elige de semilla).
+      if (lum < 14 || lum > 236 || chroma < 16) continue
 
       const qr = r >> 5
       const qg = g >> 5
       const qb = b >> 5
       const key = `${qr},${qg},${qb}`
-      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, sat: 0, lum: 0, count: 0 }
+      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, chroma: 0, count: 0 }
       bucket.r += r
       bucket.g += g
       bucket.b += b
-      bucket.sat += sat
-      bucket.lum += lum
+      bucket.chroma += chroma
       bucket.count += 1
       buckets.set(key, bucket)
     }
   }
 
-  let best: { r: number; g: number; b: number; sat: number; lum: number; count: number } | null = null
-  let bestScore = 0
+  // Score al estilo Material: proporción·0.7 + (croma-48)·peso. El croma manda,
+  // pero un color muy poblado y algo menos saturado puede ganar (como en monet).
+  const TARGET_CHROMA = 48
+  let best: { r: number; g: number; b: number; chroma: number; count: number } | null = null
+  let bestScore = -Infinity
   for (const bucket of buckets.values()) {
-    const sat = bucket.sat / bucket.count
-    const lum = bucket.lum / bucket.count
-    const rAvg = bucket.r / bucket.count
-    const gAvg = bucket.g / bucket.count
-    const bAvg = bucket.b / bucket.count
-    // Spotify-like: prefer broad, darker/muted album colors over tiny bright accents.
-    const darkFit = Math.max(0.2, 1 - Math.abs(lum - 82) / 150)
-    const warmBias = Math.max(0.75, Math.min(1.35, 1 + (rAvg - bAvg) / 260 + (rAvg - gAvg) / 520))
-    const score = bucket.count * (0.55 + sat) * darkFit * warmBias
+    const proportion = total > 0 ? bucket.count / total : 0
+    const chroma = (bucket.chroma / bucket.count) / 255 * 100 // 0..100
+    if (chroma < 5) continue
+    const proportionScore = proportion * 100 * 0.7
+    const chromaScore = chroma < TARGET_CHROMA
+      ? (chroma - TARGET_CHROMA) * 0.1
+      : (chroma - TARGET_CHROMA) * 0.3
+    const score = proportionScore + chromaScore
     if (!best || score > bestScore) {
       best = bucket
       bestScore = score
@@ -1140,7 +1149,9 @@ function QsMedia() {
     const path = c.startsWith("file://") ? c.slice(7) : c
     try {
       const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
-      setCoverAccent(rgbToCss(spotifyLikeAccent(dominantPixbufColor(pixbuf))))
+      // Guardamos la semilla cruda; el tono (fondo oscuro / seekbar claro) se
+      // deriva en cada sitio de dibujo con oneUiBgTone / oneUiFgTone.
+      setCoverAccent(rgbToCss(dominantPixbufColor(pixbuf)))
       coverPicture.set_paintable(Gdk.Texture.new_for_pixbuf(pixbuf))
     } catch (_) { coverPicture.set_paintable(null) }
   }
@@ -1158,8 +1169,10 @@ function QsMedia() {
   colorFilter.set_content_height(CARD_H)
   colorFilter.set_draw_func((_area, cr, width, height) => {
     if (!cover.get() || isAdState.get()) return
-    const [r, g, b] = cssRgbToTuple(coverAccent.get())
-    cr.setSourceRGBA(r / 255, g / 255, b / 255, 0.42)
+    const [r, g, b] = oneUiBgTone(cssRgbToTuple(coverAccent.get()))
+    // Alpha medio: unifica el color pero DEJA VER la carátula por debajo, como
+    // hace One UI (no un bloque opaco).
+    cr.setSourceRGBA(r / 255, g / 255, b / 255, 0.45)
     cr.rectangle(0, 0, width, height)
     cr.fill()
   })
@@ -1178,9 +1191,22 @@ function QsMedia() {
   coverScrim.set_content_height(CARD_H)
   coverScrim.set_draw_func((_area, cr, width, height) => {
     if (!cover.get() || isAdState.get()) return
-    cr.setSourceRGBA(0, 0, 0, 0.58)
-    cr.rectangle(0, 0, width, height)
-    cr.fill()
+    // Degradado vertical real: arriba casi transparente (se ve la carátula), abajo
+    // oscuro para dar contraste al texto/controles. Igual que One UI.
+    try {
+      const grad = new (cairo as any).LinearGradient(0, 0, 0, height)
+      grad.addColorStopRGBA(0, 0, 0, 0, 0.10)
+      grad.addColorStopRGBA(0.55, 0, 0, 0, 0.30)
+      grad.addColorStopRGBA(1, 0, 0, 0, 0.58)
+      cr.setSource(grad)
+      cr.rectangle(0, 0, width, height)
+      cr.fill()
+    } catch (_) {
+      // Fallback si el binding de GJS no expone LinearGradient: scrim plano.
+      cr.setSourceRGBA(0, 0, 0, 0.34)
+      cr.rectangle(0, 0, width, height)
+      cr.fill()
+    }
   })
   const queueCoverScrim = () => coverScrim.queue_draw()
   cover.subscribe(queueCoverScrim)
@@ -1210,7 +1236,7 @@ function QsMedia() {
 
     const fillW = Math.max(0, Math.min(width, width * prog.get()))
     if (fillW <= 0) return
-    const [r, g, b] = cssRgbToTuple(coverAccent.get())
+    const [r, g, b] = oneUiFgTone(cssRgbToTuple(coverAccent.get()))
     drawRoundRect(0, y, fillW, 5)
     cr.setSourceRGBA(r / 255, g / 255, b / 255, 1)
     cr.fill()
