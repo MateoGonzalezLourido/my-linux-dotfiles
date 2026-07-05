@@ -908,6 +908,24 @@ function formatMediaTime(value: number): string {
 // sesgo de luminancia. El código viejo penalizaba/premiaba por luminancia
 // ("darkFit") y calidez ("warmBias"), lo que a veces elegía un color distinto al
 // de Samsung → de ahí las inversiones "aquí oscuro / allí claro".
+// Muchos navegadores (Firefox) NO publican mpris:artUrl para YouTube, pero sí
+// xesam:url con el enlace del vídeo. Derivamos la miniatura del ID del vídeo.
+// Cubre watch?v=, youtu.be/, /embed/ y /shorts/.
+function youtubeThumb(url: string): string {
+  if (!url) return ""
+  const m = url.match(/(?:[?&]v=|youtu\.be\/|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{11})/)
+  return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : ""
+}
+
+// Nombre de caché ÚNICO por URL. El esquema viejo (último segmento de la ruta)
+// colisiona: todas las miniaturas de YouTube son "hqdefault.jpg" → portada vieja.
+function coverCacheName(url: string): string {
+  let h = 0
+  for (let i = 0; i < url.length; i++) h = (Math.imul(h, 31) + url.charCodeAt(i)) | 0
+  const ext = (url.split("?")[0].match(/\.(jpe?g|png|webp|gif)$/i)?.[1] || "img").toLowerCase()
+  return `c${(h >>> 0).toString(16)}.${ext}`
+}
+
 function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number] {
   const pixels = pixbuf.get_pixels()
   const width = pixbuf.get_width()
@@ -987,6 +1005,7 @@ function QsMedia() {
   const [prog, setProg] = createState(0)
   const [positionLabel, setPositionLabel] = createState("0:00")
   const [durationLabel, setDurationLabel] = createState("0:00")
+  const [hasProgress, setHasProgress] = createState(false)
   const [hasPlayer, setHasPlayer] = createState(false)
   const [cover, setCover] = createState("")
   const [playerIndex, setPlayerIndex] = createState(0)
@@ -1019,15 +1038,17 @@ function QsMedia() {
   // AstalMpris no está descargando la carátula (deja la URL https, que GTK4 no puede
   // pintar en CSS). La descargamos nosotros a ~/.cache/ags/media/ una vez por álbum y
   // usamos la ruta local. Rutas locales / vacío se pasan tal cual.
-  let lastCoverUrl = ""
+  // Dedup contra la ENTRADA cruda (no solo la rama http). Si comparábamos solo
+  // en la rama http, una portada local intermedia (Spotify) dejaba lastCoverUrl
+  // desactualizado y al volver a una URL ya vista se saltaba el cambio.
+  let lastCoverInput = "\0" // centinela ≠ "" para que la primera vez ("") sí aplique
   const resolveCover = (raw: string) => {
-    if (!raw) { lastCoverUrl = ""; setCover(""); return }
+    if (raw === lastCoverInput) return // misma fuente que el tick anterior
+    lastCoverInput = raw
+    if (!raw) { setCover(""); return }
     if (!raw.startsWith("http")) { setCover(raw); return } // ya es ruta local
-    if (raw === lastCoverUrl) return // ya descargada o en curso para este álbum
-    lastCoverUrl = raw
     const dir = `${GLib.get_user_cache_dir()}/ags/media`
-    const name = (raw.split("/").pop() || "cover").split("?")[0]
-    const path = `${dir}/${name}`
+    const path = `${dir}/${coverCacheName(raw)}`
     if (GLib.file_test(path, GLib.FileTest.EXISTS)) { setCover(path); return }
     execAsync(["bash", "-c", `mkdir -p '${dir}' && curl -sfL -o '${path}' '${raw}'`])
       .then(() => setCover(path))
@@ -1096,13 +1117,25 @@ function QsMedia() {
     }
 
     setIsPlaying(p.playback_status === AstalMpris.PlaybackStatus.PLAYING)
-    resolveCover(p.cover_art || p.art_url || "")
+    // Arte: primero el que da el reproductor; si no hay (Firefox no publica
+    // artUrl para YouTube), lo derivamos de xesam:url.
+    let art = p.cover_art || p.art_url || ""
+    if (!art) {
+      let pageUrl = ""
+      try { pageUrl = p.get_meta?.("xesam:url")?.deep_unpack?.() || "" } catch (_) {}
+      art = youtubeThumb(pageUrl)
+    }
+    resolveCover(art)
     setPlayerName(p.identity || p.bus_name.split(".").pop() || "Player")
+    // Algunos reproductores (Firefox/YouTube) no exponen duración ni posición por
+    // MPRIS. Sin dato, ocultamos la barra y los tiempos en vez de mostrar 0:00 muerto.
     if (p.length > 0) {
+      setHasProgress(true)
       setProg(p.position / p.length)
       setPositionLabel(formatMediaTime(p.position))
       setDurationLabel(formatMediaTime(p.length))
     } else {
+      setHasProgress(false)
       setProg(0)
       setPositionLabel("0:00")
       setDurationLabel("0:00")
@@ -1300,7 +1333,7 @@ function QsMedia() {
           <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
         </box>
       </box>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={hasProgress}>
         {progressArea}
         <box>
           <label cssClasses={["qs-media-time"]} label={positionLabel} halign={Gtk.Align.START} hexpand />
