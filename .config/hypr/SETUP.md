@@ -196,7 +196,7 @@ ya cubierto por `hyprshot`/`grim` arriba, pero decláralo explícito):
 
 ```sh
 sudo pacman -S libnotify smartmontools lm_sensors pciutils usbutils alsa-utils \
-  util-linux inotify-tools dbus networkmanager wireless_tools bluez bluez-utils iw
+  util-linux inotify-tools dbus networkmanager bluez bluez-utils
 ```
 
 Detalle por script:
@@ -204,11 +204,11 @@ Detalle por script:
 | Script | Qué vigila | Depende de |
 |---|---|---|
 | `battery-monitor.sh` | niveles críticos de batería / carga completa | lee `/sys/class/power_supply/BAT0` directo, sin paquete extra — **hardcodea `BAT0`**; en un PC de escritorio sin batería simplemente no encontrará nada y se queda inactivo (no falla) |
-| `temp-monitor.sh` | temp. CPU/GPU altas | `sensors` (`lm_sensors`) + `python3` (parsea el JSON de `sensors -j coretemp-isa-0000`) + `nvidia-smi` (`nvidia-utils`, solo si hay NVIDIA). **Requiere haber corrido `sudo sensors-detect` una vez en el PC nuevo** para que exista el chip `coretemp-isa-0000` (es específico de CPUs Intel; en AMD el chip se llama distinto — el script está hardcodeado a `coretemp-isa-0000` y no leerá temp de CPU en AMD sin adaptarlo) |
+| `temp-monitor.sh` | temp. CPU/GPU altas | CPU: lee directo de sysfs (`/sys/class/hwmon/*/temp1_input` del chip `coretemp`, resuelto una vez al arrancar) — sin forkear `sensors` ni `python3`. GPU: `nvidia-smi` (`nvidia-utils`, solo si hay NVIDIA; se detecta una vez al arrancar, no en cada ciclo). **Requiere haber corrido `sudo sensors-detect` una vez en el PC nuevo** para que el driver `coretemp` esté cargado (específico de CPUs Intel; en AMD el chip se llama distinto y el script simplemente no reportará temp de CPU, sin fallar) |
 | `ram-monitor.sh` | uso de RAM alto | solo `/proc/meminfo`, sin dependencias |
 | `disk-monitor.sh` | espacio en disco bajo | `df`, sin dependencias extra |
 | `oom-monitor.sh` | OOM killer, kernel panic, fallos SSH/sudo, segfaults, ficheros críticos modificados | `journalctl` (systemd) + `inotifywait` (`inotify-tools`) sobre `/etc/passwd /etc/sudoers /etc/hosts` |
-| `wifi-monitor.sh` | desconexión/reconexión WiFi | `iw` (detecta interfaz) + `iwgetid` (paquete `wireless_tools`) — **`iwgetid` falta también en esta misma máquina**; sin él el script sigue funcionando pero muestra "desconocida" en vez del SSID |
+| `wifi-monitor.sh` | desconexión/reconexión WiFi + portal cautivo | `nmcli` (NetworkManager) — event-driven vía `nmcli monitor`, sin polling; detecta interfaz, SSID y estado de conectividad todo por D-Bus, sin `iw`/`iwgetid` |
 | `bt-monitor.sh` | pérdida de conexión Bluetooth | `dbus-monitor` (`dbus`) + `bluetoothctl` (`bluez-utils`) |
 | `usb-monitor.sh` | conectar/desconectar USB | `udevadm` (systemd, ya en el sistema base) |
 | `boot-healthcheck.sh` | chequeo general al arrancar (servicios fallidos, errores de journal, disco, NVIDIA, SMART, batería, fans, audio, bluetooth, USB) | autodescubre hardware, así que no falla si falta algo; pero para chequeos completos quiere `smartctl` (`smartmontools`), `sensors` (`lm_sensors`), `lspci`/`lsusb` (`pciutils`/`usbutils`), `rfkill` (`util-linux`), `aplay` (`alsa-utils`), `nvidia-smi` (`nvidia-utils`) |

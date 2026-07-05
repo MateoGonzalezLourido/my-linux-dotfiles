@@ -1,32 +1,42 @@
 #!/usr/bin/env bash
-# RAM monitor daemon — notifies when usage exceeds WARN_PCT,
-# and when it drops back below COOL_PCT (hysteresis).
+# RAM monitor daemon — notifies only when free RAM gets genuinely low, with
+# hysteresis so it doesn't flap. Uses MemAvailable (kernel's own "usable
+# without swapping" estimate — accounts for reclaimable cache, unlike a raw
+# used-% figure) and absolute thresholds, since a fixed used-% (e.g. 85%) means
+# very different things on a 4GB laptop vs. a 32GB workstation.
+#
+# Perf: /proc/meminfo is parsed with a bash builtin read loop — no awk fork
+# per tick. The poll interval is adaptive: it widens when RAM is comfortably
+# above the warning line, and only tightens up when getting close to it.
 
-POLL_INTERVAL=15
-WARN_PCT=85
-COOL_PCT=80
+WARN_AVAILABLE_MB=2048   # avisar cuando lo disponible cae a esto o menos
+COOL_AVAILABLE_MB=3072   # no re-armar el aviso hasta que suba a esto o más (histéresis)
+NEAR_MARGIN_MB=1024      # a <= WARN+este margen, sondear más seguido
+
+POLL_ACTIVE=10   # cerca del umbral — responsivo
+POLL_IDLE=30     # con margen de sobra — menos despertares, nada agresivo
 
 ram_alerted=false
 
-get_ram_usage() {
-    read -r total available < <(awk '
-        /^MemTotal:/     { total = $2 }
-        /^MemAvailable:/ { available = $2 }
-        END { print total, available }
-    ' /proc/meminfo)
-    local used=$(( total - available ))
-    echo $(( used * 100 / total ))
-}
-
-get_ram_info() {
-    awk '
-        /^MemTotal:/     { total = $2 }
-        /^MemAvailable:/ { available = $2 }
-        END {
-            used = total - available
-            printf "%d GB usados de %d GB\n", used/1024/1024, total/1024/1024
-        }
-    ' /proc/meminfo
+# Sets globals $mem_total_mb and $mem_avail_mb. Bash builtin loop over
+# /proc/meminfo — no subprocess fork (MemAvailable is always among the first
+# few lines, so the early `break` keeps this effectively O(1)).
+read_meminfo() {
+    local key val kb
+    mem_total_mb=0
+    while IFS=':' read -r key val; do
+        case "$key" in
+            MemTotal)
+                kb=${val%kB}; kb=${kb// /}
+                mem_total_mb=$(( kb / 1024 ))
+                ;;
+            MemAvailable)
+                kb=${val%kB}; kb=${kb// /}
+                mem_avail_mb=$(( kb / 1024 ))
+                break
+                ;;
+        esac
+    done < /proc/meminfo
 }
 
 send_notif() {
@@ -39,21 +49,24 @@ send_notif() {
 }
 
 while true; do
-    pct=$(get_ram_usage)
+    read_meminfo
+    used_pct=$(( (mem_total_mb - mem_avail_mb) * 100 / mem_total_mb ))
 
-    if [ "$pct" -ge "$WARN_PCT" ] && [ "$ram_alerted" = false ]; then
-        info=$(get_ram_info)
+    if (( mem_avail_mb <= WARN_AVAILABLE_MB )) && [[ "$ram_alerted" == false ]]; then
         send_notif critical dialog-warning \
-            "RAM alta: ${pct}% usado" \
-            "${info}. Considera cerrar aplicaciones."
+            "RAM muy baja: ${mem_avail_mb}MB disponibles" \
+            "$(( mem_total_mb / 1024 ))GB totales, ${used_pct}% en uso. Considera cerrar aplicaciones."
         ram_alerted=true
-    elif [ "$pct" -lt "$COOL_PCT" ] && [ "$ram_alerted" = true ]; then
-        info=$(get_ram_info)
+    elif (( mem_avail_mb >= COOL_AVAILABLE_MB )) && [[ "$ram_alerted" == true ]]; then
         send_notif normal dialog-information \
-            "RAM normalizada: ${pct}% usado" \
-            "${info}."
+            "RAM normalizada" \
+            "${mem_avail_mb}MB disponibles (${used_pct}% en uso)."
         ram_alerted=false
     fi
 
-    sleep "$POLL_INTERVAL"
+    if (( mem_avail_mb <= WARN_AVAILABLE_MB + NEAR_MARGIN_MB )); then
+        sleep "$POLL_ACTIVE"
+    else
+        sleep "$POLL_IDLE"
+    fi
 done

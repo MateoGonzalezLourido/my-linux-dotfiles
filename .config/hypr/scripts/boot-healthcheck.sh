@@ -60,26 +60,40 @@ ls /dev/sd? &>/dev/null && HAS_SATA=true
 # SMART support (needs smartctl + a real disk)
 ( $HAS_NVME || $HAS_SATA ) && has_cmd smartctl && HAS_SMART=true
 
-# Fan sensors (at least one fan reporting numeric RPM)
-has_cmd sensors \
-    && sensors 2>/dev/null | grep -qiE "fan[0-9]+:[[:space:]]+[0-9]+ RPM" \
-    && HAS_FANS=true
+# Fan sensors (at least one fan reporting numeric RPM). Cache `sensors`
+# output here — the "fan detenido" check later reuses it instead of
+# invoking `sensors` two more times for the same near-instant reading.
+SENSORS_OUTPUT=""
+if has_cmd sensors; then
+    SENSORS_OUTPUT=$(sensors 2>/dev/null)
+    grep -qiE "fan[0-9]+:[[:space:]]+[0-9]+ RPM" <<< "$SENSORS_OUTPUT" && HAS_FANS=true
+fi
 
 # Swap
 swapon --show --noheadings 2>/dev/null | grep -q "." && HAS_SWAP=true
 
-# Bluetooth adapter
-has_cmd rfkill \
-    && rfkill list bluetooth 2>/dev/null | grep -qi "bluetooth" \
-    && HAS_BLUETOOTH=true
+# Bluetooth adapter. Cache `rfkill list bluetooth` — the Bluetooth check
+# later reuses it (different grep: "blocked: yes") instead of invoking it
+# again.
+RFKILL_BT_OUTPUT=""
+if has_cmd rfkill; then
+    RFKILL_BT_OUTPUT=$(rfkill list bluetooth 2>/dev/null)
+    grep -qi "bluetooth" <<< "$RFKILL_BT_OUTPUT" && HAS_BLUETOOTH=true
+fi
 
-# Audio (ALSA sees at least one card)
-has_cmd aplay \
-    && aplay -l 2>/dev/null | grep -q "^card" \
-    && HAS_AUDIO=true
+# Audio (ALSA sees at least one card). Cache `aplay -l` — the Audio check
+# later reuses it instead of invoking it again.
+APLAY_OUTPUT=""
+if has_cmd aplay; then
+    APLAY_OUTPUT=$(aplay -l 2>/dev/null)
+    grep -q "^card" <<< "$APLAY_OUTPUT" && HAS_AUDIO=true
+fi
 
-# Network interfaces present
-ip link show 2>/dev/null | grep -q "^[0-9]" && HAS_NETWORK=true
+# Network interfaces present. Cache `ip link show` — the network check later
+# reuses it (different grep: "state UP" instead of just "exists") instead of
+# invoking it again.
+IP_LINK_OUTPUT=$(ip link show 2>/dev/null)
+grep -q "^[0-9]" <<< "$IP_LINK_OUTPUT" && HAS_NETWORK=true
 
 # USB subsystem
 has_cmd lsusb && HAS_USB=true
@@ -122,7 +136,12 @@ fi
 
 # ── Always: suspend/hibernate failure in previous boot ───────────────────────
 # -b -1 mira el arranque anterior; si no existe, journalctl devuelve error → skip.
-if journalctl -b -1 -n 1 --no-pager -q 2>/dev/null | grep -q ""; then
+# Se captura una sola vez (es la llamada más cara del script, ~0.8s en un
+# journal grande) y se reutiliza tanto para el chequeo de existencia como
+# para el grep de reinicio forzado más abajo — antes eran dos invocaciones
+# separadas de `journalctl -b -1` sobre los mismos datos.
+PREV_BOOT_LOG=$(journalctl -b -1 --no-pager -q 2>/dev/null)
+if [[ -n "$PREV_BOOT_LOG" ]]; then
     suspend_issues=()
 
     # Errores de suspensión/hibernación en el arranque anterior
@@ -141,8 +160,7 @@ if journalctl -b -1 -n 1 --no-pager -q 2>/dev/null | grep -q ""; then
 
     # Señales de reinicio forzado en el arranque anterior.
     # Excluye sddm-helper (embebe el log de Xorg con "nowatchdog" en cmdline).
-    if journalctl -b -1 --no-pager -q 2>/dev/null \
-            | grep -v "sddm" \
+    if grep -v "sddm" <<< "$PREV_BOOT_LOG" \
             | grep -qiE "watchdog (reset|triggered|timeout|bite)|hard reset|rebooted forcefully|emergency mode"; then
         suspend_issues+=("reinicio forzado o watchdog detectado")
     fi
@@ -155,16 +173,18 @@ if journalctl -b -1 -n 1 --no-pager -q 2>/dev/null | grep -q ""; then
 fi
 
 # ── Always: disk usage ───────────────────────────────────────────────────────
-while IFS= read -r line; do
-    pct=$(awk '{gsub(/%/,"",$5); print $5}' <<< "$line")
-    mnt=$(awk '{print $6}' <<< "$line")
+# Pure bash `read` word-splitting — no `awk` fork per line (nor for the
+# initial filtering pass, which the original did as a separate awk stage).
+while read -r fs _size _used _avail pct mnt; do
+    [[ -n "$mnt" ]] || continue   # df wraps long device names onto their own line
+    [[ "$fs" =~ ^(tmpfs|devtmpfs|efivarfs|udev) ]] && continue
+    pct=${pct%\%}
     [[ "$pct" =~ ^[0-9]+$ ]] || continue
     if (( pct >= 90 )); then
         notify_problem critical "Disco casi lleno" \
             "${mnt} al ${pct}% — quedan menos del 10% libre"
     fi
-done < <(df -h 2>/dev/null \
-    | awk 'NR>1 && $1 !~ /^(tmpfs|devtmpfs|efivarfs|udev)/ && $6 != ""')
+done < <(df -h 2>/dev/null | tail -n +2)
 
 # ── Always: boot time ────────────────────────────────────────────────────────
 boot_line=$(systemd-analyze 2>/dev/null | grep "Startup finished")
@@ -186,8 +206,7 @@ fi
 
 # ── Always: network ──────────────────────────────────────────────────────────
 if $HAS_NETWORK; then
-    up_ifaces=$(ip link show 2>/dev/null \
-        | grep "state UP" | grep -v "lo:" \
+    up_ifaces=$(grep "state UP" <<< "$IP_LINK_OUTPUT" | grep -v "lo:" \
         | awk -F': ' '{print $2}' | paste -sd ', ')
     if [[ -z "$up_ifaces" ]]; then
         notify_problem warning "Red inactiva" \
@@ -260,15 +279,16 @@ if $HAS_BATTERY; then
     done
 fi
 
-# ── Fan: parado con temperatura alta ─────────────────────────────────────────
+# ── Fan: parado con temperatura alta ──────────────────────────────────────────
+# Reutiliza $SENSORS_OUTPUT (Fase 1) — evita invocar `sensors` dos veces más
+# por la misma lectura casi instantánea, y de paso usa una única muestra
+# consistente para correlacionar temp. de CPU y RPM de ventilador.
 if $HAS_FANS; then
-    cpu_temp=$(sensors 2>/dev/null \
-        | grep -A1 "Package id\|Tdie\|Tccd1" \
+    cpu_temp=$(grep -A1 "Package id\|Tdie\|Tccd1" <<< "$SENSORS_OUTPUT" \
         | grep "°C" | grep -oP '[0-9]+\.[0-9]+' \
         | head -1 | awk '{printf "%d", $1}')
     if [[ "$cpu_temp" =~ ^[0-9]+$ ]] && (( cpu_temp > 70 )); then
-        zero_rpm=$(sensors 2>/dev/null \
-            | grep -iE "fan[0-9]+:" | grep -cE "[[:space:]]+0 RPM")
+        zero_rpm=$(grep -iE "fan[0-9]+:" <<< "$SENSORS_OUTPUT" | grep -cE "[[:space:]]+0 RPM")
         if (( zero_rpm > 0 )); then
             notify_problem critical "Ventilador parado" \
                 "CPU a ${cpu_temp}°C pero ${zero_rpm} ventilador(es) reportan 0 RPM"
@@ -277,11 +297,9 @@ if $HAS_FANS; then
 fi
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
+# (El chequeo "aplay no ve tarjetas" ya lo cubre HAS_AUDIO en Fase 1 — si
+# llegamos aquí es porque $APLAY_OUTPUT ya mostró una tarjeta.)
 if $HAS_AUDIO; then
-    if ! aplay -l 2>/dev/null | grep -q "^card"; then
-        notify_problem warning "Sin dispositivos de audio" \
-            "aplay no detecta tarjetas de sonido"
-    fi
     if ! systemctl --user is-active pipewire &>/dev/null; then
         notify_problem warning "PipeWire inactivo" \
             "El servicio pipewire no está corriendo en la sesión de usuario"
@@ -289,13 +307,13 @@ if $HAS_AUDIO; then
 fi
 
 # ── Bluetooth ─────────────────────────────────────────────────────────────────
+# Reutiliza $RFKILL_BT_OUTPUT (Fase 1) — mismo comando, distinto grep.
 if $HAS_BLUETOOTH; then
     if ! systemctl is-active bluetooth &>/dev/null; then
         notify_problem warning "Bluetooth inactivo" \
             "bluetooth.service no está corriendo — inicia con: systemctl start bluetooth"
     fi
-    blocked=$(rfkill list bluetooth 2>/dev/null \
-        | grep -E "blocked: yes" | head -1)
+    blocked=$(grep -E "blocked: yes" <<< "$RFKILL_BT_OUTPUT" | head -1)
     if [[ -n "$blocked" ]]; then
         notify_problem warning "Bluetooth bloqueado" \
             "rfkill: $blocked — desbloquea con: rfkill unblock bluetooth"
