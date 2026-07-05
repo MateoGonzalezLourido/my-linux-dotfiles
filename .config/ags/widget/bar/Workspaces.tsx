@@ -8,7 +8,13 @@ import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 
 import { barVisible, setIsWsDragging, setIsWsPreview, panelAutoClose } from "../state.tsx"
+import { wsPreviewEnabled } from "../settings/preferences"
+import { wsPreviewSuspended } from "../power/powerState"
 import { getIcon } from "./appIcons"
+
+// La preview de workspace se captura/muestra solo si el usuario la tiene activada
+// Y no está suspendida por el modo ahorro de energía.
+const wsPreviewActive = () => wsPreviewEnabled.get() && !wsPreviewSuspended.get()
 
 // Blocks update() while hyprctl commands are in flight so intermediate
 // states (clients in workspace 9999, etc.) never trigger a re-render.
@@ -143,6 +149,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
   const previewAutoClose = panelAutoClose(() => { if (_preview) _preview.popdown() }, 250)
 
   const showPreview = (anchor: Gtk.Widget) => {
+    if (!wsPreviewActive()) return
     if (_preview) { _preview.popdown(); return }
 
     const path = `/tmp/ags-ws-preview-${ws.id}.png`
@@ -580,6 +587,7 @@ export default function Workspaces() {
   // Capture a screenshot whenever a workspace is focused so the preview
   // shows real content. 400ms delay lets Hyprland finish rendering the switch.
   const captureWorkspace = (id: number) => {
+    if (!wsPreviewActive()) return
     if (id <= 0 || id >= 9000) return
     setTimeout(() => {
       execAsync(["grim", "-t", "png", "-l", "0", `/tmp/ags-ws-preview-${id}.png`]).catch(() => {})
@@ -590,6 +598,13 @@ export default function Workspaces() {
   })
   // Capture on startup
   setTimeout(() => captureWorkspace(hypr.focusedWorkspace?.id ?? -1), 800)
+  // Al reactivar la preview (desde ajustes, o al salir del modo ahorro), captura el
+  // workspace actual al momento para que la primera preview no salga en blanco.
+  // captureWorkspace ya se auto-filtra con wsPreviewActive(), así que basta con
+  // llamarla en cada cambio de cualquiera de los dos estados.
+  const recaptureCurrent = () => captureWorkspace(hypr.focusedWorkspace?.id ?? -1)
+  wsPreviewEnabled.subscribe(recaptureCurrent)
+  wsPreviewSuspended.subscribe(recaptureCurrent)
 
   update()
 
