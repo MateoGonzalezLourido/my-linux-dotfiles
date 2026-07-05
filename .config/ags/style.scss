@@ -260,37 +260,38 @@ popover.ws-preview-popover {
   font-size: 16px;
 }
 
-/* Game Indicator Widget */
-.game-indicator {
-  background: linear-gradient(135deg, rgba(203, 166, 247, 0.22), rgba(137, 180, 250, 0.22));
-  border: 1px solid rgba(203, 166, 247, 0.35);
+/* Games tray — purple container to the right of the workspaces, one icon per
+   running game. Hidden entirely (via `visible`) when no game is detected. */
+.game-tray {
+  background: linear-gradient(135deg, rgba(203, 166, 247, 0.22), rgba(137, 180, 250, 0.18));
+  border: 1px solid rgba(203, 166, 247, 0.40);
   border-radius: 999px;
-  padding: 3px 14px 3px 12px;
-  margin: 4px 4px;
-  min-height: 28px;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 2px 6px;
+  margin: 4px 2px;
+  min-height: 26px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 
-  &:hover {
-    background: linear-gradient(135deg, rgba(203, 166, 247, 0.35), rgba(137, 180, 250, 0.35));
-    border-color: rgba(203, 166, 247, 0.55);
-    box-shadow: 0 2px 14px rgba(203, 166, 247, 0.35);
-    transform: scale(1.02);
-  }
+  .game-tray-icon {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0 3px;
+    border-radius: 8px;
+    transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  .game-icon {
-    font-family: 'MesloLGS Nerd Font';
-    font-size: 17px;
-    color: #cba6f7;
-    margin-right: 6px;
-    text-shadow: 0 0 6px rgba(203, 166, 247, 0.5);
-  }
+    label {
+      font-family: 'MesloLGS Nerd Font';
+      font-size: 16px;
+      color: #cba6f7;
+      text-shadow: 0 0 6px rgba(203, 166, 247, 0.5);
+    }
 
-  .game-label {
-    font-family: 'MesloLGS Nerd Font', monospace;
-    font-size: 14px;
-    font-weight: 700;
-    color: #e2e2e2;
+    &:hover {
+      background: rgba(203, 166, 247, 0.25);
+      transform: scale(1.08);
+    }
   }
 }
 

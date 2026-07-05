@@ -185,16 +185,6 @@ export function closeAllPanels() {
   closeNotifPanel()
 }
 
-// ── Game Detection State ──────────────────────────────────────────────────────
-export const [gameActive, setGameActive] = createState(false)
-export const [gameInfo, setGameInfo] = createState<{
-  class: string
-  title: string
-  address: string
-  workspaceId: number
-  fullscreen: number
-} | null>(null)
-
 // ── Bar Pin (keybind toggle) ─────────────────────────────────────────────────
 export const [barPinnedByKey, setBarPinnedByKey] = createState(false)
 export function toggleBarPin() {

@@ -6,7 +6,7 @@ import { cpuRamEnabled } from "./bar/functions/state"
 import Clock from "./bar/Clock"
 import Functions, { FunctionsMenu } from "./bar/Functions"
 import Workspaces from "./bar/Workspaces"
-import GameIndicator from "./bar/GameIndicator"
+import GamesIndicator from "./bar/games/GamesIndicator"
 import SystemTray from "./bar/SystemTray"
 import Bluetooth from "./bar/Bluetooth"
 import Network from "./bar/Network"
@@ -160,10 +160,10 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           <Functions />
           <Workspaces />
         </box>
+        <GamesIndicator />
       </box>
 
       <box $type="center" halign={Gtk.Align.CENTER} spacing={8}>
-        <GameIndicator />
       </box>
 
       <box $type="end" halign={Gtk.Align.END} spacing={2} css="margin-left: 20px;">
