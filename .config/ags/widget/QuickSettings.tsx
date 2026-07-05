@@ -1010,6 +1010,12 @@ function QsMedia() {
 
   let currentP: any = null
 
+  // Contador de anuncios del bloque actual. Spotify no expone por MPRIS cuántos
+  // anuncios hay ni en cuál vas, así que los contamos: cada trackid de anuncio
+  // distinto incrementa el índice; al volver una pista real se resetea.
+  let adIndex = 0
+  let lastAdTrackId: string | null = null
+
   // AstalMpris no está descargando la carátula (deja la URL https, que GTK4 no puede
   // pintar en CSS). La descargamos nosotros a ~/.cache/ags/media/ una vez por álbum y
   // usamos la ruta local. Rutas locales / vacío se pasan tal cual.
@@ -1060,9 +1066,18 @@ function QsMedia() {
     setIsAd(ad)
 
     if (ad) {
-      setTitle("Anuncio")
+      // Nuevo anuncio dentro del bloque solo si cambió el trackid (el mismo
+      // anuncio persiste varios ticks de 1 s mientras suena).
+      if (rawTrackId !== lastAdTrackId) {
+        adIndex += 1
+        lastAdTrackId = rawTrackId
+      }
+      setTitle(`Anuncio · ${adIndex}`)
       setArtist("")
     } else {
+      // Fin del bloque de anuncios: resetea el contador.
+      adIndex = 0
+      lastAdTrackId = null
       setTitle(p.title || "Sin título")
       setArtist(p.artist || "Artista desconocido")
     }
@@ -1145,7 +1160,9 @@ function QsMedia() {
   bgCap.set_child(coverPicture)
   const applyCover = () => {
     const c = cover.get()
-    if (!c || isAdState.get() || c.startsWith("http")) { coverPicture.set_paintable(null); return }
+    // Los anuncios SÍ pintan carátula si Spotify la publica; si no hay imagen,
+    // cover queda "" y cae al fondo base como antes.
+    if (!c || c.startsWith("http")) { coverPicture.set_paintable(null); return }
     const path = c.startsWith("file://") ? c.slice(7) : c
     try {
       const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
@@ -1168,7 +1185,7 @@ function QsMedia() {
   colorFilter.set_content_width(1)
   colorFilter.set_content_height(CARD_H)
   colorFilter.set_draw_func((_area, cr, width, height) => {
-    if (!cover.get() || isAdState.get()) return
+    if (!cover.get()) return
     const [r, g, b] = oneUiBgTone(cssRgbToTuple(coverAccent.get()))
     // Alpha medio: unifica el color pero DEJA VER la carátula por debajo, como
     // hace One UI (no un bloque opaco).
@@ -1190,7 +1207,7 @@ function QsMedia() {
   coverScrim.set_content_width(1)
   coverScrim.set_content_height(CARD_H)
   coverScrim.set_draw_func((_area, cr, width, height) => {
-    if (!cover.get() || isAdState.get()) return
+    if (!cover.get()) return
     // Degradado vertical real: arriba casi transparente (se ve la carátula), abajo
     // oscuro para dar contraste al texto/controles. Igual que One UI.
     try {
