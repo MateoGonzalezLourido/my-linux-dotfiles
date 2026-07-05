@@ -6,11 +6,10 @@ import { openBarMenu, closeBarMenu, panelAutoClose } from "../state"
 // Prefijos de action group que exponen los menús StatusNotifierItem (dbusmenu.* …).
 const ACTION_GROUP_NAMES = ["dbusmenu", "tray", "indicator", "item", "app", "unity"]
 
-// Nº máximo de iconos que se muestran sueltos en el bar. Con más que esto, todos
-// se recogen en un menú desplegable (flecha) al estilo del overflow del system
-// tray de Windows.
-// TEMPORAL para pruebas: 3 (con >3 apps se recogen). El valor real es 4.
-const MAX_INLINE = 3
+// Nº máximo de iconos que se muestran sueltos en el bar. Con más que esto (>4,
+// es decir 5+), todos se recogen en un menú desplegable (flecha) al estilo del
+// overflow del system tray de Windows.
+const MAX_INLINE = 4
 
 // Un icono del tray = un Gtk.MenuButton cuyo popover se construye desde el
 // menuModel del item. Clave: GTK lee y renderiza el GMenuModel remoto (D-Bus)
