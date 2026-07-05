@@ -167,27 +167,21 @@ sudo pacman -S wl-clipboard cliphist
 ## 7. Secretos (Spotify, credenciales)
 
 El servicio Spotify de AGS (`widget/services/spotify/SpotifyService.ts`) y el script
-`~/.config/ags/scripts/spotify-auth.sh` guardan/leen credenciales del **Secret Service**
-del sistema (`service=ags-spotify`), no de un fichero plano. Necesitas:
+`~/.config/ags/scripts/spotify-auth.sh` guardan/leen las credenciales en **texto plano**
+en `~/.config/ags/config/spotify-creds.json` (chmod 600, git-ignored). No hay KWallet ni
+Secret Service: se retiró a propósito porque bajo Hyprland pedía la contraseña del monedero
+en cada arranque. No hace falta instalar `kwallet`/`libsecret` ni lanzar ningún `ksecretd`.
 
-```sh
-sudo pacman -S kwallet libsecret
-```
-
-- `ksecretd` (paquete `kwallet`) se lanza en `autostart.conf` como proveedor del Secret
-  Service — si el PC nuevo usa otro (gnome-keyring, etc.) también vale, pero cambia esa
-  línea de autostart por el daemon correspondiente.
-- `secret-tool` (paquete `libsecret`) es el CLI que usa `spotify-auth.sh`.
-
-**Las credenciales de Spotify NO viajan copiando el repo** — viven en el keyring de esta
-máquina. En el PC nuevo, tras instalar lo anterior, ejecuta una vez:
+**Las credenciales de Spotify NO viajan copiando el repo** — el archivo está fuera de git.
+En el PC nuevo ejecuta una vez:
 
 ```sh
 ~/.config/ags/scripts/spotify-auth.sh
 ```
 
-Te pedirá client id/secret de una app tuya en el dashboard de Spotify y hará el flujo OAuth
-completo (usa `python3`, `secret-tool` y `xdg-open`, ya cubiertos).
+Te pedirá client id/secret de una app tuya en el dashboard de Spotify, hará el flujo OAuth
+completo (usa `python3` y `xdg-open`, ya cubiertos) y escribirá el JSON plano con las tres
+claves (`client_id`, `client_secret`, `refresh_token`).
 
 ## 8. Scripts de monitorización ("escáneres") — `hypr/scripts/`
 
@@ -259,7 +253,7 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
    `sass style.scss out.css`.
 3. Instala fuentes (§3) y copia las que no están empaquetadas.
 4. Instala el resto de utilidades de escritorio (§4, §6).
-5. Instala `kwallet`/`libsecret` (§7) y vuelve a correr `spotify-auth.sh` una vez.
+5. Corre `spotify-auth.sh` una vez (§7) para regenerar `config/spotify-creds.json`.
 6. Instala las deps de los scripts de monitorización (§8).
 7. Ajusta lo específico de esta máquina (§10): `monitors.conf`, `~/.face`,
    `nvidia.conf`/`envs/firefox.conf` si no hay NVIDIA, `~/Wallpapers/`.
@@ -360,7 +354,7 @@ migrar y qué se regenera solo.
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `widget/power/powerState.ts`) |
 | `~/.face` (symlink) | foto de perfil para `hyprlock` (§13) |
 | `~/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
-| Keyring `service=ags-spotify` | credenciales de Spotify (no es un fichero, es una entrada del Secret Service — ver §7) |
+| `~/.config/ags/config/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
 | `~/.config/hypr/hyprlock_avatar.png` | imagen de perfil de respaldo dentro del propio repo `hypr/` (viaja con el repo, pero es tuya, no genérica) |
 
 ### 14.2 Config/código del dotfiles — genérico, viaja igual para cualquiera que use este setup
