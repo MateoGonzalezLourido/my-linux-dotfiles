@@ -71,7 +71,6 @@ quickSettingsVisible.subscribe(() => {
 // La barra observa esto para no ocultarse mientras haya un panel abierto.
 // Abrir un panel cierra el resto (exclusividad mutua).
 import { orionVisible } from "./orion/state"
-import { overviewVisible } from "./WorkspaceOverview/store"
 
 // ── Registro centralizado de paneles ─────────────────────────────────────────
 // Única fuente de verdad. Para que un panel nuevo mantenga la barra visible
@@ -89,7 +88,6 @@ const panelStates: PanelState[] = [
   isWsPreview,
   calendarVisible,
   orionVisible,
-  overviewVisible,
 ]
 
 export const anyPanelVisible = {
