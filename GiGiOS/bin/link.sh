@@ -27,6 +27,12 @@ LINKS=(
   "assets/face.png::$HOME/.face"
 )
 
+# Orígenes que son datos de runtime y arrancan vacíos: se crean si faltan,
+# en vez de fallar. Evita tener que versionar un .gitkeep sólo para el symlink.
+CREATABLE=(
+  "state/orion"
+)
+
 mode=link
 case "${1:-}" in
   "")       mode=link ;;
@@ -48,7 +54,11 @@ for entry in "${LINKS[@]}"; do
   dst="${entry##*::}"
 
   if [[ ! -e "$src" ]]; then
-    echo "FALTA origen: $src (esperado para $dst)"; status=1; continue
+    if [[ " ${CREATABLE[*]} " == *" ${entry%%::*} "* ]]; then
+      mkdir -p "$src"; echo "MKDIR $src (dato de runtime)"
+    else
+      echo "FALTA origen: $src (esperado para $dst)"; status=1; continue
+    fi
   fi
 
   # ¿ya es el symlink correcto?

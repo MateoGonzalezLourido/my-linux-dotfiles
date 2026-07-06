@@ -8,9 +8,8 @@ hypr/logs/
 jarvis/
 
 # Estado y sesiones del launcher orion — datos por-usuario, no versionar.
-# Se conserva el directorio vía .gitkeep para que el symlink de instalación funcione.
-state/orion/*
-!state/orion/.gitkeep
+# El directorio lo crea bin/link.sh si falta (no hace falta versionarlo).
+state/orion/
 
 # Copias archivadas sin uso (código muerto)
 _legacy/
