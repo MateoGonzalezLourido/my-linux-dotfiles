@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
 # GiGiOS — instalador/mantenedor de symlinks.
 # Enlaza las rutas canónicas XDG a los archivos reales dentro de ~/GiGiOS.
-# Idempotente. No mueve ni borra datos de usuario: solo gestiona symlinks.
-# Uso: bin/link.sh          (crea/repara symlinks)
-#      bin/link.sh --check   (solo reporta estado, no modifica)
+# Idempotente. No pierde datos.
+#
+# Uso:
+#   bin/link.sh            crea/repara symlinks; NO pisa dirs/archivos reales
+#   bin/link.sh --check    solo reporta estado (exit 0 si todo OK)
+#   bin/link.sh --force    respalda lo que estorbe (a $LINK_BACKUP) y enlaza
+#
+# Variables:
+#   GIGIOS       raíz (por defecto ~/GiGiOS)
+#   LINK_BACKUP  destino de respaldos en --force (por defecto ~/.dotfiles-backup-<fecha>)
 set -euo pipefail
 
 GIGIOS="${GIGIOS:-$HOME/GiGiOS}"
+LINK_BACKUP="${LINK_BACKUP:-$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)}"
 
 # "ruta_relativa_en_GiGiOS::ruta_canonica_absoluta"
 LINKS=(
@@ -20,8 +28,20 @@ LINKS=(
   "assets/face.png::$HOME/.face"
 )
 
-check_only=false
-[[ "${1:-}" == "--check" ]] && check_only=true
+mode=link
+case "${1:-}" in
+  "")       mode=link ;;
+  --check)  mode=check ;;
+  --force)  mode=force ;;
+  *) echo "uso: link.sh [--check|--force]" >&2; exit 2 ;;
+esac
+
+backup() {  # respalda $1 preservando su ruta relativa a $HOME
+  local dst="$1" rel="${1#"$HOME"/}"
+  mkdir -p "$LINK_BACKUP/$(dirname "$rel")"
+  mv "$dst" "$LINK_BACKUP/$rel"
+  echo "BACKUP $dst -> $LINK_BACKUP/$rel"
+}
 
 status=0
 for entry in "${LINKS[@]}"; do
@@ -32,16 +52,28 @@ for entry in "${LINKS[@]}"; do
     echo "FALTA origen: $src (esperado para $dst)"; status=1; continue
   fi
 
+  # ¿ya es el symlink correcto?
   if [[ -L "$dst" && "$(readlink -f "$dst")" == "$(readlink -f "$src")" ]]; then
-    echo "OK    $dst -> $src"; continue
+    echo "OK    $dst"; continue
   fi
 
-  if [[ -e "$dst" && ! -L "$dst" ]]; then
-    echo "AVISO $dst es dir/archivo real (no symlink). Migralo a $src primero; no lo toco."
-    status=1; continue
+  # existe algo en el destino que no es el symlink correcto
+  if [[ -e "$dst" || -L "$dst" ]]; then
+    if [[ "$mode" == check ]]; then
+      echo "DIFIERE $dst (esperado -> $src)"; status=1; continue
+    fi
+    if [[ -L "$dst" ]]; then
+      # symlink equivocado: ln -sfn lo reemplaza sin respaldar
+      :
+    elif [[ "$mode" == force ]]; then
+      backup "$dst"
+    else
+      echo "AVISO $dst es dir/archivo real; usá --force para respaldarlo y enlazar. No lo toco."
+      status=1; continue
+    fi
   fi
 
-  if $check_only; then
+  if [[ "$mode" == check ]]; then
     echo "FALTA symlink: $dst -> $src"; status=1; continue
   fi
 
@@ -50,4 +82,7 @@ for entry in "${LINKS[@]}"; do
   echo "LINK  $dst -> $src"
 done
 
+if [[ "$mode" == force && -d "$LINK_BACKUP" ]]; then
+  echo "Respaldos en: $LINK_BACKUP"
+fi
 exit $status

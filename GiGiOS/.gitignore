@@ -7,6 +7,9 @@ hypr/logs/
 # Sesiones volátiles de orion
 state/orion/profiles/
 
+# Estado del launcher (repos detectados/pinneados) — no versionar
+jarvis/git-repos.json
+
 # Copias archivadas sin uso (código muerto)
 _legacy/
 
