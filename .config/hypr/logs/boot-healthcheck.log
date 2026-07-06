@@ -182,3 +182,8 @@
 [2026-07-05 22:18:28] [warning] Errores en el arranque — 3 fuente(s) con errores: hyprland-watchdog.sh,kernel,python, — revisa: journalctl -b -p err
 [2026-07-05 22:18:28] Healthcheck completado: 1 problema(s) notificado(s)
 [2026-07-05 22:18:28] === Boot healthcheck END ===
+[2026-07-06 13:57:16] === Boot healthcheck START ===
+[2026-07-06 13:57:16] Hardware discovered: battery=true nvidia=true nvme=true sata=false fans=true swap=true bt=true audio=true net=true usb=true
+[2026-07-06 13:57:16] [warning] Errores en el arranque — 3 fuente(s) con errores: hyprland-watchdog.sh,kernel,python, — revisa: journalctl -b -p err
+[2026-07-06 13:57:16] Healthcheck completado: 1 problema(s) notificado(s)
+[2026-07-06 13:57:16] === Boot healthcheck END ===

@@ -138,7 +138,13 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     focusable={true}
     anchor={TOP | LEFT | RIGHT}
     application={app}
-    keymode={Astal.Keymode.ON_DEMAND}
+    // Solo pedimos teclado mientras el ratón está sobre el bar. En reposo (y sobre
+    // todo al iniciar sesión, cuando el bar es la única superficie mapeada) usamos
+    // NONE para que la capa no pueda robar el foco de teclado del compositor: sin
+    // esto, al arrancar AGS el bar se quedaba con el foco y había que clicar la app
+    // recién abierta. ON_DEMAND se reactiva al hacer hover, que es requisito del
+    // único uso de teclado del bar (renumerar workspaces con 1–9 en Workspaces.tsx).
+    keymode={isHovered((h) => h ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
     marginTop={visible((v) => v ? 0 : -BAR_HEIGHT)}
     cssClasses={visible((v) => v ? ["Bar", "bar-visible"] : ["Bar", "bar-hidden"])}
   >
