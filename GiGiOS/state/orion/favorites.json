@@ -1,0 +1,20 @@
+[
+  {
+    "id": "firefox.desktop",
+    "name": "Firefox",
+    "exec": "/usr/lib/firefox/firefox",
+    "iconName": "application-x-executable"
+  },
+  {
+    "id": "obsidian.desktop",
+    "name": "Obsidian",
+    "exec": "/usr/bin/obsidian",
+    "iconName": "application-x-executable"
+  },
+  {
+    "id": "code.desktop",
+    "name": "Visual Studio Code",
+    "exec": "/usr/bin/code",
+    "iconName": "application-x-executable"
+  }
+]

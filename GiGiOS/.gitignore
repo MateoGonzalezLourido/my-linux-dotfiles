@@ -1,0 +1,17 @@
+# Secretos — jamás commitear
+ags/config/spotify-creds.json
+
+# Logs de runtime
+hypr/logs/
+
+# Sesiones volátiles de orion
+state/orion/profiles/
+
+# Copias archivadas sin uso (código muerto)
+_legacy/
+
+# Snapshots de migración
+preflight-snapshot.txt
+
+# Metadatos de escritorio
+**/.directory

@@ -1,0 +1,191 @@
+{
+  "userRules": [
+    {
+      "id": "user.1782592552471",
+      "name": "Batería: Desconectado de la corriente",
+      "enabled": true,
+      "priority": 100,
+      "source": "user",
+      "match": {
+        "app": {
+          "op": "equals",
+          "value": "Batería"
+        },
+        "summary": {
+          "op": "contains",
+          "value": "Desconectado de la corriente"
+        }
+      },
+      "effects": {
+        "noHistory": true,
+        "clearOnBoot": true
+      }
+    },
+    {
+      "id": "user.1782593585441",
+      "name": "Hyprshot: Screenshot saved",
+      "enabled": true,
+      "priority": 100,
+      "source": "user",
+      "match": {
+        "app": {
+          "op": "equals",
+          "value": "Hyprshot"
+        },
+        "summary": {
+          "op": "contains",
+          "value": "Screenshot saved"
+        }
+      },
+      "effects": {
+        "noHistory": true,
+        "dedupKey": "app",
+        "rewrite": {
+          "summary": "Captura de pantalla guardada",
+          "body": ""
+        }
+      }
+    },
+    {
+      "id": "user.1782593709121",
+      "name": "kitty: Claude Code",
+      "enabled": true,
+      "priority": 100,
+      "source": "user",
+      "match": {
+        "app": {
+          "op": "equals",
+          "value": "kitty"
+        },
+        "summary": {
+          "op": "contains",
+          "value": "Claude Code"
+        },
+        "urgency": [
+          0
+        ],
+        "body": {
+          "op": "contains",
+          "value": "needs"
+        }
+      },
+      "effects": {
+        "lifetime": "timed",
+        "muteAudio": true,
+        "ttlMs": 300000,
+        "dedupKey": "app+summary+body",
+        "clearOnBoot": true
+      }
+    },
+    {
+      "id": "user.1782596249608",
+      "name": "kitty: Claude Code",
+      "enabled": true,
+      "priority": 100,
+      "source": "user",
+      "match": {
+        "app": {
+          "op": "equals",
+          "value": "kitty"
+        },
+        "summary": {
+          "op": "contains",
+          "value": "Claude Code"
+        },
+        "body": {
+          "op": "contains",
+          "value": "is waiting for your input"
+        }
+      },
+      "effects": {
+        "dedupKey": "app+summary+body",
+        "noHistory": true,
+        "muteAudio": false,
+        "dontShow": false,
+        "suppress": false,
+        "clearOnBoot": true
+      }
+    },
+    {
+      "id": "user.1783088159004",
+      "name": "notify-send: 📶 WiFi reconectado",
+      "enabled": true,
+      "priority": 100,
+      "source": "user",
+      "match": {
+        "app": {
+          "op": "equals",
+          "value": "notify-send"
+        },
+        "summary": {
+          "op": "contains",
+          "value": "📶 WiFi reconectado"
+        },
+        "body": {
+          "op": "contains",
+          "value": "Red: desconocida"
+        }
+      },
+      "effects": {
+        "noHistory": true,
+        "color": "#94e2d5"
+      }
+    },
+    {
+      "id": "user.1783088192748",
+      "name": "notify-send: 📵 WiFi desconectado",
+      "enabled": true,
+      "priority": 100,
+      "source": "user",
+      "match": {
+        "app": {
+          "op": "equals",
+          "value": "notify-send"
+        },
+        "summary": {
+          "op": "contains",
+          "value": "📵 WiFi desconectado"
+        },
+        "body": {
+          "op": "contains",
+          "value": "Se perdió la conexión en wlan0"
+        }
+      },
+      "effects": {
+        "color": "#94e2d5",
+        "noHistory": true,
+        "clearOnBoot": false
+      }
+    },
+    {
+      "id": "user.1783088219629",
+      "name": "notify-send: 🔐 Fallo sudo",
+      "enabled": true,
+      "priority": 100,
+      "source": "user",
+      "match": {
+        "app": {
+          "op": "equals",
+          "value": "notify-send"
+        },
+        "summary": {
+          "op": "contains",
+          "value": "🔐 Fallo sudo"
+        },
+        "body": {
+          "op": "contains",
+          "value": "Intento fallido de sudo"
+        }
+      },
+      "effects": {
+        "noHistory": true,
+        "clearOnBoot": false
+      }
+    }
+  ],
+  "builtinOverrides": {
+    "builtin.screenshot": {
+      "enabled": true
+    }
+  }
+}

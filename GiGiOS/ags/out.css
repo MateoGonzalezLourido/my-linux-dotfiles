@@ -1,0 +1,4957 @@
+@charset "UTF-8";
+.Orion {
+  background: transparent;
+}
+.Orion decoration {
+  box-shadow: none;
+  border: none;
+  margin: 0;
+}
+
+.orion-panel {
+  background: rgba(9, 12, 20, 0.97);
+  border: 1px solid rgba(122, 162, 247, 0.11);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+}
+
+.orion-main {
+  min-width: 580px;
+}
+
+.orion-balance {
+  min-width: 221px;
+}
+
+.orion-handle {
+  padding: 10px 0 5px;
+}
+
+.handle-bar {
+  min-width: 40px;
+  min-height: 3px;
+  border-radius: 2px;
+  background: rgba(122, 162, 247, 0.18);
+}
+
+.Orion button,
+.orion-panel button {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tabs-bar {
+  background: rgba(6, 8, 15, 0.95);
+  border-bottom: 1px solid rgba(122, 162, 247, 0.15);
+  min-height: 32px;
+}
+
+.j-tab {
+  padding: 0 11px;
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #565f89;
+  border-right: 1px solid rgba(122, 162, 247, 0.07);
+  border-bottom: 2px solid transparent;
+  transition: all 100ms ease;
+}
+.j-tab image {
+  color: #565f89;
+}
+.j-tab:hover {
+  background: rgba(122, 162, 247, 0.07);
+  color: #c0caf5;
+}
+.j-tab:hover image {
+  color: #c0caf5;
+}
+
+.tabs-bar .j-tab {
+  padding: 0 11px;
+}
+
+.tabs-bar .j-tab-home {
+  padding: 0 13px;
+}
+
+.j-tab.active {
+  color: #c0caf5;
+  border-bottom-color: #7aa2f7;
+}
+.j-tab.active image {
+  color: #c0caf5;
+}
+
+.j-tab-home {
+  padding: 0 13px;
+}
+
+.tab-x {
+  padding: 0 2px;
+  color: #565f89;
+}
+.tab-x:hover {
+  color: #f7768e;
+}
+
+.profile-btn {
+  padding: 0 10px;
+  color: #565f89;
+  border-left: 1px solid rgba(122, 162, 247, 0.07);
+}
+.profile-btn image {
+  color: #565f89;
+}
+.profile-btn:hover {
+  background: rgba(122, 162, 247, 0.07);
+  color: #7aa2f7;
+}
+.profile-btn:hover image {
+  color: #7aa2f7;
+}
+
+.profile-dropdown {
+  background: rgba(9, 12, 20, 0.97);
+  border: 1px solid rgba(122, 162, 247, 0.11);
+  border-radius: 11px;
+  padding: 8px 0;
+  min-width: 220px;
+}
+
+.pd-header {
+  font-size: 9px;
+  color: #2a3050;
+  padding: 0 12px 6px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+
+.pd-save-input {
+  padding: 0 8px 6px;
+}
+
+.pd-input {
+  background: rgba(122, 162, 247, 0.025);
+  border: 1px solid rgba(122, 162, 247, 0.07);
+  border-radius: 7px;
+  color: #c0caf5;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.pd-confirm {
+  color: #7aa2f7;
+}
+
+.pd-action {
+  padding: 7px 12px;
+}
+.pd-action:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+
+.pd-action-danger {
+  color: #f7768e;
+}
+
+.pd-action-ico {
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: 6px;
+}
+
+.pdai-save {
+  background: rgba(122, 162, 247, 0.1);
+  color: #7aa2f7;
+}
+
+.pdai-clear {
+  background: rgba(247, 118, 142, 0.1);
+  color: #f7768e;
+}
+
+.pd-action-name {
+  font-size: 11px;
+  color: #c0caf5;
+}
+
+.pd-action-sub {
+  font-size: 9px;
+  color: #2a3050;
+}
+
+.pd-profiles-label {
+  font-size: 9px;
+  color: #2a3050;
+  padding: 4px 12px 2px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+
+.pd-profile-item {
+  padding: 5px 12px;
+}
+.pd-profile-item:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+
+.pd-profile-dot {
+  min-width: 5px;
+  min-height: 5px;
+  border-radius: 50%;
+  background: #7aa2f7;
+}
+
+.pd-profile-name {
+  font-size: 11px;
+  color: #c0caf5;
+}
+
+.pd-profile-meta {
+  font-size: 9px;
+  color: #2a3050;
+}
+
+.pd-pa {
+  color: #2a3050;
+}
+.pd-pa:hover {
+  color: #7aa2f7;
+}
+
+.pd-pa-del:hover {
+  color: #f7768e;
+}
+
+.search-zone {
+  padding: 7px 13px 6px;
+}
+
+.search-bar {
+  background: rgba(122, 162, 247, 0.025);
+  border: 1px solid rgba(122, 162, 247, 0.1);
+  border-radius: 11px;
+  padding: 5px 10px;
+}
+.search-bar image {
+  color: #2a3050;
+}
+.search-bar text {
+  background: transparent;
+  color: #7aa2f7;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  font-size: 13px;
+}
+.search-bar entry {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  color: #7aa2f7;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  font-size: 13px;
+}
+.search-bar entry:focus {
+  box-shadow: none;
+  outline: none;
+}
+
+.nav-sections {
+  padding: 8px 11px 6px;
+}
+
+.ns {
+  padding: 4px 8px;
+  border-radius: 7px;
+  font-size: 10px;
+  color: #2a3050;
+  border: 1px solid transparent;
+}
+.ns:hover {
+  color: #565f89;
+  background: rgba(122, 162, 247, 0.07);
+  border-color: rgba(122, 162, 247, 0.07);
+}
+.ns.active {
+  color: #7aa2f7;
+  background: rgba(122, 162, 247, 0.08);
+  border-color: rgba(122, 162, 247, 0.25);
+}
+
+.ns-reactive {
+  color: #73daca;
+}
+
+.ns-reactive.active {
+  background: rgba(115, 218, 202, 0.08);
+  border-color: rgba(115, 218, 202, 0.25);
+}
+
+.section-content {
+  min-height: 10px;
+  padding-bottom: 15px;
+}
+
+.section-home {
+  padding-bottom: 4px;
+}
+
+.home-apps-scroll {
+  min-height: 80px;
+}
+
+.apps-grid {
+  padding: 4px 9px 6px;
+}
+
+.app-item {
+  padding: 2px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  min-width: 60px;
+}
+.app-item:hover {
+  background: rgba(122, 162, 247, 0.07);
+  border-color: rgba(122, 162, 247, 0.07);
+}
+
+.app-item-img {
+  color: #565f89;
+}
+
+.app-dragging {
+  opacity: 0.35;
+}
+
+.app-label {
+  font-size: 9px;
+  color: #2a3050;
+}
+
+.app-badge-warn {
+  font-size: 8px;
+  font-weight: bold;
+  color: #e0af68;
+  background: rgba(224, 175, 104, 0.2);
+  border-radius: 4px;
+  padding: 0 3px;
+  min-width: 12px;
+}
+
+.j-hdiv {
+  background: rgba(122, 162, 247, 0.07);
+  min-height: 1px;
+  margin: 5px 11px;
+}
+
+.home-sections-scroll {
+  min-height: 60px;
+}
+
+.qa-flow {
+  padding: 6px 9px 6px;
+}
+
+.quick-action-btn {
+  padding: 2px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  min-width: 60px;
+}
+.quick-action-btn:hover {
+  background: rgba(122, 162, 247, 0.07);
+  border-color: rgba(122, 162, 247, 0.07);
+}
+
+.qa-icon-img.c-blue {
+  color: #7aa2f7;
+}
+.qa-icon-img.c-red {
+  color: #f7768e;
+}
+.qa-icon-img.c-purple {
+  color: #bb9af7;
+}
+.qa-icon-img.c-teal {
+  color: #73daca;
+}
+.qa-icon-img.c-amber {
+  color: #e0af68;
+}
+.qa-icon-img.c-pink {
+  color: #ff79c6;
+}
+.qa-icon-img.c-muted {
+  color: #2a3050;
+}
+
+.qa-label {
+  font-size: 10px;
+  color: #565f89;
+  font-weight: 500;
+}
+
+.sys-strip {
+  padding: 8px 9px 10px;
+}
+
+.sys-card {
+  background: rgba(122, 162, 247, 0.025);
+  border: 1px solid rgba(122, 162, 247, 0.07);
+  border-radius: 8px;
+  padding: 7px 9px;
+}
+
+.sys-label {
+  font-size: 9px;
+  color: #2a3050;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+
+.sys-val {
+  font-size: 12px;
+  font-weight: 500;
+  color: #7aa2f7;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+
+.sys-bar {
+  background: rgba(122, 162, 247, 0.07);
+  border-radius: 2px;
+  min-height: 2px;
+}
+
+.sys-fill {
+  border-radius: 2px;
+  min-height: 2px;
+}
+
+.sf-blue {
+  background: rgba(122, 162, 247, 0.55);
+}
+
+.sf-pink {
+  background: rgba(247, 118, 142, 0.55);
+}
+
+.sf-teal {
+  background: rgba(115, 218, 202, 0.55);
+}
+
+.sf-amber {
+  background: rgba(224, 175, 104, 0.55);
+}
+
+.section-title {
+  font-size: 9px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #2a3050;
+  padding: 5px 11px 0;
+}
+
+.kb-scroll {
+  min-height: 180px;
+}
+
+.kb-content {
+  padding: 4px 11px 10px;
+}
+
+.kb-group-title {
+  font-size: 8px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #2a3050;
+  padding: 10px 0 3px;
+}
+
+.kb-group-title:first-child {
+  padding-top: 4px;
+}
+
+.kb-row {
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(122, 162, 247, 0.04);
+}
+
+.kb-key {
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #7aa2f7;
+  min-width: 150px;
+  padding-right: 10px;
+}
+
+.kb-desc {
+  font-size: 10px;
+  color: #565f89;
+}
+
+.kb-empty {
+  font-size: 11px;
+  color: #2a3050;
+  padding: 20px 0;
+}
+
+.rx-scroll {
+  min-height: 180px;
+}
+
+.rx-content {
+  padding: 6px 10px 10px;
+}
+
+.rx-item {
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  padding: 0;
+}
+.rx-item:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+.rx-item:active {
+  background: rgba(122, 162, 247, 0.08);
+}
+
+.rx-row {
+  padding: 7px 10px;
+}
+
+.rx-icon-wrap {
+  min-width: 36px;
+  min-height: 36px;
+  background: rgba(122, 162, 247, 0.025);
+  border-radius: 7px;
+  padding: 4px;
+}
+.rx-icon-wrap image {
+  color: #7aa2f7;
+}
+
+.rx-title {
+  font-size: 12px;
+  color: #c0caf5;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.rx-subtitle {
+  font-size: 10px;
+  color: #565f89;
+}
+
+.rx-empty {
+  font-size: 11px;
+  color: #2a3050;
+  padding: 24px 0;
+}
+
+.rx-result-row {
+  border-radius: 9px;
+}
+.rx-result-row:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+
+.rx-opts-btn {
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: #2a3050;
+  font-size: 14px;
+  padding: 0 8px;
+  min-width: 28px;
+}
+.rx-opts-btn:hover {
+  background: rgba(122, 162, 247, 0.07);
+  color: #c0caf5;
+}
+
+popover.background {
+  background: rgba(12, 16, 28, 0.97);
+  border: 1px solid rgba(122, 162, 247, 0.11);
+  border-radius: 9px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.rx-menu {
+  min-width: 160px;
+}
+
+.rx-menu-btn {
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: #c0caf5;
+  font-size: 11px;
+}
+.rx-menu-btn:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+.rx-menu-btn:disabled {
+  color: #2a3050;
+}
+.rx-menu-btn image {
+  color: #565f89;
+}
+
+.right-panel {
+  min-width: 220px;
+}
+
+.rp-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(122, 162, 247, 0.07);
+}
+
+.rp-app-name {
+  font-size: 11px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  font-weight: 600;
+  color: #c0caf5;
+}
+
+.rp-actions {
+  padding: 3px 0 15px;
+}
+
+.rp-action {
+  padding: 8px 12px;
+  border-radius: 0;
+}
+.rp-action:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+.rp-action:disabled {
+  opacity: 0.35;
+}
+
+.rp-action-ico {
+  color: #565f89;
+}
+
+.rp-action-label {
+  font-size: 11px;
+  color: #c0caf5;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+
+.j-tasks-btn {
+  border-right: 1px solid rgba(122, 162, 247, 0.07);
+}
+.j-tasks-btn image {
+  color: #2a3050;
+}
+.j-tasks-btn:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+.j-tasks-btn:hover image {
+  color: #c0caf5;
+}
+.j-tasks-btn.has-tasks image {
+  color: #bb9af7;
+}
+.j-tasks-btn.active {
+  border-bottom-color: #bb9af7;
+}
+.j-tasks-btn.active image {
+  color: #bb9af7;
+}
+
+.task-panel {
+  min-width: 220px;
+}
+
+.tp-sep {
+  background: rgba(122, 162, 247, 0.07);
+  min-width: 1px;
+}
+
+.tp-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(122, 162, 247, 0.07);
+}
+
+.tp-title {
+  font-size: 9px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #2a3050;
+  letter-spacing: 0.3px;
+}
+
+.tp-count {
+  font-size: 9px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #bb9af7;
+  background: rgba(187, 154, 247, 0.12);
+  border-radius: 8px;
+  padding: 1px 7px;
+  min-width: 14px;
+}
+
+.tp-list {
+  padding: 3px 0 15px;
+}
+
+.tp-item {
+  padding: 6px 12px;
+}
+
+.tp-spinner {
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 50%;
+  background: #bb9af7;
+  animation: tp-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes tp-pulse {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.tp-icon {
+  color: #565f89;
+}
+
+.tp-msg {
+  font-size: 11px;
+  color: #c0caf5;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+
+.tp-badge {
+  font-size: 9px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  font-weight: bold;
+  color: #bb9af7;
+  background: rgba(187, 154, 247, 0.15);
+  border-radius: 8px;
+  padding: 1px 5px;
+  min-width: 14px;
+}
+
+.apps-section {
+  min-height: 180px;
+}
+
+.apps-cats-scroll {
+  padding: 8px 10px 6px;
+  min-height: 36px;
+}
+
+.apps-cat-btn {
+  background: rgba(122, 162, 247, 0.025);
+  border: 1px solid rgba(122, 162, 247, 0.07);
+  border-radius: 7px;
+  color: #565f89;
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  padding: 3px 10px;
+}
+.apps-cat-btn:hover {
+  background: rgba(122, 162, 247, 0.07);
+  border-color: rgba(122, 162, 247, 0.11);
+  color: #c0caf5;
+}
+.apps-cat-btn.active {
+  background: rgba(122, 162, 247, 0.1);
+  border-color: rgba(122, 162, 247, 0.25);
+  color: #7aa2f7;
+}
+
+.apps-list-scroll {
+  min-height: 160px;
+}
+
+.apps-list {
+  padding: 2px 8px 15px;
+}
+
+.apps-row {
+  background: transparent;
+  border-radius: 7px;
+  padding: 0;
+}
+.apps-row:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+
+.apps-row-icon {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px;
+}
+.apps-row-icon image {
+  color: #7aa2f7;
+}
+
+.apps-row-label {
+  font-size: 12px;
+  color: #c0caf5;
+  padding: 4px 0;
+}
+
+.git-section {
+  padding: 10px 12px 12px;
+}
+.git-section .git-chip-row {
+  padding: 2px 0;
+}
+.git-section .git-chip {
+  background: rgba(122, 162, 247, 0.025);
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+.git-section .git-chip:hover {
+  background: rgba(122, 162, 247, 0.07);
+  border-color: rgba(122, 162, 247, 0.11);
+}
+.git-section .git-chip.git-chip-active {
+  background: rgba(122, 162, 247, 0.1);
+  border-color: rgba(122, 162, 247, 0.25);
+}
+.git-section .git-chip.git-chip-add {
+  padding: 3px 7px;
+  color: #2a3050;
+}
+.git-section .git-chip.git-chip-add:hover {
+  color: #7aa2f7;
+  border-color: rgba(122, 162, 247, 0.11);
+}
+.git-section .git-chip-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: #c0caf5;
+}
+.git-section .git-chip-dot {
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 50%;
+}
+.git-section .git-chip-dot.pill-ok {
+  background: #73daca;
+}
+.git-section .git-chip-dot.pill-warn {
+  background: #e0af68;
+}
+.git-section .git-chip-dot.pill-err {
+  background: #f7768e;
+}
+.git-section .git-icon-btn {
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 7px;
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  color: #2a3050;
+}
+.git-section .git-icon-btn:hover {
+  background: rgba(122, 162, 247, 0.07);
+  color: #c0caf5;
+}
+.git-section .git-icon-btn.git-icon-spin {
+  color: #73daca;
+}
+.git-section .git-icon-btn-sm {
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 5px;
+  color: #2a3050;
+}
+.git-section .git-icon-btn-sm:hover {
+  background: rgba(122, 162, 247, 0.07);
+  color: #c0caf5;
+}
+.git-section .git-status-bar {
+  background: rgba(122, 162, 247, 0.025);
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-radius: 9px;
+  padding: 5px 10px;
+}
+.git-section .git-branch-chip {
+  background: rgba(122, 162, 247, 0.08);
+  border-radius: 5px;
+  padding: 1px 7px;
+}
+.git-section .git-branch-ico {
+  color: #7aa2f7;
+  min-width: 12px;
+  min-height: 12px;
+}
+.git-section .git-branch-lbl {
+  font-size: 11px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #7aa2f7;
+  font-weight: 500;
+}
+.git-section .git-stat-pill {
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+.git-section .git-stat-pill.gsp-ahead {
+  background: rgba(115, 218, 202, 0.1);
+  color: #73daca;
+}
+.git-section .git-stat-pill.gsp-behind {
+  background: rgba(224, 175, 104, 0.1);
+  color: #e0af68;
+}
+.git-section .git-stat-pill.gsp-mod {
+  background: rgba(122, 162, 247, 0.1);
+  color: #7aa2f7;
+}
+.git-section .git-stat-pill.gsp-err {
+  background: rgba(247, 118, 142, 0.1);
+  color: #f7768e;
+}
+.git-section .git-col-card {
+  background: rgba(122, 162, 247, 0.025);
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-radius: 9px;
+}
+.git-section .git-col-hdr {
+  padding: 6px 10px;
+  background: rgba(86, 95, 137, 0.06);
+  border-bottom: 0.5px solid rgba(122, 162, 247, 0.07);
+}
+.git-section .git-col-title {
+  font-size: 10px;
+  font-weight: 500;
+  color: #565f89;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.git-section .git-empty-lbl {
+  font-size: 11px;
+  color: #2a3050;
+  padding: 8px 10px;
+  font-style: italic;
+}
+.git-section .git-ab {
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+.git-section .git-ab-a {
+  color: #73daca;
+}
+.git-section .git-ab-b {
+  color: #e0af68;
+}
+.git-section .git-commit-row {
+  padding: 5px 10px;
+  border-bottom: 0.5px solid rgba(122, 162, 247, 0.07);
+}
+.git-section .git-commit-row:last-child {
+  border-bottom: none;
+}
+.git-section .git-commit-hash {
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #7aa2f7;
+  min-width: 42px;
+}
+.git-section .git-commit-msg {
+  font-size: 11px;
+  color: #c0caf5;
+}
+.git-section .git-commit-date {
+  font-size: 10px;
+  color: #2a3050;
+}
+.git-section .git-files-count {
+  font-size: 10px;
+  color: #2a3050;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+.git-section .git-file-row {
+  padding: 4px 8px;
+  border-bottom: 0.5px solid rgba(122, 162, 247, 0.07);
+}
+.git-section .git-file-row:last-child {
+  border-bottom: none;
+}
+.git-section .git-file-row:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+.git-section .git-file-row.git-file-active {
+  background: rgba(122, 162, 247, 0.07);
+}
+.git-section .git-file-stat {
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 13px;
+  min-height: 13px;
+  border-radius: 3px;
+}
+.git-section .git-file-stat.fs-m {
+  background: rgba(224, 175, 104, 0.15);
+  color: #e0af68;
+}
+.git-section .git-file-stat.fs-a {
+  background: rgba(115, 218, 202, 0.15);
+  color: #73daca;
+}
+.git-section .git-file-stat.fs-d {
+  background: rgba(247, 118, 142, 0.15);
+  color: #f7768e;
+}
+.git-section .git-file-stat.fs-u {
+  background: rgba(86, 95, 137, 0.15);
+  color: #2a3050;
+}
+.git-section .git-file-name {
+  font-size: 11px;
+  color: #c0caf5;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+.git-section .git-mini-sep {
+  background: rgba(122, 162, 247, 0.07);
+  min-height: 0.5px;
+  margin: 0 8px;
+}
+.git-section .git-commit-entry {
+  margin: 5px 8px 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #c0caf5;
+  padding: 3px 8px;
+}
+.git-section .git-commit-entry:focus {
+  border-color: rgba(122, 162, 247, 0.25);
+}
+.git-section .git-act-row {
+  padding: 4px 6px;
+}
+.git-section .git-act-btn {
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 7px;
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  color: #565f89;
+}
+.git-section .git-act-btn:hover {
+  background: rgba(122, 162, 247, 0.07);
+  color: #c0caf5;
+  border-color: rgba(122, 162, 247, 0.11);
+}
+.git-section .git-act-btn:disabled {
+  color: #2a3050;
+  opacity: 0.5;
+}
+.git-section .git-branch-popover {
+  padding: 4px;
+  min-width: 150px;
+}
+.git-section .git-branch-item-btn {
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+.git-section .git-branch-item-btn:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+.git-section .git-branch-item-lbl {
+  font-size: 11px;
+  color: #c0caf5;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+.git-section .git-branch-active {
+  color: #7aa2f7;
+}
+.git-section .git-diff-panel {
+  background: rgba(122, 162, 247, 0.025);
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-radius: 9px;
+  margin-top: 2px;
+}
+.git-section .git-diff-file {
+  font-size: 11px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #565f89;
+}
+.git-section .git-ds-a {
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #73daca;
+}
+.git-section .git-ds-r {
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #f7768e;
+}
+.git-section .git-diff-body {
+  padding: 2px 0;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  font-size: 10px;
+}
+.git-section .git-diff-line {
+  padding: 0 10px;
+  line-height: 1.6;
+}
+.git-section .git-diff-line.dl-add {
+  background: rgba(115, 218, 202, 0.08);
+  color: #73daca;
+}
+.git-section .git-diff-line.dl-rem {
+  background: rgba(247, 118, 142, 0.08);
+  color: #f7768e;
+}
+.git-section .git-diff-line.dl-ctx {
+  color: #565f89;
+}
+.git-section .git-scan-panel {
+  background: rgba(122, 162, 247, 0.025);
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-radius: 9px;
+  padding: 8px 10px;
+  margin-bottom: 2px;
+}
+.git-section .git-scan-lbl {
+  font-size: 11px;
+  color: #565f89;
+}
+.git-section .git-scan-empty {
+  font-size: 11px;
+  color: #2a3050;
+  font-style: italic;
+}
+.git-section .git-disc-item {
+  padding: 5px 6px;
+  border-radius: 7px;
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  background: rgba(122, 162, 247, 0.02);
+}
+.git-section .git-disc-item:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+.git-section .git-disc-icon {
+  color: #2a3050;
+}
+.git-section .git-disc-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: #c0caf5;
+}
+.git-section .git-disc-path {
+  font-size: 10px;
+  color: #2a3050;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+.git-section .git-disc-btn {
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 5px;
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  color: #2a3050;
+}
+.git-section .git-disc-btn.git-disc-pin:hover {
+  background: rgba(122, 162, 247, 0.12);
+  border-color: rgba(122, 162, 247, 0.25);
+  color: #7aa2f7;
+}
+.git-section .git-disc-btn.git-disc-ignore:hover {
+  background: rgba(247, 118, 142, 0.1);
+  border-color: rgba(247, 118, 142, 0.25);
+  color: #f7768e;
+}
+.git-section .git-add-popover {
+  padding: 12px;
+  min-width: 260px;
+}
+.git-section .git-add-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c0caf5;
+  margin-bottom: 2px;
+}
+.git-section .git-add-entry {
+  background: rgba(0, 0, 0, 0.2);
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-radius: 7px;
+  font-size: 11px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #c0caf5;
+  padding: 4px 9px;
+}
+.git-section .git-add-entry:focus {
+  border-color: rgba(122, 162, 247, 0.25);
+}
+.git-section .git-add-err {
+  font-size: 10px;
+  color: #f7768e;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+.git-section .git-add-cancel {
+  font-size: 11px;
+  color: #565f89;
+  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-radius: 7px;
+  padding: 4px 10px;
+}
+.git-section .git-add-cancel:hover {
+  background: rgba(122, 162, 247, 0.07);
+}
+.git-section .git-add-confirm {
+  font-size: 11px;
+  color: #7aa2f7;
+  background: rgba(122, 162, 247, 0.08);
+  border: 0.5px solid rgba(122, 162, 247, 0.25);
+  border-radius: 7px;
+  padding: 4px 10px;
+}
+.git-section .git-add-confirm:hover {
+  background: rgba(122, 162, 247, 0.15);
+}
+.git-section .git-action-bar {
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  color: #73daca;
+  padding: 3px 8px;
+  background: rgba(115, 218, 202, 0.07);
+  border-radius: 7px;
+  border: 0.5px solid rgba(115, 218, 202, 0.15);
+}
+
+.Bar button,
+.Bar menubutton {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  transition: all 150ms ease;
+}
+
+.Bar button:hover,
+.Bar menubutton:hover {
+  transition: all 150ms ease;
+}
+
+.Bar {
+  background-color: rgb(8, 8, 12);
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+  font-size: 17px;
+  font-weight: 600;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 38px;
+}
+.Bar label {
+  margin-top: 0px;
+  margin-left: 0px;
+}
+.Bar image {
+  -gtk-icon-size: 18px;
+}
+
+.bar-hidden {
+  opacity: 0;
+}
+
+.bar-visible {
+  opacity: 1;
+}
+
+.Bar > centerbox {
+  padding: 0 15px;
+}
+
+.clock {
+  margin: 4px 4px;
+  background-color: rgba(255, 255, 255, 0.03);
+  font-size: 16px;
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
+  font-weight: 700;
+  padding: 0 8px;
+  border-radius: 6px;
+  min-height: 30px;
+}
+.clock:hover {
+  background-color: rgba(0, 0, 0, 0.36);
+}
+
+.stopwatch label {
+  color: #cba6f7;
+  border-color: #cba6f7;
+}
+
+.icon-bare {
+  color: rgba(226, 226, 226, 0.45);
+  padding: 0 5px;
+}
+.icon-bare:hover {
+  color: #e2e2e2;
+}
+
+.own-functions label {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 17px;
+  color: #89b4fa;
+  border: none;
+  padding: 0;
+  margin: 0 0 0 -2px;
+}
+
+.Workspaces .ws-btn {
+  padding: 4px 7px;
+  border-radius: 8px;
+  margin: 4px 2px;
+  min-height: 22px;
+  background-color: rgba(255, 255, 255, 0.03);
+  transition: background 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1), color 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 180ms ease;
+  color: rgba(226, 226, 226, 0.4);
+  font-family: "MesloLGS Nerd Font";
+}
+.Workspaces .ws-btn.focused {
+  background: linear-gradient(135deg, #89b4fa, #cba6f7);
+  color: #11111b;
+  box-shadow: 0 1px 4px rgba(137, 180, 250, 0.3);
+}
+.Workspaces .ws-btn.ws-hold-ready {
+  box-shadow: 0 0 0 1.5px rgba(203, 166, 247, 0.45);
+  transform: scale(1.04);
+}
+.Workspaces .ws-btn.ws-renumber-pending {
+  box-shadow: 0 0 0 1.5px rgba(250, 179, 135, 0.7);
+  transform: scale(1.04);
+}
+.Workspaces .ws-btn.ws-dragging {
+  opacity: 0.82;
+  transition: background 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1), color 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 180ms ease;
+}
+.Workspaces .ws-btn button {
+  all: unset;
+  padding: 0 5px;
+  min-height: 18px;
+  font-family: "MesloLGS Nerd Font";
+}
+.Workspaces .ws-btn .ws-num-btn,
+.Workspaces .ws-btn .ws-icon-btn,
+.Workspaces .ws-btn .ws-icon-wrap {
+  min-height: 18px;
+}
+.Workspaces .ws-btn .ws-image-btn {
+  min-width: 20px;
+  padding: 0;
+}
+.Workspaces .ws-btn .ws-glyph-btn,
+.Workspaces .ws-btn .ws-glyph-wrap {
+  min-width: 16px;
+  padding: 0 1px;
+}
+.Workspaces .ws-btn .ws-image-wrap {
+  min-width: 14px;
+}
+.Workspaces .ws-btn .ws-apps {
+  margin-left: -3px;
+}
+.Workspaces .ws-btn .ws-icon-separator {
+  min-width: 1px;
+  min-height: 5px;
+  margin: 6px 1px;
+  background-color: currentColor;
+  opacity: 0.35;
+}
+.Workspaces .ws-btn .ws-id {
+  font-size: 12px;
+  font-weight: 700;
+  margin: 1px 0 0 -3px;
+  min-height: 16px;
+}
+.Workspaces .ws-btn .ws-icons {
+  font-size: 13px;
+  margin-top: 1px;
+  min-height: 16px;
+}
+.Workspaces .ws-btn .ws-glyph-icon {
+  font-size: 17px;
+  min-width: 0;
+  min-height: 18px;
+  margin-left: 1px;
+  margin-top: 0;
+}
+.Workspaces .ws-btn .ws-app-icon {
+  margin: 0 0 0 1px;
+  min-height: 16px;
+}
+.Workspaces .ws-btn .ws-icon-wrap.active-client .ws-icons {
+  color: #ffffff;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.8);
+}
+.Workspaces .ws-btn .ws-icon-wrap.active-client .ws-app-icon {
+  -gtk-icon-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
+}
+
+popover.ws-preview-popover > contents {
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.ws-preview-bg {
+  background: #0e0e1a;
+  border: 1px solid rgba(137, 180, 250, 0.18);
+  border-radius: 6px;
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.ws-preview-empty {
+  color: rgba(226, 226, 226, 0.35);
+  font-size: 10px;
+}
+
+.ws-ghost {
+  background: rgba(203, 166, 247, 0.18);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+.focused-client {
+  padding: 0 6px;
+  color: #e2e2e2;
+  font-size: 16px;
+}
+
+/* Games tray — purple container to the right of the workspaces, one icon per
+   running game. Hidden entirely (via `visible`) when no game is detected. */
+.game-tray {
+  background: linear-gradient(135deg, rgba(203, 166, 247, 0.22), rgba(137, 180, 250, 0.18));
+  border: 1px solid rgba(203, 166, 247, 0.4);
+  border-radius: 999px;
+  padding: 2px 6px;
+  margin: 4px 2px;
+  min-height: 26px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+.game-tray .game-tray-icon {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 3px;
+  border-radius: 8px;
+  transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.game-tray .game-tray-icon label {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+  color: #cba6f7;
+  text-shadow: 0 0 6px rgba(203, 166, 247, 0.5);
+}
+.game-tray .game-tray-icon:hover {
+  background: rgba(203, 166, 247, 0.25);
+  transform: scale(1.08);
+}
+
+.battery {
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+  padding: 0 4px;
+  min-width: 24px;
+}
+.battery .battery-body {
+  min-width: 19px;
+  min-height: 10px;
+  padding: 2px 2px;
+  border: 1px solid rgba(205, 214, 244, 0.65);
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+.battery .battery-seg {
+  min-width: 3px;
+  min-height: 8px;
+  border-radius: 1px;
+  background-color: rgba(205, 214, 244, 0.16);
+}
+.battery .battery-seg.filled {
+  background-color: #cba6f7;
+}
+.battery .battery-seg.charging-blink {
+  background-color: #87fae9;
+  animation: battery-seg-blink 900ms ease-in-out infinite;
+}
+.battery .battery-seg.low-blink {
+  background-color: rgb(245, 50, 105);
+  animation: battery-seg-blink 700ms ease-in-out infinite;
+}
+.battery .battery-seg.warn {
+  background-color: #fab387;
+}
+.battery .battery-cap {
+  min-width: 2px;
+  min-height: 5px;
+  margin-left: -3px;
+  margin-right: 1px;
+  background-color: rgba(205, 214, 244, 0.65);
+  border-radius: 0 2px 2px 0;
+}
+.battery .battery-body.charging {
+  border-color: rgba(135, 250, 233, 0.75);
+}
+.battery .battery-body.charging .battery-seg.filled {
+  background-color: #87fae9;
+}
+.battery .battery-body.low {
+  border-color: rgb(245, 50, 105);
+}
+.battery .battery-body.low .battery-seg.filled {
+  background-color: rgb(245, 50, 105);
+}
+.battery:hover .battery-cap {
+  background-color: rgba(205, 214, 244, 0.85);
+}
+
+@keyframes battery-seg-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.cpuram label {
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 13px;
+  font-weight: 500;
+}
+.cpuram .icon {
+  color: #87fae9;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 15px;
+  margin: 0 1px;
+}
+.cpuram .icon-sep {
+  margin-left: 5px;
+}
+
+popover.cpuram-popover > contents {
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+popover.cpuram-popover > arrow {
+  background: #0e0e1a;
+  border: none;
+}
+
+@keyframes pop-liquid-in {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.cpuram-popup {
+  background: #0e0e1a;
+  border: 1px solid rgba(137, 180, 250, 0.18);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 170px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.cpuram-popup-header {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: rgba(226, 226, 226, 0.56);
+  margin-bottom: 6px;
+}
+
+.cpuram-popup-row {
+  padding: 2px 0;
+}
+
+.cpuram-popup-ic {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 14px;
+  min-width: 18px;
+}
+.cpuram-popup-ic.cpu {
+  color: #87fae9;
+}
+.cpuram-popup-ic.ram {
+  color: #89b4fa;
+}
+
+.cpuram-popup-val {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  font-weight: 500;
+  color: #cdd6f4;
+}
+
+.fn-menu-window {
+  background: transparent;
+}
+
+.fn-menu {
+  background: #0e0e1a;
+  border: 1px solid rgba(137, 180, 250, 0.18);
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.fn-menu-header {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: rgba(226, 226, 226, 0.56);
+  margin-bottom: 6px;
+}
+
+.fn-menu-button {
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+}
+.fn-menu-button:hover {
+  background: rgba(137, 180, 250, 0.12);
+}
+.fn-menu-button:active {
+  background: rgba(137, 180, 250, 0.18);
+}
+.fn-menu-button.active {
+  background: rgba(137, 180, 250, 0.08);
+}
+
+.fn-menu-row {
+  padding: 5px 6px;
+  min-height: 28px;
+}
+
+.fn-menu-ic {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 15px;
+  min-width: 20px;
+  color: #89b4fa;
+}
+
+.fn-menu-label {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  font-weight: 500;
+  color: #cdd6f4;
+}
+
+.fn-menu-state {
+  border-radius: 999px;
+  min-width: 38px;
+  padding: 2px 7px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.fn-menu-state label {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 9px;
+  font-weight: 800;
+  color: rgba(226, 226, 226, 0.55);
+}
+
+.fn-menu-button.active .fn-menu-state {
+  background: rgba(137, 180, 250, 0.22);
+}
+.fn-menu-button.active .fn-menu-state label {
+  color: #89b4fa;
+}
+
+.tray-item {
+  border-radius: 7px;
+  padding: 0 3px;
+  margin: 4px 1px;
+  min-height: 28px;
+  transition: background-color 140ms ease;
+}
+.tray-item:hover {
+  background-color: rgba(0, 0, 0, 0.36);
+}
+.tray-item > button {
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  min-height: 28px;
+  padding: 0;
+}
+.tray-item > button:hover, .tray-item > button:active, .tray-item > button:checked {
+  background: none;
+}
+
+popover.tray-popover {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+popover.tray-popover > arrow {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-width: 0;
+  min-height: 0;
+}
+popover.tray-popover > contents {
+  min-width: 190px;
+  padding: 6px;
+  background: #0e0e1a;
+  border: 1px solid rgba(137, 180, 250, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transform-origin: top center;
+  animation: pop-liquid-in 200ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+popover.tray-popover modelbutton {
+  border-radius: 8px;
+  padding: 7px 10px;
+  min-height: 26px;
+  margin: 1px 0;
+  color: #cdd6f4;
+  font-family: "MesloLGS Nerd Font", "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 120ms ease;
+}
+popover.tray-popover modelbutton:hover, popover.tray-popover modelbutton:focus {
+  background: rgba(137, 180, 250, 0.14);
+  color: #ffffff;
+}
+popover.tray-popover modelbutton:active {
+  background: rgba(137, 180, 250, 0.22);
+}
+popover.tray-popover modelbutton:disabled {
+  color: rgba(205, 214, 244, 0.35);
+}
+popover.tray-popover modelbutton check,
+popover.tray-popover modelbutton radio,
+popover.tray-popover modelbutton arrow {
+  color: #89b4fa;
+  min-width: 14px;
+  min-height: 14px;
+}
+popover.tray-popover separator {
+  margin: 5px 4px;
+  min-height: 1px;
+  background: rgba(137, 180, 250, 0.14);
+}
+
+.tray-overflow {
+  min-width: 20px;
+}
+.tray-overflow label {
+  font-family: "MesloLGS Nerd Font";
+  color: #89b4fa;
+  font-size: 14px;
+  margin: 0 3px;
+}
+
+popover.tray-overflow-popover > contents {
+  min-width: unset;
+  padding: 5px;
+}
+
+.tray-overflow-grid > box {
+  margin: 0;
+}
+
+.bar-pill {
+  font-size: 16px;
+  color: #e2e2e2;
+  border-radius: 7px;
+  margin: 4px 2px;
+  padding: 0 5px;
+  min-height: 30px;
+  background-color: rgba(255, 255, 255, 0.024);
+  border: 1px solid rgba(255, 255, 255, 0.018);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.bar-pill button, .bar-pill box:not(.battery):not(.battery-body):not(.battery-cap):not(.battery-seg):not(.network-bars):not(.network-bar):not(.volume-bars):not(.volume-bar) {
+  margin: 0;
+  background-color: transparent;
+  padding: 0 3px;
+  min-width: 16px;
+  border-radius: 0px;
+  border: none;
+}
+.bar-pill .recording {
+  margin: 0;
+}
+
+.bar-status-pair .bar-pill.nb-pill,
+.bar-status-pair .bar-pill.qs-system-pill {
+  border: none;
+  box-shadow: none;
+}
+.bar-status-pair .bar-pill.nb-pill {
+  margin-right: 0;
+}
+.bar-status-pair .bar-pill.qs-system-pill {
+  margin-left: 0;
+}
+
+.bar-pill.cpuram {
+  border: none;
+  box-shadow: none;
+}
+.bar-pill.cpuram:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+.bar-pill.own-functions {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  min-width: 30px;
+  padding: 0;
+}
+
+.bar-pill.clock-pill {
+  border: none;
+  box-shadow: none;
+  padding: 0 8px;
+  min-width: 44px;
+  text-align: center;
+}
+.bar-pill.clock-pill label {
+  margin: 0;
+  margin-top: 2px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+.recording {
+  color: rgb(245, 50, 105);
+  padding: 0 5px;
+  margin: 4px 0;
+  animation: pulse 1s infinite;
+}
+
+.mic-indicator.muted {
+  color: rgba(226, 226, 226, 0.45);
+  animation: none;
+}
+
+.notifications {
+  padding: 0 5px;
+  color: rgba(226, 226, 226, 0.45);
+}
+.notifications .icon-active {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+  color: #cba6f7;
+}
+.notifications .icon-desactive {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+  color: rgba(226, 226, 226, 0.45);
+}
+.notifications .label-number-notis {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 10px;
+  color: #cba6f7;
+  font-weight: 700;
+}
+.notifications.has-notifs {
+  color: #cba6f7;
+}
+.notifications .badge {
+  color: #cba6f7;
+  font-size: 10px;
+  margin-left: 2px;
+}
+
+.network {
+  color: #87fae9;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+}
+.network .network-bars {
+  min-width: 17px;
+  min-height: 14px;
+}
+.network .network-bar {
+  min-width: 3px;
+  border-radius: 1px;
+  background-color: rgba(226, 226, 226, 0.18);
+}
+.network .network-bar.active {
+  background-color: #87fae9;
+}
+.network .network-bar.bar-1 {
+  min-height: 4px;
+}
+.network .network-bar.bar-2 {
+  min-height: 7px;
+}
+.network .network-bar.bar-3 {
+  min-height: 10px;
+}
+.network .network-bar.bar-4 {
+  min-height: 13px;
+}
+.network .network-bars.offline .network-bar, .network.network-off .network-bar {
+  background-color: rgba(226, 226, 226, 0.18);
+}
+.network.portal .network-bar.active {
+  background-color: #fab387;
+}
+.network.limited .network-bar.active {
+  background-color: #f9e2af;
+}
+.network .network-wired-glyph {
+  font-size: 15px;
+}
+.network .network-status-glyph {
+  font-size: 11px;
+  margin-left: 2px;
+}
+.network.portal .network-status-glyph {
+  color: #fab387;
+}
+.network.limited .network-status-glyph {
+  color: #f9e2af;
+}
+.network.disconnected {
+  color: rgba(226, 226, 226, 0.45);
+}
+
+.volume {
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 17px;
+}
+.volume.muted {
+  color: rgba(226, 226, 226, 0.45);
+}
+.volume.bt-muted {
+  color: rgba(226, 226, 226, 0.45);
+}
+.volume.icon-muted {
+  color: rgba(226, 226, 226, 0.45);
+}
+
+.bar-nightlight {
+  color: #fab387;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+}
+.bar-nightlight .bar-nightlight-label {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bluetooth {
+  color: #89b4fa;
+  margin: 4px 0;
+}
+
+.bluetooth-ind {
+  padding: 0 4px;
+}
+.bluetooth-ind .bluetooth-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+  color: #6c7086;
+}
+.bluetooth-ind.connected .bluetooth-icon {
+  color: #cba6f7;
+}
+
+.bt-power {
+  padding: 0;
+  margin: 0;
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 4px;
+  border: none;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 17px;
+  color: rgb(245, 50, 105);
+}
+.bt-power label {
+  margin-right: 1px;
+}
+.bt-power:hover {
+  background: linear-gradient(135deg, #89b4fa, #cba6f7);
+  color: #1a1a1a;
+}
+
+.calendar-popover {
+  background: transparent;
+  padding: 0;
+}
+.calendar-popover contents {
+  background: rgba(24, 24, 37, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(137, 180, 250, 0.2);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  margin: 4px;
+}
+.calendar-popover arrow {
+  background: rgba(24, 24, 37, 0.95);
+  border: 1px solid rgba(137, 180, 250, 0.2);
+}
+
+.calendar-widget {
+  background: transparent;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
+  font-size: 12px;
+}
+.calendar-widget header {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 4px;
+  padding-bottom: 2px;
+}
+.calendar-widget header button {
+  color: #89b4fa;
+  padding: 2px;
+  border-radius: 4px;
+}
+.calendar-widget header button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.calendar-widget header label {
+  font-weight: 800;
+  color: #cba6f7;
+  font-size: 13px;
+}
+.calendar-widget grid label.day-name {
+  color: #fab387;
+  font-weight: 700;
+  padding: 4px;
+  opacity: 0.8;
+}
+.calendar-widget grid label.day-number {
+  padding: 4px;
+  border-radius: 6px;
+  min-width: 24px;
+  min-height: 24px;
+}
+.calendar-widget grid label.day-number:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.calendar-widget grid label.day-number.today {
+  background: #89b4fa;
+  color: #11111b;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(137, 180, 250, 0.4);
+}
+.calendar-widget grid label.day-number.other-month {
+  color: rgba(226, 226, 226, 0.45);
+  opacity: 0.3;
+}
+
+.power-window {
+  background: transparent;
+}
+
+.power-menu-overlay {
+  background-color: rgba(20, 20, 20, 0.3);
+  backdrop-filter: blur(14px);
+}
+
+.power-menu-strip {
+  background: rgb(30, 30, 46);
+  border-radius: 16px;
+  padding: 0;
+  border: none;
+  min-height: 148px;
+  box-shadow: none;
+}
+
+.power-button {
+  all: unset;
+  padding: 34px 30px;
+  transition: box-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1), transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  color: rgba(226, 226, 226, 0.4);
+  min-width: 128px;
+  min-height: 148px;
+  border-radius: 10px;
+  border: none;
+  background: rgb(30, 30, 46);
+  box-shadow: none;
+  margin: 0 2px;
+}
+.power-button .power-button-content {
+  min-height: 148px;
+}
+.power-button .power-icon-frame {
+  margin: 0;
+}
+.power-button .power-icon {
+  font-family: "MesloLGS Nerd Font", monospace;
+  font-size: 44px;
+  min-width: 56px;
+  min-height: 56px;
+  color: #ffffff;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), text-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0.62;
+  margin: 0;
+}
+.power-button .power-label {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 12px 0 0 0;
+  opacity: 0.62;
+  transition: none;
+}
+.power-button:hover {
+  background: linear-gradient(135deg, rgb(137, 180, 250), #cba6f7);
+  color: #ffffff;
+  transform: translateY(-2px) scaleY(1.045);
+  box-shadow: none;
+}
+.power-button:hover .power-icon {
+  opacity: 1;
+  transform: translateY(-1px) scale(1.16);
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.42), 0 0 26px rgba(203, 166, 247, 0.32);
+  margin: 0;
+}
+.power-button:hover .power-label {
+  opacity: 1;
+}
+.power-button:active {
+  transform: translateY(1px) scale(1.025);
+  box-shadow: none;
+}
+
+.power-button:first-child,
+.power-button.lock {
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+}
+
+.power-button:last-child,
+.power-button.reboot {
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.osd-window {
+  background-color: transparent;
+}
+
+.osd-container {
+  background-color: rgba(24, 24, 37, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(137, 180, 250, 0.2);
+  border-radius: 99px;
+  padding: 6px 16px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.osd-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+  color: #89b4fa;
+}
+
+.osd-progress-container {
+  min-width: 120px;
+}
+
+progressbar.osd-progress {
+  min-height: 6px;
+}
+progressbar.osd-progress trough {
+  min-height: 6px;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+progressbar.osd-progress progress {
+  min-height: 6px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #89b4fa, #cba6f7);
+  box-shadow: 0 0 10px rgba(137, 180, 250, 0.5);
+}
+
+.osd-percentage {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  font-weight: 800;
+  color: #e2e2e2;
+}
+
+.Bar .bar-pill-btn {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  outline: none;
+}
+.Bar .bar-pill-btn:hover .bar-pill {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.075);
+}
+.Bar .bar-pill-btn:active .bar-pill {
+  background-color: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+window.qs-window,
+window.qs-window.background,
+window.qs-window.csd {
+  background: none;
+  background-color: transparent;
+}
+
+window.qs-window decoration,
+window.qs-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+window.qs-window > box,
+.qs-wrapper {
+  background: none;
+  background-color: transparent;
+}
+
+.qs-bar-connector {
+  background-color: transparent;
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, rgb(8, 8, 12) 18.5px);
+  min-width: 18px;
+  min-height: 18px;
+}
+
+.qs-panel {
+  background-color: rgb(8, 8, 12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-top-right-radius: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding: 10px;
+  box-shadow: none;
+  min-width: 330px;
+  max-width: 330px;
+  color: #ffffff;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", sans-serif;
+}
+
+.qs-header {
+  padding-bottom: 4px;
+}
+
+.qs-clock {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
+  margin: 0;
+}
+
+.qs-date {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.qs-dnd-btn {
+  background: transparent;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 150ms ease;
+}
+.qs-dnd-btn:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+.qs-dnd-btn.active {
+  color: #ff5555;
+}
+.qs-dnd-btn.active:hover {
+  color: #ff7777;
+}
+.qs-dnd-btn .qs-dnd-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 13px;
+  margin: 0;
+  padding: 0;
+}
+
+.qs-notif-btn {
+  background: transparent;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0 4px 0 0;
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 150ms ease;
+}
+.qs-notif-btn:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+.qs-notif-btn.has-notifs {
+  color: #cba6f7;
+}
+.qs-notif-btn.has-notifs:hover {
+  color: #d8bbf9;
+}
+.qs-notif-btn .qs-notif-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 17px;
+  margin: 0;
+  padding: 0;
+}
+
+.qs-tile {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 4px 6px;
+  transition: all 300ms cubic-bezier(0.2, 1, 0.2, 1);
+  color: #ffffff;
+  margin: 1px;
+}
+.qs-tile:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+.qs-tile.active {
+  background: rgba(0, 242, 255, 0.12);
+  border-color: rgba(0, 242, 255, 0.45);
+  box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.12), 0 0 12px rgba(0, 242, 255, 0.08);
+}
+.qs-tile.active .qs-tile-label {
+  color: #fff;
+}
+.qs-tile.active .qs-tile-icon {
+  color: #00f2ff;
+  text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+}
+.qs-tile .qs-tile-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+  margin: 0;
+  min-width: 20px;
+}
+.qs-tile .qs-tile-net-icon {
+  min-width: 20px;
+}
+.qs-tile .qs-tile-wifi-signal {
+  min-width: 17px;
+  min-height: 14px;
+}
+.qs-tile .qs-wifi-signal-bar {
+  min-width: 3px;
+  border-radius: 1px;
+  background-color: rgba(226, 226, 226, 0.18);
+}
+.qs-tile .qs-wifi-signal-bar.active {
+  background-color: rgba(255, 255, 255, 0.82);
+}
+.qs-tile .qs-wifi-signal-bar.bar-1 {
+  min-height: 4px;
+}
+.qs-tile .qs-wifi-signal-bar.bar-2 {
+  min-height: 7px;
+}
+.qs-tile .qs-wifi-signal-bar.bar-3 {
+  min-height: 10px;
+}
+.qs-tile .qs-wifi-signal-bar.bar-4 {
+  min-height: 13px;
+}
+.qs-tile.active .qs-wifi-signal-bar.active {
+  background-color: #00f2ff;
+}
+.qs-tile .qs-tile-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+.qs-tile .qs-tile-sub {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+.qs-tile:not(.active) .qs-tile-icon {
+  color: rgba(255, 255, 255, 0.28);
+  text-shadow: none;
+}
+
+.qs-media {
+  background-color: rgba(137, 180, 250, 0.04);
+  border: none;
+  border-radius: 20px;
+  padding: 0;
+  margin-top: 10px;
+  min-height: 100px;
+}
+.qs-media .qs-media-art {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 24px;
+  min-width: 40px;
+  min-height: 40px;
+  color: #89b4fa;
+  margin: 0;
+}
+.qs-media .qs-media-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgb(0, 0, 0), 0 0 6px rgba(0, 0, 0, 0.85);
+  margin: 0;
+}
+.qs-media .qs-media-artist {
+  font-size: 11px;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgb(0, 0, 0), 0 0 6px rgba(0, 0, 0, 0.85);
+  margin: 0;
+}
+.qs-media .qs-media-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 18px;
+  padding: 1px 4px;
+  border-radius: 7px;
+  transition: opacity 200ms ease, background 200ms ease;
+  transform: none;
+  opacity: 0.8;
+  text-shadow: 0 1px 2px rgb(0, 0, 0), 0 0 6px rgba(0, 0, 0, 0.85);
+}
+.qs-media .qs-media-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+  transform: none;
+}
+.qs-media .qs-media-btn label {
+  margin: 0;
+}
+.qs-media .qs-media-like {
+  min-width: 24px;
+}
+.qs-media .qs-media-time {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 1px 2px rgb(0, 0, 0);
+  margin-top: 0;
+}
+.qs-media progressbar.qs-media-progress {
+  min-height: 5px;
+  margin: 0 4px;
+}
+.qs-media progressbar.qs-media-progress trough {
+  min-height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.qs-media progressbar.qs-media-progress progress {
+  min-height: 5px;
+  border-radius: 99px;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+.qs-media .qs-media-source {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #89b4fa;
+  text-shadow: 0 1px 2px rgb(0, 0, 0), 0 0 6px rgba(0, 0, 0, 0.85);
+  margin-bottom: 4px;
+}
+.qs-media .qs-media-spotify-logo {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 3px rgb(0, 0, 0), 0 0 8px rgba(0, 0, 0, 0.85);
+}
+.qs-media .qs-media-switch {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: all 200ms ease;
+}
+.qs-media .qs-media-switch:hover {
+  color: #89b4fa;
+  background: rgba(137, 180, 250, 0.1);
+}
+.qs-media .qs-media-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  min-width: 24px;
+}
+
+.qs-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 13px;
+  margin-top: 10px;
+  padding: 0 4px;
+}
+.qs-section button.qs-icon-btn {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  min-width: 22px;
+  min-height: 22px;
+}
+.qs-section button.qs-icon-btn.active {
+  background: rgba(0, 242, 255, 0.1);
+  border-color: rgba(0, 242, 255, 0.3);
+}
+.qs-section button.qs-icon-btn.active label {
+  color: #00f2ff;
+}
+
+.qs-section-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  color: #00f2ff;
+  margin: 0;
+}
+.qs-section-icon.bright {
+  color: #fff200;
+}
+.qs-section-icon.night {
+  color: #ff7b00;
+}
+.qs-section-icon.muted {
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 0.5;
+}
+
+.qs-icon-mute-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  transition: all 200ms ease;
+}
+.qs-icon-mute-btn:hover {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+.qs-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.qs-section-pct {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.qs-dropdown-header {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.22);
+  font-weight: 700;
+  margin: 4px 0 2px;
+}
+
+.qs-sink-item {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 100ms ease;
+}
+.qs-sink-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.qs-sink-item.active {
+  background: rgba(139, 120, 255, 0.18);
+  border-color: rgba(139, 120, 255, 0.3);
+  color: #7000ff;
+}
+.qs-sink-item .qs-sink-dot {
+  font-size: 8px;
+  color: #00f2ff;
+  margin: 0;
+}
+.qs-sink-item .qs-sink-name {
+  font-size: 12px;
+  margin: 0;
+}
+
+scale.qs-slider {
+  min-height: 0;
+  margin: -6px 0 4px 0;
+}
+scale.qs-slider trough {
+  min-height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.06);
+}
+scale.qs-slider progress {
+  min-height: 4px;
+  border-radius: 99px;
+  background: #00f2ff;
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+}
+scale.qs-slider slider {
+  min-width: 0;
+  min-height: 0;
+  opacity: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  -gtk-icon-size: 0;
+}
+scale.qs-slider.mic progress {
+  background: rgba(139, 120, 255, 0.5);
+}
+scale.qs-slider.app progress {
+  background: rgba(139, 120, 255, 0.5);
+}
+scale.qs-slider.media progress {
+  background: rgba(137, 180, 250, 0.6);
+}
+scale.qs-slider.brightness progress {
+  background: rgba(255, 210, 90, 0.7);
+}
+scale.qs-slider.brightness slider {
+  background: #fff200;
+  margin: 0;
+  padding: 0;
+}
+scale.qs-slider.temperature trough {
+  background: linear-gradient(to right, rgba(100, 160, 255, 0.4), rgba(255, 140, 30, 0.5));
+}
+scale.qs-slider.temperature progress {
+  background: transparent;
+}
+scale.qs-slider.temperature slider {
+  background: #ff7b00;
+  margin: 0;
+  padding: 0;
+}
+
+button.qs-toggle {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-width: 28px;
+  min-height: 16px;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+}
+button.qs-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+button.qs-toggle:focus {
+  outline: none;
+}
+button.qs-toggle .qs-toggle-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  min-width: 26px;
+  min-height: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+button.qs-toggle .qs-toggle-dot {
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 2px;
+  min-width: 8px;
+  min-height: 8px;
+  margin: 2px 3px;
+  transition: margin-left 160ms ease, background-color 160ms ease;
+}
+button.qs-toggle .qs-toggle-dot.on {
+  background: #ffffff;
+  margin-left: 15px;
+}
+button.qs-toggle.on .qs-toggle-track {
+  background: rgba(0, 242, 255, 0.42);
+  border-color: rgba(0, 242, 255, 0.9);
+}
+
+.qs-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+.qs-avatar {
+  background: rgba(139, 120, 255, 0.2);
+  border: 1px solid rgba(139, 120, 255, 0.3);
+  border-radius: 50%;
+  min-width: 30px;
+  min-height: 30px;
+  color: #7000ff;
+  font-size: 10px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.qs-avatar-img {
+  border-radius: 50%;
+  min-width: 30px;
+  min-height: 30px;
+  border: 1px solid rgba(139, 120, 255, 0.3);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.qs-username {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.qs-hostname {
+  font-size: 10px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+tooltip {
+  background-color: rgba(24, 24, 37, 0.95);
+  border: 1px solid rgba(137, 180, 250, 0.2);
+  border-radius: 8px;
+  padding: 2px 4px;
+}
+tooltip label {
+  font-family: "MesloLGS Nerd Font", "Inter", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e2e2;
+  margin: 2px;
+}
+
+.qs-icon-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 3px;
+  transition: all 120ms ease-out;
+}
+.qs-icon-btn label {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 13px;
+  color: rgba(226, 226, 226, 0.45);
+  margin: 0;
+}
+.qs-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.qs-icon-btn:hover label {
+  color: rgba(226, 226, 226, 0.9);
+}
+.qs-icon-btn.active {
+  background: rgba(203, 166, 247, 0.14);
+}
+.qs-icon-btn.active label {
+  color: #cba6f7;
+}
+.qs-icon-btn.scanning label {
+  color: #a78bfa;
+}
+
+button.qs-user-settings-btn {
+  min-width: 26px;
+  min-height: 26px;
+}
+button.qs-user-settings-btn label {
+  font-size: 15px;
+  margin: 0 2px 0 0;
+}
+
+.qs-wifi-menu {
+  background: transparent;
+  border-radius: 12px;
+  padding: 2px;
+}
+
+.qs-wifi-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding-bottom: 3px;
+  min-height: 22px;
+}
+.qs-wifi-header button.qs-icon-btn {
+  min-width: 20px;
+  min-height: 20px;
+  padding: 1px;
+  border-radius: 5px;
+}
+.qs-wifi-header button.qs-icon-btn label {
+  font-size: 13px;
+}
+.qs-wifi-header .qs-section-label {
+  font-size: 12px;
+  line-height: 1;
+}
+.qs-wifi-header .qs-wifi-search {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  padding: 0 7px;
+  min-height: 22px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.qs-wifi-header .qs-wifi-search:focus-within {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(137, 180, 250, 0.55);
+}
+.qs-wifi-header .qs-wifi-search .qs-wifi-search-icon {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+.qs-wifi-header .qs-wifi-search .qs-wifi-search-entry {
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  min-height: 20px;
+  caret-color: #89b4fa;
+  font-size: 12px;
+  color: #cdd6f4;
+}
+.qs-wifi-header .qs-wifi-search .qs-wifi-search-entry selection {
+  background: rgba(137, 180, 250, 0.35);
+}
+
+.qs-wifi-list-scroll {
+  min-height: 180px;
+}
+.qs-wifi-list-scroll scrollbar {
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  margin: 0;
+  padding: 0;
+  -gtk-icon-size: 0;
+}
+.qs-wifi-list-scroll scrollbar.vertical {
+  min-width: 0;
+}
+.qs-wifi-list-scroll scrollbar.horizontal {
+  min-height: 0;
+}
+.qs-wifi-list-scroll scrollbar slider {
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  margin: 0;
+  padding: 0;
+  -gtk-icon-size: 0;
+}
+
+.qs-wifi-item {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  transition: all 100ms ease;
+}
+.qs-wifi-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.qs-wifi-item.active {
+  background: rgba(0, 242, 255, 0.12);
+  border-color: rgba(0, 242, 255, 0.35);
+}
+.qs-wifi-item.active .qs-wifi-signal-bar.active {
+  background-color: #00f2ff;
+}
+.qs-wifi-item.portal {
+  background: rgba(255, 123, 0, 0.15);
+  border-color: rgba(255, 123, 0, 0.4);
+  box-shadow: 0 0 15px rgba(255, 123, 0, 0.1);
+}
+.qs-wifi-item.portal .qs-wifi-signal-bar.active {
+  background-color: #fab387;
+}
+.qs-wifi-item.portal .qs-wifi-name {
+  color: #ffca99;
+}
+.qs-wifi-item.portal .qs-wifi-sec {
+  color: #ffca99;
+  font-weight: 700;
+}
+.qs-wifi-item.known {
+  background: rgba(245, 50, 105, 0.03);
+  border-color: rgba(245, 50, 105, 0.1);
+}
+.qs-wifi-item.known .qs-wifi-signal-bar.active {
+  background-color: rgba(245, 50, 105, 0.62);
+}
+.qs-wifi-item.known .qs-wifi-name {
+  color: rgba(255, 255, 255, 0.85);
+}
+.qs-wifi-item .qs-wifi-icon {
+  min-width: 17px;
+  min-height: 14px;
+}
+.qs-wifi-item .qs-wifi-signal-bar {
+  min-width: 3px;
+  border-radius: 1px;
+  background-color: rgba(226, 226, 226, 0.18);
+}
+.qs-wifi-item .qs-wifi-signal-bar.active {
+  background-color: rgba(255, 255, 255, 0.82);
+}
+.qs-wifi-item .qs-wifi-signal-bar.bar-1 {
+  min-height: 4px;
+}
+.qs-wifi-item .qs-wifi-signal-bar.bar-2 {
+  min-height: 7px;
+}
+.qs-wifi-item .qs-wifi-signal-bar.bar-3 {
+  min-height: 10px;
+}
+.qs-wifi-item .qs-wifi-signal-bar.bar-4 {
+  min-height: 13px;
+}
+.qs-wifi-item .qs-wifi-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(230, 225, 255, 0.92);
+  margin: 0;
+}
+.qs-wifi-item .qs-wifi-sec {
+  font-size: 9px;
+  color: rgba(200, 190, 255, 0.55);
+  margin: 0;
+}
+.qs-wifi-item .qs-wifi-lock,
+.qs-wifi-item .qs-wifi-portal-icon {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: "MesloLGS Nerd Font";
+}
+.qs-wifi-item .qs-wifi-portal-icon {
+  color: #ff7b00;
+  font-size: 14px;
+}
+
+.qs-wifi-advanced {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 6px;
+}
+.qs-wifi-advanced .qs-wifi-adv-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 6px;
+  color: rgba(200, 190, 255, 0.55);
+  font-size: 11px;
+  transition: all 100ms ease;
+}
+.qs-wifi-advanced .qs-wifi-adv-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(230, 225, 255, 0.92);
+}
+.qs-wifi-advanced .qs-wifi-adv-btn label {
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
+  margin: 0;
+}
+
+.qs-wifi-info-section {
+  background: rgba(20, 20, 30, 0.45);
+  margin: 0 10px 10px 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+}
+.qs-wifi-info-section .qs-wifi-info-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(180, 170, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.qs-wifi-info-section .qs-wifi-info-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(230, 225, 255, 0.95);
+}
+.qs-wifi-info-section .qs-wifi-info-sep {
+  color: rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  margin: 0 4px;
+}
+
+.qs-tile-arrow {
+  background: transparent;
+  border: none;
+  color: rgba(200, 190, 255, 0.55);
+  font-family: "MesloLGS Nerd Font";
+  font-size: 14px;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: all 100ms ease;
+}
+.qs-tile-arrow:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(230, 225, 255, 0.92);
+}
+
+.qs-bluetooth-menu {
+  background: transparent;
+  border-radius: 12px;
+  padding: 2px;
+}
+
+.qs-audio-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  margin-bottom: 3px;
+  padding: 5px 7px;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.qs-audio-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.07);
+}
+.qs-audio-item.active {
+  background: rgba(89, 180, 250, 0.13);
+  border-color: rgba(89, 180, 250, 0.38);
+}
+.qs-audio-item.active .qs-audio-name {
+  color: #89b4fa;
+  font-weight: 700;
+}
+.qs-audio-item.active .qs-audio-icon {
+  color: #89b4fa;
+}
+.qs-audio-item.active scale.qs-slider progress {
+  background: #89b4fa;
+}
+.qs-audio-item .qs-audio-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+  min-width: 14px;
+  margin: 0;
+}
+.qs-audio-item .qs-audio-name {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+}
+.qs-audio-item .qs-audio-vol-pct {
+  font-size: 9px;
+  font-family: "MesloLGS Nerd Font";
+  color: rgba(255, 255, 255, 0.28);
+  min-width: 22px;
+  margin: 0;
+}
+.qs-audio-item .qs-audio-card-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  border-radius: 4px;
+}
+.qs-audio-item .qs-audio-card-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.qs-audio-item scale.qs-slider {
+  margin: 0;
+}
+.qs-audio-item scale.qs-slider trough {
+  min-height: 3px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.qs-audio-item scale.qs-slider progress {
+  min-height: 3px;
+}
+
+.qs-wifi-list-scroll scrollbar,
+.qs-wifi-list-scroll scrollbar slider,
+.qs-wifi-list-scroll scrollbar button {
+  opacity: 0;
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bar-pill.nb-pill {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0;
+  min-width: 28px;
+}
+.bar-pill.nb-pill .nb-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+  color: rgba(226, 226, 226, 0.48);
+  margin-left: -2px;
+}
+.bar-pill.nb-pill .nb-icon.has-notifs {
+  color: #cba6f7;
+}
+.bar-pill.nb-pill .nb-icon.dnd {
+  color: rgb(245, 50, 105);
+}
+.bar-pill.nb-pill.panel-open {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.075);
+}
+
+.notif-popup-window {
+  background: transparent;
+}
+
+.notif-popup-item {
+  background: rgba(16, 16, 24, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 280px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  animation: notif-slide-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.notif-popup-item .notif-popup-app-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 11px;
+  margin: 0;
+  margin-right: 4px;
+}
+.notif-popup-item .notif-popup-app-name {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(226, 226, 226, 0.4);
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+.notif-popup-item .notif-popup-dot {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.25);
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+.notif-popup-item .notif-popup-summary {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(226, 226, 226, 0.85);
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+.notif-popup-item .notif-popup-body {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+
+@keyframes notif-slide-in {
+  from {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes notif-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+}
+.notif-popup-item.leaving {
+  animation: notif-slide-out 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+window.np-window,
+window.np-window.background,
+window.np-window.csd {
+  background: none;
+  background-color: transparent;
+}
+
+window.np-window decoration,
+window.np-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+.np-wrapper {
+  background: none;
+  background-color: transparent;
+}
+
+.np-bar-connector {
+  background-color: transparent;
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, rgb(8, 8, 12) 18.5px);
+  min-width: 18px;
+  min-height: 18px;
+}
+
+.np-panel {
+  background: rgb(8, 8, 12);
+  border: none;
+  border-radius: 14px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  min-width: 349px;
+  max-width: 349px;
+  box-shadow: none;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
+  color: #e2e2e2;
+  animation: np-slide-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.np-panel button {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  transition: all 120ms ease;
+}
+
+.np-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.np-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(226, 226, 226, 0.6);
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.np-unread-badge-btn {
+  background: rgba(203, 166, 247, 0.12);
+  border: none;
+  border-radius: 99px;
+  padding: 1px 7px;
+  min-height: 18px;
+  transition: all 120ms ease;
+}
+.np-unread-badge-btn:hover {
+  background: rgba(203, 166, 247, 0.22);
+}
+.np-unread-badge-btn label {
+  margin: 0;
+}
+
+.np-unread-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: #cba6f7;
+  margin: 0;
+}
+
+.np-icon-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  transition: all 120ms ease-out;
+}
+.np-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.np-icon-btn.active {
+  background: rgba(203, 166, 247, 0.12);
+}
+.np-icon-btn.active .np-btn-icon {
+  color: #cba6f7;
+}
+.np-icon-btn.dnd-active {
+  background: rgba(243, 139, 168, 0.12);
+}
+.np-icon-btn.dnd-active .np-btn-icon {
+  color: #f38ba8;
+}
+.np-icon-btn.danger .np-btn-icon {
+  color: rgba(243, 139, 168, 0.45);
+}
+.np-icon-btn.danger:hover {
+  background: rgba(243, 139, 168, 0.1);
+}
+.np-icon-btn.danger:hover .np-btn-icon {
+  color: #f38ba8;
+}
+.np-icon-btn.danger.confirm {
+  background: rgba(243, 139, 168, 0.15);
+}
+.np-icon-btn.danger.confirm .np-btn-icon {
+  color: #f38ba8;
+}
+.np-icon-btn .np-btn-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.45);
+  margin: 0;
+}
+
+.np-footer-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: #f38ba8;
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+
+@keyframes np-slide-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.np-filter-scroll {
+  margin-top: 6px;
+}
+.np-filter-scroll scrollbar, .np-filter-scroll scrollbar slider {
+  opacity: 0;
+  min-height: 0;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.np-filter-row {
+  padding: 0;
+}
+
+.np-filter-chip {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 10px;
+  transition: background 100ms ease;
+}
+.np-filter-chip.active {
+  background: rgba(203, 166, 247, 0.12);
+}
+.np-filter-chip.active .np-filter-chip-label {
+  color: #cba6f7;
+}
+.np-filter-chip:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.np-filter-chip .np-filter-chip-label {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(226, 226, 226, 0.5);
+  margin: 0;
+}
+
+.np-panel .np-filter-chip {
+  padding: 3px 10px;
+}
+
+.np-list-scroll {
+  min-height: 160px;
+}
+.np-list-scroll scrollbar, .np-list-scroll scrollbar slider {
+  opacity: 0;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.np-empty-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 28px;
+  color: rgba(226, 226, 226, 0.12);
+  margin: 0;
+}
+
+.np-empty-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(226, 226, 226, 0.25);
+  margin: 0;
+}
+
+.np-empty-sub {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.15);
+  margin: 0;
+}
+
+.np-app-group {
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.04);
+}
+
+.np-group-header {
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  transition: background 100ms ease;
+}
+.np-group-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.np-group-chevron {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.4);
+  margin: 0;
+}
+
+.np-group-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(226, 226, 226, 0.6);
+  margin: 0;
+}
+
+.np-group-badge {
+  background: rgba(203, 166, 247, 0.2);
+  border-radius: 99px;
+  padding: 0 5px;
+}
+
+.np-group-count {
+  font-size: 9px;
+  font-weight: 800;
+  color: #cba6f7;
+  margin: 0;
+}
+
+.np-group-total {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.3);
+  margin: 0;
+}
+
+.np-footer {
+  padding: 6px 10px 8px;
+  background: linear-gradient(to bottom, transparent 0%, rgba(12, 12, 18, 0.92) 40%);
+}
+
+.notif-item-wrapper {
+  margin-bottom: 2px;
+}
+
+.notif-item {
+  transition: background 150ms ease-out;
+}
+
+.notif-unread-bar {
+  min-width: 3px;
+  border-radius: 0;
+}
+
+.notif-checkbox {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+.notif-checkbox.checked {
+  border-color: rgba(166, 227, 161, 0.6);
+}
+.notif-checkbox .notif-checkbox-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.4);
+  margin: 0;
+}
+
+.notif-item-btn {
+  border-radius: 0;
+  transition: background 100ms ease;
+}
+.notif-item-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.np-panel .notif-item-btn {
+  padding: 6px 10px;
+}
+
+.notif-app-icon-wrap {
+  border-radius: 8px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+}
+.notif-app-icon-wrap .notif-app-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 15px;
+  margin: 0;
+  padding: 0;
+}
+
+.notif-app-img {
+  margin: 0;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.notif-app-name {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(226, 226, 226, 0.4);
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+
+.notif-dot {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.25);
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+
+.notif-timestamp {
+  font-size: 9px;
+  color: rgba(226, 226, 226, 0.25);
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+
+.notif-summary {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(226, 226, 226, 0.85);
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+
+.notif-body {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font";
+  margin: 0;
+}
+
+.notif-hover-actions {
+  padding: 0 4px;
+}
+
+.notif-action-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.4);
+}
+.notif-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e2e2;
+}
+.notif-action-btn.active {
+  background: rgba(243, 139, 168, 0.15);
+  border-color: rgba(243, 139, 168, 0.3);
+  color: #f38ba8;
+}
+.notif-action-btn.dismiss:hover {
+  background: rgba(243, 139, 168, 0.15);
+  border-color: rgba(243, 139, 168, 0.3);
+  color: #f38ba8;
+}
+.notif-action-btn.reply:hover {
+  background: rgba(137, 180, 250, 0.15);
+  border-color: rgba(137, 180, 250, 0.3);
+  color: #89b4fa;
+}
+.notif-action-btn label {
+  margin: 0;
+}
+
+.notif-dbus-actions {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.04);
+}
+
+.notif-dbus-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.7);
+  transition: all 100ms ease;
+}
+.notif-dbus-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e2e2;
+}
+.notif-dbus-btn label {
+  margin: 0;
+}
+
+.notif-reply-box {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.notif-reply-entry {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+}
+
+.notif-reply-send {
+  background: rgba(137, 180, 250, 0.1);
+  border: 1px solid rgba(137, 180, 250, 0.2);
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+}
+.notif-reply-send:hover {
+  background: rgba(137, 180, 250, 0.2);
+}
+.notif-reply-send label {
+  margin: 0;
+}
+
+.notif-reply-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.4);
+}
+.notif-reply-cancel:hover {
+  color: #f38ba8;
+  background: rgba(243, 139, 168, 0.1);
+}
+.notif-reply-cancel label {
+  margin: 0;
+}
+
+.ns-panel {
+  min-width: 360px;
+}
+
+.ns-header {
+  padding: 14px 14px 8px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
+}
+
+.ns-back-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 14px;
+  color: rgba(226, 226, 226, 0.55);
+}
+.ns-back-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.ns-back-btn label {
+  margin: 0;
+}
+
+.ns-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.ns-reset-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 13px;
+  color: rgba(226, 226, 226, 0.4);
+}
+.ns-reset-btn:hover {
+  background: rgba(243, 139, 168, 0.1);
+  color: #f38ba8;
+}
+.ns-reset-btn label {
+  margin: 0;
+}
+
+.ns-scroll {
+  min-height: 200px;
+}
+.ns-scroll scrollbar, .ns-scroll scrollbar slider {
+  opacity: 0;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ns-app-row {
+  background: rgba(255, 255, 255, 0.02);
+  border: 0.5px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 8px;
+  transition: background 100ms ease;
+}
+.ns-app-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ns-app-icon-wrap {
+  border-radius: 8px;
+  min-width: 30px;
+  min-height: 30px;
+}
+.ns-app-icon-wrap .ns-app-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 15px;
+  margin: 0;
+}
+
+.ns-app-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.ns-mute-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+}
+.ns-mute-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.ns-mute-btn.muted {
+  background: rgba(243, 139, 168, 0.1);
+  border-color: rgba(243, 139, 168, 0.3);
+}
+.ns-mute-btn.muted .ns-mute-icon {
+  color: #f38ba8;
+}
+.ns-mute-btn .ns-mute-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 13px;
+  color: rgba(226, 226, 226, 0.5);
+  margin: 0;
+}
+
+.ns-label-dim {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.35);
+  margin: 0;
+}
+
+.ns-importance-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.5);
+  transition: all 100ms ease;
+}
+.ns-importance-btn.active {
+  color: #e2e2e2;
+}
+.ns-importance-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.08);
+}
+.ns-importance-btn label {
+  margin: 0;
+}
+
+.ns-lock-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 13px;
+  color: rgba(226, 226, 226, 0.4);
+}
+.ns-lock-btn.active {
+  background: rgba(166, 227, 161, 0.1);
+  border-color: rgba(166, 227, 161, 0.3);
+  color: #a6e3a1;
+}
+.ns-lock-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.ns-lock-btn label {
+  margin: 0;
+}
+
+.ns-empty-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 32px;
+  color: rgba(226, 226, 226, 0.15);
+  margin: 0;
+}
+
+.ns-empty-label {
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.3);
+  margin: 0;
+}
+
+@keyframes pv-rainbow {
+  0% {
+    color: #00c8ff;
+  }
+  15% {
+    color: #20f080;
+  }
+  30% {
+    color: #d4f020;
+  }
+  45% {
+    color: #ffa000;
+  }
+  60% {
+    color: #ff5000;
+  }
+  75% {
+    color: #ff0080;
+  }
+  90% {
+    color: #9f00e0;
+  }
+  100% {
+    color: #00c8ff;
+  }
+}
+@keyframes pv-mute-blink {
+  0%, 49% {
+    background-color: #cc0000;
+    color: #000000;
+    border-color: #ff0000;
+  }
+  50%, 100% {
+    background-color: #400000;
+    color: #ff4444;
+    border-color: #660000;
+  }
+}
+@keyframes pv-slide-in {
+  from {
+    opacity: 0;
+    margin-top: -10px;
+  }
+  to {
+    opacity: 1;
+    margin-top: 0;
+  }
+}
+window.pv-osd-window {
+  background-color: transparent;
+}
+
+.pv-container {
+  background-color: #080808;
+  border: 2px solid #ff8800;
+  border-radius: 0;
+  padding: 8px 10px;
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.2) 2px, rgba(0, 0, 0, 0.2) 3px);
+  box-shadow: 0 0 0 1px rgba(255, 136, 0, 0.22), 0 0 14px rgba(255, 136, 0, 0.15), inset 0 0 20px rgba(0, 0, 0, 0.55);
+  animation: pv-slide-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pv-title {
+  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  margin: 0;
+  animation: pv-rainbow 3s linear infinite;
+}
+
+.pv-percent {
+  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
+  font-size: 9px;
+  font-weight: 900;
+  margin: 0 2px 0 0;
+}
+
+.pv-percent-sym {
+  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
+  font-size: 6px;
+  margin: 0;
+  opacity: 0.65;
+}
+
+.pv-mute-btn {
+  background-color: #161616;
+  border: 1px solid #484848;
+  border-radius: 0;
+  padding: 1px 4px;
+  min-width: 0;
+  min-height: 0;
+  box-shadow: 1px 1px 0 #000000;
+  transition: none;
+}
+.pv-mute-btn .pv-mute-label {
+  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
+  font-size: 7px;
+  color: #999999;
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+}
+.pv-mute-btn:hover {
+  background-color: #242424;
+  border-color: #777777;
+  box-shadow: 1px 1px 0 #000000;
+}
+.pv-mute-btn:hover .pv-mute-label {
+  color: #dddddd;
+}
+.pv-mute-btn:active {
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+.pv-muting {
+  animation: pv-mute-blink 380ms steps(1) infinite;
+}
+.pv-muting .pv-mute-label {
+  color: #ff4444;
+}
+
+window.cal-panel,
+window.cal-panel.background,
+window.cal-panel.csd {
+  background-color: transparent;
+}
+
+window.cal-panel decoration,
+window.cal-panel.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background-color: transparent;
+  border-width: 0;
+}
+
+window.cal-panel > box {
+  background-color: rgb(8, 8, 12);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cal-panel {
+  background-color: rgb(8, 8, 12);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+  font-size: 13px;
+  color: #e2e2e2;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6);
+}
+.cal-panel * {
+  color: #e2e2e2;
+}
+.cal-panel button {
+  background-color: transparent;
+  border-width: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  transition: all 120ms ease;
+}
+
+.cal-titlebar {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.01);
+  min-height: 46px;
+}
+
+.cal-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.cal-view-tabs {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0 12px;
+}
+
+.cal-view-tab {
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(226, 226, 226, 0.45);
+  transition: background 150ms, color 150ms;
+  background-color: transparent;
+  border-width: 0;
+}
+.cal-view-tab:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #e2e2e2;
+}
+.cal-view-tab.active {
+  background-color: rgba(137, 180, 250, 0.15);
+  color: #89b4fa;
+  border: 1px solid rgba(137, 180, 250, 0.25);
+}
+
+.cal-month-nav {
+  padding: 14px 16px 10px;
+  min-height: 48px;
+}
+
+.cal-month-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.cal-today-label {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.45);
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.cal-weekday-headers {
+  padding: 0 14px 4px;
+}
+
+.cal-wd-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgba(226, 226, 226, 0.25);
+  min-width: 46px;
+  padding: 4px 2px;
+  margin: 0;
+}
+
+.cal-days-grid {
+  padding: 0 14px 14px;
+}
+
+.cal-month-grid {
+  padding: 0;
+}
+
+.cal-day-cell {
+  min-width: 46px;
+  min-height: 50px;
+  border-radius: 8px;
+  padding: 5px 3px 3px;
+  background-color: transparent;
+  border-width: 0;
+}
+.cal-day-cell:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.cal-day-cell.other-month .cal-day-num {
+  color: rgba(226, 226, 226, 0.25);
+}
+.cal-day-cell.today {
+  background-color: rgba(137, 180, 250, 0.12);
+}
+.cal-day-cell.today .cal-day-num {
+  color: #89b4fa;
+  font-weight: 700;
+}
+.cal-day-cell.selected {
+  background-color: rgba(137, 180, 250, 0.25);
+  border: 1px solid rgba(137, 180, 250, 0.4);
+}
+.cal-day-cell.selected .cal-day-num {
+  color: #89b4fa;
+  font-weight: 700;
+}
+.cal-day-cell.selected:hover {
+  background-color: rgba(137, 180, 250, 0.35);
+}
+
+.cal-day-num {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.cal-event-dots {
+  padding-top: 2px;
+}
+
+.cal-event-dot {
+  border-radius: 50%;
+  min-width: 5px;
+  min-height: 5px;
+}
+
+.cal-agenda-view {
+  padding: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 320px;
+}
+
+.cal-agenda-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 48px;
+}
+
+.cal-agenda-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.cal-agenda-list {
+  padding: 0 14px;
+}
+
+.cal-agenda-date-header {
+  padding: 12px 4px 6px;
+}
+.cal-agenda-date-header.today .cal-agenda-date-label {
+  color: #89b4fa;
+  font-weight: 700;
+}
+.cal-agenda-date-header.past .cal-agenda-date-label {
+  color: rgba(226, 226, 226, 0.25);
+}
+
+.cal-agenda-date-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.cal-agenda-day-events {
+  padding: 0 0 4px 8px;
+}
+
+.cal-agenda-event-row {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 4px;
+}
+.cal-agenda-event-row:hover .cal-event-actions {
+  opacity: 1;
+}
+
+.cal-event-color-stripe {
+  border-radius: 2px;
+  min-height: 28px;
+  min-width: 3px;
+}
+
+.cal-event-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.cal-event-time {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.45);
+  margin-top: 2px;
+}
+
+.cal-event-desc {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.25);
+  margin-top: 2px;
+}
+
+.cal-event-actions {
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.cal-agenda-separator {
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 6px 0;
+  min-height: 1px;
+}
+
+.cal-agenda-empty {
+  padding: 40px 20px;
+}
+
+.cal-empty-icon {
+  font-size: 32px;
+  margin: 0;
+}
+
+.cal-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(226, 226, 226, 0.45);
+  margin: 0;
+}
+
+.cal-empty-sub {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.25);
+  margin: 0;
+}
+
+.cal-icon-btn {
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background-color: transparent;
+  color: rgba(226, 226, 226, 0.45);
+  font-size: 14px;
+  transition: background 120ms, color 120ms;
+  min-width: 28px;
+  min-height: 28px;
+}
+.cal-icon-btn label {
+  margin: 0;
+  color: rgba(226, 226, 226, 0.45);
+}
+.cal-icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.cal-icon-btn:hover label {
+  color: #e2e2e2;
+}
+.cal-icon-btn.small {
+  padding: 3px 6px;
+  font-size: 12px;
+  min-width: 22px;
+  min-height: 22px;
+}
+.cal-icon-btn.danger:hover {
+  background-color: rgba(243, 139, 168, 0.1);
+}
+.cal-icon-btn.danger:hover label {
+  color: #f38ba8;
+}
+.cal-icon-btn.danger:hover {
+  border-color: rgba(243, 139, 168, 0.35);
+}
+
+.cal-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 120ms, color 120ms;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(226, 226, 226, 0.45);
+  background-color: transparent;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+}
+.cal-btn label {
+  margin: 0;
+}
+.cal-btn:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #e2e2e2;
+}
+.cal-btn.cal-btn-primary {
+  background-color: rgba(137, 180, 250, 0.12);
+  color: #89b4fa;
+  border-color: rgba(137, 180, 250, 0.25);
+}
+.cal-btn.cal-btn-primary label {
+  color: #89b4fa;
+}
+.cal-btn.cal-btn-primary:hover {
+  background-color: rgba(137, 180, 250, 0.22);
+}
+.cal-btn.cal-btn-secondary {
+  background-color: rgba(0, 0, 0, 0);
+}
+.cal-btn.small {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.cal-dialog-backdrop {
+  background-color: rgba(0, 0, 0, 0.55);
+  padding: 20px;
+}
+
+.cal-dialog-card {
+  background-color: rgba(14, 14, 22, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 20px;
+  min-width: 300px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.cal-dialog-header {
+  margin-bottom: 4px;
+}
+
+.cal-dialog-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e2e2e2;
+  margin: 0;
+}
+
+.cal-dialog-actions {
+  margin-top: 4px;
+}
+
+.cal-form-entry {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: #e2e2e2;
+  font-size: 12px;
+  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+  transition: border-color 120ms;
+}
+.cal-form-entry:focus {
+  border-color: #89b4fa;
+}
+
+.cal-title-entry {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cal-time-entry {
+  min-width: 60px;
+}
+
+.cal-form-row {
+  /* align children via valign on widgets */
+}
+
+.cal-form-label {
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.45);
+  min-width: 80px;
+  margin: 0;
+}
+
+.cal-time-row {
+  /* timing row */
+}
+
+.cal-time-sep {
+  color: rgba(226, 226, 226, 0.25);
+  font-size: 14px;
+  margin: 0;
+}
+
+.cal-panel switch {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  min-width: 40px;
+  min-height: 22px;
+}
+.cal-panel switch:checked {
+  background-color: #89b4fa;
+  border-color: #89b4fa;
+}
+.cal-panel switch slider {
+  background-color: #fff;
+  border-radius: 50%;
+  min-width: 16px;
+  min-height: 16px;
+  margin: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.cal-color-row {
+  padding: 4px 0;
+}
+
+.cal-color-swatch {
+  min-width: 22px;
+  min-height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: border-color 120ms, opacity 120ms;
+  opacity: 0.8;
+}
+.cal-color-swatch:hover {
+  opacity: 1;
+}
+.cal-color-swatch.active {
+  border-color: #e2e2e2;
+  opacity: 1;
+}
+
+.cal-color-purple {
+  background-color: #7F77DD;
+}
+
+.cal-color-teal {
+  background-color: #1D9E75;
+}
+
+.cal-color-red {
+  background-color: #E24B4A;
+}
+
+.cal-color-amber {
+  background-color: #BA7517;
+}
+
+.cal-color-blue {
+  background-color: #378ADD;
+}
+
+.cal-color-pink {
+  background-color: #D4537E;
+}
+
+.cal-month-view {
+  min-width: 380px;
+}
+
+/* ── Notification settings tabs (Phase 3) ───────────────────────────── */
+.st-tabbar {
+  padding: 2px;
+}
+
+.st-tab {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: rgba(226, 226, 226, 0.5);
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  transition: all 120ms ease;
+}
+.st-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e2e2;
+}
+.st-tab.active {
+  background: rgba(203, 166, 247, 0.15);
+  color: #cba6f7;
+}
+
+.st-tab-hint {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.4);
+  font-family: "MesloLGS Nerd Font";
+}
+
+.st-add-btn {
+  background: rgba(166, 227, 161, 0.12);
+  border: 1px solid rgba(166, 227, 161, 0.3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: #a6e3a1;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 11px;
+}
+.st-add-btn:hover {
+  background: rgba(166, 227, 161, 0.2);
+}
+
+/* ── Rule rows + editor (Phase 3) ───────────────────────────────────── */
+.re-row {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.re-row-name {
+  font-size: 12px;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+  font-weight: 500;
+}
+
+.re-row-summary {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font";
+}
+
+.re-row-body {
+  font-size: 9px;
+  color: rgba(226, 226, 226, 0.3);
+  font-family: "MesloLGS Nerd Font";
+}
+
+.re-badge {
+  font-size: 9px;
+  color: rgba(226, 226, 226, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: "MesloLGS Nerd Font";
+}
+
+.re-edit-btn, .re-delete, .re-save, .re-advanced-toggle, .re-seg, .re-toggle {
+  font-family: "MesloLGS Nerd Font";
+  transition: all 100ms ease;
+  border-radius: 6px;
+}
+
+.re-edit-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 30px;
+  min-height: 30px;
+  color: rgba(226, 226, 226, 0.6);
+}
+.re-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e2e2;
+}
+
+.re-panel {
+  padding: 4px 2px;
+}
+
+.re-section {
+  font-size: 11px;
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font";
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.re-field-label {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.5);
+  font-family: "MesloLGS Nerd Font";
+}
+
+.re-entry {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+}
+
+.re-seg, .re-toggle {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 3px 8px;
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.55);
+}
+.re-seg:hover, .re-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e2e2;
+}
+.re-seg.active, .re-toggle.active {
+  background: rgba(137, 180, 250, 0.18);
+  border-color: rgba(137, 180, 250, 0.4);
+  color: #89b4fa;
+}
+
+.re-toggle {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.re-advanced-toggle {
+  background: transparent;
+  border: none;
+  color: rgba(226, 226, 226, 0.5);
+  font-size: 11px;
+  padding: 2px 0;
+}
+
+.re-save {
+  background: rgba(137, 180, 250, 0.15);
+  border: 1px solid rgba(137, 180, 250, 0.3);
+  padding: 6px;
+  color: #89b4fa;
+  font-size: 12px;
+}
+.re-save:hover {
+  background: rgba(137, 180, 250, 0.25);
+}
+
+.re-delete {
+  background: rgba(243, 139, 168, 0.12);
+  border: 1px solid rgba(243, 139, 168, 0.3);
+  padding: 6px 12px;
+  color: #f38ba8;
+  font-size: 12px;
+}
+.re-delete:hover {
+  background: rgba(243, 139, 168, 0.22);
+}
+
+.re-hint {
+  font-size: 9px;
+  color: rgba(226, 226, 226, 0.4);
+  font-family: "MesloLGS Nerd Font";
+}
+
+/* ── Color picker (rules + apps) ─────────────────────────────────────── */
+.cp-auto {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.6);
+  font-family: "MesloLGS Nerd Font";
+  transition: all 100ms ease;
+}
+.cp-auto:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e2e2;
+}
+.cp-auto.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #e2e2e2;
+}
+
+.cp-swatch {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  transition: all 100ms ease;
+}
+.cp-swatch:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.cp-swatch.active {
+  border: 2px solid #ffffff;
+}
+.cp-swatch .cp-swatch-check {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  color: rgba(8, 8, 12, 0.85);
+}
+
+/* Per-app color button in the Apps tab (shows the effective accent). */
+.ns-color-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+}
+.ns-color-btn:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.ns-color-btn.open {
+  border: 2px solid #ffffff;
+}
+.ns-color-btn .ns-color-check {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  color: rgba(8, 8, 12, 0.85);
+}
+
+.ns-color-editor {
+  padding: 8px 12px 4px;
+  margin: 0 8px;
+}
+
+/* ── General settings window (QuickSettings gear) — left vertical nav ── */
+.sp-window {
+  background: transparent;
+}
+
+.sp-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.sp-panel {
+  min-width: 820px;
+  min-height: 560px;
+  background: #08080c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.sp-nav {
+  min-width: 190px;
+  padding: 16px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sp-nav-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font";
+  margin: 2px 8px 10px;
+}
+
+.sp-nav-item {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: rgba(226, 226, 226, 0.6);
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  transition: all 120ms ease;
+}
+.sp-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e2e2;
+}
+.sp-nav-item.active {
+  background: rgba(203, 166, 247, 0.15);
+  color: #cba6f7;
+}
+.sp-nav-item .sp-nav-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 14px;
+}
+
+.sp-content {
+  padding: 18px 20px;
+}
+
+.sp-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+}
+
+.sp-energy-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.sp-energy-card .sp-energy-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 18px;
+  color: #89b4fa;
+}
+.sp-energy-card .sp-energy-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+}
+.sp-energy-card .sp-energy-status.active {
+  color: #fab387;
+}
+.sp-energy-card .sp-energy-icon {
+  color: #a6e3a1;
+}
+.sp-energy-card .sp-energy-sub {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.5);
+  font-family: "MesloLGS Nerd Font";
+}
+
+.sp-field-label {
+  font-size: 12px;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+}
+
+.sp-field-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font";
+}
+
+.sp-field-hint {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.4);
+  font-family: "MesloLGS Nerd Font";
+}
+
+/* ── Centered notification-settings window (Phase 5) ────────────────── */
+.nsw-window {
+  background: transparent;
+}
+
+.nsw-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.nsw-panel {
+  min-width: 760px;
+  min-height: 620px;
+  background: #08080c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+.re-error {
+  font-size: 10px;
+  color: #f38ba8;
+  font-family: "MesloLGS Nerd Font";
+  background: rgba(243, 139, 168, 0.1);
+  border: 1px solid rgba(243, 139, 168, 0.3);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+/*# sourceMappingURL=out.css.map */

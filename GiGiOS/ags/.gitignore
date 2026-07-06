@@ -1,0 +1,9 @@
+# Secretos en texto plano — nunca versionar
+config/spotify-creds.json
+
+# Estado volátil de runtime — no versionar (se regenera solo)
+config/notif-history.json
+config/notif-cleanup-state.json
+config/notif-migrated.json
+config/system_state.json
+config/notifications.json

@@ -1,0 +1,71 @@
+import { Gtk } from "ags/gtk4"
+import { getKeybinds } from "../../data/keybinds"
+import { searchQuery } from "../../state"
+
+export function KeybindsSection() {
+  const allGroups = getKeybinds()
+
+  type RowEntry   = { box: Gtk.Box; binding: string; description: string }
+  type GroupEntry = { groupBox: Gtk.Box; rows: RowEntry[] }
+
+  const content = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["kb-content"] })
+  const groupEntries: GroupEntry[] = []
+
+  for (const group of allGroups) {
+    const titleLabel = new Gtk.Label()
+    titleLabel.label = group.name
+    titleLabel.set_css_classes(["kb-group-title"])
+    titleLabel.halign = Gtk.Align.START
+
+    const groupBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
+    groupBox.append(titleLabel)
+
+    const rows: RowEntry[] = []
+    for (const kb of group.binds) {
+      const rowBox    = new Gtk.Box({ cssClasses: ["kb-row"] })
+      const keyLabel  = new Gtk.Label({ label: kb.binding,     cssClasses: ["kb-key"],  halign: Gtk.Align.START })
+      const descLabel = new Gtk.Label({ label: kb.description, cssClasses: ["kb-desc"], halign: Gtk.Align.START, hexpand: true, ellipsize: 3 })
+      rowBox.append(keyLabel)
+      rowBox.append(descLabel)
+      groupBox.append(rowBox)
+      rows.push({ box: rowBox, binding: kb.binding, description: kb.description })
+    }
+
+    content.append(groupBox)
+    groupEntries.push({ groupBox, rows })
+  }
+
+  const emptyLabel = new Gtk.Label({ label: "Sin resultados", cssClasses: ["kb-empty"] })
+  emptyLabel.visible = false
+  content.append(emptyLabel)
+
+  function applyFilter(q: string) {
+    const norm = q.toLowerCase().trim()
+    let totalVisible = 0
+
+    for (const { groupBox, rows } of groupEntries) {
+      let anyVisible = false
+      for (const row of rows) {
+        const matches = !norm ||
+          row.description.toLowerCase().includes(norm) ||
+          row.binding.toLowerCase().includes(norm)
+        row.box.visible = matches
+        if (matches) anyVisible = true
+      }
+      groupBox.visible = anyVisible
+      if (anyVisible) totalVisible++
+    }
+
+    emptyLabel.visible = totalVisible === 0 && norm.length > 0
+  }
+
+  searchQuery.subscribe(() => applyFilter(searchQuery.get()))
+  applyFilter(searchQuery.get())
+
+  const scroll = new Gtk.ScrolledWindow()
+  scroll.set_css_classes(["kb-scroll"])
+  scroll.vexpand = true
+  scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+  scroll.set_child(content)
+  return scroll
+}
