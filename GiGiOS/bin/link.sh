@@ -22,7 +22,6 @@ LINKS=(
   "hypr::$HOME/.config/hypr"
   "inicializador::$HOME/.config/inicializador"
   "power-save::$HOME/.config/power-save"
-  "jarvis::$HOME/.config/jarvis"
   "state/orion::$HOME/.local/share/orion"
   "wallpapers::$HOME/Wallpapers"
   "assets/face.png::$HOME/.face"

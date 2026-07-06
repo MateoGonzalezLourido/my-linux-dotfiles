@@ -11,7 +11,6 @@ archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 - `hypr/`           — config de Hyprland + hyprlock + scripts  (symlink: `~/.config/hypr`)
 - `inicializador/`  — init.sh de arranque  (symlink: `~/.config/inicializador`)
 - `power-save/`     — flag de ahorro de energía  (symlink: `~/.config/power-save`)
-- `jarvis/`         — repos del launcher  (symlink: `~/.config/jarvis`)
 - `wallpapers/`     — fondos  (symlink: `~/Wallpapers`)
 - `state/orion/`    — datos del launcher  (symlink: `~/.local/share/orion`)
 - `assets/face.png` — foto de perfil  (symlink: `~/.face`)

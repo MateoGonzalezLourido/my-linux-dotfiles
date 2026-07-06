@@ -4,11 +4,13 @@ ags/config/spotify-creds.json
 # Logs de runtime
 hypr/logs/
 
-# Sesiones volátiles de orion
-state/orion/profiles/
+# jarvis: datos privados del launcher (repos detectados) — no versionar
+jarvis/
 
-# Estado del launcher (repos detectados/pinneados) — no versionar
-jarvis/git-repos.json
+# Estado y sesiones del launcher orion — datos por-usuario, no versionar.
+# Se conserva el directorio vía .gitkeep para que el symlink de instalación funcione.
+state/orion/*
+!state/orion/.gitkeep
 
 # Copias archivadas sin uso (código muerto)
 _legacy/
