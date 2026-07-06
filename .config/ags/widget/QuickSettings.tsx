@@ -2063,15 +2063,37 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     }, 2000)
   }
 
+  // A diferencia de NetworkManager (que reescanea solo al encender la radio WiFi),
+  // BlueZ NO inicia discovery al encender el adaptador: hay que llamar a
+  // start_discovery() explícitamente. Por eso, además de escanear al ENTRAR en la
+  // vista con el BT ya encendido, hay que reintentar el escaneo cuando el usuario
+  // enciende el BT estando ya dentro de la sección. El adaptador puede tardar unos
+  // ms en estar disponible tras el power-on, así que reintentamos brevemente.
+  let powerOnTimer: number | null = null
+  const clearPowerOnTimer = () => {
+    if (powerOnTimer !== null) { clearTimeout(powerOnTimer); powerOnTimer = null }
+  }
+  const autoScan = () => {
+    if (!bt.isPowered || scanning.get()) return
+    if (bt.adapter) { scan(5000); return }
+    // Adaptador aún no listo tras el power-on: reintenta una vez cuando aparezca.
+    clearPowerOnTimer()
+    powerOnTimer = setTimeout(() => {
+      powerOnTimer = null
+      if (inBtView() && bt.isPowered && bt.adapter && !scanning.get()) scan(5000)
+    }, 600)
+  }
+
   // Al cerrar el panel: cortar el discovery y todos sus timers (antes la radio
   // seguía escaneando en background hasta agotar el `duration`).
-  quickSettingsVisible.subscribe(() => { if (!quickSettingsVisible.get()) stopScan() })
+  quickSettingsVisible.subscribe(() => { if (!quickSettingsVisible.get()) { stopScan(); clearPowerOnTimer() } })
 
   // Solo refrescamos la lista mientras la vista Bluetooth está visible. Con el QS
   // cerrado o en otra pestaña ignoramos las señales: antes cada notify::devices
   // reconstruía la lista aunque nadie la mirara (mismo patrón que el menú WiFi).
   const inBtView = () => qsView.get() === "bluetooth"
-  bt.connect("notify::is-powered", () => { if (inBtView()) update() })
+  // Al encender el BT dentro de la sección: refresco inmediato + escaneo activo.
+  bt.connect("notify::is-powered", () => { if (inBtView()) { update(); autoScan() } })
   bt.connect("notify::devices", () => { if (inBtView()) update() })
   bt.connect("device-added", () => { if (inBtView()) update() })
   bt.connect("device-removed", () => { if (inBtView()) update() })
@@ -2175,12 +2197,12 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   }
 
   // Al entrar en la vista Bluetooth: refresco inmediato desde la caché + escaneo
-  // activo corto (throttled por el guard de `scanning`). Per-instancia, sin fugas
-  // en globalThis; al salir, stopScan() (ligado a quickSettingsVisible) corta todo.
+  // activo (mismo patrón que WiFi). autoScan() respeta el guard de `scanning` y no
+  // hace nada si el BT está apagado. Al salir, stopScan() corta el discovery.
   qsView.subscribe(() => {
-    if (qsView.get() !== "bluetooth") { stopScan(); return }
+    if (qsView.get() !== "bluetooth") { stopScan(); clearPowerOnTimer(); return }
     update()
-    if (bt.isPowered && !scanning.get()) scan(5000)
+    autoScan()
   })
 
   return (
