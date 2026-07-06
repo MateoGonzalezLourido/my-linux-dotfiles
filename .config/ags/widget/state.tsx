@@ -183,6 +183,25 @@ export function closeAllPanels() {
   closeNotifPanel()
 }
 
+// ── Teclado del bar (solo durante el renumerado de workspaces) ───────────────
+// El bar es una capa layer-shell siempre mapeada; pedir teclado (keymode
+// ON_DEMAND) permite al compositor darle el foco y, al arrancar sesión, quedárselo
+// (había que clicar la app recién abierta). El bar NO necesita teclado salvo por el
+// renumerado de workspaces (Workspaces.tsx: Ctrl+long-press → teclas 1–9). Así que
+// mantenemos el keymode en NONE y solo lo elevamos a ON_DEMAND mientras un
+// renumerado está activo. Ref-contado por si hubiera solapamiento entre botones.
+export const [barKeyboardActive, setBarKeyboardActive] = createState(false)
+let _barKbCount = 0
+export function beginBarKeyboard() {
+  _barKbCount++
+  if (_barKbCount === 1) setBarKeyboardActive(true)
+}
+export function endBarKeyboard() {
+  if (_barKbCount === 0) return
+  _barKbCount--
+  if (_barKbCount === 0) setBarKeyboardActive(false)
+}
+
 // ── Bar Pin (keybind toggle) ─────────────────────────────────────────────────
 export const [barPinnedByKey, setBarPinnedByKey] = createState(false)
 export function toggleBarPin() {

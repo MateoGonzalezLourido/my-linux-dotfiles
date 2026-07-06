@@ -17,7 +17,7 @@ import Recording from "./bar/Recording"
 import MicIndicator from "./bar/MicIndicator"
 import NotificationButton from "./bar/NotificationButton"
 import PowerButton from "./bar/PowerButton"
-import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging, barPinnedByKey, setBarPinnedByKey } from "./state";
+import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging, barPinnedByKey, setBarPinnedByKey, barKeyboardActive } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
@@ -138,13 +138,13 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     focusable={true}
     anchor={TOP | LEFT | RIGHT}
     application={app}
-    // Solo pedimos teclado mientras el ratón está sobre el bar. En reposo (y sobre
-    // todo al iniciar sesión, cuando el bar es la única superficie mapeada) usamos
-    // NONE para que la capa no pueda robar el foco de teclado del compositor: sin
-    // esto, al arrancar AGS el bar se quedaba con el foco y había que clicar la app
-    // recién abierta. ON_DEMAND se reactiva al hacer hover, que es requisito del
-    // único uso de teclado del bar (renumerar workspaces con 1–9 en Workspaces.tsx).
-    keymode={isHovered((h) => h ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
+    // El bar vive en NONE: como es una capa siempre mapeada, en reposo (y sobre todo
+    // al iniciar sesión, cuando es la única superficie) no debe poder recibir el foco
+    // de teclado del compositor, o se lo queda y hay que clicar la app recién abierta.
+    // Solo elevamos a ON_DEMAND mientras un renumerado de workspaces está activo
+    // (Workspaces.tsx pide/suelta vía beginBarKeyboard/endBarKeyboard); ni siquiera el
+    // hover normal pide teclado.
+    keymode={barKeyboardActive((on) => on ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
     marginTop={visible((v) => v ? 0 : -BAR_HEIGHT)}
     cssClasses={visible((v) => v ? ["Bar", "bar-visible"] : ["Bar", "bar-hidden"])}
   >

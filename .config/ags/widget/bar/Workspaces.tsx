@@ -7,7 +7,7 @@ import { createState, For } from "ags"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 
-import { barVisible, setIsWsDragging, setIsWsPreview, panelAutoClose } from "../state.tsx"
+import { barVisible, setIsWsDragging, setIsWsPreview, panelAutoClose, beginBarKeyboard, endBarKeyboard } from "../state.tsx"
 import { wsPreviewEnabled } from "../settings/preferences"
 import { wsPreviewSuspended } from "../power/powerState"
 import { getIcon } from "./appIcons"
@@ -355,14 +355,18 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         }
 
         const cancelRenumber = () => {
+          if (!pendingRenumber) return
           pendingRenumber = false
           self.remove_css_class("ws-renumber-pending")
           if (renumberTimeout !== null) { clearTimeout(renumberTimeout); renumberTimeout = null }
+          endBarKeyboard()  // suelta el teclado del bar → keymode vuelve a NONE
         }
 
         const startRenumber = () => {
+          if (pendingRenumber) return
           pendingRenumber = true
           self.add_css_class("ws-renumber-pending")
+          beginBarKeyboard()  // eleva el keymode del bar a ON_DEMAND antes de tomar el foco
           self.grab_focus()
           renumberTimeout = setTimeout(cancelRenumber, 3000)
         }
