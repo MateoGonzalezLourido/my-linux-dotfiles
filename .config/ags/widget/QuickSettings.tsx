@@ -2004,6 +2004,13 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   const [scanning, setScanning] = createState(false)
   const [showUnnamed, setShowUnnamed] = createState(false)
   const [buffering, setBuffering] = createState(false)
+  const [search, setSearch] = createState("")
+
+  const matchesSearch = (dev: any, query: string) => {
+    if (!query) return true
+    return [dev.alias, dev.name, dev.address]
+      .some((v) => v && String(v).toLowerCase().includes(query))
+  }
 
   const update = () => {
     if (buffering.get()) return
@@ -2086,9 +2093,10 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     return "󰂯"
   }
 
-  const pairedBinding = devices((ds) => {
-    const arr = ds || []
-    return arr.filter(d => d.paired || d.connected).sort((a, b) => {
+  const pairedBinding = createComputed(() => {
+    const arr = devices() || []
+    const query = search().trim().toLowerCase()
+    return arr.filter(d => (d.paired || d.connected) && matchesSearch(d, query)).sort((a, b) => {
       if (a.connected !== b.connected) return a.connected ? -1 : 1;
       const nameA = (a.alias || a.name || a.address || "").toLowerCase();
       const nameB = (b.alias || b.name || b.address || "").toLowerCase();
@@ -2096,18 +2104,20 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     })
   })
 
-  const availableBinding = devices((ds) => {
-    const arr = ds || []
-    return arr.filter(d => !d.paired && !d.connected && hasRealName(d)).sort((a, b) => {
+  const availableBinding = createComputed(() => {
+    const arr = devices() || []
+    const query = search().trim().toLowerCase()
+    return arr.filter(d => !d.paired && !d.connected && hasRealName(d) && matchesSearch(d, query)).sort((a, b) => {
       const nameA = (a.alias || a.name || "").toLowerCase();
       const nameB = (b.alias || b.name || "").toLowerCase();
       return nameA.localeCompare(nameB);
     })
   })
 
-  const unnamedBinding = devices((ds) => {
-    const arr = ds || []
-    return arr.filter(d => !d.paired && !d.connected && !hasRealName(d)).sort((a, b) => {
+  const unnamedBinding = createComputed(() => {
+    const arr = devices() || []
+    const query = search().trim().toLowerCase()
+    return arr.filter(d => !d.paired && !d.connected && !hasRealName(d) && matchesSearch(d, query)).sort((a, b) => {
       const nameA = (a.address || "").toLowerCase();
       const nameB = (b.address || "").toLowerCase();
       return nameA.localeCompare(nameB);
@@ -2177,7 +2187,17 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     <box cssClasses={["qs-bluetooth-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
       <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
         <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
-        <label cssClasses={["qs-section-label"]} label="Bluetooth" hexpand halign={Gtk.Align.START} />
+        <label cssClasses={["qs-section-label"]} label="Bluetooth" halign={Gtk.Align.START} />
+        <box cssClasses={["qs-wifi-search"]} spacing={5} hexpand valign={Gtk.Align.CENTER}>
+          <label cssClasses={["qs-wifi-search-icon"]} label="󰍉" />
+          <Gtk.Entry
+            cssClasses={["qs-wifi-search-entry"]}
+            placeholderText="Buscar dispositivos"
+            hexpand
+            text={search()}
+            onChanged={(self) => setSearch(self.text)}
+          />
+        </box>
         <button
           cssClasses={["qs-icon-btn"]}
           onClicked={() => execAsync("blueman-manager")}
@@ -2238,9 +2258,11 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
           </box>
 
           <label
-            label="No se encontraron dispositivos"
+            label={search((q) => q.trim() ? "Sin resultados" : "No se encontraron dispositivos")}
             css="opacity: 0.5; margin-top: 20px;"
-            visible={devices((ds) => ds.length === 0)}
+            visible={createComputed(() =>
+              pairedBinding().length === 0 && availableBinding().length === 0 && unnamedBinding().length === 0
+            )}
           />
         </box>
       </Gtk.ScrolledWindow>
@@ -2270,6 +2292,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   const [passwordStr, setPasswordStr] = createState("")
   const [wifiState, setWifiState] = createState({ ssid: wifi.ssid || "", connecting: null as string | null })
   const [savedSsids, setSavedSsids] = createState<string[]>([])
+  const [search, setSearch] = createState("")
 
   const getBand = (freq: number) => {
     if (freq >= 5900) return "6GHz"
@@ -2354,7 +2377,17 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
     <box cssClasses={["qs-wifi-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
       <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
         <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
-        <label cssClasses={["qs-section-label"]} label="Wi-Fi" hexpand halign={Gtk.Align.START} />
+        <label cssClasses={["qs-section-label"]} label="Wi-Fi" halign={Gtk.Align.START} />
+        <box cssClasses={["qs-wifi-search"]} spacing={5} hexpand valign={Gtk.Align.CENTER}>
+          <label cssClasses={["qs-wifi-search-icon"]} label="󰍉" />
+          <Gtk.Entry
+            cssClasses={["qs-wifi-search-entry"]}
+            placeholderText="Buscar redes"
+            hexpand
+            text={search()}
+            onChanged={(self) => setSearch(self.text)}
+          />
+        </box>
         <button
           cssClasses={["qs-icon-btn"]}
           onClicked={() => execAsync("nm-connection-editor")}
@@ -2383,8 +2416,10 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
           <Gtk.GestureClick onPressed={() => setInfoSsid(null)} />
           <For each={() => {
             const seen = new Set()
+            const query = search().trim().toLowerCase()
             const unique = apsVar()
               .filter(ap => ap.ssid)
+              .filter(ap => !query || ap.ssid.toLowerCase().includes(query))
               .sort((a, b) => {
                 const connected = wifiState.get().ssid
                 if (a.ssid === connected) return -1
