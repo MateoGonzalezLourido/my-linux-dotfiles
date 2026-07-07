@@ -17,5 +17,9 @@ _legacy/
 # Snapshots de migración
 preflight-snapshot.txt
 
+# Cache / datos de runtime por-usuario — no versionar.
+# Los subdirectorios los crea bin/link.sh si faltan (marcados CREATABLE).
+cache/
+
 # Metadatos de escritorio
 **/.directory
