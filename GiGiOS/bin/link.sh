@@ -23,7 +23,6 @@ LINKS=(
   "inicializador::$HOME/.config/inicializador"
   "cache/power-save::$HOME/.config/power-save"
   "state/orion::$HOME/.local/share/orion"
-  "wallpapers::$HOME/Wallpapers"
   "assets/face.png::$HOME/.face"
 )
 

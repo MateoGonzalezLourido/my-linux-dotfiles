@@ -10,8 +10,8 @@ archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 - `ags/`            — shell de AGS  (symlink: `~/.config/ags`)
 - `hypr/`           — config de Hyprland + hyprlock + scripts  (symlink: `~/.config/hypr`)
 - `inicializador/`  — init.sh de arranque  (symlink: `~/.config/inicializador`)
-- `power-save/`     — flag de ahorro de energía  (symlink: `~/.config/power-save`)
-- `wallpapers/`     — fondos  (symlink: `~/Wallpapers`)
+- `cache/power-save/` — flag de ahorro de energía, runtime git-ignored  (symlink: `~/.config/power-save`)
+- `Wallpapers/`     — fondos  (usados directo por `wallpaper.sh`, sin symlink)
 - `state/orion/`    — datos del launcher  (symlink: `~/.local/share/orion`)
 - `assets/face.png` — foto de perfil  (symlink: `~/.face`)
 - `_legacy/`        — copias archivadas sin uso
