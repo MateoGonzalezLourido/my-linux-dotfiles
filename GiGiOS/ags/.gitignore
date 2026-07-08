@@ -7,3 +7,14 @@ config/notif-cleanup-state.json
 config/notif-migrated.json
 config/system_state.json
 config/notifications.json
+
+# Generado / desechable — no versionar
+# @girs/: stubs de tipos GObject, se regeneran con `ags types`
+@girs/
+# scratch/: scripts de inspección/pruebas desechables
+scratch/
+# out.css.map: source-map de depuración generado desde style.scss
+out.css.map
+
+#config de vscode (actualmente no se usa)
+.vscode/
