@@ -21,5 +21,12 @@ preflight-snapshot.txt
 # Los subdirectorios los crea bin/link.sh si faltan (marcados CREATABLE).
 cache/
 
+# Foto de perfil: mecanismo viejo eliminado (ahora estandarizada en
+# ~/.cache/gigios/face.png, ver hypr/SETUP.md §13). Se ignoran para que los
+# dispositivos que todavía los tienen en disco no los vuelvan a añadir.
+ags/config/fotoPerfil.txt
+hypr/hyprlock_avatar.png
+assets/face.png
+
 # Metadatos de escritorio
 **/.directory
