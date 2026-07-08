@@ -23,7 +23,6 @@ LINKS=(
   "inicializador::$HOME/.config/inicializador"
   "cache/power-save::$HOME/.config/power-save"
   "state/orion::$HOME/.local/share/orion"
-  "assets/face.png::$HOME/.face"
 )
 
 # Orígenes que son datos de runtime y arrancan vacíos: se crean si faltan,
@@ -90,6 +89,25 @@ for entry in "${LINKS[@]}"; do
   ln -sfn "$src" "$dst"
   echo "LINK  $dst -> $src"
 done
+
+# ── Foto de perfil ───────────────────────────────────────────────────────────
+# Copia única de runtime en el cache XDG (~/.cache/gigios/face.png); la leen tanto
+# AGS (QuickSettings) como hyprlock. El master versionado es assets/face.png; el
+# cache es desechable y no se versiona. Se copia (no symlink) para desacoplar el
+# runtime del repo.
+face_src="$GIGIOS/assets/face.png"
+face_dst="$HOME/.cache/gigios/face.png"
+if [[ ! -e "$face_src" ]]; then
+  echo "FALTA origen: $face_src (esperado para $face_dst)"; status=1
+elif [[ -f "$face_dst" ]] && cmp -s "$face_src" "$face_dst"; then
+  echo "OK    $face_dst"
+elif [[ "$mode" == check ]]; then
+  echo "DIFIERE $face_dst (esperado copia de $face_src)"; status=1
+else
+  mkdir -p "$(dirname "$face_dst")"
+  cp -f "$face_src" "$face_dst"
+  echo "COPY  $face_dst <- $face_src"
+fi
 
 if [[ "$mode" == force && -d "$LINK_BACKUP" ]]; then
   echo "Respaldos en: $LINK_BACKUP"

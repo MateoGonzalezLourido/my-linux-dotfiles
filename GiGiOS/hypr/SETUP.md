@@ -15,7 +15,7 @@ sudo pacman -S hyprland hyprlock hypridle hyprpolkitagent hyprsunset
 ```
 
 - `hypridle` gestiona apagar pantalla / bloquear / suspender (`hypridle.conf`).
-- `hyprlock` es la pantalla de bloqueo (`hyprlock.conf`, usa `~/.config/hypr/hyprlock_avatar.png`
+- `hyprlock` es la pantalla de bloqueo (`hyprlock.conf`, usa `~/.cache/gigios/face.png`
   y el label `$USER` — no hace falta nada extra).
 - `hyprpolkitagent` se lanza en `autostart.conf` desde la ruta fija
   `/usr/lib/hyprpolkitagent/hyprpolkitagent`; si el paquete instala el binario en otro
@@ -232,9 +232,10 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
   (`monitor = , preferred, auto, 1`), lo cual funciona pero sin el escalado 1.33 pensado
   para esta pantalla. Ajusta o borra esa línea según el monitor real del PC destino
   (`hyprctl monitors` te da el descriptor correcto una vez arrancado).
-- **`~/.face`** es un symlink a una captura de pantalla concreta
-  (`~/Imágenes/2026-05-11-104902_hyprshot.png`) que usa `hyprlock.conf` como foto de
-  perfil. Copia esa imagen o vuelve a crear el symlink con tu propia foto en el PC nuevo.
+- **Foto de perfil**: el master versionado es `assets/face.png`; `bin/link.sh` la copia a
+  `~/.cache/gigios/face.png`, la única copia de runtime que leen tanto `hyprlock` como el
+  avatar de AGS. Para cambiarla, reemplaza `assets/face.png` y vuelve a correr `bin/link.sh`
+  (viaja versionada con el repo, así que en el PC nuevo no hace falta copiar nada aparte).
 - **`~/.config/jarvis/git-repos.json`** (Orion → sección Git) tiene rutas de repos locales
   de esta máquina (ej. `~/Documentos/Github/Ravage`); si esas rutas no existen en el PC
   nuevo, la sección Git de Orion simplemente no los mostrará — no es un error, solo revisa
@@ -255,8 +256,8 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
 4. Instala el resto de utilidades de escritorio (§4, §6).
 5. Corre `spotify-auth.sh` una vez (§7) para regenerar `config/spotify-creds.json`.
 6. Instala las deps de los scripts de monitorización (§8).
-7. Ajusta lo específico de esta máquina (§10): `monitors.conf`, `~/.face`,
-   `nvidia.conf`/`envs/firefox.conf` si no hay NVIDIA, `~/Wallpapers/`.
+7. Ajusta lo específico de esta máquina (§10): `monitors.conf`, foto de perfil
+   (`assets/face.png`), `nvidia.conf`/`envs/firefox.conf` si no hay NVIDIA, `~/Wallpapers/`.
 8. Copia `~/.config/hypr/` y `~/.config/ags/` (incluyendo `config/*.json` si quieres el
    mismo estado), recarga Hyprland (`hyprctl reload` o relogin) y comprueba con
    `ags run ~/.config/ags/app.ts` que el shell arranca sin errores.
@@ -302,29 +303,25 @@ actualmente, solo como referencia si lo quieres tú mismo).
 
 ## 13. Cómo poner tu foto de perfil
 
-Hay **dos sitios independientes** que muestran una foto de perfil, y no se sincronizan
-solos — hoy en esta máquina ambos apuntan a la misma imagen
-(`~/Imágenes/2026-05-11-104902_hyprshot.png`), pero es por convención, no automático:
+La foto de perfil está **estandarizada en un solo archivo**. El master versionado es
+`assets/face.png` (viaja con el repo); `bin/link.sh` lo copia a `~/.cache/gigios/face.png`,
+que es la **única copia de runtime**. La leen los dos sitios que muestran tu foto,
+así que siempre coinciden:
 
-1. **Pantalla de bloqueo (`hyprlock`)** — usa el symlink `~/.face` (ver `hyprlock.conf`,
-   bloque `image` con `path = ~/.face`). Para cambiarla:
-   ```sh
-   ln -sf /ruta/a/tu/foto.png ~/.face
-   ```
-   (`ln -sf` sobreescribe el symlink si ya existe; no copies la imagen encima, `~/.face`
-   está pensado como enlace).
+1. **Pantalla de bloqueo (`hyprlock`)** — `hyprlock.conf`, bloque `image` con
+   `path = ~/.cache/gigios/face.png`.
+2. **Footer de QuickSettings de AGS** (el avatar) — `widget/QuickSettings.tsx`, función
+   `getAvatarPath`, lee `~/.cache/gigios/face.png`. Si el archivo no existe, AGS cae a
+   mostrar las iniciales del usuario (no rompe nada).
 
-2. **Panel de QuickSettings de AGS** (el avatar que aparece en el footer) — lee la ruta
-   contenida como texto plano en `~/.config/ags/config/fotoPerfil.txt`
-   (`widget/QuickSettings.tsx`, función `getAvatarPath`). **No hay selector de imagen en la
-   UI todavía** — el fichero se edita a mano:
-   ```sh
-   echo "/ruta/a/tu/foto.png" > ~/.config/ags/config/fotoPerfil.txt
-   ```
-   Si el fichero no existe, o la ruta que contiene no apunta a un archivo real, AGS cae a
-   mostrar las iniciales del usuario en vez de una imagen (no rompe nada).
-
-Para que ambos coincidan, usa la misma ruta de imagen en los dos pasos.
+Para cambiar la foto:
+```sh
+cp /ruta/a/tu/foto.png ~/GiGiOS/assets/face.png   # actualiza el master versionado
+bin/link.sh                                        # refresca ~/.cache/gigios/face.png
+```
+Alternativa rápida (temporal): copiar tu imagen directamente sobre
+`~/.cache/gigios/face.png` — la próxima corrida de `link.sh` la vuelve a sincronizar
+desde el master.
 
 ## 14. Inventario de rutas — qué es tuyo y qué no
 
@@ -340,7 +337,6 @@ migrar y qué se regenera solo.
 | `~/.config/ags/config/system_state.json` | estado guardado de wifi/bluetooth/volumen/mute |
 | `~/.config/ags/config/audioPresets.json` | presets de audio de QuickSettings |
 | `~/.config/ags/config/app_icons.json` | caché de iconos de apps resueltos |
-| `~/.config/ags/config/fotoPerfil.txt` | ruta a tu foto de perfil (ver §13) |
 | `~/.config/ags/config/preferences.json` | preferencias de "Personalización" (p.ej. preview de workspace) |
 | `~/.config/ags/config/notifications.json` | config de notificaciones |
 | `~/.config/ags/config/notif-rules.json` | reglas del motor de notificaciones |
@@ -352,10 +348,9 @@ migrar y qué se regenera solo.
 | `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
 | `~/.local/share/orion/profiles/*.json` | sesiones guardadas de Orion (`ProfileManager.ts`) |
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `widget/power/powerState.ts`) |
-| `~/.face` (symlink) | foto de perfil para `hyprlock` (§13) |
+| `~/GiGiOS/assets/face.png` | foto de perfil (master versionado); `link.sh` la copia a `~/.cache/gigios/face.png` (§13) |
 | `~/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
 | `~/.config/ags/config/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
-| `~/.config/hypr/hyprlock_avatar.png` | imagen de perfil de respaldo dentro del propio repo `hypr/` (viaja con el repo, pero es tuya, no genérica) |
 
 ### 14.2 Config/código del dotfiles — genérico, viaja igual para cualquiera que use este setup
 

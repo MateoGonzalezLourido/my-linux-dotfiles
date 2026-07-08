@@ -1949,18 +1949,12 @@ function QsFooter() {
   const host = GLib.get_host_name() ?? "host"
   const initials = user.slice(0, 2).toUpperCase()
 
+  // Foto de perfil: copia única de runtime en el cache XDG
+  // (~/.cache/gigios/face.png), compartida con hyprlock. La materializa
+  // bin/link.sh desde el master versionado assets/face.png.
   const getAvatarPath = () => {
-    const configDir = GLib.get_user_config_dir()
-    const path = `${configDir}/ags/config/fotoPerfil.txt`
-    try {
-      const [ok, content] = GLib.file_get_contents(path)
-      if (ok) {
-        const str = new TextDecoder().decode(content).trim()
-        if (str && GLib.file_test(str, GLib.FileTest.EXISTS)) {
-          return str
-        }
-      }
-    } catch (e) { }
+    const path = `${GLib.get_user_cache_dir()}/gigios/face.png`
+    if (GLib.file_test(path, GLib.FileTest.EXISTS)) return path
     return null
   }
 
