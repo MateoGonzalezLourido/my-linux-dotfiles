@@ -13,7 +13,7 @@
 import GLib from "gi://GLib"
 import { createState } from "ags"
 
-const PREFS_PATH = `${GLib.get_user_config_dir()}/ags/config/preferences.json`
+const PREFS_PATH = `${GLib.get_user_config_dir()}/gigios/preferences.json`
 
 // ── Estado reactivo ───────────────────────────────────────────────────────────
 // Preview de workspace: captura con grim al cambiar de workspace + popover al

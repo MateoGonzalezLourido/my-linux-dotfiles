@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Setup único: obtiene un refresh_token de Spotify y lo guarda en texto plano en
-# config/spotify-creds.json (chmod 600). Específico del escritorio ags.
+# ~/.config/gigios/spotify-creds.json (chmod 600). Específico del escritorio ags.
 set -euo pipefail
 
 REDIRECT="http://127.0.0.1:8888/callback"
 SCOPES="user-library-read user-library-modify"
-CREDS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/ags/config/spotify-creds.json"
+CREDS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/spotify-creds.json"
 
 command -v python3 >/dev/null || { echo "Falta python3"; exit 1; }
 

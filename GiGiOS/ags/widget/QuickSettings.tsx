@@ -84,7 +84,7 @@ try {
 }
 
 // ── Persistence Utilities ──────────────────────────────────────────────────────
-const PRESETS_PATH = `${GLib.get_user_config_dir()}/ags/config/audioPresets.json`
+const PRESETS_PATH = `${GLib.get_user_config_dir()}/gigios/audioPresets.json`
 
 function loadAudioPresets(): Record<string, number> {
   try {
@@ -284,7 +284,7 @@ function makeVolThrottle(apply: (v: number) => void) {
   }
 }
 
-const DISPLAY_CONFIG_PATH = `${GLib.get_user_config_dir()}/ags/config/display.json`
+const DISPLAY_CONFIG_PATH = `${GLib.get_user_config_dir()}/gigios/display.json`
 
 function loadDisplayConfig() {
   try {
@@ -330,7 +330,7 @@ if (dispConfig.nightLightActive) {
 }
 
 // ── System State Persistence (Wifi, BT, Vol) ──────────────────────────────────
-const SYSTEM_STATE_PATH = `${GLib.get_user_config_dir()}/ags/config/system_state.json`
+const SYSTEM_STATE_PATH = `${GLib.get_user_config_dir()}/gigios/system_state.json`
 
 let systemSaveTimeout: number | null = null
 function saveSystemState() {

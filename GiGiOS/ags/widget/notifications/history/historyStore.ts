@@ -13,7 +13,7 @@ import {
   upsertEntry, collapseDuplicates, trimByRecency, applyRuleExclusion,
 } from "./historyLogic.ts"
 
-const HISTORY_PATH = `${GLib.get_user_config_dir()}/ags/config/notif-history.json`
+const HISTORY_PATH = `${GLib.get_user_config_dir()}/gigios/notif-history.json`
 
 function loadHistory(): HistoryEntry[] {
   try {

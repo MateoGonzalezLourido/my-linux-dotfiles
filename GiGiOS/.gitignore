@@ -1,5 +1,16 @@
-# Secretos — jamás commitear
-ags/config/spotify-creds.json
+#seguridad, por si se cuelan archivos no deseados
+*.exe
+*.AppImage
+*.tar.gz
+*.pdf
+*.zip
+*.PKGINFO
+
+
+# Ajustes/estado/secretos de usuario de AGS: movidos a ~/.config/gigios/, fuera del
+# repo (bin/link.sh los migra; ver hypr/SETUP.md §14). config/ ya no forma parte del
+# repo — se ignora para que dispositivos que aún lo tengan no lo vuelvan a añadir.
+ags/config/
 
 # Logs de runtime
 hypr/logs/
@@ -24,7 +35,7 @@ cache/
 # Foto de perfil: mecanismo viejo eliminado (ahora estandarizada en
 # ~/.cache/gigios/face.png, ver hypr/SETUP.md §13). Se ignoran para que los
 # dispositivos que todavía los tienen en disco no los vuelvan a añadir.
-ags/config/fotoPerfil.txt
+# (fotoPerfil.txt queda cubierto por `ags/config/` de arriba.)
 hypr/hyprlock_avatar.png
 assets/face.png
 

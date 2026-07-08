@@ -109,6 +109,35 @@ else
   echo "COPY  $face_dst <- $face_src"
 fi
 
+# ── Migración: ajustes de AGS -> ~/.config/gigios ────────────────────────────
+# Antes los JSON de usuario/estado de AGS vivían en ~/.config/ags/config/ (dentro
+# del symlink al repo, así que caían versionados). Ahora la UI de AGS escribe en
+# ~/.config/gigios/, una carpeta real fuera del repo. Se mueve una sola vez lo que
+# quede en la ruta vieja; no se pisa lo ya migrado.
+old_cfg="$HOME/.config/ags/config"
+new_cfg="$HOME/.config/gigios"
+if [[ "$mode" != check ]]; then
+  mkdir -p "$new_cfg"
+fi
+if [[ -d "$old_cfg" ]]; then
+  shopt -s nullglob
+  for f in "$old_cfg"/*; do
+    name="$(basename "$f")"
+    if [[ -e "$new_cfg/$name" ]]; then
+      echo "SKIP  $new_cfg/$name (ya migrado)"
+    elif [[ "$mode" == check ]]; then
+      echo "PENDIENTE migrar $f -> $new_cfg/$name"; status=1
+    else
+      mv "$f" "$new_cfg/$name"
+      echo "MOVE  $f -> $new_cfg/$name"
+    fi
+  done
+  shopt -u nullglob
+  if [[ "$mode" != check ]]; then
+    rmdir "$old_cfg" 2>/dev/null || true
+  fi
+fi
+
 if [[ "$mode" == force && -d "$LINK_BACKUP" ]]; then
   echo "Respaldos en: $LINK_BACKUP"
 fi

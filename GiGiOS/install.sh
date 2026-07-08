@@ -74,7 +74,7 @@ info "Instalación completa."
 echo "  • Rama:     $BRANCH"
 [ -d "$BACKUP" ] && echo "  • Backups:  $BACKUP"
 cat <<'EOF'
-  • Secreto:  ags/config/spotify-creds.json NO viene en el repo (git-ignored).
+  • Secreto:  ~/.config/gigios/spotify-creds.json NO viene en el repo (git-ignored).
               Restaurá tu copia o corré  ~/GiGiOS/ags/scripts/spotify-auth.sh
   • Shell:    abrí una terminal nueva para tener el alias 'dotfiles'.
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:

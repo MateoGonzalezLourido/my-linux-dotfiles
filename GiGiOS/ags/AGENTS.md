@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This is an AGS v2/Astal desktop shell for Hyprland/Wayland, written in TypeScript and JSX for GTK4. `app.ts` is the entry point and creates top-level windows per monitor. Most UI code lives in `widget/`: `widget/bar/` contains bar modules, `widget/notifications/` contains notification UI plus pure logic, `widget/orion/` contains the Jarvis/Orion launcher, and `widget/calendar/` contains calendar views. Global state and panel orchestration are in `widget/state.tsx`. Styling is centered in `style.scss`; `out.css` and `out.css.map` are generated artifacts and should not be edited manually. Runtime JSON data lives in `config/`. Generated GObject type stubs live in `@girs/` for editor/type support.
+This is an AGS v2/Astal desktop shell for Hyprland/Wayland, written in TypeScript and JSX for GTK4. `app.ts` is the entry point and creates top-level windows per monitor. Most UI code lives in `widget/`: `widget/bar/` contains bar modules, `widget/notifications/` contains notification UI plus pure logic, `widget/orion/` contains the Jarvis/Orion launcher, and `widget/calendar/` contains calendar views. Global state and panel orchestration are in `widget/state.tsx`. Styling is centered in `style.scss`; `out.css` and `out.css.map` are generated artifacts and should not be edited manually. Runtime JSON data lives **outside the repo** in `~/.config/gigios/` (written/read at runtime; `bin/link.sh` migrates any leftovers from the old in-repo `config/` dir). Generated GObject type stubs live in `@girs/` for editor/type support.
 
 ## Build, Test, and Development Commands
 
@@ -26,4 +26,4 @@ Git history is not available from this checkout, so no repository-specific commi
 
 ## Security & Configuration Tips
 
-Treat `config/*.json` as runtime data and avoid committing local secrets or machine-specific paths. Keep generated files and editor stubs out of manual edits unless regeneration is the explicit task.
+Treat the runtime JSON in `~/.config/gigios/` as user data and avoid committing local secrets or machine-specific paths. Keep generated files and editor stubs out of manual edits unless regeneration is the explicit task.

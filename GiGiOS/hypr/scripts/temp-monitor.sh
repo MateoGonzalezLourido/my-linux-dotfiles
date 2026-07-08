@@ -14,7 +14,7 @@
 #   - The poll interval is adaptive: wide (idle) normally, and only tightens
 #     up once a reading gets close to WARN_TEMP.
 
-AGS_PREFS_CONFIG="$HOME/.config/ags/config/preferences.json"
+AGS_PREFS_CONFIG="$HOME/.config/gigios/preferences.json"
 
 # Ajuste "Monitor de temperatura" en Personalización (ags). Se lee UNA sola
 # vez aquí al arrancar — nada de polling — así que activar/desactivar el

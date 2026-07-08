@@ -7,7 +7,7 @@ import type { NotifRule } from "./types.ts"
 import { BUILTIN_RULES } from "./defaults.ts"
 import { compileRules, type RuleIndex } from "./engine.ts"
 
-const RULES_PATH = `${GLib.get_user_config_dir()}/ags/config/notif-rules.json`
+const RULES_PATH = `${GLib.get_user_config_dir()}/gigios/notif-rules.json`
 
 interface RulesFile {
   userRules: NotifRule[]

@@ -35,7 +35,7 @@ export interface AppSettings {
 
 // ── Persistencia ──────────────────────────────────────────────────────────────
 
-const NOTIF_STORE_PATH = `${GLib.get_user_config_dir()}/ags/config/notifications.json`
+const NOTIF_STORE_PATH = `${GLib.get_user_config_dir()}/gigios/notifications.json`
 
 const DEFAULT_META: NotifMeta = {
   lifetime: "persistent", clearOnBoot: false, noHistory: false,

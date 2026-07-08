@@ -21,7 +21,7 @@ sudo pacman -S hyprland hyprlock hypridle hyprpolkitagent hyprsunset
   `/usr/lib/hyprpolkitagent/hyprpolkitagent`; si el paquete instala el binario en otro
   sitio en la otra distro, ajusta esa línea.
 - `hyprsunset` es la luz nocturna (la activa `~/.config/inicializador/init.sh` leyendo
-  `ags/config/display.json`). **Nota de `hyprland.conf`**: `render { cm_enabled = false }`
+  `~/.config/gigios/display.json`). **Nota de `hyprland.conf`**: `render { cm_enabled = false }`
   está así a propósito porque el CTM de color management de Hyprland pisa el de
   `hyprsunset` y se ve lavado — no lo actives sin desactivar uno de los dos.
 - Fuente del compositor de la sesión watchdog: `hyprland-watchdog.sh` asume que Hyprland
@@ -168,7 +168,7 @@ sudo pacman -S wl-clipboard cliphist
 
 El servicio Spotify de AGS (`widget/services/spotify/SpotifyService.ts`) y el script
 `~/.config/ags/scripts/spotify-auth.sh` guardan/leen las credenciales en **texto plano**
-en `~/.config/ags/config/spotify-creds.json` (chmod 600, git-ignored). No hay KWallet ni
+en `~/.config/gigios/spotify-creds.json` (chmod 600, git-ignored). No hay KWallet ni
 Secret Service: se retiró a propósito porque bajo Hyprland pedía la contraseña del monedero
 en cada arranque. No hace falta instalar `kwallet`/`libsecret` ni lanzar ningún `ksecretd`.
 
@@ -242,7 +242,7 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
   que las rutas sigan siendo válidas o vuelve a dejar que el auto-scan los descubra.
 - **`~/Wallpapers/`** no viaja con `~/.config` — cópiala aparte o `wallpaper.sh` no
   encontrará nada que mostrar.
-- Los JSON en `~/.config/ags/config/` (`display.json`, `system_state.json`,
+- Los JSON en `~/.config/gigios/` (`display.json`, `system_state.json`,
   `preferences.json`, `notif-*.json`, etc.) sí son datos de usuario y sí conviene copiarlos
   si quieres el mismo estado (brillo, night light, reglas de notificación...) en el PC
   nuevo — son runtime data, no forman parte del código.
@@ -254,12 +254,12 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
    `sass style.scss out.css`.
 3. Instala fuentes (§3) y copia las que no están empaquetadas.
 4. Instala el resto de utilidades de escritorio (§4, §6).
-5. Corre `spotify-auth.sh` una vez (§7) para regenerar `config/spotify-creds.json`.
+5. Corre `spotify-auth.sh` una vez (§7) para regenerar `~/.config/gigios/spotify-creds.json`.
 6. Instala las deps de los scripts de monitorización (§8).
 7. Ajusta lo específico de esta máquina (§10): `monitors.conf`, foto de perfil
    (`assets/face.png`), `nvidia.conf`/`envs/firefox.conf` si no hay NVIDIA, `~/Wallpapers/`.
-8. Copia `~/.config/hypr/` y `~/.config/ags/` (incluyendo `config/*.json` si quieres el
-   mismo estado), recarga Hyprland (`hyprctl reload` o relogin) y comprueba con
+8. Copia `~/.config/hypr/` y `~/.config/ags/` (y `~/.config/gigios/` si quieres el
+   mismo estado de ajustes), recarga Hyprland (`hyprctl reload` o relogin) y comprueba con
    `ags run ~/.config/ags/app.ts` que el shell arranca sin errores.
 9. No olvides lo que **no vive dentro de ninguno de los dos repos** (ver §14, tabla
    "fuera de ambos repos"): `~/.local/bin/*.fish`, `~/.config/inicializador/init.sh` y
@@ -333,16 +333,16 @@ migrar y qué se regenera solo.
 
 | Ruta | Qué guarda |
 |---|---|
-| `~/.config/ags/config/display.json` | brillo, night light (activo/temperatura) |
-| `~/.config/ags/config/system_state.json` | estado guardado de wifi/bluetooth/volumen/mute |
-| `~/.config/ags/config/audioPresets.json` | presets de audio de QuickSettings |
-| `~/.config/ags/config/app_icons.json` | caché de iconos de apps resueltos |
-| `~/.config/ags/config/preferences.json` | preferencias de "Personalización" (p.ej. preview de workspace) |
-| `~/.config/ags/config/notifications.json` | config de notificaciones |
-| `~/.config/ags/config/notif-rules.json` | reglas del motor de notificaciones |
-| `~/.config/ags/config/notif-history.json` | historial de notificaciones |
-| `~/.config/ags/config/notif-cleanup-state.json` | estado del motor de limpieza de notifs |
-| `~/.config/ags/config/notif-migrated.json` | marca de migración ya aplicada (evita re-migrar) |
+| `~/.config/gigios/display.json` | brillo, night light (activo/temperatura) |
+| `~/.config/gigios/system_state.json` | estado guardado de wifi/bluetooth/volumen/mute |
+| `~/.config/gigios/audioPresets.json` | presets de audio de QuickSettings |
+| `~/.config/gigios/app_icons.json` | caché de iconos de apps resueltos |
+| `~/.config/gigios/preferences.json` | preferencias de "Personalización" (p.ej. preview de workspace) |
+| `~/.config/gigios/notifications.json` | config de notificaciones |
+| `~/.config/gigios/notif-rules.json` | reglas del motor de notificaciones |
+| `~/.config/gigios/notif-history.json` | historial de notificaciones |
+| `~/.config/gigios/notif-cleanup-state.json` | estado del motor de limpieza de notifs |
+| `~/.config/gigios/notif-migrated.json` | marca de migración ya aplicada (evita re-migrar) |
 | `~/.config/ags/calendar-events.json` | tus eventos del panel de calendario |
 | `~/.config/jarvis/git-repos.json` | repos que Orion conoce para la sección Git (rutas locales — revisa que existan en el PC nuevo) |
 | `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
@@ -350,13 +350,13 @@ migrar y qué se regenera solo.
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `widget/power/powerState.ts`) |
 | `~/GiGiOS/assets/face.png` | foto de perfil (master versionado); `link.sh` la copia a `~/.cache/gigios/face.png` (§13) |
 | `~/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
-| `~/.config/ags/config/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
+| `~/.config/gigios/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
 
 ### 14.2 Config/código del dotfiles — genérico, viaja igual para cualquiera que use este setup
 
 Todo lo demás dentro de `~/.config/hypr/*.conf`, `~/.config/hypr/scripts/`,
-`~/.config/hypr/envs/`, y todo `~/.config/ags/` salvo la carpeta `config/` y
-`calendar-events.json` de la tabla anterior: `app.ts`, `widget/**`, `style.scss`
+`~/.config/hypr/envs/`, y todo `~/.config/ags/` salvo `calendar-events.json` de la
+tabla anterior: `app.ts`, `widget/**`, `style.scss`
 (→ `out.css` generado, no se edita a mano).
 
 ### 14.3 Fuera de ambos repos — ¡no se copian solas al copiar `hypr/` o `ags/`!

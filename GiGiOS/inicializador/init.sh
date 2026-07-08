@@ -2,7 +2,7 @@
 
 # ~/.config/inicializador/init.sh
 
-CONFIG_DIR="$HOME/.config/ags/config"
+CONFIG_DIR="$HOME/.config/gigios"
 DISPLAY_CONFIG="$CONFIG_DIR/display.json"
 STATE_CONFIG="$CONFIG_DIR/system_state.json"
 

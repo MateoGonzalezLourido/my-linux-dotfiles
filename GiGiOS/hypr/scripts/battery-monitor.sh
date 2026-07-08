@@ -13,7 +13,7 @@
 
 BATTERY=/sys/class/power_supply/BAT0
 POWER_SAVE_CONFIG="$HOME/.config/power-save/config.json"
-AGS_PREFS_CONFIG="$HOME/.config/ags/config/preferences.json"
+AGS_PREFS_CONFIG="$HOME/.config/gigios/preferences.json"
 LOW_THRESHOLDS=(10 8 6 4 2 0)
 DEFAULT_POWER_SAVE_THRESHOLD=15
 THRESHOLD_REFRESH_SECS=600   # re-read power-save config at most every 10min

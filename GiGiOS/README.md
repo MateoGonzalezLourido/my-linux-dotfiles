@@ -30,5 +30,5 @@ real (sin migrar), avisa y no la toca.
 ## Restore en una máquina nueva
 
 1. Clonar este repo en `~/GiGiOS`.
-2. Restaurar `ags/config/spotify-creds.json` (secreto, fuera de git; chmod 600).
+2. Restaurar `~/.config/gigios/spotify-creds.json` (secreto, fuera de git; chmod 600).
 3. Correr `bin/link.sh`.

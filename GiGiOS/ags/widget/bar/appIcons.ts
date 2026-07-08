@@ -1,6 +1,6 @@
 import GLib from "gi://GLib"
 
-const ICONS_PATH = `${GLib.get_user_config_dir()}/ags/config/app_icons.json`
+const ICONS_PATH = `${GLib.get_user_config_dir()}/gigios/app_icons.json`
 const CACHE_MAX = 50
 
 let store: Record<string, string> | null = null
