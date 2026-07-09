@@ -1,0 +1,94 @@
+# Seguridad, por si se cuelan archivos no deseados (sin querer o vía malware):
+# un repo de dotfiles no debería tener binarios, paquetes ni ejecutables. Si de
+# verdad hace falta versionar uno, se fuerza a propósito con `git add -f`.
+
+# Ejecutables/instaladores de Windows
+*.exe
+*.msi
+*.bat
+*.cmd
+*.scr
+*.vbs
+*.ps1
+
+# Ejecutables/paquetes de Linux
+*.AppImage
+*.deb
+*.rpm
+*.pkg.tar.zst
+*.pkg.tar.xz
+
+# Imágenes de disco
+*.iso
+*.img
+*.dmg
+
+# Comprimidos (pueden ocultar cualquier cosa dentro)
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tar.xz
+*.tar.bz2
+
+# Documentos con macros (vector clásico de malware)
+*.docm
+*.xlsm
+*.pptm
+
+# Otros
+*.pdf
+*.PKGINFO
+core
+*.core
+
+# --- GiGiOS ---
+
+# Ajustes/estado/secretos de usuario de AGS: movidos a ~/.config/gigios/, fuera del
+# repo (GiGiOS/bin/link.sh los migra; ver GiGiOS/hypr/SETUP.md §14). config/ ya no
+# forma parte del repo — se ignora para que dispositivos que aún lo tengan no lo
+# vuelvan a añadir.
+GiGiOS/ags/config/
+
+# Logs de runtime
+GiGiOS/hypr/logs/
+
+# jarvis: datos privados del launcher (repos detectados) — no versionar
+GiGiOS/jarvis/
+
+# Estado y sesiones del launcher orion — datos por-usuario, no versionar.
+# El directorio lo crea GiGiOS/bin/link.sh si falta (no hace falta versionarlo).
+GiGiOS/state/orion/
+
+# Copias archivadas sin uso (código muerto)
+GiGiOS/_legacy/
+
+# Snapshots de migración
+GiGiOS/preflight-snapshot.txt
+
+# Cache / datos de runtime por-usuario — no versionar.
+# Los subdirectorios los crea GiGiOS/bin/link.sh si faltan (marcados CREATABLE).
+GiGiOS/cache/
+
+# Foto de perfil: mecanismo viejo eliminado (ahora estandarizada en
+# ~/.cache/gigios/face.png, ver GiGiOS/hypr/SETUP.md §13). Se ignoran para que los
+# dispositivos que todavía los tienen en disco no los vuelvan a añadir.
+# (fotoPerfil.txt queda cubierto por `GiGiOS/ags/config/` de arriba.)
+GiGiOS/hypr/hyprlock_avatar.png
+GiGiOS/assets/face.png
+
+# --- GiGiOS/ags: generado / desechable — no versionar ---
+
+# @girs/: stubs de tipos GObject, se regeneran con `ags types`
+GiGiOS/ags/@girs/
+# scratch/: scripts de inspección/pruebas desechables
+GiGiOS/ags/scratch/
+# out.css.map: source-map de depuración generado desde style.scss
+GiGiOS/ags/out.css.map
+
+# config de vscode (actualmente no se usa)
+GiGiOS/ags/.vscode/
+
+# Metadatos de escritorio
+**/.directory
