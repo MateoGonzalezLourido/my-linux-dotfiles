@@ -138,6 +138,22 @@ if [[ -d "$old_cfg" ]]; then
   fi
 fi
 
+# ── Git hooks: verificación de archivos antes de cada push ──────────────────
+# core.hooksPath es config local de cada clon (no viaja con el repo), así que
+# se re-aplica cada vez que se corre link.sh para que quede activo en toda
+# máquina nueva sin un paso manual aparte. Ver .githooks/pre-push y
+# bin/verify-files.sh en la raíz del repo.
+if [[ "$mode" != check ]]; then
+  repo_root="$(git -C "$GIGIOS" rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -n "$repo_root" && -d "$repo_root/.githooks" ]]; then
+    current="$(git -C "$repo_root" config --local --get core.hooksPath || true)"
+    if [[ "$current" != "$repo_root/.githooks" ]]; then
+      git -C "$repo_root" config core.hooksPath "$repo_root/.githooks"
+      echo "HOOK  core.hooksPath -> $repo_root/.githooks"
+    fi
+  fi
+fi
+
 if [[ "$mode" == force && -d "$LINK_BACKUP" ]]; then
   echo "Respaldos en: $LINK_BACKUP"
 fi

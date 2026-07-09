@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Verifica que los archivos trackeados no sean binarios/ejecutables disfrazados
+# de algo inocuo (comprueba el tipo real por magic bytes, no por la extensión,
+# que es lo que el .gitignore no puede ver) y, si hay ClamAV instalado, los
+# pasa por un escaneo de firmas.
+#
+# Uso:
+#   bin/verify-files.sh              revisa todos los archivos trackeados
+#   bin/verify-files.sh f1 f2 ...    revisa solo esos archivos
+#
+# Lo invoca automáticamente .githooks/pre-push en cada `git push`.
+set -euo pipefail
+
+files=("$@")
+if [ "${#files[@]}" -eq 0 ]; then
+  mapfile -t files < <(git ls-files)
+fi
+
+# Formatos de ejecutable/binario que no tienen nada que hacer en un repo de
+# dotfiles, sea cual sea la extensión del archivo.
+denylist_regex='ELF|PE32|Mach-O|MS-DOS executable|Java archive|Microsoft Cabinet|Composite Document File'
+suspicious=()
+
+for f in "${files[@]}"; do
+  [ -f "$f" ] || continue
+  desc="$(file -b "$f")"
+  if [[ "$desc" =~ $denylist_regex ]]; then
+    suspicious+=("$f: $desc")
+  fi
+done
+
+if [ "${#suspicious[@]}" -gt 0 ]; then
+  echo "verify-files: archivos binarios/ejecutables sospechosos:" >&2
+  printf '  %s\n' "${suspicious[@]}" >&2
+  echo "Si es intencional: git add -f <archivo>" >&2
+  exit 1
+fi
+
+if command -v clamscan >/dev/null 2>&1; then
+  echo "verify-files: escaneando con ClamAV..."
+  if ! clamscan --infected --no-summary "${files[@]}"; then
+    echo "verify-files: ClamAV encontró algo, revisa antes de continuar." >&2
+    exit 1
+  fi
+else
+  echo "verify-files: ClamAV (clamscan) no está instalado, se omite el escaneo de firmas." >&2
+fi
+
+exit 0

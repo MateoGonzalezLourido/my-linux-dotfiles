@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Hook de pre-push: corre bin/verify-files.sh antes de dejar salir cualquier
+# push. Se activa solo via core.hooksPath (lo configura bin/link.sh); no hace
+# falta instalarlo a mano. Aborta el push si el script devuelve un error.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+exec "$repo_root/bin/verify-files.sh"
