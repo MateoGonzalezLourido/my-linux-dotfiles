@@ -1,9 +1,10 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState, For, createComputed } from "ags"
+import { createState, For, With, createComputed } from "ags"
 import { createBinding } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
+import { AVATAR_PATH, avatarRevision } from "./settings/avatar"
 import AstalWp from "gi://AstalWp"
 import AstalNetwork from "gi://AstalNetwork"
 import AstalBluetooth from "gi://AstalBluetooth"
@@ -2095,29 +2096,19 @@ function QsFooter() {
   // Foto de perfil: copia única de runtime en el cache XDG
   // (~/.cache/gigios/face.png), compartida con hyprlock. La materializa
   // bin/link.sh desde el master versionado assets/face.png.
-  const getAvatarPath = () => {
-    const path = `${GLib.get_user_cache_dir()}/gigios/face.png`
-    if (GLib.file_test(path, GLib.FileTest.EXISTS)) return path
-    return null
-  }
-
-  const avatarPath = getAvatarPath()
-
   return (
     <box cssClasses={["qs-footer"]} spacing={10}>
-      {avatarPath ? (
-        <box
-          cssClasses={["qs-avatar-img"]}
-          css={`background-image: url("file://${avatarPath}");`}
-          valign={Gtk.Align.CENTER}
-          halign={Gtk.Align.CENTER}
-        />
-      ) : (
-        <label cssClasses={["qs-avatar"]} label={initials} />
-      )}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={1} hexpand valign={Gtk.Align.CENTER}>
-        <label cssClasses={["qs-username"]} label={user} halign={Gtk.Align.START} />
-        <label cssClasses={["qs-hostname"]} label={`@${host}`} halign={Gtk.Align.START} />
+      <box cssClasses={["qs-user-block"]} spacing={10} hexpand halign={Gtk.Align.START}>
+        <With value={avatarRevision}>{(_revision: number) =>
+          GLib.file_test(AVATAR_PATH, GLib.FileTest.EXISTS) ? (
+            <box cssClasses={["qs-avatar-img"]} css={`background-image: url("file://${AVATAR_PATH}");`}
+              valign={Gtk.Align.CENTER} halign={Gtk.Align.START} />
+          ) : <label cssClasses={["qs-avatar"]} label={initials} halign={Gtk.Align.START} />
+        }</With>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={1} valign={Gtk.Align.CENTER}>
+          <label cssClasses={["qs-username"]} label={user} halign={Gtk.Align.START} />
+          <label cssClasses={["qs-hostname"]} label={`@${host}`} halign={Gtk.Align.START} />
+        </box>
       </box>
 
       <button

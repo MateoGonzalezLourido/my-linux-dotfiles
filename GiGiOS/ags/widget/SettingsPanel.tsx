@@ -10,18 +10,22 @@ import EnergySection from "./power/EnergySection"
 import SettingsTabs from "./notifications/settings/SettingsTabs"
 import PersonalizationSection from "./settings/PersonalizationSection"
 import DisplaySection from "./settings/DisplaySection"
+import SystemSection from "./settings/SystemSection"
+import AccountSection from "./settings/AccountSection"
 
-type SectionId = "energy" | "display" | "notifications" | "personalization"
+type SectionId = "account" | "energy" | "display" | "system" | "notifications" | "personalization"
 const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
+  { id: "account", label: "Cuenta", icon: "󰀄" },
   { id: "energy", label: "Energía", icon: "󰁹" },
   { id: "display", label: "Pantalla", icon: "󰍹" },
+  { id: "system", label: "Sistema", icon: "󰌢" },
   { id: "notifications", label: "Notificaciones", icon: "󰂚" },
   { id: "personalization", label: "Personalización", icon: "󰏘" },
 ]
 
 export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
-  const [section, setSection] = createState<SectionId>("energy")
+  const [section, setSection] = createState<SectionId>("account")
 
   const panel = (
     <box cssClasses={["sp-panel"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}>
@@ -46,7 +50,7 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
         cssClasses={["sp-content"]}
         hexpand
         vexpand
-        heightRequest={600}
+        heightRequest={700}
         propagateNaturalHeight={false}
         hscrollbarPolicy={Gtk.PolicyType.NEVER}
         vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
@@ -54,8 +58,10 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
         <box orientation={Gtk.Orientation.VERTICAL} hexpand>
           <With value={section}>
             {(s: SectionId) => {
+              if (s === "account") return <AccountSection />
               if (s === "energy") return <EnergySection />
               if (s === "display") return <DisplaySection />
+              if (s === "system") return <SystemSection />
               if (s === "notifications") return <SettingsTabs />
               return <PersonalizationSection />
             }}
