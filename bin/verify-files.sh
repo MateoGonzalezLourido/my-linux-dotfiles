@@ -38,9 +38,19 @@ fi
 
 if command -v clamscan >/dev/null 2>&1; then
   echo "verify-files: escaneando con ClamAV..."
-  if ! clamscan --infected --no-summary "${files[@]}"; then
+  set +e
+  clamscan --infected --no-summary "${files[@]}"
+  clam_status=$?
+  set -e
+  # clamscan: 0 = limpio, 1 = infectado (bloquea de verdad), 2+ = error de
+  # ejecución (p.ej. faltan firmas porque no se corrió `freshclam`) — eso no es
+  # un hallazgo de seguridad, es una instalación a medio configurar, así que se
+  # avisa y se deja pasar en vez de bloquear el push.
+  if [ "$clam_status" -eq 1 ]; then
     echo "verify-files: ClamAV encontró algo, revisa antes de continuar." >&2
     exit 1
+  elif [ "$clam_status" -ne 0 ]; then
+    echo "verify-files: ClamAV no pudo escanear (código $clam_status) — ¿corriste 'sudo freshclam'? Se omite el escaneo de firmas." >&2
   fi
 else
   echo "verify-files: ClamAV (clamscan) no está instalado, se omite el escaneo de firmas." >&2

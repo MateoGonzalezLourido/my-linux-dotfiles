@@ -16,8 +16,12 @@ si encuentra algo que no debería estar versionado.
   Java archive, Microsoft Cabinet, Composite Document File (OLE, el formato de los
   `.doc`/`.xls` viejos con macros).
 - Si tienes **ClamAV** instalado (`clamscan` en el PATH), el script también pasa
-  todos los archivos por un escaneo de firmas de verdad. Si no lo tienes, solo
-  avisa y sigue — no bloquea el push por su ausencia.
+  todos los archivos por un escaneo de firmas de verdad. El script distingue el
+  código de salida de `clamscan`: `1` (infectado de verdad) bloquea el push;
+  cualquier otro código de error (p.ej. `2`, "no supported database files found"
+  porque falta correr `freshclam`) solo avisa y deja pasar — una instalación a
+  medio configurar no es un hallazgo de seguridad. Si no tienes `clamscan` en el
+  PATH, mismo trato: avisa y sigue, no bloquea por su ausencia.
 - **`.githooks/pre-push`** es el hook en sí; solo invoca `bin/verify-files.sh` sin
   argumentos (revisa todo `git ls-files`, no solo el diff del push).
 
