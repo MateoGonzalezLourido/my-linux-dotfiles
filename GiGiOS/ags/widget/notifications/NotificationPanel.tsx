@@ -25,6 +25,7 @@ import {
 import NotificationItem from "./NotificationItem"
 import { panelAutoClose } from "../state"
 import { clipWindowInputToContent } from "../inputRegion"
+import EmptyState from "../components/EmptyState"
 
 
 // ── Header ────────────────────────────────────────────────────────────────────
@@ -163,19 +164,18 @@ function NotificationList() {
       vexpand
     >
       <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-        <box
-          orientation={Gtk.Orientation.VERTICAL}
+        <EmptyState
+          icon="󰂚"
+          title="Sin notificaciones"
+          subtitle="Aquí aparecerán tus notificaciones"
+          wrapClass="np-empty-state"
+          iconClass="np-empty-icon"
+          titleClass="np-empty-title"
+          subClass="np-empty-sub"
           spacing={10}
-          valign={Gtk.Align.CENTER}
-          halign={Gtk.Align.CENTER}
           vexpand
           visible={empty}
-          cssClasses={["np-empty-state"]}
-        >
-          <label cssClasses={["np-empty-icon"]} label="󰂚" />
-          <label cssClasses={["np-empty-title"]} label="Sin notificaciones" />
-          <label cssClasses={["np-empty-sub"]} label="Aquí aparecerán tus notificaciones" />
-        </box>
+        />
 
         {/* Los items solo se materializan mientras el panel está abierto y solo para la
             vista activa (lista o agrupada). Al cerrar (view="hidden"), <With> dispone el

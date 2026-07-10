@@ -7,6 +7,7 @@ import type { HistoryEntry } from "../history/historyLogic.ts"
 import { ruleFromHistoryEntry } from "./ruleFactory.ts"
 import RuleEditor from "./RuleEditor.tsx"
 import AppFilterBar from "./AppFilterBar.tsx"
+import EmptyState from "../../components/EmptyState.tsx"
 
 export default function HistoryTab() {
   const [editing, setEditing] = createState<NotifRule | null>(null)
@@ -24,10 +25,14 @@ export default function HistoryTab() {
 
               <With value={empty}>
                 {(isEmpty: boolean) => isEmpty
-                  ? <box orientation={Gtk.Orientation.VERTICAL} spacing={8} valign={Gtk.Align.CENTER} halign={Gtk.Align.CENTER} vexpand cssClasses={["ns-empty-state"]}>
-                      <label cssClasses={["ns-empty-icon"]} label="󰂚" />
-                      <label cssClasses={["ns-empty-label"]} label="Historial vacío" />
-                    </box>
+                  ? <EmptyState
+                      icon="󰂚"
+                      title="Historial vacío"
+                      wrapClass="ns-empty-state"
+                      iconClass="ns-empty-icon"
+                      titleClass="ns-empty-label"
+                      vexpand
+                    />
                   : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} vexpand>
                       <AppFilterBar apps={apps} active={filter} onSelect={setFilter} />
                       <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>

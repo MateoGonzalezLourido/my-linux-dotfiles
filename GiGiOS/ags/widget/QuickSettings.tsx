@@ -620,6 +620,51 @@ function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onSeconda
   )
 }
 
+// Header "← título [acciones]" compartido por los submenús (Volumen, Micrófono,
+// Pantalla, Bluetooth, Wi-Fi). `children` es el slot de acciones a la derecha
+// (buscador, botón de ajustes, scan, toggle...), que cada submenú compone a
+// mano porque varía bastante entre ellos.
+function QsMenuHeader({ title, onBack, titleHexpand = true, children }: {
+  title: any, onBack: () => void, titleHexpand?: boolean, children?: any
+}) {
+  return (
+    <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
+      <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
+      <label cssClasses={["qs-section-label"]} label={title} hexpand={titleHexpand} halign={Gtk.Align.START} />
+      {children}
+    </box>
+  )
+}
+
+// Track+dot visual de un toggle (Luz nocturna, Bluetooth, Wi-Fi). El `<button>`
+// que lo envuelve se queda en cada caller porque su `onClicked` varía.
+function ToggleSwitch({ active }: { active: any }) {
+  return (
+    <box cssClasses={["qs-toggle-track"]}>
+      <box cssClasses={active((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+    </box>
+  )
+}
+
+// Clúster "icono + columna(nombre + subtítulo)" compartido por la fila de
+// dispositivo Bluetooth, la fila de red Wi-Fi y la fila de stream de audio.
+// `icon` y `subtitle` se pasan como nodos JSX ya construidos por el caller
+// (el icono de Wi-Fi es un box de barras de señal, no un <label>) — el botón
+// envolvente, los gestos y el trailing de cada fila se quedan en el caller.
+function QsRowLabel({ icon, title, titleClass = "qs-wifi-name", subtitle, spacing = 8, valign }: {
+  icon: any, title: any, titleClass?: string, subtitle?: any, spacing?: number, valign?: Gtk.Align
+}) {
+  return (
+    <box spacing={spacing} valign={valign}>
+      {icon}
+      <box orientation={Gtk.Orientation.VERTICAL} hexpand>
+        <label label={title} halign={Gtk.Align.START} ellipsize={3} cssClasses={[titleClass]} />
+        {subtitle}
+      </box>
+    </box>
+  )
+}
+
 function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, onMicClick }: {
   onWifiClick: () => void,
   onBluetoothClick: () => void,
@@ -1411,58 +1456,69 @@ function QsMedia() {
 
 // ── Section 4: Volume ─────────────────────────────────────────────────────────
 
-function QsAudioMenu({ onBack }: { onBack: () => void }) {
+// `QsAudioMenu` (altavoces) y `QsMicMenu` (micrófono) eran casi el mismo
+// componente (header, sección "dispositivos"/"apps" con For, volúmenes,
+// presets, mute...), solo cambiaba sink↔source, la lista de streams y las
+// etiquetas en español. `QsAudioMenuBase` concentra la lógica parametrizada
+// por `kind`; `QsAudioMenu`/`QsMicMenu` quedan como wrappers de una línea.
+type QsAudioKind = "speaker" | "mic"
+
+function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => void }) {
+  const isSpk = kind === "speaker"
   const wp = AstalWp.get_default()
   const [audioMode, setAudioMode] = createState<"devices" | "apps">("devices")
   // Estado de apps y presets compartidos a nivel de módulo (ver bloque "Shared
   // audio-apps polling"). `presets`/`setPresets` se mantienen como alias para no tocar
   // el resto de la función.
-  const streams = spkAppStreams
+  const streams = isSpk ? spkAppStreams : micAppStreams
   const presets = audioPresets
   const setPresets = setAudioPresets
   const handledDevices = new Set<string>()
 
-  function volIcon(v: number, m: boolean) {
-    if (m || v === 0) return "󰝟"
-    if (v < 0.33) return "󰕿"
-    if (v < 0.66) return "󰖀"
-    return "󰕾"
+  if (!wp.audio) return <box />
+
+  function deviceIcon(vol: number, mute: boolean) {
+    if (isSpk) {
+      if (mute || vol === 0) return "󰝟"
+      if (vol < 0.33) return "󰕿"
+      if (vol < 0.66) return "󰖀"
+      return "󰕾"
+    }
+    return mute ? "󰍭" : "󰍬"
   }
 
-  // Esta instancia solo declara si "quiere" el sondeo (panel abierto ∧ vista "audio" ∧
+  // Esta instancia solo declara si "quiere" el sondeo (panel abierto ∧ vista propia ∧
   // modo apps); el poller compartido con refcount lo arranca/detiene según haya ≥1
   // instancia activa. `wanting` evita contar mal el refcount al re-disparar syncRefresh.
   let wanting = false
   const shouldRefresh = () =>
-    quickSettingsVisible.get() && qsView.get() === "audio" && audioMode.get() === "apps"
+    quickSettingsVisible.get() && qsView.get() === (isSpk ? "audio" : "mic") && audioMode.get() === "apps"
   const syncRefresh = () => {
     const want = shouldRefresh()
     if (want === wanting) return
     wanting = want
-    if (want) startSpkPoll(); else stopSpkPoll()
+    if (want) (isSpk ? startSpkPoll : startMicPoll)(); else (isSpk ? stopSpkPoll : stopMicPoll)()
   }
   audioMode.subscribe(syncRefresh)
   quickSettingsVisible.subscribe(syncRefresh)
   qsView.subscribe(syncRefresh)
 
-  const speakers = createBinding(wp.audio, "speakers")
-  const defaultSpeaker = createBinding(wp.audio, "defaultSpeaker")
+  const endpoints = createBinding(wp.audio, isSpk ? "speakers" : "microphones")
+  // Vestigial en las dos versiones originales (ninguna lo leía), se conserva
+  // solo para no cambiar el comportamiento reactivo existente.
+  const defaultEndpoint = createBinding(wp.audio, isSpk ? "defaultSpeaker" : "defaultMicrophone")
 
   // Local state for immediate visual update on click (don't wait for WirePlumber signal)
-  const [localDefaultSpkId, setLocalDefaultSpkId] = createState<number | null>(
-    wp.audio.defaultSpeaker?.id ?? null
+  const [localDefaultId, setLocalDefaultId] = createState<number | null>(
+    (isSpk ? wp.audio.defaultSpeaker?.id : wp.audio.defaultMicrophone?.id) ?? null
   )
-  wp.audio.connect("notify::default-speaker", () => {
-    setLocalDefaultSpkId(wp.audio.defaultSpeaker?.id ?? null)
+  wp.audio.connect(isSpk ? "notify::default-speaker" : "notify::default-microphone", () => {
+    setLocalDefaultId((isSpk ? wp.audio.defaultSpeaker?.id : wp.audio.defaultMicrophone?.id) ?? null)
   })
 
-  if (!wp.audio) return <box />
-
   return (
-    <box cssClasses={["qs-audio-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
-        <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
-        <label cssClasses={["qs-section-label"]} label="Volumen" hexpand halign={Gtk.Align.START} />
+    <box cssClasses={[isSpk ? "qs-audio-menu" : "qs-mic-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+      <QsMenuHeader title={isSpk ? "Volumen" : "Micrófono"} onBack={onBack}>
         <button
           cssClasses={["qs-icon-btn"]}
           onClicked={() => {
@@ -1470,9 +1526,9 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
             // detiene el sondeo según corresponda.
             setAudioMode(audioMode.get() === "devices" ? "apps" : "devices")
           }}
-          tooltipText={audioMode((m) => m === "devices" ? "Mezcla de aplicaciones" : "Dispositivos de salida")}
+          tooltipText={audioMode((m) => m === "devices" ? "Mezcla de aplicaciones" : (isSpk ? "Dispositivos de salida" : "Dispositivos de entrada"))}
         ><label label={audioMode((m) => m === "devices" ? "󰓃" : "󰋎")} /></button>
-      </box>
+      </QsMenuHeader>
 
       <Gtk.ScrolledWindow
         cssClasses={["qs-wifi-list-scroll"]}
@@ -1482,70 +1538,75 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
       >
         <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={audioMode((m) => m === "devices")}>
-            <label cssClasses={["qs-dropdown-header"]} label="DISPOSITIVOS DE SALIDA" halign={Gtk.Align.START} />
+            <label cssClasses={["qs-dropdown-header"]} label={isSpk ? "DISPOSITIVOS DE SALIDA" : "DISPOSITIVOS DE ENTRADA"} halign={Gtk.Align.START} />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-              <For each={speakers}>
-                {(s: AstalWp.Endpoint) => {
-                  const vol = createBinding(s, "volume")
-                  const mute = createBinding(s, "mute")
+              <For each={endpoints}>
+                {(ep: AstalWp.Endpoint) => {
+                  const vol = createBinding(ep, "volume")
+                  const mute = createBinding(ep, "mute")
                   // El resaltado del dispositivo activo se deriva del propio
                   // `is_default` del endpoint (reactivo y correcto al entrar).
-                  // `notify::default-speaker` del objeto Audio NO se dispara en
-                  // esta versión de AstalWp y su id llega sin resolver (0) al
-                  // construirse el panel, por eso antes nada salía en azul.
-                  // `localDefaultSpkId` se conserva como override optimista para
+                  // `notify::default-speaker`/`notify::default-microphone` del objeto
+                  // Audio NO se dispara en esta versión de AstalWp y su id llega sin
+                  // resolver (0) al construirse el panel, por eso antes nada salía en
+                  // azul. `localDefaultId` se conserva como override optimista para
                   // feedback instantáneo al pulsar.
-                  const isDefault = createBinding(s, "isDefault")
+                  const isDefault = createBinding(ep, "isDefault")
                   const activeClasses = createComputed(() =>
-                    (isDefault() || localDefaultSpkId() === s.id)
+                    (isDefault() || localDefaultId() === ep.id)
                       ? ["qs-audio-item", "active"]
                       : ["qs-audio-item"])
 
                   // Apply device preset if new
-                  if (s.name && !handledDevices.has(`spk:${s.name}`)) {
-                    const key = `dev:spk:${s.name}`
-                    const p = presets.get()[key]
+                  const devTag = isSpk ? "spk" : "mic"
+                  const devKey = `dev:${devTag}:${ep.name}`
+                  if (ep.name && !handledDevices.has(`${devTag}:${ep.name}`)) {
+                    const p = presets.get()[devKey]
                     if (p !== undefined) {
-                      s.volume = p
+                      ep.volume = p
                     }
-                    handledDevices.add(`spk:${s.name}`)
+                    handledDevices.add(`${devTag}:${ep.name}`)
                   }
 
                   const scale = makeScale(
-                    ["qs-slider", "speaker"],
-                    () => s.volume,
+                    ["qs-slider", isSpk ? "speaker" : "mic"],
+                    () => ep.volume,
                     (v) => {
-                      s.volume = v
+                      ep.volume = v
                       const p = { ...presets.get() }
-                      p[`dev:spk:${s.name}`] = v
+                      p[devKey] = v
                       setPresets(p)
                       saveAudioPresets(p)
                     },
-                    (cb) => { s.connect("notify::volume", cb) },
+                    (cb) => { ep.connect("notify::volume", cb) },
                   )
 
                   const activate = async () => {
-                    setLocalDefaultSpkId(s.id)
-                    const id = String(s.id)
+                    setLocalDefaultId(ep.id)
+                    const id = String(ep.id)
                     const nodeName = await execAsync(["bash", "-c",
-                      `pactl list sinks | awk '/^Sink/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
+                      isSpk
+                        ? `pactl list sinks | awk '/^Sink/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
+                        : `pactl list sources | awk '/^Source/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
                     ]).catch(() => "")
                     const name = nodeName.trim()
                     if (!name) return
-                    execAsync(["pw-metadata", "-n", "default", "0", "default.audio.sink",
+                    execAsync(["pw-metadata", "-n", "default", "0", isSpk ? "default.audio.sink" : "default.audio.source",
                       `{"name":"${name}"}`]).catch(() => {})
                     execAsync(["bash", "-c",
-                      `pactl list short sink-inputs | awk '{print $1}' | xargs -r -I{} pactl move-sink-input {} "${name}"`
+                      isSpk
+                        ? `pactl list short sink-inputs | awk '{print $1}' | xargs -r -I{} pactl move-sink-input {} "${name}"`
+                        : `pactl list short source-outputs | awk '{print $1}' | xargs -r -I{} pactl move-source-output {} "${name}"`
                     ]).catch(() => {})
                   }
 
                   return (
                     <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={activeClasses}>
                       <button onClicked={activate} cssClasses={["qs-audio-card-btn"]} hexpand>
-                        <label cssClasses={["qs-audio-name"]} label={endpointLabel(s)} ellipsize={3} halign={Gtk.Align.START} />
+                        <label cssClasses={["qs-audio-name"]} label={endpointLabel(ep)} ellipsize={3} halign={Gtk.Align.START} />
                       </button>
                       <box spacing={5} valign={Gtk.Align.CENTER}>
-                        <label cssClasses={["qs-audio-icon"]} label={createComputed(() => volIcon(vol(), mute()))} />
+                        <label cssClasses={["qs-audio-icon"]} label={createComputed(() => deviceIcon(vol(), mute()))} />
                         {scale}
                         <label cssClasses={["qs-audio-vol-pct"]} label={vol((v) => `${Math.round(v * 100)}`)} />
                       </box>
@@ -1557,7 +1618,7 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
           </box>
 
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={audioMode((m) => m === "apps")}>
-            <label cssClasses={["qs-dropdown-header"]} label="MEZCLA DE APLICACIONES" halign={Gtk.Align.START} />
+            <label cssClasses={["qs-dropdown-header"]} label={isSpk ? "MEZCLA DE APLICACIONES" : "MEZCLA DE ENTRADAS"} halign={Gtk.Align.START} />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
               <For each={streams}>
                 {(si: any) => {
@@ -1567,7 +1628,10 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                     || props["media.name"]
                     || props["application.process.binary"]
                     || "App"
-                  const key = `app:spk:${name.toLowerCase()}`
+                  // Clave unificada con el poller: `app:${devTag}:` (antes la fila de
+                  // mic guardaba con `mic:` pero el poller aplicaba con `app:mic:`, así
+                  // que el preset no se releía).
+                  const key = `app:${isSpk ? "spk" : "mic"}:${name.toLowerCase()}`
 
                   const volObj = si.volume || {}
                   const channels = Object.keys(volObj)
@@ -1579,15 +1643,20 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                   const [currentVol, setCurrentVol] = createState(initialVol)
 
                   const applyVol = makeVolThrottle((v) => {
-                    if (si.index !== -1) execAsync(["pactl", "set-sink-input-volume", `${si.index}`, `${Math.round(v * 100)}%`]).catch(() => { })
+                    if (si.index !== -1) execAsync([
+                      "pactl", isSpk ? "set-sink-input-volume" : "set-source-output-volume",
+                      `${si.index}`, `${Math.round(v * 100)}%`,
+                    ]).catch(() => { })
                   })
-                  const isMedia = name.toLowerCase().includes("spotify") || si.properties?.["media.name"]
+                  // El modo "media" (slider ancho tipo Spotify) solo existe para
+                  // altavoces; las entradas de micrófono siempre usan el slider "mic".
+                  const isMedia = isSpk && (name.toLowerCase().includes("spotify") || si.properties?.["media.name"])
                   const streamScale = makeScale(
-                    isMedia ? ["qs-slider", "media"] : ["qs-slider", "app"],
+                    isMedia ? ["qs-slider", "media"] : ["qs-slider", isSpk ? "app" : "mic"],
                     () => currentVol.get(),
                     (v) => {
                       setCurrentVol(v)
-                      spkLastInteraction = Date.now()
+                      if (isSpk) spkLastInteraction = Date.now(); else micLastInteraction = Date.now()
                       // Update preset
                       const p = { ...presets.get() }
                       p[key] = v
@@ -1600,15 +1669,17 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                   const icon = props["application.icon_name"]
                     || props["window.icon_name"]
                     || name.toLowerCase()
-                    || "audio-x-generic-symbolic"
+                    || (isSpk ? "audio-x-generic-symbolic" : "audio-input-microphone-symbolic")
 
                   return (
                     <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item", "qs-audio-app-item"]}>
                       <box spacing={6} valign={Gtk.Align.CENTER}>
-                        <Gtk.Image iconName={icon} cssClasses={["qs-stream-icon"]} />
-                        <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.START}>
-                          <label cssClasses={["qs-section-label"]} label={name} halign={Gtk.Align.START} ellipsize={3} />
-                        </box>
+                        <QsRowLabel
+                          icon={<Gtk.Image iconName={icon} cssClasses={["qs-stream-icon"]} />}
+                          title={name}
+                          titleClass="qs-section-label"
+                          spacing={6}
+                        />
                         <label
                           cssClasses={si.isSilent ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
                           label={currentVol((v) => `${Math.round(v * 100)}`)}
@@ -1616,7 +1687,7 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                       </box>
                       <box spacing={6}>
                         {streamScale}
-                        {si.isSilent && <label label="󰝟" cssClasses={["qs-audio-silent-icon"]} tooltipText="Aplicación en silencio/espera" />}
+                        {si.isSilent && <label label={isSpk ? "󰝟" : "󰍭"} cssClasses={["qs-audio-silent-icon"]} tooltipText="Aplicación en silencio/espera" />}
                       </box>
                     </box>
                   )
@@ -1630,206 +1701,12 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
   )
 }
 
+function QsAudioMenu({ onBack }: { onBack: () => void }) {
+  return <QsAudioMenuBase kind="speaker" onBack={onBack} />
+}
+
 function QsMicMenu({ onBack }: { onBack: () => void }) {
-  const wp = AstalWp.get_default()
-  const [audioMode, setAudioMode] = createState<"devices" | "apps">("devices")
-  // Estado de apps y presets compartidos a nivel de módulo (ver "Shared audio-apps
-  // polling"). `presets`/`setPresets` como alias para no tocar el resto de la función.
-  const streams = micAppStreams
-  const presets = audioPresets
-  const setPresets = setAudioPresets
-  const handledDevices = new Set<string>()
-
-  if (!wp.audio) return <box />
-
-  // Gating idéntico al de QsAudioMenu pero para la vista "mic". El poller compartido
-  // (con refcount) se arranca/detiene según haya ≥1 instancia queriéndolo.
-  let wanting = false
-  const shouldRefresh = () =>
-    quickSettingsVisible.get() && qsView.get() === "mic" && audioMode.get() === "apps"
-  const syncRefresh = () => {
-    const want = shouldRefresh()
-    if (want === wanting) return
-    wanting = want
-    if (want) startMicPoll(); else stopMicPoll()
-  }
-  audioMode.subscribe(syncRefresh)
-  quickSettingsVisible.subscribe(syncRefresh)
-  qsView.subscribe(syncRefresh)
-
-  const microphones = createBinding(wp.audio, "microphones")
-  const defaultMic = createBinding(wp.audio, "defaultMicrophone")
-
-  const [localDefaultMicId, setLocalDefaultMicId] = createState<number | null>(
-    wp.audio.defaultMicrophone?.id ?? null
-  )
-  wp.audio.connect("notify::default-microphone", () => {
-    setLocalDefaultMicId(wp.audio.defaultMicrophone?.id ?? null)
-  })
-
-  return (
-    <box cssClasses={["qs-mic-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
-        <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
-        <label cssClasses={["qs-section-label"]} label="Micrófono" hexpand halign={Gtk.Align.START} />
-        <button
-          cssClasses={["qs-icon-btn"]}
-          onClicked={() => {
-            setAudioMode(audioMode.get() === "devices" ? "apps" : "devices")
-          }}
-          tooltipText={audioMode((m) => m === "devices" ? "Mezcla de aplicaciones" : "Dispositivos de entrada")}
-        ><label label={audioMode((m) => m === "devices" ? "󰓃" : "󰋎")} /></button>
-      </box>
-
-      <Gtk.ScrolledWindow
-        cssClasses={["qs-wifi-list-scroll"]}
-        hscrollbarPolicy={Gtk.PolicyType.NEVER}
-        vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
-        vexpand
-      >
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={audioMode((m) => m === "devices")}>
-            <label cssClasses={["qs-dropdown-header"]} label="DISPOSITIVOS DE ENTRADA" halign={Gtk.Align.START} />
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-              <For each={microphones}>
-                {(m: AstalWp.Endpoint) => {
-                  const vol = createBinding(m, "volume")
-                  const mute = createBinding(m, "mute")
-                  // Ver nota en QsAudioMenu: el resaltado se deriva del propio
-                  // `is_default` del endpoint (reactivo/correcto al entrar), no del
-                  // `notify::default-microphone` del objeto Audio, que no se dispara.
-                  const isDefault = createBinding(m, "isDefault")
-                  const activeClasses = createComputed(() =>
-                    (isDefault() || localDefaultMicId() === m.id)
-                      ? ["qs-audio-item", "active"]
-                      : ["qs-audio-item"])
-
-                  // Apply device preset if new
-                  if (m.name && !handledDevices.has(`mic:${m.name}`)) {
-                    const key = `dev:mic:${m.name}`
-                    const p = presets.get()[key]
-                    if (p !== undefined) {
-                      m.volume = p
-                    }
-                    handledDevices.add(`mic:${m.name}`)
-                  }
-
-                  const scale = makeScale(
-                    ["qs-slider", "mic"],
-                    () => m.volume,
-                    (v) => {
-                      m.volume = v
-                      const p = { ...presets.get() }
-                      p[`dev:mic:${m.name}`] = v
-                      setPresets(p)
-                      saveAudioPresets(p)
-                    },
-                    (cb) => { m.connect("notify::volume", cb) },
-                  )
-
-                  const activate = async () => {
-                    setLocalDefaultMicId(m.id)
-                    const id = String(m.id)
-                    const nodeName = await execAsync(["bash", "-c",
-                      `pactl list sources | awk '/^Source/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
-                    ]).catch(() => "")
-                    const name = nodeName.trim()
-                    if (!name) return
-                    execAsync(["pw-metadata", "-n", "default", "0", "default.audio.source",
-                      `{"name":"${name}"}`]).catch(() => {})
-                    execAsync(["bash", "-c",
-                      `pactl list short source-outputs | awk '{print $1}' | xargs -r -I{} pactl move-source-output {} "${name}"`
-                    ]).catch(() => {})
-                  }
-
-                  return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={activeClasses}>
-                      <button onClicked={activate} cssClasses={["qs-audio-card-btn"]} hexpand>
-                        <label cssClasses={["qs-audio-name"]} label={endpointLabel(m)} ellipsize={3} halign={Gtk.Align.START} />
-                      </button>
-                      <box spacing={5} valign={Gtk.Align.CENTER}>
-                        <label cssClasses={["qs-audio-icon"]} label={mute((v) => v ? "󰍭" : "󰍬")} />
-                        {scale}
-                        <label cssClasses={["qs-audio-vol-pct"]} label={vol((v) => `${Math.round(v * 100)}`)} />
-                      </box>
-                    </box>
-                  )
-                }}
-              </For>
-            </box>
-          </box>
-
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={audioMode((m) => m === "apps")}>
-            <label cssClasses={["qs-dropdown-header"]} label="MEZCLA DE ENTRADAS" halign={Gtk.Align.START} />
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-              <For each={streams}>
-                {(si: any) => {
-                  const props = si.properties || {}
-                  const name = props["application.name"]
-                    || props["node.name"]
-                    || props["media.name"]
-                    || props["application.process.binary"]
-                    || "App"
-                  // Clave unificada con el poller (antes la fila guardaba con `mic:` pero
-                  // el poller aplicaba con `app:mic:`, así que el preset no se releía).
-                  const key = `app:mic:${name.toLowerCase()}`
-
-                  const volObj = si.volume || {}
-                  const channels = Object.keys(volObj)
-                  const presetVal = presets.get()[key]
-                  const initialVol = channels.length > 0
-                    ? parseFloat((volObj[channels[0]].value_percent || "100%").replace("%", "")) / 100
-                    : (presetVal !== undefined ? presetVal : 1.0)
-
-                  const [currentVol, setCurrentVol] = createState(initialVol)
-
-                  const applyVol = makeVolThrottle((v) => {
-                    if (si.index !== -1) execAsync(["pactl", "set-source-output-volume", `${si.index}`, `${Math.round(v * 100)}%`]).catch(() => { })
-                  })
-                  const streamScale = makeScale(
-                    ["qs-slider", "mic"],
-                    () => currentVol.get(),
-                    (v) => {
-                      setCurrentVol(v)
-                      micLastInteraction = Date.now()
-                      const p = { ...presets.get() }
-                      p[key] = v
-                      setPresets(p)
-                      saveAudioPresets(p)
-                      applyVol(v)
-                    },
-                  )
-                  const icon = props["application.icon_name"]
-                    || props["window.icon_name"]
-                    || name.toLowerCase()
-                    || "audio-input-microphone-symbolic"
-
-                  return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item", "qs-audio-app-item"]}>
-                      <box spacing={6} valign={Gtk.Align.CENTER}>
-                        <Gtk.Image iconName={icon} cssClasses={["qs-stream-icon"]} />
-                        <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.START}>
-                          <label cssClasses={["qs-section-label"]} label={name} halign={Gtk.Align.START} ellipsize={3} />
-                        </box>
-                        <label
-                          cssClasses={si.isSilent ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
-                          label={currentVol((v) => `${Math.round(v * 100)}`)}
-                        />
-                      </box>
-                      <box spacing={6}>
-                        {streamScale}
-                        {si.isSilent && <label label="󰍭" cssClasses={["qs-audio-silent-icon"]} tooltipText="Aplicación en silencio/espera" />}
-                      </box>
-                    </box>
-                  )
-                }}
-              </For>
-            </box>
-          </box>
-        </box>
-      </Gtk.ScrolledWindow>
-    </box>
-  )
+  return <QsAudioMenuBase kind="mic" onBack={onBack} />
 }
 
 // ── Section 5: Brightness ─────────────────────────────────────────────────────
@@ -1878,10 +1755,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
 
   return (
     <box cssClasses={["qs-display-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
-        <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
-        <label cssClasses={["qs-section-label"]} label="Pantalla y Brillo" hexpand halign={Gtk.Align.START} />
-      </box>
+      <QsMenuHeader title="Pantalla y Brillo" onBack={onBack} />
 
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
         <label cssClasses={["qs-dropdown-header"]} label="MONITORES CONECTADOS" halign={Gtk.Align.START} />
@@ -1925,9 +1799,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
                 else execAsync(["bash", "-c", "pkill hyprsunset; hyprctl hyprsunset identity"]).catch(() => { })
               }}
             >
-              <box cssClasses={["qs-toggle-track"]}>
-                <box cssClasses={nightLightActive((n) => n ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-              </box>
+              <ToggleSwitch active={nightLightActive} />
             </button>
           </box>
           {tempScale}
@@ -2156,29 +2028,26 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
         }}
       >
         <box spacing={8}>
-          <label cssClasses={["qs-wifi-icon"]} label={aliasBinding(() => getDeviceIcon(dev))} />
-          <box orientation={Gtk.Orientation.VERTICAL} hexpand>
-            <label 
-              label={aliasBinding((a) => {
-                 if (a && !isMac(a)) return a;
-                 if (dev.name && !isMac(dev.name)) return dev.name;
-                 return dev.address || "Desconocido";
-              })} 
-              halign={Gtk.Align.START} 
-              ellipsize={3} 
-              cssClasses={["qs-wifi-name"]} 
-            />
-            <label
-              label={connectedBinding((c) => c ? "Conectado" : dev.paired ? "Vinculado" : "Disponible")}
-              halign={Gtk.Align.START}
-              cssClasses={["qs-wifi-sec"]}
-            />
-          </box>
-          <label 
-            label="󰄬" 
-            cssClasses={["qs-wifi-lock"]} 
-            halign={Gtk.Align.END} 
-            visible={connectedBinding} 
+          <QsRowLabel
+            icon={<label cssClasses={["qs-wifi-icon"]} label={aliasBinding(() => getDeviceIcon(dev))} />}
+            title={aliasBinding((a) => {
+              if (a && !isMac(a)) return a;
+              if (dev.name && !isMac(dev.name)) return dev.name;
+              return dev.address || "Desconocido";
+            })}
+            subtitle={
+              <label
+                label={connectedBinding((c) => c ? "Conectado" : dev.paired ? "Vinculado" : "Disponible")}
+                halign={Gtk.Align.START}
+                cssClasses={["qs-wifi-sec"]}
+              />
+            }
+          />
+          <label
+            label="󰄬"
+            cssClasses={["qs-wifi-lock"]}
+            halign={Gtk.Align.END}
+            visible={connectedBinding}
           />
         </box>
       </button>
@@ -2196,9 +2065,7 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
 
   return (
     <box cssClasses={["qs-bluetooth-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
-        <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
-        <label cssClasses={["qs-section-label"]} label="Bluetooth" halign={Gtk.Align.START} />
+      <QsMenuHeader title="Bluetooth" onBack={onBack} titleHexpand={false}>
         <box cssClasses={["qs-wifi-search"]} spacing={5} hexpand valign={Gtk.Align.CENTER}>
           <label cssClasses={["qs-wifi-search-icon"]} label="󰍉" />
           <Gtk.Entry
@@ -2221,11 +2088,9 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
           cssClasses={btPowered((p) => p ? ["qs-toggle", "on"] : ["qs-toggle"])}
           onClicked={() => execAsync(["bash", "-c", bt.isPowered ? "bluetoothctl power off" : "bluetoothctl power on"])}
         >
-          <box cssClasses={["qs-toggle-track"]}>
-            <box cssClasses={btPowered((p) => p ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-          </box>
+          <ToggleSwitch active={btPowered} />
         </button>
-      </box>
+      </QsMenuHeader>
 
       <Gtk.ScrolledWindow
         cssClasses={["qs-wifi-list-scroll"]}
@@ -2289,10 +2154,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
 
   if (!wifi) return (
     <box cssClasses={["qs-wifi-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <box spacing={6} cssClasses={["qs-wifi-header"]}>
-        <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
-        <label cssClasses={["qs-section-label"]} label="Wi-Fi" hexpand halign={Gtk.Align.START} />
-      </box>
+      <QsMenuHeader title="Wi-Fi" onBack={onBack} />
       <label label="No Wi-Fi device found" halign={Gtk.Align.CENTER} />
     </box>
   )
@@ -2385,9 +2247,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
 
   return (
     <box cssClasses={["qs-wifi-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <box spacing={6} cssClasses={["qs-wifi-header"]} valign={Gtk.Align.CENTER}>
-        <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
-        <label cssClasses={["qs-section-label"]} label="Wi-Fi" halign={Gtk.Align.START} />
+      <QsMenuHeader title="Wi-Fi" onBack={onBack} titleHexpand={false}>
         <box cssClasses={["qs-wifi-search"]} spacing={5} hexpand valign={Gtk.Align.CENTER}>
           <label cssClasses={["qs-wifi-search-icon"]} label="󰍉" />
           <Gtk.Entry
@@ -2410,11 +2270,9 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
           cssClasses={wifiEnabled((e) => e ? ["qs-toggle", "on"] : ["qs-toggle"])}
           onClicked={() => execAsync(["bash", "-c", wifi.enabled ? "nmcli radio wifi off" : "nmcli radio wifi on"])}
         >
-          <box cssClasses={["qs-toggle-track"]}>
-            <box cssClasses={wifiEnabled((e) => e ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-          </box>
+          <ToggleSwitch active={wifiEnabled} />
         </button>
-      </box>
+      </QsMenuHeader>
 
       <Gtk.ScrolledWindow
         cssClasses={["qs-wifi-list-scroll"]}
@@ -2522,25 +2380,29 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                     onPressed={() => setInfoSsid(infoSsid() === ap.ssid ? null : ap.ssid)}
                   />
                   <box spacing={8}>
-                    <box cssClasses={["qs-wifi-icon", "qs-wifi-signal"]} spacing={1} valign={Gtk.Align.CENTER}>
-                      <For each={() => wifiSignalBarClasses(ap.strength ?? 0)}>
-                        {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
-                      </For>
-                    </box>
-                    <box orientation={Gtk.Orientation.VERTICAL} hexpand>
-                      <label label={ap.ssid} halign={Gtk.Align.START} ellipsize={3} cssClasses={["qs-wifi-name"]} />
-                      <label label={netSpeed((ns) => {
-                        const s = wifiState.get()
-                        if (s.connecting === ap.ssid) return "Conectando..."
-                        if (s.ssid === ap.ssid) {
-                          if (network.connectivity === AstalNetwork.Connectivity.PORTAL) {
-                            return "󰀦 Autenticación necesaria"
+                    <QsRowLabel
+                      icon={
+                        <box cssClasses={["qs-wifi-icon", "qs-wifi-signal"]} spacing={1} valign={Gtk.Align.CENTER}>
+                          <For each={() => wifiSignalBarClasses(ap.strength ?? 0)}>
+                            {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
+                          </For>
+                        </box>
+                      }
+                      title={ap.ssid}
+                      subtitle={
+                        <label label={netSpeed((ns) => {
+                          const s = wifiState.get()
+                          if (s.connecting === ap.ssid) return "Conectando..."
+                          if (s.ssid === ap.ssid) {
+                            if (network.connectivity === AstalNetwork.Connectivity.PORTAL) {
+                              return "󰀦 Autenticación necesaria"
+                            }
+                            return `󰇚${ns.down} 󰕒${ns.up}`
                           }
-                          return `󰇚${ns.down} 󰕒${ns.up}`
-                        }
-                        return secType
-                      })} halign={Gtk.Align.START} cssClasses={["qs-wifi-sec"]} />
-                    </box>
+                          return secType
+                        })} halign={Gtk.Align.START} cssClasses={["qs-wifi-sec"]} />
+                      }
+                    />
                     <label
                       halign={Gtk.Align.END}
                       label={wifiState((s) => {

@@ -12,6 +12,7 @@ import {
   deleteEvent,
 } from "./store"
 import { openCreateDialog, openEditDialog } from "./EventDialog"
+import EmptyState from "../components/EmptyState.tsx"
 
 // ── Group events by date ──────────────────────────────────────────────────────
 
@@ -122,24 +123,6 @@ function DateHeader(dateStr: string): Gtk.Widget {
   ) as unknown as Gtk.Widget
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-
-function EmptyState(): Gtk.Widget {
-  return (
-    <box
-      cssClasses={["cal-agenda-empty"]}
-      orientation={Gtk.Orientation.VERTICAL}
-      halign={Gtk.Align.CENTER}
-      valign={Gtk.Align.CENTER}
-      spacing={8}
-    >
-      <label cssClasses={["cal-empty-icon"]} label="📅" />
-      <label cssClasses={["cal-empty-title"]} label="Sin eventos próximos" />
-      <label cssClasses={["cal-empty-sub"]} label="Haz click en un día del calendario para añadir uno" />
-    </box>
-  ) as unknown as Gtk.Widget
-}
-
 // ── Agenda header ─────────────────────────────────────────────────────────────
 
 function AgendaHeader(): Gtk.Widget {
@@ -182,7 +165,15 @@ export function AgendaView(): Gtk.Widget {
     }
 
     if (grouped.size === 0) {
-      scrollContent.append(EmptyState())
+      scrollContent.append(EmptyState({
+        icon: "📅",
+        title: "Sin eventos próximos",
+        subtitle: "Haz click en un día del calendario para añadir uno",
+        wrapClass: "cal-agenda-empty",
+        iconClass: "cal-empty-icon",
+        titleClass: "cal-empty-title",
+        subClass: "cal-empty-sub",
+      }))
       return
     }
 

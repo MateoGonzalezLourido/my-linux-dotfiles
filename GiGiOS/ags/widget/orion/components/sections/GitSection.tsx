@@ -513,6 +513,21 @@ function buildAddForm(): Gtk.Box {
   return box
 }
 
+// Fila "icono + nombre + path" compartida por la lista de guardados y el panel
+// de descubrimiento (misma forma, distinto prefijo de clase); cada caller
+// sigue añadiendo sus propios botones de acción al Gtk.Box devuelto.
+function buildRepoIconRow(rowClass: string, name: string, path: string | undefined, nameClass: string, pathClass: string): Gtk.Box {
+  const row = new Gtk.Box({ cssClasses: [rowClass], spacing: 8 })
+  row.append(new Gtk.Image({ iconName: "vcs-repository-symbolic", cssClasses: ["git-disc-icon"] }))
+
+  const textCol = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 1, hexpand: true })
+  textCol.append(new Gtk.Label({ label: name, cssClasses: [nameClass], halign: Gtk.Align.START }))
+  if (path) textCol.append(new Gtk.Label({ label: path, cssClasses: [pathClass], halign: Gtk.Align.START, maxWidthChars: 36, ellipsize: 3 }))
+  row.append(textCol)
+
+  return row
+}
+
 // ── Saved repos list ──────────────────────────────────────────────────────────
 
 function buildSavedList(): Gtk.Box {
@@ -532,13 +547,7 @@ function buildSavedList(): Gtk.Box {
       return
     }
     for (const r of list) {
-      const row = new Gtk.Box({ cssClasses: ["git-saved-row"], spacing: 8 })
-      row.append(new Gtk.Image({ iconName: "vcs-repository-symbolic", cssClasses: ["git-disc-icon"] }))
-
-      const textCol = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 1, hexpand: true })
-      textCol.append(new Gtk.Label({ label: r.name, cssClasses: ["git-saved-name"], halign: Gtk.Align.START }))
-      if (r.path) textCol.append(new Gtk.Label({ label: r.path, cssClasses: ["git-saved-path"], halign: Gtk.Align.START, maxWidthChars: 36, ellipsize: 3 }))
-      row.append(textCol)
+      const row = buildRepoIconRow("git-saved-row", r.name, r.path, "git-saved-name", "git-saved-path")
 
       // "Ver" → jump to repos view with this repo selected
       const viewBtn = new Gtk.Button({ cssClasses: ["git-saved-view"], tooltipText: "ver en repos" })
@@ -598,12 +607,7 @@ function buildDiscoveryPanel(): Gtk.Box {
     for (const r of list.slice(0, 8)) {
       const home = GLib.get_home_dir()
       const displayPath = r.path.startsWith(home) ? r.path.replace(home, "~") : r.path
-      const row = new Gtk.Box({ cssClasses: ["git-disc-item"], spacing: 8 })
-      row.append(new Gtk.Image({ iconName: "vcs-repository-symbolic", cssClasses: ["git-disc-icon"] }))
-      const textCol = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 1, hexpand: true })
-      textCol.append(new Gtk.Label({ label: r.name, cssClasses: ["git-disc-name"], halign: Gtk.Align.START }))
-      textCol.append(new Gtk.Label({ label: displayPath, cssClasses: ["git-disc-path"], halign: Gtk.Align.START, maxWidthChars: 36, ellipsize: 3 }))
-      row.append(textCol)
+      const row = buildRepoIconRow("git-disc-item", r.name, displayPath, "git-disc-name", "git-disc-path")
 
       const pinBtn = new Gtk.Button({ cssClasses: ["git-disc-btn", "git-disc-pin"], tooltipText: "guardar" })
       pinBtn.set_child(new Gtk.Image({ iconName: "pin-symbolic" }))

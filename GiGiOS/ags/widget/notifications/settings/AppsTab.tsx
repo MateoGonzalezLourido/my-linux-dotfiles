@@ -7,6 +7,7 @@ import { historyEntries } from "../history/historyStore.ts"
 import { getAppIcon, resolveAppColor, appSettings, updateAppSettings } from "../store.ts"
 import { hexToRgb } from "../rules/color.ts"
 import ColorPicker from "./ColorPicker.tsx"
+import EmptyState from "../../components/EmptyState.tsx"
 
 function muteId(app: string): string { return `user.mute.${app}` }
 function audioMuteId(app: string): string { return `user.muteaudio.${app}` }
@@ -66,10 +67,14 @@ export default function AppsTab() {
 
       <With value={empty}>
         {(isEmpty: boolean) => isEmpty
-          ? <box orientation={Gtk.Orientation.VERTICAL} spacing={8} valign={Gtk.Align.CENTER} halign={Gtk.Align.CENTER} vexpand cssClasses={["ns-empty-state"]}>
-              <label cssClasses={["ns-empty-icon"]} label="󰂚" />
-              <label cssClasses={["ns-empty-label"]} label="Sin apps todavía" />
-            </box>
+          ? <EmptyState
+              icon="󰂚"
+              title="Sin apps todavía"
+              wrapClass="ns-empty-state"
+              iconClass="ns-empty-icon"
+              titleClass="ns-empty-label"
+              vexpand
+            />
           : <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
               <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
                 <For each={apps}>

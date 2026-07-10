@@ -86,6 +86,19 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
     )
   }
 
+  // Wrapper "título + contenido" de un campo del formulario (VERTICAL, spacing
+  // 4, clase re-field/re-field-label). No cubre los grupos de toggles sin
+  // título (spacing 4, horizontal) ni el bloque de reescritura de texto
+  // (varios sub-campos con su propio label inline) — esos se quedan como están.
+  function Field({ title, visible, children }: { title: string; visible?: any; children?: any }) {
+    return (
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]} visible={visible}>
+        <label cssClasses={["re-field-label"]} label={title} halign={Gtk.Align.START} />
+        {children}
+      </box>
+    )
+  }
+
   const [advanced, setAdvanced] = createState(false)
 
   function save() {
@@ -120,10 +133,9 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
       <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
         <box orientation={Gtk.Orientation.VERTICAL} spacing={10}>
           {/* Name */}
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
-            <label cssClasses={["re-field-label"]} label="Nombre" halign={Gtk.Align.START} />
+          <Field title="Nombre">
             <Gtk.Entry cssClasses={["re-entry"]} text={rule.name} onChanged={(self) => patch({ name: self.text })} />
-          </box>
+          </Field>
 
           <label cssClasses={["re-section"]} label="Cuándo aplica" halign={Gtk.Align.START} />
           <MatchField field="app" title="Aplicación" />
@@ -132,8 +144,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
 
           <label cssClasses={["re-section"]} label="Qué hacer" halign={Gtk.Align.START} />
           {/* lifetime */}
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
-            <label cssClasses={["re-field-label"]} label="Ciclo de vida" halign={Gtk.Align.START} />
+          <Field title="Ciclo de vida">
             <box spacing={4}>
               {LIFETIMES.map(lt => (
                 <button
@@ -148,7 +159,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
                 </button>
               ))}
             </box>
-          </box>
+          </Field>
 
           {/* clear on reboot — independent flag; combinable with any lifetime (flash, timed, …) */}
           <box spacing={4} cssClasses={["re-field"]}>
@@ -160,15 +171,14 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
           </box>
 
           {/* ttl (only when timed) */}
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]} visible={draft((d) => d.effects.lifetime === "timed")}>
-            <label cssClasses={["re-field-label"]} label="Expira tras" halign={Gtk.Align.START} />
+          <Field title="Expira tras" visible={draft((d) => d.effects.lifetime === "timed")}>
             <Gtk.Entry
               cssClasses={["re-entry"]}
               text={rule.effects.ttlMs ? formatDuration(rule.effects.ttlMs) : ""}
               placeholderText="ej: 2d 4h 5min  ·  15min  ·  3h"
               onChanged={(self) => patchEffects({ ttlMs: parseDuration(self.text) ?? undefined })}
             />
-          </box>
+          </Field>
 
           {/* effect toggles */}
           <box spacing={4} cssClasses={["re-field"]}>
@@ -179,8 +189,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
           </box>
 
           {/* accent color */}
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
-            <label cssClasses={["re-field-label"]} label="Color de acento" halign={Gtk.Align.START} />
+          <Field title="Color de acento">
             <ColorPicker
               value={rule.effects.color}
               onChange={(hex) => {
@@ -189,11 +198,10 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
                 patch({ effects: e })
               }}
             />
-          </box>
+          </Field>
 
           {/* dedup key */}
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
-            <label cssClasses={["re-field-label"]} label="Agrupar duplicados por" halign={Gtk.Align.START} />
+          <Field title="Agrupar duplicados por">
             <box spacing={4}>
               {DEDUPS.map(dk => (
                 <button
@@ -204,7 +212,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
                 </button>
               ))}
             </box>
-          </box>
+          </Field>
 
           <label cssClasses={["re-section"]} label="Reescribir texto (opcional)" halign={Gtk.Align.START} />
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
@@ -268,8 +276,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
           <button cssClasses={["re-advanced-toggle"]} onClicked={() => setAdvanced(!advanced.get())}>
             <label label={advanced((a) => a ? "󰅀 Avanzado" : "󰅂 Avanzado")} halign={Gtk.Align.START} />
           </button>
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]} visible={advanced((a) => a)}>
-            <label cssClasses={["re-field-label"]} label="Condiciones dinámicas" halign={Gtk.Align.START} />
+          <Field title="Condiciones dinámicas" visible={advanced((a) => a)}>
             <box spacing={4}>
               {CONDITIONS.map(c => (
                 <button
@@ -287,7 +294,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
                 </button>
               ))}
             </box>
-          </box>
+          </Field>
         </box>
       </Gtk.ScrolledWindow>
 
