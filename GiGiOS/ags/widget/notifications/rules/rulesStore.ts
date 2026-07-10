@@ -16,6 +16,9 @@ interface RulesFile {
 
 function loadFile(): RulesFile {
   try {
+    if (!GLib.file_test(RULES_PATH, GLib.FileTest.EXISTS)) {
+      return { userRules: [], builtinOverrides: {} }
+    }
     const [ok, content] = GLib.file_get_contents(RULES_PATH)
     if (ok) {
       const data = JSON.parse(new TextDecoder().decode(content))
