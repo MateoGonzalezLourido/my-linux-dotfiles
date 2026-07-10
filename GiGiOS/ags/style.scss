@@ -762,7 +762,6 @@ popover.tray-overflow-popover > contents {
   box-shadow: none;
   padding: 0 8px;
   min-width: 44px;
-  text-align: center;
 
   label {
     margin: 0;
@@ -1172,7 +1171,6 @@ window.qs-window > box,
   padding: 10px;
   box-shadow: none;
   min-width: 330px;
-  max-width: 330px;
   color: $qs-text;
   font-family: $font-icon, sans-serif;
 }
@@ -2303,7 +2301,6 @@ window.np-window.csd decoration {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   min-width: 349px;
-  max-width: 349px;
   box-shadow: none;
   font-family: $font-icon;
   color: $text;
@@ -3652,7 +3649,6 @@ window.cal-panel > box {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
-  overflow: hidden;
 }
 
 .sp-nav {
