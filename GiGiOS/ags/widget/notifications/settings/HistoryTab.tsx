@@ -16,11 +16,11 @@ export default function HistoryTab() {
   const apps = historyEntries((es) => Array.from(new Set((es ?? []).map(e => e.app))).sort((a, b) => a.localeCompare(b)))
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} hexpand vexpand>
       <With value={editing}>
         {(e: NotifRule | null) => e
           ? <RuleEditor rule={e} onClose={() => setEditing(null)} />
-          : <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+          : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
               <label cssClasses={["st-tab-hint"]} label="Tipos sin regla — crea una para gestionarlos" halign={Gtk.Align.START} />
 
               <With value={empty}>
@@ -33,13 +33,13 @@ export default function HistoryTab() {
                       titleClass="ns-empty-label"
                       vexpand
                     />
-                  : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} vexpand>
+                  : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
                       <AppFilterBar apps={apps} active={filter} onSelect={setFilter} />
-                      <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
-                        <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+                      <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} hexpand vexpand>
+                        <box orientation={Gtk.Orientation.VERTICAL} spacing={4} hexpand>
                           <For each={historyEntries}>
                             {(entry: HistoryEntry) => (
-                              <box cssClasses={["re-row"]} spacing={8} valign={Gtk.Align.CENTER} visible={filter((f) => f === "all" || f === entry.app)}>
+                              <box cssClasses={["re-row"]} spacing={8} valign={Gtk.Align.CENTER} visible={filter((f) => f === "all" || f === entry.app)} hexpand>
                                 <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
                                   <label cssClasses={["re-row-name"]} label={entry.app} halign={Gtk.Align.START} ellipsize={3} />
                                   <label cssClasses={["re-row-summary"]} label={entry.summary || "(sin título)"} halign={Gtk.Align.START} ellipsize={3} />

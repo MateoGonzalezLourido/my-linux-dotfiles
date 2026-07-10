@@ -62,7 +62,7 @@ export default function AppsTab() {
   const [colorApp, setColorApp] = createState<string | null>(null)
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
       <label cssClasses={["st-tab-hint"]} label="Apps vistas — silencia sus notificaciones" halign={Gtk.Align.START} />
 
       <With value={empty}>
@@ -75,12 +75,12 @@ export default function AppsTab() {
               titleClass="ns-empty-label"
               vexpand
             />
-          : <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
-              <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+          : <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} hexpand vexpand>
+              <box orientation={Gtk.Orientation.VERTICAL} spacing={4} hexpand>
                 <For each={apps}>
                   {(app: string) => (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-                      <box cssClasses={["ns-app-row"]} spacing={8} valign={Gtk.Align.CENTER}>
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} hexpand>
+                      <box cssClasses={["ns-app-row"]} spacing={8} valign={Gtk.Align.CENTER} hexpand>
                         <box cssClasses={["ns-app-icon-wrap"]} css={appSettings((s) => `background: rgba(${hexToRgb(resolveAppColor(app, s))}, 0.15);`)}>
                           <label cssClasses={["ns-app-icon"]} label={getAppIcon(app)} css={appSettings((s) => `color: ${resolveAppColor(app, s)};`)} />
                         </box>

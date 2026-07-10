@@ -9,10 +9,12 @@ import { settingsPanelVisible, setSettingsPanelVisible } from "./state"
 import EnergySection from "./power/EnergySection"
 import SettingsTabs from "./notifications/settings/SettingsTabs"
 import PersonalizationSection from "./settings/PersonalizationSection"
+import DisplaySection from "./settings/DisplaySection"
 
-type SectionId = "energy" | "notifications" | "personalization"
+type SectionId = "energy" | "display" | "notifications" | "personalization"
 const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
   { id: "energy", label: "Energía", icon: "󰁹" },
+  { id: "display", label: "Pantalla", icon: "󰍹" },
   { id: "notifications", label: "Notificaciones", icon: "󰂚" },
   { id: "personalization", label: "Personalización", icon: "󰏘" },
 ]
@@ -39,16 +41,27 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
         ))}
       </box>
 
-      {/* content */}
-      <box cssClasses={["sp-content"]} hexpand vexpand>
-        <With value={section}>
-          {(s: SectionId) => {
-            if (s === "energy") return <EnergySection />
-            if (s === "notifications") return <SettingsTabs />
-            return <PersonalizationSection />
-          }}
-        </With>
-      </box>
+      {/* content (scrollable: algunas secciones —Pantalla— son más altas que el panel) */}
+      <Gtk.ScrolledWindow
+        cssClasses={["sp-content"]}
+        hexpand
+        vexpand
+        heightRequest={600}
+        propagateNaturalHeight={false}
+        hscrollbarPolicy={Gtk.PolicyType.NEVER}
+        vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+      >
+        <box orientation={Gtk.Orientation.VERTICAL} hexpand>
+          <With value={section}>
+            {(s: SectionId) => {
+              if (s === "energy") return <EnergySection />
+              if (s === "display") return <DisplaySection />
+              if (s === "notifications") return <SettingsTabs />
+              return <PersonalizationSection />
+            }}
+          </With>
+        </box>
+      </Gtk.ScrolledWindow>
     </box>
   ) as unknown as Gtk.Widget
 

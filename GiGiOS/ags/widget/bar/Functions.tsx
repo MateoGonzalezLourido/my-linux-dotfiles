@@ -27,8 +27,7 @@ function FunctionRow({ item }: { item: BarFunction }) {
           focusable={false}
           onClicked={() => item.toggle(!item.enabled.get())}
         >
-          <box cssClasses={["fn-menu-row"]} spacing={8}>
-            <label cssClasses={["fn-menu-ic"]} label={item.icon} />
+          <box cssClasses={["fn-menu-row"]} spacing={6}>
             <label
               cssClasses={["fn-menu-label"]}
               label={item.label}
@@ -59,7 +58,7 @@ export function FunctionsMenu(gdkmonitor: Gdk.Monitor) {
       keymode={Astal.Keymode.ON_DEMAND}
       anchor={TOP | LEFT}
       application={app}
-      widthRequest={220}
+      widthRequest={150}
       marginTop={37}
       marginLeft={47}
       decorated={false}
@@ -76,7 +75,6 @@ export function FunctionsMenu(gdkmonitor: Gdk.Monitor) {
       />
       <box cssClasses={["fn-menu"]} orientation={Gtk.Orientation.VERTICAL}>
         <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
-        <label cssClasses={["fn-menu-header"]} label="Funciones" xalign={0} />
         {BAR_FUNCTIONS.map((item) => <FunctionRow item={item} />)}
       </box>
     </window>

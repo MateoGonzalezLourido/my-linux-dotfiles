@@ -2,6 +2,7 @@
 // "Energía" section of the general settings panel: power-save threshold + the toggle that
 // suspends notification-filter timers while in power-save.
 import { Gtk } from "ags/gtk4"
+import { InlineEditableValue } from "../InlineEditableValue"
 import {
   powerSaveThreshold, setPowerSaveThreshold,
   suspendNotifFilters, setSuspendNotifFilters,
@@ -20,27 +21,39 @@ function ThresholdSlider(): Gtk.Scale {
 }
 
 export default function EnergySection() {
-  const statusLabel = powerSaveActive((a) => a ? "Ahorro de energía activo" : "Energía normal")
-  const statusClass = powerSaveActive((a) => a ? ["sp-energy-status", "active"] : ["sp-energy-status"])
+  const summaryClass = powerSaveActive((active) =>
+    active ? ["sp-energy-summary", "active"] : ["sp-energy-summary"]
+  )
+  const modeClass = powerSaveActive((active) =>
+    active ? ["sp-energy-mode", "active"] : ["sp-energy-mode"]
+  )
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]}>
-      <label cssClasses={["sp-section-title"]} label="Energía" halign={Gtk.Align.START} />
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
+      <label cssClasses={["sp-section-title"]} label="✦ Energía" halign={Gtk.Align.START} />
 
       {/* estado actual */}
-      <box cssClasses={["sp-energy-card"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-        <box spacing={8} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["sp-energy-icon"]} label={powerSaveActive((a) => a ? "󰂃" : "󰁹")} />
-          <label cssClasses={statusClass} label={statusLabel} hexpand halign={Gtk.Align.START} />
-        </box>
-        <label cssClasses={["sp-energy-sub"]} label={batteryStatusText} halign={Gtk.Align.START} />
+      <box spacing={6} halign={Gtk.Align.START}>
+        <label cssClasses={summaryClass} label={batteryStatusText((text) => text.replace("%", ""))} />
+        <label cssClasses={["sp-energy-separator"]} label="·" />
+        <label
+          cssClasses={modeClass}
+          label={powerSaveActive((active) => active ? "Ahorro activo" : "Ahorro desactivado")}
+        />
       </box>
 
       {/* umbral de ahorro */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
           <label cssClasses={["sp-field-label"]} label="Entrar en ahorro al bajar de" hexpand halign={Gtk.Align.START} />
-          <label cssClasses={["sp-field-value"]} label={powerSaveThreshold((v) => `${v}%`)} />
+          <InlineEditableValue
+            display={powerSaveThreshold((v) => `${Math.round(v)}`)}
+            getValue={() => powerSaveThreshold.get()}
+            onCommit={setPowerSaveThreshold}
+            min={0} max={100}
+            labelClass="sp-field-value"
+            tooltip="Editar umbral de ahorro"
+          />
         </box>
         {ThresholdSlider() as unknown as any}
         <label
@@ -52,7 +65,7 @@ export default function EnergySection() {
       </box>
 
       {/* suspender filtros de notificaciones */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
             <label cssClasses={["sp-field-label"]} label="Pausar filtros de notificaciones en ahorro" halign={Gtk.Align.START} />
@@ -71,7 +84,7 @@ export default function EnergySection() {
       </box>
 
       {/* pausar preview de workspace en ahorro */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
             <label cssClasses={["sp-field-label"]} label="Pausar preview de workspace en ahorro" halign={Gtk.Align.START} />

@@ -11,19 +11,22 @@ import {
 
 export default function PersonalizationSection() {
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]}>
-      <label cssClasses={["sp-section-title"]} label="Personalización" halign={Gtk.Align.START} />
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
+      <label cssClasses={["sp-section-title"]} label="✦ Personalización" halign={Gtk.Align.START} />
 
       {/* preview de workspace */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
             <label cssClasses={["sp-field-label"]} label="Preview de workspace" halign={Gtk.Align.START} />
             <label
               cssClasses={["sp-field-hint"]}
-              label="Muestra una captura del workspace al hacer clic derecho sobre su número. Al desactivarlo se deja de capturar en segundo plano."
+              label={"Muestra una captura al hacer clic derecho sobre un workspace.\nAl desactivarlo se deja de capturar en segundo plano."}
               halign={Gtk.Align.START}
               wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
             />
           </box>
           <button
@@ -39,15 +42,18 @@ export default function PersonalizationSection() {
       </box>
 
       {/* monitor de batería */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
             <label cssClasses={["sp-field-label"]} label="Monitor de batería" halign={Gtk.Align.START} />
             <label
               cssClasses={["sp-field-hint"]}
-              label="Notificaciones de carga/descarga, modo ahorro y niveles bajos (scripts/battery-monitor.sh). El script solo lee este ajuste al arrancar, así que un cambio se aplica reiniciándolo (o en el próximo login)."
+              label={"Notificaciones de carga, descarga, ahorro y batería baja.\nSe aplica al reiniciar el monitor o en el próximo login."}
               halign={Gtk.Align.START}
               wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
             />
           </box>
           <button
@@ -63,15 +69,18 @@ export default function PersonalizationSection() {
       </box>
 
       {/* monitor de temperatura */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
             <label cssClasses={["sp-field-label"]} label="Monitor de temperatura" halign={Gtk.Align.START} />
             <label
               cssClasses={["sp-field-hint"]}
-              label="Notificaciones de CPU/GPU sobrecalentadas (scripts/temp-monitor.sh). El script solo lee este ajuste al arrancar, así que un cambio se aplica reiniciándolo (o en el próximo login)."
+              label={"Notificaciones cuando CPU o GPU se sobrecalientan.\nSe aplica al reiniciar el monitor o en el próximo login."}
               halign={Gtk.Align.START}
               wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
             />
           </box>
           <button

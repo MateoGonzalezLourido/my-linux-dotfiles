@@ -21,12 +21,12 @@ export default function RulesTab() {
   }
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} hexpand vexpand>
       <With value={editing}>
         {(e: NotifRule | null) => e
           ? <RuleEditor rule={e} onClose={() => setEditing(null)} />
-          : <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-              <box spacing={6} valign={Gtk.Align.CENTER}>
+          : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
+              <box spacing={6} valign={Gtk.Align.CENTER} hexpand>
                 <label cssClasses={["st-tab-hint"]} label="Reglas (del sistema + tuyas)" hexpand halign={Gtk.Align.START} />
                 <button cssClasses={["st-add-btn"]} onClicked={() => setEditing(blankRule(`user.${Date.now()}`))}>
                   <label label="󰐕 Nueva" />
@@ -35,11 +35,11 @@ export default function RulesTab() {
 
               <AppFilterBar apps={apps} active={filter} onSelect={setFilter} />
 
-              <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
-                <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+              <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} hexpand vexpand>
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={4} hexpand>
                   <For each={rules}>
                     {(r: NotifRule) => (
-                      <box cssClasses={["re-row"]} spacing={8} valign={Gtk.Align.CENTER} visible={filter((f) => f === "all" || r.match.app?.value === f)}>
+                      <box cssClasses={["re-row"]} spacing={8} valign={Gtk.Align.CENTER} visible={filter((f) => f === "all" || r.match.app?.value === f)} hexpand>
                         <button cssClasses={r.enabled ? ["re-toggle", "active"] : ["re-toggle"]} valign={Gtk.Align.CENTER} onClicked={() => toggleEnabled(r)}>
                           <label label={r.enabled ? "󰔡" : "󰨙"} />
                         </button>

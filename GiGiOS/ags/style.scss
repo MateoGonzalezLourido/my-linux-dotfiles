@@ -493,26 +493,17 @@ popover.cpuram-popover {
 .fn-menu {
   background: #0e0e1a;
   border: 1px solid rgba(137, 180, 250, 0.18);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 4px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
   transform-origin: top center;
   animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
 }
 
-.fn-menu-header {
-  font-family: $font-icon;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  color: rgba($text, 0.56);
-  margin-bottom: 6px;
-}
-
 .fn-menu-button {
   background: transparent;
   border: none;
-  border-radius: 7px;
+  border-radius: 6px;
   box-shadow: none;
   margin: 0;
   padding: 0;
@@ -532,43 +523,35 @@ popover.cpuram-popover {
 }
 
 .fn-menu-row {
-  padding: 5px 6px;
-  min-height: 28px;
-}
-
-.fn-menu-ic {
-  font-family: $font-icon;
-  font-size: 15px;
-  min-width: 20px;
-  color: $blue;
+  padding: 3px 5px;
+  min-height: 22px;
 }
 
 .fn-menu-label {
   font-family: $font-icon;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: #cdd6f4;
 }
 
 .fn-menu-state {
-  border-radius: $radius-pill;
-  min-width: 38px;
-  padding: 2px 7px;
-  background: rgba(255, 255, 255, 0.06);
+  min-width: 16px;
+  padding: 0;
+  background: transparent;
 
   label {
     font-family: $font-icon;
-    font-size: 9px;
-    font-weight: 800;
-    color: rgba($text, 0.55);
+    font-size: 7px;
+    font-weight: 700;
+    color: rgba($text, 0.38);
   }
 }
 
 .fn-menu-button.active .fn-menu-state {
-  background: rgba(137, 180, 250, 0.22);
+  background: transparent;
 
   label {
-    color: $blue;
+    color: rgba($blue, 0.7);
   }
 }
 
@@ -1489,8 +1472,44 @@ window.qs-window > box,
 }
 
 .qs-night-light-block {
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding-top: 8px;
+  padding-top: 5px;
+}
+
+button.qs-inline-value-btn {
+  @extend %chrome-reset;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+
+  &:focus, &:focus-visible {
+    outline: none;
+    box-shadow: none;
+    border: none;
+  }
+}
+
+entry.qs-inline-number-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  border-radius: 3px;
+  color: $qs-text;
+  font-size: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 2px;
+
+  &.compact {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  &:focus, &:focus-visible {
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
 }
 
 .qs-section-icon {
@@ -1500,11 +1519,11 @@ window.qs-window > box,
   margin: 0;
 
   &.bright {
-    color: $qs-yellow;
+    color: $blue;
   }
 
   &.night {
-    color: $qs-orange;
+    color: $violet;
   }
 
   &.muted {
@@ -1589,6 +1608,221 @@ button.qs-dropdown-header {
   }
 }
 
+// ── Display management ────────────────────────────────────────────────────────
+.qs-display-monitor-tabs {
+  margin-bottom: 0;
+}
+
+.qs-display-detected-title {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.qs-display-menu .qs-display-panel {
+  margin-top: 0;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+button.qs-display-monitor-pill {
+  @extend %chrome-reset;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  min-height: 0;
+  padding: 3px 10px;
+  color: $qs-text-dim;
+  font-size: 12px;
+  transition: all 120ms ease;
+
+  &:hover { background: rgba(255, 255, 255, 0.08); }
+
+  &.active {
+    background: rgba(203, 166, 247, 0.18);
+    border-color: rgba(203, 166, 247, 0.4);
+    color: $violet;
+  }
+
+  .qs-display-monitor-dot {
+    font-size: 7px;
+    color: $qs-accent;
+  }
+}
+
+.qs-display-status {
+  font-size: 11px;
+  color: $qs-text-dim;
+  margin: 2px 0 2px;
+}
+
+// Select integrado — la lista es un overlay del mismo árbol GTK, no un popup.
+.qs-display-select-wrap {
+  margin: 1px 0 2px;
+
+  &.compact {
+    margin: 1px 0 2px;
+    padding: 0;
+    min-height: 0;
+  }
+}
+
+.qs-display-compact-field {
+  margin: 0;
+  padding: 0;
+
+  .qs-dropdown-header {
+    margin: 1px 0 0;
+    padding: 0;
+    min-height: 0;
+  }
+}
+
+button.qs-display-select {
+  @extend %chrome-reset;
+  background-color: rgb(30, 30, 40);
+  border: 1px solid rgb(30, 30, 40);
+  border-radius: 8px;
+  padding: 6px 10px;
+  opacity: 1;
+  transition: all 120ms ease;
+
+  &.compact {
+    min-height: 0;
+    padding: 2px 10px;
+  }
+
+  &:hover { background-color: rgb(39, 39, 50); }
+
+  &.open {
+    background-color: rgb(39, 39, 50);
+    border-color: rgb(104, 87, 126);
+  }
+
+  .qs-display-select-value {
+    color: #dfe1f0;
+    font-size: 12px;
+  }
+
+  .qs-display-select-chevron {
+    color: rgb(150, 150, 165);
+    font-size: 11px;
+  }
+}
+
+scrolledwindow.qs-display-select-list {
+  background-color: rgb(20, 20, 28);
+  border: 1px solid rgb(45, 45, 55);
+  border-radius: 8px;
+  box-shadow: none;
+  opacity: 1;
+
+  > viewport {
+    background-color: rgb(20, 20, 28);
+    border-radius: 7px;
+    opacity: 1;
+  }
+
+  scrollbar.vertical {
+    min-width: 0;
+    background: transparent;
+    opacity: 0;
+
+    slider {
+      min-width: 0;
+      background: transparent;
+      opacity: 0;
+    }
+  }
+}
+
+.qs-display-select-options {
+  padding: 3px;
+  background-color: rgb(20, 20, 28);
+  border-radius: 7px;
+  opacity: 1;
+}
+
+button.qs-display-select-opt {
+  @extend %chrome-reset;
+  background-color: rgb(20, 20, 28);
+  opacity: 1;
+  border-radius: 6px;
+  padding: 2px 8px;
+  color: rgb(150, 150, 165);
+  font-size: 11px;
+  transition: all 100ms ease;
+
+  &:hover { background-color: rgb(34, 34, 43); }
+
+  &.active {
+    background-color: rgb(53, 47, 68);
+    color: $violet;
+  }
+}
+
+// Stepper de minutos (sección Pantalla de Ajustes)
+button.sp-step-btn {
+  @extend %chrome-reset;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 7px;
+  padding: 2px 10px;
+  color: #dfe1f0;
+  font-size: 15px;
+  transition: all 120ms ease;
+
+  &:hover { background: rgba(255, 255, 255, 0.10); }
+}
+
+.sp-step-val {
+  color: #dfe1f0;
+  font-size: 12px;
+  min-width: 56px;
+}
+
+// Input numérico escrito a mano (reglas de luz nocturna)
+entry.sp-num-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 7px;
+  padding: 4px 6px;
+  min-height: 0;
+  color: #dfe1f0;
+  font-size: 13px;
+  caret-color: $violet;
+
+  &:focus-within {
+    border-color: rgba(203, 166, 247, 0.5);
+    background: rgba(255, 255, 255, 0.09);
+  }
+}
+
+// Reglas de luz nocturna (lista)
+.sp-rule-row { padding: 2px 0; }
+
+button.sp-rule-del {
+  @extend %chrome-reset;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 7px;
+  padding: 4px 8px;
+  color: $qs-text-dim;
+  transition: all 120ms ease;
+
+  &:hover { background: rgba(243, 139, 168, 0.18); color: #f38ba8; }
+}
+
+button.sp-add-rule {
+  @extend %chrome-reset;
+  background: rgba(203, 166, 247, 0.12);
+  border: 1px solid rgba(203, 166, 247, 0.30);
+  border-radius: 8px;
+  padding: 5px 12px;
+  color: $violet;
+  font-size: 12px;
+  transition: all 120ms ease;
+
+  &:hover { background: rgba(203, 166, 247, 0.20); }
+}
+
 // ── Sliders ───────────────────────────────────────────────────────────────────
 scale.qs-slider {
   min-height: 0;
@@ -1637,11 +1871,12 @@ scale.qs-slider {
 
   &.brightness {
     progress {
-      background: rgba(255, 210, 90, 0.7);
+      background: rgba($blue, 0.75);
+      box-shadow: 0 0 10px rgba($blue, 0.25);
     }
 
     slider {
-      background: $qs-yellow;
+      background: $blue;
       margin: 0;
       padding: 0;
     }
@@ -1649,7 +1884,7 @@ scale.qs-slider {
 
   &.temperature {
     trough {
-      background: linear-gradient(to right, rgba(100, 160, 255, 0.4), rgba(255, 140, 30, 0.5));
+      background: linear-gradient(to right, rgba($blue, 0.45), rgba($violet, 0.55));
     }
 
     progress {
@@ -1657,7 +1892,7 @@ scale.qs-slider {
     }
 
     slider {
-      background: $qs-orange;
+      background: $violet;
       margin: 0;
       padding: 0;
     }
@@ -3678,9 +3913,27 @@ window.cal-panel > box {
   .sp-nav-icon { font-family: $font-icon; font-size: 14px; }
 }
 
-.sp-content { padding: 18px 20px; }
+.sp-content {
+  min-width: 590px;
+  padding: 18px 20px;
 
-.sp-section { }
+  scrollbar,
+  scrollbar slider,
+  scrollbar button {
+    opacity: 0;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+}
+
+.sp-section {
+  min-width: 590px;
+}
 .sp-section-title {
   font-size: 15px;
   font-weight: 700;
@@ -3688,22 +3941,50 @@ window.cal-panel > box {
   font-family: $font-icon;
 }
 
-.sp-energy-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 12px 14px;
-  .sp-energy-icon { font-family: $font-icon; font-size: 18px; color: $blue; }
-  .sp-energy-status { font-size: 13px; font-weight: 600; color: $text; font-family: $font-icon; }
-  .sp-energy-status.active { color: $orange; }
-  .sp-energy-icon { color: #a6e3a1; }
-  .sp-energy-sub { font-size: 11px; color: rgba($text, 0.5); font-family: $font-icon; }
+.sp-energy-summary {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba($violet, 0.82);
+  font-family: $font-icon;
+  letter-spacing: 0.01em;
+
+  &.active { color: $violet; }
 }
 
-.sp-field { }
+.sp-energy-mode {
+  font-size: 10px;
+  font-weight: 500;
+  color: $blue;
+  font-family: $font-icon;
+
+  &.active { color: #b9d5ff; }
+}
+
+.sp-energy-separator {
+  font-size: 11px;
+  color: rgba($text, 0.35);
+}
+
+.sp-field {
+  min-width: 560px;
+}
 .sp-field-label { font-size: 12px; color: $text; font-family: $font-icon; }
 .sp-field-value { font-size: 12px; font-weight: 700; color: $violet; font-family: $font-icon; }
 .sp-field-hint { font-size: 10px; color: rgba($text, 0.4); font-family: $font-icon; }
+
+.sp-subsection-title {
+  color: $violet;
+  font-family: $font-icon;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.sp-display-detected-title {
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  margin-bottom: -4px;
+}
 
 /* ── Centered notification-settings window (Phase 5) ────────────────── */
 .nsw-window {

@@ -16,9 +16,7 @@ import {
   closeAllPanels,
   panelAutoClose,
   nightLightActive,
-  setNightLightActive,
   nightLightTemp,
-  setNightLightTemp,
   qsView,
   setQsView,
   infoSsid,
@@ -31,6 +29,19 @@ import {
 import { openNotifPanel } from "./notifications/store"
 import { clipWindowInputToContent } from "./inputRegion"
 import * as Spotify from "./services/spotify/SpotifyService"
+import {
+  matchScalePreset,
+  resolutionOptions,
+  refreshOptions,
+  SCALE_PRESETS,
+} from "./display/modes"
+import {
+  monitors, saveDisplayConfig,
+  applyPatch, acquirePoll, releasePoll,
+  initDisplayService, setNightLightManual, setManualTemp,
+} from "./display/service"
+import { DisplaySelect } from "./display/controls"
+import { InlineEditableValue } from "./InlineEditableValue"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -321,50 +332,13 @@ function makeVolThrottle(apply: (v: number) => void) {
   }
 }
 
-const DISPLAY_CONFIG_PATH = `${GLib.get_user_config_dir()}/gigios/display.json`
-
-function loadDisplayConfig() {
-  try {
-    const [ok, content] = GLib.file_get_contents(DISPLAY_CONFIG_PATH)
-    if (ok) return JSON.parse(new TextDecoder().decode(content))
-  } catch (e) { }
-  return { brightness: 0.5, nightLightActive: false, nightLightTemp: 4500 }
-}
-
-let displaySaveTimeout: number | null = null
-function saveDisplayConfig() {
-  if (displaySaveTimeout !== null) GLib.source_remove(displaySaveTimeout)
-  displaySaveTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
-    try {
-      const dir = GLib.path_get_dirname(DISPLAY_CONFIG_PATH)
-      if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) execAsync(["mkdir", "-p", dir]).catch(() => { })
-      const config = {
-        brightness: brightness.get(),
-        nightLightActive: nightLightActive.get(),
-        nightLightTemp: nightLightTemp.get(),
-      }
-      GLib.file_set_contents(DISPLAY_CONFIG_PATH, JSON.stringify(config))
-    } catch (e) { }
-    displaySaveTimeout = null
-    return GLib.SOURCE_REMOVE
-  })
-}
-
-// ── Initial Display Load & Apply ──────────────────────────────────────────────
-const dispConfig = loadDisplayConfig()
-// brightness is NOT restored from cache: state.tsx already reads the real hardware
-// value from sysfs at startup, so applying the cache would override changes made
-// via keybindings between AGS sessions.
-setNightLightActive(dispConfig.nightLightActive)
-setNightLightTemp(dispConfig.nightLightTemp)
-
-// Keep display.json in sync whenever brightness changes from any source
-// (slider, keybindings via udev, etc.) so the cache is never stale.
-brightness.subscribe(saveDisplayConfig)
-
-if (dispConfig.nightLightActive) {
-  execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${dispConfig.nightLightTemp} &`]).catch(() => { })
-}
+// ── Display config & startup apply ────────────────────────────────────────────
+// Toda la lógica de pantalla (config load/save, prefs por monitor, poller,
+// applyPatch, re-aplicación al arranque, globales y scheduler de luz nocturna)
+// vive en display/service.ts — fuente única compartida con la sección Pantalla
+// de Ajustes. saveDisplayConfig se importa de ahí y sigue sirviendo al brillo y
+// la luz nocturna de este panel.
+initDisplayService()
 
 // ── System State Persistence (Wifi, BT, Vol) ──────────────────────────────────
 const SYSTEM_STATE_PATH = `${GLib.get_user_config_dir()}/gigios/system_state.json`
@@ -851,13 +825,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           active={nightLightActive}
           onToggle={onDisplayClick}
           onSecondaryClick={onDisplayClick}
-          onRightClick={() => {
-            const next = !nightLightActive.get()
-            setNightLightActive(next)
-            saveDisplayConfig()
-            if (next) execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${nightLightTemp.get()} &`]).catch(() => { })
-            else execAsync(["bash", "-c", "pkill hyprsunset; hyprctl hyprsunset identity"]).catch(() => { })
-          }}
+          onRightClick={() => setNightLightManual(!nightLightActive.get())}
         />
       </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
@@ -1659,12 +1627,27 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                           <label cssClasses={["qs-audio-icon"]} label={createComputed(() => deviceIcon(vol(), mute()))} />
                         </button>
                         <box spacing={5} valign={Gtk.Align.CENTER} hexpand>
-                          <Gtk.GestureClick
-                            button={Gdk.BUTTON_PRIMARY}
-                            onPressed={activate}
+                          <box hexpand valign={Gtk.Align.CENTER}>
+                            <Gtk.GestureClick
+                              button={Gdk.BUTTON_PRIMARY}
+                              onPressed={activate}
+                            />
+                            {scale}
+                          </box>
+                          <InlineEditableValue
+                            display={vol((v) => `${Math.round(v * 100)}`)}
+                            getValue={() => ep.volume * 100}
+                            onCommit={(value) => {
+                              ep.volume = value / 100
+                              const p = { ...presets.get(), [devKey]: value / 100 }
+                              setPresets(p)
+                              saveAudioPresets(p)
+                            }}
+                            min={0} max={100}
+                            labelClass="qs-audio-vol-pct"
+                            tooltip="Editar volumen"
+                            widthRequest={18}
                           />
-                          {scale}
-                          <label cssClasses={["qs-audio-vol-pct"]} label={vol((v) => `${Math.round(v * 100)}`)} />
                         </box>
                       </box>
                     </box>
@@ -1739,9 +1722,21 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                           titleClass="qs-section-label"
                           spacing={6}
                         />
-                        <label
-                          cssClasses={si.isSilent ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
-                          label={currentVol((v) => `${Math.round(v * 100)}`)}
+                        <InlineEditableValue
+                          display={currentVol((v) => `${Math.round(v * 100)}`)}
+                          getValue={() => currentVol.get() * 100}
+                          onCommit={(value) => {
+                            const v = value / 100
+                            setCurrentVol(v)
+                            const p = { ...presets.get(), [key]: v }
+                            setPresets(p)
+                            saveAudioPresets(p)
+                            applyVol(v)
+                          }}
+                          min={0} max={100}
+                          labelClass={si.isSilent ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
+                          tooltip="Editar volumen"
+                          widthRequest={18}
                         />
                       </box>
                       <box spacing={6}>
@@ -1771,15 +1766,86 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
 // ── Section 5: Brightness ─────────────────────────────────────────────────────
 
 function QsDisplayMenu({ onBack }: { onBack: () => void }) {
-  const [monitors, setMonitors] = createState<any[]>([])
+  const [selectedName, setSelectedName] = createState<string>("")
+  const [editingBrightness, setEditingBrightness] = createState(false)
+  const [editingTemp, setEditingTemp] = createState(false)
+  let brightnessEntry: Gtk.Entry
+  let tempEntry: Gtk.Entry
 
-  const updateMonitors = () => {
-    execAsync(["hyprctl", "monitors", "-j"]).then(out => {
-      try { setMonitors(JSON.parse(out)) } catch { }
-    }).catch(() => { })
+  const commitBrightness = () => {
+    const parsed = Number.parseInt(brightnessEntry?.text.trim() ?? "", 10)
+    const value = Number.isFinite(parsed)
+      ? Math.max(0, Math.min(100, parsed))
+      : Math.round(brightness.get() * 100)
+    setBrightness(value / 100)
+    saveDisplayConfig()
+    execAsync(["bash", "-c", `brightnessctl -n2 s ${value}%`]).catch(() => {})
+    if (brightnessEntry) brightnessEntry.text = String(value)
+    setEditingBrightness(false)
   }
 
-  updateMonitors()
+  const editBrightness = () => {
+    if (!brightnessEntry) return
+    brightnessEntry.text = String(Math.round(brightness.get() * 100))
+    setEditingBrightness(true)
+    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+      brightnessEntry.grab_focus()
+      brightnessEntry.select_region(0, -1)
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  const commitTemp = () => {
+    const parsed = Number.parseInt(tempEntry?.text.trim() ?? "", 10)
+    const value = Number.isFinite(parsed)
+      ? Math.max(1500, Math.min(6000, parsed))
+      : nightLightTemp.get()
+    setManualTemp(value)
+    if (tempEntry) tempEntry.text = String(value)
+    setEditingTemp(false)
+  }
+
+  const editTemp = () => {
+    if (!tempEntry) return
+    tempEntry.text = String(nightLightTemp.get())
+    setEditingTemp(true)
+    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+      tempEntry.grab_focus()
+      tempEntry.select_region(0, -1)
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  // El poller de monitores vive en display/service (ref-counted, compartido con
+  // la sección Pantalla de Ajustes). Este menú lo adquiere solo con QS abierto Y
+  // en la vista "display", y lo libera al salir.
+  const evalPoll = () => {
+    if (quickSettingsVisible.get() && qsView.get() === "display") acquirePoll()
+    else releasePoll()
+  }
+  quickSettingsVisible.subscribe(evalPoll)
+  qsView.subscribe(evalPoll)
+
+  // Corrige la selección si el monitor elegido desaparece (desconexión) o si aún
+  // no hay ninguno: cae al enfocado o al primero.
+  const fixSelection = () => {
+    const list = monitors.get()
+    if (list.length && !list.some((m: any) => m.name === selectedName.get())) {
+      const f = list.find((m: any) => m.focused) || list[0]
+      setSelectedName(f ? f.name : "")
+    }
+  }
+  monitors.subscribe(fixSelection)
+  fixSelection()
+
+  const selected = createComputed(() => {
+    const list = monitors()
+    const name = selectedName()
+    return list.find((m: any) => m.name === name) || null
+  })
+
+  const enabledCount = () => monitors().filter((m: any) => !m.disabled).length
+  const canDisable = (mon: any) => mon.disabled || enabledCount() > 1
 
   const brightScale = makeScale(
     ["qs-slider", "brightness"],
@@ -1787,76 +1853,226 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
     (v) => {
       setBrightness(v)
       saveDisplayConfig()
-      execAsync(["bash", "-c", `brightnessctl -n2 s ${Math.round(v * 100)}%`]).catch(() => { })
+      execAsync(["bash", "-c", `brightnessctl -n2 s ${Math.round(v * 100)}%`]).catch(() => {})
     },
     (cb) => brightness.subscribe(cb),
   )
 
-  let hyprsunsetTimeout: ReturnType<typeof setTimeout> | null = null
   const tempScale = makeScale(
     ["qs-slider", "temperature"],
     () => (nightLightTemp.get() - 1500) / 4500,
-    (v) => {
-      const t = Math.round(v * 4500 + 1500)
-      setNightLightTemp(t)
-      saveDisplayConfig()
-      if (nightLightActive.get()) {
-        if (hyprsunsetTimeout) clearTimeout(hyprsunsetTimeout)
-        hyprsunsetTimeout = setTimeout(() => {
-          execAsync(["bash", "-c", `hyprctl hyprsunset temperature ${t}`]).catch(() => { })
-        }, 150)
-      }
-    },
+    (v) => setManualTemp(Math.round(v * 4500 + 1500)),
     (cb) => nightLightTemp.subscribe(cb),
   )
-
   nightLightTemp.subscribe(() => { tempScale.adjustment.value = (nightLightTemp.get() - 1500) / 4500 })
 
   return (
-    <box cssClasses={["qs-display-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <QsMenuHeader title="Pantalla y Brillo" onBack={onBack} />
+    <overlay cssClasses={["display-select-host"]} hexpand>
+    <box cssClasses={["qs-display-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={5} hexpand>
+      <QsMenuHeader title="Pantalla" onBack={onBack} />
 
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-        <label cssClasses={["qs-dropdown-header"]} label="MONITORES CONECTADOS" halign={Gtk.Align.START} />
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-          <For each={() => monitors()}>
-            {(m: any) => (
-              <box cssClasses={["qs-sink-item"]} spacing={8}>
-                <label cssClasses={["qs-sink-dot"]} label="●" visible={m.focused} />
-                <box orientation={Gtk.Orientation.VERTICAL} hexpand>
-                  <label cssClasses={["qs-sink-name"]} label={m.model || m.name} halign={Gtk.Align.START} />
-                  <label label={`${m.width}x${m.height} @ ${m.refreshRate.toFixed(0)}Hz`} cssClasses={["qs-sink-res"]} halign={Gtk.Align.START} />
-                </box>
+      {/* Selector de monitor */}
+      <label
+        cssClasses={["qs-dropdown-header", "qs-display-detected-title"]}
+        label="PANTALLAS DETECTADAS"
+        halign={Gtk.Align.START}
+        marginStart={10}
+        marginEnd={10}
+      />
+      <box cssClasses={["qs-display-monitor-tabs"]} spacing={6} marginStart={10} marginEnd={10}>
+        <For each={monitors}>
+          {(m: any) => (
+            <button
+              cssClasses={selectedName((n) => n === m.name ? ["qs-display-monitor-pill", "active"] : ["qs-display-monitor-pill"])}
+              onClicked={() => setSelectedName(m.name)}
+            >
+              <box spacing={5} valign={Gtk.Align.CENTER}>
+                <label cssClasses={["qs-display-monitor-dot"]} label="●" visible={m.focused} />
+                <label label={m.name} ellipsize={3} maxWidthChars={14} />
               </box>
-            )}
-          </For>
+            </button>
+          )}
+        </For>
+      </box>
+
+      {/* Gestión del monitor seleccionado */}
+      <box cssClasses={["qs-section", "qs-display-panel"]} orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+        {/* Encendido */}
+        <box spacing={6} visible={createComputed(() => monitors().length > 1)}>
+          <label cssClasses={["qs-section-icon"]} label="󰍹" />
+          <label cssClasses={["qs-section-label"]} label="Encendido" hexpand halign={Gtk.Align.START} />
+          <button
+            cssClasses={createComputed(() => { const s = selected(); return s && !s.disabled ? ["qs-toggle", "on"] : ["qs-toggle"] })}
+            onClicked={() => {
+              const s = selected(); if (!s) return
+              if (!s.disabled && !canDisable(s)) return // guarda: no apagar el último activo
+              applyPatch(s, { enabled: s.disabled })
+            }}
+          >
+            <ToggleSwitch active={createComputed(() => { const s = selected(); return s ? !s.disabled : false })} />
+          </button>
+        </box>
+
+        {/* Controles (ocultos si el monitor está apagado) */}
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={3}
+          visible={createComputed(() => { const s = selected(); return !!s && !s.disabled })}>
+
+          {/* Resolución (lista general — Hyprland acepta modos no nativos) */}
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}>
+            <label cssClasses={["qs-dropdown-header"]} label="RESOLUCIÓN" halign={Gtk.Align.START} />
+            <DisplaySelect
+              compact
+              current={createComputed(() => { const s = selected(); return s ? `${s.width}×${s.height}` : "—" })}
+              options={createComputed(() => {
+                const s = selected()
+                if (!s || s.disabled) return []
+                return resolutionOptions(s.availableModes).map(o => ({
+                  label: o.label, value: o.key, active: s.width === o.w && s.height === o.h,
+                }))
+              })}
+              onSelect={(value) => {
+                const s = selected(); if (!s) return
+                applyPatch(s, { mode: `${value}@${s.refreshRate.toFixed(2)}Hz` })
+              }}
+            />
+          </box>
+
+          {/* Frecuencia */}
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}>
+            <label cssClasses={["qs-dropdown-header"]} label="FRECUENCIA" halign={Gtk.Align.START} />
+            <DisplaySelect
+              compact
+              current={createComputed(() => { const s = selected(); return s ? `${Math.round(s.refreshRate)} Hz` : "—" })}
+              options={createComputed(() => {
+                const s = selected()
+                if (!s || s.disabled) return []
+                return refreshOptions(s.availableModes).map(o => ({
+                  label: `${o.hz} Hz`, value: o.raw, active: Math.round(s.refreshRate) === o.hz,
+                }))
+              })}
+              onSelect={(value) => {
+                const s = selected(); if (!s) return
+                applyPatch(s, { mode: `${s.width}x${s.height}@${value}Hz` })
+              }}
+            />
+          </box>
+
+          {/* Escala */}
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}>
+            <label cssClasses={["qs-dropdown-header"]} label="ESCALA" halign={Gtk.Align.START} />
+            <DisplaySelect
+              compact
+              current={createComputed(() => { const s = selected(); return s ? matchScalePreset(s.scale).toFixed(2) : "—" })}
+              options={createComputed(() => {
+                const s = selected()
+                if (!s || s.disabled) return []
+                const cur = matchScalePreset(s.scale)
+                return SCALE_PRESETS.map(sc => ({ label: sc.toFixed(2), value: String(sc), active: sc === cur }))
+              })}
+              onSelect={(value) => {
+                const s = selected(); if (!s) return
+                applyPatch(s, { scale: Number(value) })
+              }}
+            />
+          </box>
+
+          {/* Duplicar (mirror) — solo con 2+ monitores */}
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}
+            visible={createComputed(() => monitors().length > 1)}>
+            <label cssClasses={["qs-dropdown-header"]} label="DUPLICAR EN" halign={Gtk.Align.START} />
+            <DisplaySelect
+              compact
+              current={createComputed(() => {
+                const s = selected()
+                return s && s.mirrorOf && s.mirrorOf !== "none" ? s.mirrorOf : "Ninguno"
+              })}
+              options={createComputed(() => {
+                const s = selected()
+                if (!s) return []
+                const noMirror = !s.mirrorOf || s.mirrorOf === "none"
+                const opts = [{ label: "Ninguno", value: "none", active: noMirror }]
+                for (const m of monitors()) {
+                  if (m.name === s.name) continue
+                  opts.push({ label: m.name, value: m.name, active: s.mirrorOf === m.name })
+                }
+                return opts
+              })}
+              onSelect={(value) => {
+                const s = selected(); if (!s) return
+                applyPatch(s, { mirrorOf: value })
+              }}
+            />
+          </box>
         </box>
       </box>
 
-      <box cssClasses={["qs-section", "qs-display-panel"]} orientation={Gtk.Orientation.VERTICAL} spacing={10}>
+      {/* Brillo + Luz nocturna */}
+      <box cssClasses={["qs-section", "qs-display-panel"]} orientation={Gtk.Orientation.VERTICAL} spacing={6}>
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
           <box spacing={6}>
             <label cssClasses={["qs-section-icon", "bright"]} label="󰃟" />
             <label cssClasses={["qs-section-label"]} label="Brillo" hexpand halign={Gtk.Align.START} />
-            <label cssClasses={["qs-section-pct"]} label={brightness((v) => `${Math.round(v * 100)}%`)} />
+            <button
+              cssClasses={["qs-inline-value-btn"]}
+              visible={editingBrightness((editing) => !editing)}
+              onClicked={editBrightness}
+              tooltipText="Editar brillo"
+            >
+              <label cssClasses={["qs-section-pct"]} label={brightness((v) => `${Math.round(v * 100)}`)} />
+            </button>
+            <Gtk.Entry
+              cssClasses={["qs-inline-number-input"]}
+              visible={editingBrightness}
+              maxLength={3}
+              widthChars={3}
+              widthRequest={28}
+              heightRequest={16}
+              xalign={1}
+              inputPurpose={Gtk.InputPurpose.DIGITS}
+              $={(self: Gtk.Entry) => {
+                brightnessEntry = self
+                self.text = String(Math.round(brightness.get() * 100))
+              }}
+              onActivate={commitBrightness}
+            >
+              <Gtk.EventControllerFocus onLeave={commitBrightness} />
+            </Gtk.Entry>
           </box>
           {brightScale}
         </box>
 
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["qs-night-light-block"]}>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} cssClasses={["qs-night-light-block"]}>
           <box spacing={6}>
             <label cssClasses={["qs-section-icon", "night"]} label="󰌾" />
             <label cssClasses={["qs-section-label"]} label="Luz nocturna" hexpand halign={Gtk.Align.START} />
-            <label cssClasses={["qs-section-pct"]} label={nightLightTemp((t) => `${t}K`)} />
+            <button
+              cssClasses={["qs-inline-value-btn"]}
+              visible={editingTemp((editing) => !editing)}
+              onClicked={editTemp}
+              tooltipText="Editar temperatura"
+            >
+              <label cssClasses={["qs-section-pct"]} label={nightLightTemp((t) => `${t}K`)} />
+            </button>
+            <Gtk.Entry
+              cssClasses={["qs-inline-number-input"]}
+              visible={editingTemp}
+              maxLength={4}
+              widthChars={4}
+              widthRequest={34}
+              heightRequest={16}
+              xalign={1}
+              inputPurpose={Gtk.InputPurpose.DIGITS}
+              $={(self: Gtk.Entry) => {
+                tempEntry = self
+                self.text = String(nightLightTemp.get())
+              }}
+              onActivate={commitTemp}
+            >
+              <Gtk.EventControllerFocus onLeave={commitTemp} />
+            </Gtk.Entry>
             <button
               cssClasses={nightLightActive((n) => n ? ["qs-toggle", "on"] : ["qs-toggle"])}
-              onClicked={() => {
-                const next = !nightLightActive.get()
-                setNightLightActive(next)
-                saveDisplayConfig()
-                if (next) execAsync(["bash", "-c", `pkill hyprsunset; hyprsunset -t ${nightLightTemp.get()} &`]).catch(() => { })
-                else execAsync(["bash", "-c", "pkill hyprsunset; hyprctl hyprsunset identity"]).catch(() => { })
-              }}
+              onClicked={() => setNightLightManual(!nightLightActive.get())}
             >
               <ToggleSwitch active={nightLightActive} />
             </button>
@@ -1865,6 +2081,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
         </box>
       </box>
     </box>
+    </overlay>
   )
 }
 
@@ -2631,7 +2848,12 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
           <QsWifiMenu onBack={() => setQsView("main")} />
         </box>
 
-        <box orientation={Gtk.Orientation.VERTICAL} visible={qsView((v) => v === "display")}>
+        <box
+          orientation={Gtk.Orientation.VERTICAL}
+          visible={qsView((v) => v === "display")}
+          widthRequest={PANEL_PANEL_WIDTH - 10}
+          hexpand
+        >
           <QsDisplayMenu onBack={() => setQsView("main")} />
         </box>
 

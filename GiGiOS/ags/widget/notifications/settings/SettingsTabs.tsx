@@ -15,8 +15,9 @@ const TABS: { id: TabId; label: string }[] = [
 export default function SettingsTabs() {
   const [tab, setTab] = createState<TabId>("apps")
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <box cssClasses={["st-tabbar"]} spacing={4}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section"]} hexpand vexpand>
+      <label cssClasses={["sp-section-title"]} label="✦ Notificaciones" halign={Gtk.Align.START} />
+      <box cssClasses={["st-tabbar"]} spacing={4} hexpand>
         {TABS.map(t => (
           <button
             cssClasses={tab((cur) => cur === t.id ? ["st-tab", "active"] : ["st-tab"])}
