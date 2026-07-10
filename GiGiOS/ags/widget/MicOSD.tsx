@@ -63,7 +63,7 @@ export default function MicOSD(gdkmonitor: Gdk.Monitor) {
                     transitionType={Gtk.RevealerTransitionType.SLIDE_LEFT}
                     transitionDuration={300}
                 >
-                    <box css="min-width: 220px;" />
+                    <box cssClasses={["osd-mic-spacer"]} />
                 </revealer>
                 <box
                     cssClasses={["osd-container"]}

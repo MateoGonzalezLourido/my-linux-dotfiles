@@ -159,7 +159,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     <Gtk.GestureClick
       onPressed={() => setIsHovered(true)}
     />
-    <centerbox css="margin-left: 9px; margin-right: 10px;">
+    <centerbox>
       <box $type="start" halign={Gtk.Align.START} spacing={6}>
         <Clock />
         <box spacing={1}>
@@ -172,7 +172,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       <box $type="center" halign={Gtk.Align.CENTER} spacing={8}>
       </box>
 
-      <box $type="end" halign={Gtk.Align.END} spacing={2} css="margin-left: 20px;">
+      <box $type="end" halign={Gtk.Align.END} spacing={2} cssClasses={["bar-end-box"]}>
         <SystemTray />
         <box cssClasses={["bar-status-pair"]} spacing={0}>
           <NotificationButton />

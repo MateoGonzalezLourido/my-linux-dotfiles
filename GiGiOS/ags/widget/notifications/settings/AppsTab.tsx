@@ -66,7 +66,7 @@ export default function AppsTab() {
 
       <With value={empty}>
         {(isEmpty: boolean) => isEmpty
-          ? <box orientation={Gtk.Orientation.VERTICAL} spacing={8} valign={Gtk.Align.CENTER} halign={Gtk.Align.CENTER} vexpand css="padding: 32px 0;">
+          ? <box orientation={Gtk.Orientation.VERTICAL} spacing={8} valign={Gtk.Align.CENTER} halign={Gtk.Align.CENTER} vexpand cssClasses={["ns-empty-state"]}>
               <label cssClasses={["ns-empty-icon"]} label="󰂚" />
               <label cssClasses={["ns-empty-label"]} label="Sin apps todavía" />
             </box>

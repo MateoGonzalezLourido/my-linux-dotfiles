@@ -167,7 +167,7 @@ export default function NotificationItem({ notif }: { notif: StoredNotification 
         />
 
         {/* Checkbox de selección (modo selección múltiple) */}
-        <box visible={selectionMode((v) => v)} css="margin: 0 6px;">
+        <box visible={selectionMode((v) => v)} cssClasses={["notif-checkbox-wrap"]}>
           <button
             cssClasses={isSelected((s) => s ? ["notif-checkbox", "checked"] : ["notif-checkbox"])}
             onClicked={toggleSelect}
@@ -296,7 +296,6 @@ export default function NotificationItem({ notif }: { notif: StoredNotification 
         <box
           cssClasses={["notif-dbus-actions"]}
           spacing={4}
-          css="padding: 4px 8px 4px 16px;"
         >
           {visibleActions.slice(0, 3).map(action => (
             <button
@@ -321,7 +320,6 @@ export default function NotificationItem({ notif }: { notif: StoredNotification 
         cssClasses={["notif-reply-box"]}
         spacing={6}
         visible={replyOpen((v) => v)}
-        css="padding: 6px 8px;"
       >
         <Gtk.Entry
           cssClasses={["notif-reply-entry"]}

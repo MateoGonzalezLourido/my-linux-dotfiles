@@ -170,7 +170,7 @@ function NotificationList() {
           halign={Gtk.Align.CENTER}
           vexpand
           visible={empty}
-          css="padding: 40px 0;"
+          cssClasses={["np-empty-state"]}
         >
           <label cssClasses={["np-empty-icon"]} label="󰂚" />
           <label cssClasses={["np-empty-title"]} label="Sin notificaciones" />

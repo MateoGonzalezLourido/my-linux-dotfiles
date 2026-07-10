@@ -58,6 +58,8 @@ $orange: #fab387;
 
 .Bar>centerbox {
   padding: 0 15px;
+  margin-left: 9px;
+  margin-right: 10px;
 }
 
 // ── Reloj ─────────────────────────────────────────────────────────────────────
@@ -704,6 +706,10 @@ popover.tray-overflow-popover > contents {
   }
 }
 
+.bar-end-box {
+  margin-left: 20px;
+}
+
 .bar-status-pair {
   .bar-pill.nb-pill,
   .bar-pill.qs-system-pill {
@@ -774,6 +780,11 @@ popover.tray-overflow-popover > contents {
 .mic-indicator.muted {
   color: $text-dim;
   animation: none;
+}
+
+.mic-indicator .icon {
+  font-family: 'MesloLGS Nerd Font';
+  font-size: 16px;
 }
 
 .notifications {
@@ -1168,6 +1179,10 @@ progressbar.osd-progress {
   color: #e2e2e2;
 }
 
+.osd-mic-spacer {
+  min-width: 220px;
+}
+
 // ── bar-pill-btn (wrapper del bar-pill clickeable) ────────────────────────────
 .Bar .bar-pill-btn {
   background: transparent;
@@ -1252,6 +1267,10 @@ window.qs-window > box,
 // ── Header ────────────────────────────────────────────────────────────────────
 .qs-header {
   padding-bottom: 4px;
+}
+
+.qs-header-actions {
+  margin-left: 8px;
 }
 
 .qs-clock {
@@ -1526,6 +1545,17 @@ window.qs-window > box,
     font-size: 15px;
     color: rgba(255, 255, 255, 0.9);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 1), 0 0 8px rgba(0, 0, 0, 0.85);
+    margin-top: 8px;
+    margin-right: 14px;
+  }
+
+  .qs-media-content {
+    background-color: transparent;
+    padding: 8px 14px 2px;
+  }
+
+  .qs-media-switcher-row {
+    margin-bottom: 2px;
   }
 
   .qs-media-switch {
@@ -1573,6 +1603,16 @@ window.qs-window > box,
       label { color: $qs-accent; }
     }
   }
+
+  &.qs-display-panel {
+    padding: 10px;
+    margin-top: 4px;
+  }
+}
+
+.qs-night-light-block {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 8px;
 }
 
 .qs-section-icon {
@@ -1620,6 +1660,20 @@ window.qs-window > box,
   font-size: 10px;
   color: $qs-text-dim;
   margin: 0;
+
+  &.is-silent {
+    opacity: 0.5;
+  }
+}
+
+.qs-audio-icon {
+  font-size: 1em;
+  min-width: 18px;
+}
+
+.qs-audio-silent-icon {
+  opacity: 0.3;
+  font-size: 0.75em;
 }
 
 .qs-dropdown-header {
@@ -1628,6 +1682,12 @@ window.qs-window > box,
   color: rgba(255, 255, 255, 0.22);
   font-weight: 700;
   margin: 4px 0 2px;
+}
+
+button.qs-dropdown-header {
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .qs-sink-item {
@@ -1657,6 +1717,11 @@ window.qs-window > box,
   .qs-sink-name {
     font-size: 12px;
     margin: 0;
+  }
+
+  .qs-sink-res {
+    font-size: 0.8em;
+    opacity: 0.5;
   }
 }
 
@@ -2083,6 +2148,18 @@ button.qs-user-settings-btn {
     color: #ff7b00;
     font-size: 14px;
   }
+
+  &.qs-audio-app-item {
+    padding: 4px 6px;
+  }
+
+  &.password-prompt {
+    padding: 10px;
+  }
+}
+
+.qs-wifi-password-label {
+  font-size: 0.9em;
 }
 
 .qs-wifi-advanced {
@@ -2160,6 +2237,22 @@ button.qs-user-settings-btn {
   background: transparent;
   border-radius: 12px;
   padding: 2px;
+}
+
+.qs-bt-unnamed-label {
+  font-size: 0.8em;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.qs-bt-unnamed-chevron {
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.qs-bt-empty-label {
+  opacity: 0.5;
+  margin-top: 20px;
 }
 
 // ── Audio/Mic Items ───────────────────────────────────────────────────────────
@@ -2572,6 +2665,10 @@ window.np-window.csd decoration {
   }
 }
 
+.np-empty-state {
+  padding: 40px 0;
+}
+
 .np-empty-icon {
   font-family: "MesloLGS Nerd Font";
   font-size: 28px;
@@ -2659,6 +2756,10 @@ window.np-window.csd decoration {
 .notif-unread-bar {
   min-width: 3px;
   border-radius: 0;
+}
+
+.notif-checkbox-wrap {
+  margin: 0 6px;
 }
 
 .notif-checkbox {
@@ -2797,6 +2898,7 @@ window.np-window.csd decoration {
 // D-Bus action buttons
 .notif-dbus-actions {
   border-top: 0.5px solid rgba(255, 255, 255, 0.04);
+  padding: 4px 8px 4px 16px;
 }
 
 .notif-dbus-btn {
@@ -2820,6 +2922,7 @@ window.np-window.csd decoration {
 .notif-reply-box {
   border-top: 0.5px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.02);
+  padding: 6px 8px;
 }
 
 .notif-reply-entry {
@@ -3046,6 +3149,10 @@ window.np-window.csd decoration {
   }
 
   label { margin: 0; }
+}
+
+.ns-empty-state {
+  padding: 32px 0;
 }
 
 .ns-empty-icon {

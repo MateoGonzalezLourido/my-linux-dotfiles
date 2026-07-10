@@ -502,7 +502,7 @@ function QsHeader() {
         <label cssClasses={["qs-clock"]} label={time} halign={Gtk.Align.START} />
         <label cssClasses={["qs-date"]} label={date} halign={Gtk.Align.START} />
       </box>
-      <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} css="margin-left: 8px;">
+      <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} cssClasses={["qs-header-actions"]}>
         <button
           cssClasses={notifs((n) => n.length > 0 ? ["qs-notif-btn", "has-notifs"] : ["qs-notif-btn"])}
           onClicked={() => {
@@ -1183,7 +1183,6 @@ function QsMedia() {
   // CORTA la altura del fondo pase lo que pase con la imagen. Es el hijo principal
   // del Overlay; así el Overlay no puede crecer más que la tarjeta.
   const CARD_H = 100
-  const MEDIA_PAD_X = 14
   const bgCap = new Gtk.ScrolledWindow()
   bgCap.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
   bgCap.set_propagate_natural_height(false)
@@ -1301,9 +1300,9 @@ function QsMedia() {
       spacing={4}
       hexpand
       heightRequest={CARD_H}
-      css={`background-color: transparent; padding: 8px ${MEDIA_PAD_X}px 2px;`}
+      cssClasses={["qs-media-content"]}
     >
-      <box spacing={4} visible={numPlayers((n) => n > 1)} css="margin-bottom: 2px;">
+      <box spacing={4} visible={numPlayers((n) => n > 1)} cssClasses={["qs-media-switcher-row"]}>
         <label 
           cssClasses={["qs-media-source"]} 
           label={playerName} 
@@ -1389,7 +1388,6 @@ function QsMedia() {
       visible={isSpotifyPlayer}
       halign={Gtk.Align.END}
       valign={Gtk.Align.START}
-      css={`margin-top: 8px; margin-right: ${MEDIA_PAD_X}px;`}
     />
   )
 
@@ -1398,7 +1396,6 @@ function QsMedia() {
       cssClasses={["qs-media"]}
       visible={hasPlayer}
       overflow={Gtk.Overflow.HIDDEN}
-      css="padding: 0;"
     >
       <Gtk.Overlay $={(self: any) => {
         self.set_child(bgCap)
@@ -1606,21 +1603,20 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                     || "audio-x-generic-symbolic"
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item"]} css="padding: 4px 6px;">
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item", "qs-audio-app-item"]}>
                       <box spacing={6} valign={Gtk.Align.CENTER}>
-                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} css="font-size: 1em; min-width: 18px;" />
+                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} />
                         <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.START}>
                           <label cssClasses={["qs-section-label"]} label={name} halign={Gtk.Align.START} ellipsize={3} />
                         </box>
                         <label
-                          cssClasses={["qs-section-pct"]}
+                          cssClasses={si.isSilent ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
                           label={currentVol((v) => `${Math.round(v * 100)}`)}
-                          css={si.isSilent ? "opacity: 0.5;" : ""}
                         />
                       </box>
                       <box spacing={6}>
                         {streamScale}
-                        {si.isSilent && <label label="󰝟" css="opacity: 0.3; font-size: 0.75em;" tooltipText="Aplicación en silencio/espera" />}
+                        {si.isSilent && <label label="󰝟" cssClasses={["qs-audio-silent-icon"]} tooltipText="Aplicación en silencio/espera" />}
                       </box>
                     </box>
                   )
@@ -1809,21 +1805,20 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
                     || "audio-input-microphone-symbolic"
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item"]} css="padding: 4px 6px;">
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item", "qs-audio-app-item"]}>
                       <box spacing={6} valign={Gtk.Align.CENTER}>
-                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} css="font-size: 1em; min-width: 18px;" />
+                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} />
                         <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.START}>
                           <label cssClasses={["qs-section-label"]} label={name} halign={Gtk.Align.START} ellipsize={3} />
                         </box>
                         <label
-                          cssClasses={["qs-section-pct"]}
+                          cssClasses={si.isSilent ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
                           label={currentVol((v) => `${Math.round(v * 100)}`)}
-                          css={si.isSilent ? "opacity: 0.5;" : ""}
                         />
                       </box>
                       <box spacing={6}>
                         {streamScale}
-                        {si.isSilent && <label label="󰍭" css="opacity: 0.3; font-size: 0.75em;" tooltipText="Aplicación en silencio/espera" />}
+                        {si.isSilent && <label label="󰍭" cssClasses={["qs-audio-silent-icon"]} tooltipText="Aplicación en silencio/espera" />}
                       </box>
                     </box>
                   )
@@ -1897,7 +1892,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
                 <label cssClasses={["qs-sink-dot"]} label="●" visible={m.focused} />
                 <box orientation={Gtk.Orientation.VERTICAL} hexpand>
                   <label cssClasses={["qs-sink-name"]} label={m.model || m.name} halign={Gtk.Align.START} />
-                  <label label={`${m.width}x${m.height} @ ${m.refreshRate.toFixed(0)}Hz`} css="font-size: 0.8em; opacity: 0.5;" halign={Gtk.Align.START} />
+                  <label label={`${m.width}x${m.height} @ ${m.refreshRate.toFixed(0)}Hz`} cssClasses={["qs-sink-res"]} halign={Gtk.Align.START} />
                 </box>
               </box>
             )}
@@ -1905,7 +1900,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
         </box>
       </box>
 
-      <box cssClasses={["qs-section"]} orientation={Gtk.Orientation.VERTICAL} spacing={10} css="padding: 10px; margin-top: 4px;">
+      <box cssClasses={["qs-section", "qs-display-panel"]} orientation={Gtk.Orientation.VERTICAL} spacing={10}>
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
           <box spacing={6}>
             <label cssClasses={["qs-section-icon", "bright"]} label="󰃟" />
@@ -1915,7 +1910,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
           {brightScale}
         </box>
 
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={4} css="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["qs-night-light-block"]}>
           <box spacing={6}>
             <label cssClasses={["qs-section-icon", "night"]} label="󰌾" />
             <label cssClasses={["qs-section-label"]} label="Luz nocturna" hexpand halign={Gtk.Align.START} />
@@ -2254,14 +2249,13 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
           </box>
 
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={unnamedBinding((arr) => arr.length > 0)}>
-            <button 
-              cssClasses={["qs-dropdown-header"]} 
+            <button
+              cssClasses={["qs-dropdown-header"]}
               onClicked={() => setShowUnnamed(!showUnnamed.get())}
-              css="background: transparent; border: none; padding: 0;"
             >
               <box spacing={6}>
-                <label label="OTROS DISPOSITIVOS (MAC)" css="font-size: 0.8em; font-weight: bold; color: rgba(255,255,255,0.5);" />
-                <label label={showUnnamed((s) => s ? "󰅀" : "󰅂")} css="font-size: 0.8em; color: rgba(255,255,255,0.5);" />
+                <label label="OTROS DISPOSITIVOS (MAC)" cssClasses={["qs-bt-unnamed-label"]} />
+                <label label={showUnnamed((s) => s ? "󰅀" : "󰅂")} cssClasses={["qs-bt-unnamed-chevron"]} />
               </box>
             </button>
             <revealer revealChild={showUnnamed} transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN} transitionDuration={200}>
@@ -2275,7 +2269,7 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
 
           <label
             label={search((q) => q.trim() ? "Sin resultados" : "No se encontraron dispositivos")}
-            css="opacity: 0.5; margin-top: 20px;"
+            cssClasses={["qs-bt-empty-label"]}
             visible={createComputed(() =>
               pairedBinding().length === 0 && availableBinding().length === 0 && unnamedBinding().length === 0
             )}
@@ -2472,8 +2466,8 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                 }
 
                 return (
-                  <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["qs-wifi-item", "password-prompt"]} spacing={6} css="padding: 10px;">
-                    <label label={`Contraseña para ${ap.ssid}`} halign={Gtk.Align.START} css="font-size: 0.9em;" />
+                  <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["qs-wifi-item", "password-prompt"]} spacing={6}>
+                    <label label={`Contraseña para ${ap.ssid}`} halign={Gtk.Align.START} cssClasses={["qs-wifi-password-label"]} />
                     <box spacing={6}>
                       <Gtk.Entry
                         placeholderText="Escribe y presiona Enter"

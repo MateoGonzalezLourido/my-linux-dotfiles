@@ -73,7 +73,6 @@ export default function MicIndicator() {
             <label
                 cssClasses={["icon"]}
                 label={isMuted((m) => (m ? "󰍭" : "󰍬"))}
-                css="font-family: 'MesloLGS Nerd Font'; font-size: 16px;"
             />
         </box>
     )
