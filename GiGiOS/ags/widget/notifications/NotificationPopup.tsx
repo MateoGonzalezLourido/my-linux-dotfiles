@@ -21,6 +21,7 @@ import {
   StoredNotification,
 } from "./store"
 import { ingest } from "./ingest.ts"
+import { canFitPopup } from "./popupLayout.ts"
 import { barVisible, anyPanelVisible } from "../state"
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -28,6 +29,9 @@ import { barVisible, anyPanelVisible } from "../state"
 const POPUP_TIMEOUT_MS = 5500
 const ANIM_OUT_MS      = 220
 const POPUP_MAX        = 5
+const POPUP_WIDTH      = 360
+const POPUP_SPACING    = 8
+const SCREEN_GAP       = 16
 const PANEL_MARGIN_TOP = 38   // marginTop común de todos los paneles
 const POPUP_GAP        = 10   // separación entre el borde inferior del panel y el popup
 
@@ -67,10 +71,12 @@ function scheduleMarginUpdate() {
   if (anyPanelVisible.get()) {
     GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
       setPopupMargin(computeMargin())
+      drainQueue()
       return GLib.SOURCE_REMOVE
     })
   } else {
     setPopupMargin(computeMargin())
+    drainQueue()
   }
 }
 
@@ -82,12 +88,14 @@ barVisible.subscribe(scheduleMarginUpdate)
 const [hasPopups, setHasPopups] = createState(false)
 
 let popupContainer: Gtk.Box | null = null
+let popupMonitor: Gdk.Monitor | null = null
 const popupWidgets = new Map<number, Gtk.Widget>()
+const popupHeights = new Map<number, number>()
 const popupTimers  = new Map<number, number>()
 const dismissCbs   = new Map<number, () => void>()
 const pendingPopups: StoredNotification[] = []
 
-function _removeImmediate(id: number) {
+function _removeImmediate(id: number, refill = true) {
   const timer = popupTimers.get(id)
   if (timer != null) { GLib.source_remove(timer); popupTimers.delete(id) }
   dismissCbs.delete(id)
@@ -96,8 +104,10 @@ function _removeImmediate(id: number) {
     widget.set_visible(false)
     try { popupContainer?.remove(widget) } catch (_) {}
     popupWidgets.delete(id)
+    popupHeights.delete(id)
   }
   setHasPopups(popupWidgets.size > 0)
+  if (refill) drainQueue()
 }
 
 function triggerDismiss(id: number) {
@@ -110,7 +120,7 @@ function triggerDismiss(id: number) {
 
 function dismissAll() {
   for (const id of Array.from(popupWidgets.keys())) {
-    _removeImmediate(id)
+    _removeImmediate(id, false)
   }
 }
 
@@ -122,23 +132,56 @@ function scheduleAutoDismiss(id: number) {
   popupTimers.set(id, timerId)
 }
 
-function addPopup(notif: StoredNotification) {
-  if (!popupContainer) {
-    pendingPopups.push(notif)
-    return
-  }
-  if (popupWidgets.size >= POPUP_MAX) {
-    _removeImmediate(popupWidgets.keys().next().value!)
-  }
-  const item = PopupItem({
-    notif,
-    onDismiss:         () => _removeImmediate(notif.id),
-    registerDismissCb: (cb) => dismissCbs.set(notif.id, cb),
-  }) as Gtk.Widget
+function availablePopupHeight(): number {
+  if (!popupMonitor) return Number.POSITIVE_INFINITY
+  return Math.max(0, popupMonitor.get_geometry().height - popupMargin.get() - SCREEN_GAP)
+}
 
-  popupWidgets.set(notif.id, item)
-  popupContainer.append(item)
-  setHasPopups(true)
+function drainQueue() {
+  if (!popupContainer || notifPanelVisible.get()) return
+
+  while (pendingPopups.length > 0 && popupWidgets.size < POPUP_MAX) {
+    const notif = pendingPopups[0]
+    let measuredHeight = 0
+    const item = PopupItem({
+      notif,
+      onDismiss:         () => _removeImmediate(notif.id),
+      registerDismissCb: (cb) => dismissCbs.set(notif.id, cb),
+    }) as Gtk.Widget
+
+    try {
+      const [, naturalHeight] = item.measure(Gtk.Orientation.VERTICAL, POPUP_WIDTH)
+      measuredHeight = naturalHeight
+    } catch (_) {
+      measuredHeight = 96
+    }
+
+    if (!canFitPopup(
+      Array.from(popupHeights.values()),
+      measuredHeight,
+      availablePopupHeight(),
+      POPUP_MAX,
+      POPUP_SPACING,
+    )) {
+      dismissCbs.delete(notif.id)
+      break
+    }
+
+    pendingPopups.shift()
+    popupWidgets.set(notif.id, item)
+    popupHeights.set(notif.id, measuredHeight)
+    popupContainer.append(item)
+    scheduleAutoDismiss(notif.id)
+    setHasPopups(true)
+  }
+}
+
+function addPopup(notif: StoredNotification) {
+  const queuedIndex = pendingPopups.findIndex(n => n.id === notif.id)
+  if (queuedIndex >= 0) pendingPopups.splice(queuedIndex, 1)
+  if (popupWidgets.has(notif.id)) _removeImmediate(notif.id, false)
+  pendingPopups.push(notif)
+  drainQueue()
 }
 
 // Nivel de módulo: garantiza que se registra una sola vez y no depende del
@@ -180,6 +223,7 @@ function PopupItem({ notif, onDismiss, registerDismissCb }: {
           label={notif.appName}
           halign={Gtk.Align.START}
           ellipsize={3}
+          maxWidthChars={18}
           visible={!!notif.appName}
         />
         <label cssClasses={["notif-popup-dot"]} label="·" visible={!!notif.appName && !!(notif.summary)} />
@@ -189,6 +233,7 @@ function PopupItem({ notif, onDismiss, registerDismissCb }: {
           hexpand
           halign={Gtk.Align.START}
           ellipsize={3}
+          maxWidthChars={28}
           visible={!!(notif.summary)}
         />
       </box>
@@ -196,8 +241,11 @@ function PopupItem({ notif, onDismiss, registerDismissCb }: {
         cssClasses={["notif-popup-body"]}
         label={notif.body}
         halign={Gtk.Align.START}
+        xalign={0}
+        wrap={true}
         ellipsize={3}
-        lines={2}
+        lines={4}
+        maxWidthChars={48}
         visible={!!(notif.body)}
       />
     </box>
@@ -241,20 +289,20 @@ export default function NotificationPopup(gdkmonitor: Gdk.Monitor) {
     if (!stored) return            // suppressed or dontShow
     if (notifd.dontDisturb) return
     addPopup(stored)
-    scheduleAutoDismiss(id)
   })
 
   const container = (
     <box
       orientation={Gtk.Orientation.VERTICAL}
-      spacing={8}
+      spacing={POPUP_SPACING}
       halign={Gtk.Align.END}
       valign={Gtk.Align.START}
     />
   ) as Gtk.Box
 
   popupContainer = container
-  pendingPopups.splice(0).forEach(n => addPopup(n))
+  popupMonitor = gdkmonitor
+  drainQueue()
 
   return (
     <window
@@ -266,6 +314,7 @@ export default function NotificationPopup(gdkmonitor: Gdk.Monitor) {
       application={app}
       marginTop={popupMargin}
       marginRight={16}
+      widthRequest={POPUP_WIDTH}
       cssClasses={["notif-popup-window"]}
       visible={hasPopups}
     >
