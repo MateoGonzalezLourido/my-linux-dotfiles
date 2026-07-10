@@ -5,11 +5,39 @@ $bg-pill: rgba(255, 255, 255, 0.07);
 $bg-pill-hover: rgba(0, 0, 0, 0.36);
 $border: rgba(255, 255, 255, 0.308);
 $text: #e2e2e2;
-$text-dim: rgba(226, 226, 226, 0.45);
+$text-dim: rgba($text, 0.45);
 $blue: #89b4fa;
 $violet: #cba6f7;
 $red: rgb(245, 50, 105);
 $orange: #fab387;
+$pink: #f38ba8;
+$white: #ffffff;
+$font-icon: "MesloLGS Nerd Font";
+$radius-pill: 999px;
+
+// Quita el fondo/borde/sombra por defecto del tema GTK de un nodo (botón,
+// popover, scrollbar...) para que solo se vea lo que defina la regla concreta.
+%chrome-reset {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+// Patrón "icono + texto" de los paneles con lista vacía (notificaciones,
+// reglas, agenda...): mismo layout, cada uno con su propio tamaño/color.
+@mixin empty-icon($size, $color: null, $font: null) {
+  @if $font { font-family: $font; }
+  font-size: $size;
+  @if $color { color: $color; }
+  margin: 0;
+}
+
+@mixin empty-text($size, $color, $weight: null) {
+  font-size: $size;
+  @if $weight { font-weight: $weight; }
+  color: $color;
+  margin: 0;
+}
 
 // ── Reset botones GTK4 dentro de la bar ───────────────────────────────────────
 .Bar button,
@@ -32,7 +60,7 @@ $orange: #fab387;
 .Bar {
   background-color: $bg-bar;
   color: $text;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+  font-family: $font-icon, monospace;
   font-size: 17px;
   font-weight: 600;
   transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -67,8 +95,8 @@ $orange: #fab387;
   margin: 4px 4px;
   background-color: rgba(255, 255, 255, 0.03);
   font-size: 16px;
-  color: #cba6f7;
-  font-family: 'MesloLGS Nerd Font', 'MesloLGS Nerd Font';
+  color: $violet;
+  font-family: $font-icon;
   font-weight: 700;
   padding: 0 8px;
   border-radius: 6px;
@@ -95,9 +123,9 @@ $orange: #fab387;
 
 .own-functions {
   & label {
-    font-family: 'MesloLGS Nerd Font';
+    font-family: $font-icon;
     font-size: 17px;
-    color: #89b4fa;
+    color: $blue;
     border: none;
     padding: 0;
     margin: 0 0 0 -2px;
@@ -115,11 +143,11 @@ $orange: #fab387;
                 box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
                 color 300ms cubic-bezier(0.4, 0, 0.2, 1),
                 opacity 180ms ease;
-    color: rgba(226, 226, 226, 0.4);
-    font-family: 'MesloLGS Nerd Font';
+    color: rgba($text, 0.4);
+    font-family: $font-icon;
 
     &.focused {
-      background: linear-gradient(135deg, #89b4fa, #cba6f7);
+      background: linear-gradient(135deg, $blue, $violet);
       color: #11111b;
       box-shadow: 0 1px 4px rgba(137, 180, 250, 0.3);
     }
@@ -149,7 +177,7 @@ $orange: #fab387;
       all: unset;
       padding: 0 5px;
       min-height: 18px;
-      font-family: 'MesloLGS Nerd Font';
+      font-family: $font-icon;
     }
 
     .ws-num-btn,
@@ -213,7 +241,7 @@ $orange: #fab387;
 
     .ws-icon-wrap.active-client {
       .ws-icons {
-        color: #ffffff;
+        color: $white;
         text-shadow: 0 0 6px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.8);
       }
 
@@ -228,9 +256,7 @@ $orange: #fab387;
 popover.ws-preview-popover {
   > contents {
     padding: 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
+    @extend %chrome-reset;
   }
 }
 
@@ -243,7 +269,7 @@ popover.ws-preview-popover {
 }
 
 .ws-preview-empty {
-  color: rgba(226, 226, 226, 0.35);
+  color: rgba($text, 0.35);
   font-size: 10px;
 }
 
@@ -266,16 +292,14 @@ popover.ws-preview-popover {
 .game-tray {
   background: linear-gradient(135deg, rgba(203, 166, 247, 0.22), rgba(137, 180, 250, 0.18));
   border: 1px solid rgba(203, 166, 247, 0.40);
-  border-radius: 999px;
+  border-radius: $radius-pill;
   padding: 2px 6px;
   margin: 4px 2px;
   min-height: 26px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 
   .game-tray-icon {
-    background: transparent;
-    border: none;
-    box-shadow: none;
+    @extend %chrome-reset;
     min-width: 22px;
     min-height: 22px;
     padding: 0 3px;
@@ -283,9 +307,9 @@ popover.ws-preview-popover {
     transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
 
     label {
-      font-family: 'MesloLGS Nerd Font';
+      font-family: $font-icon;
       font-size: 16px;
-      color: #cba6f7;
+      color: $violet;
       text-shadow: 0 0 6px rgba(203, 166, 247, 0.5);
     }
 
@@ -297,7 +321,7 @@ popover.ws-preview-popover {
 }
 
 .battery {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   margin: 0;
   padding: 0 4px;
   min-width: 24px;
@@ -318,7 +342,7 @@ popover.ws-preview-popover {
     background-color: rgba(205, 214, 244, 0.16);
 
     &.filled {
-      background-color: #cba6f7;
+      background-color: $violet;
     }
 
     &.charging-blink {
@@ -332,7 +356,7 @@ popover.ws-preview-popover {
     }
 
     &.warn {
-      background-color: #fab387;
+      background-color: $orange;
     }
   }
 
@@ -378,15 +402,15 @@ popover.ws-preview-popover {
 
 .cpuram {
   label {
-    color: #e2e2e2;
-    font-family: 'MesloLGS Nerd Font';
+    color: $text;
+    font-family: $font-icon;
     font-size: 13px;
     font-weight: 500;
   }
 
   .icon {
     color: #87fae9;
-    font-family: 'MesloLGS Nerd Font';
+    font-family: $font-icon;
     font-size: 15px;
     margin: 0 1px;
   }
@@ -400,9 +424,7 @@ popover.ws-preview-popover {
 popover.cpuram-popover {
   > contents {
     padding: 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
+    @extend %chrome-reset;
   }
 
   > arrow {
@@ -435,11 +457,11 @@ popover.cpuram-popover {
 }
 
 .cpuram-popup-header {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.6px;
-  color: rgba(226, 226, 226, 0.56);
+  color: rgba($text, 0.56);
   margin-bottom: 6px;
 }
 
@@ -448,16 +470,16 @@ popover.cpuram-popover {
 }
 
 .cpuram-popup-ic {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 14px;
   min-width: 18px;
 
   &.cpu { color: #87fae9; }
-  &.ram { color: #89b4fa; }
+  &.ram { color: $blue; }
 }
 
 .cpuram-popup-val {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 12px;
   font-weight: 500;
   color: #cdd6f4;
@@ -479,11 +501,11 @@ popover.cpuram-popover {
 }
 
 .fn-menu-header {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.6px;
-  color: rgba(226, 226, 226, 0.56);
+  color: rgba($text, 0.56);
   margin-bottom: 6px;
 }
 
@@ -515,30 +537,30 @@ popover.cpuram-popover {
 }
 
 .fn-menu-ic {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 15px;
   min-width: 20px;
-  color: #89b4fa;
+  color: $blue;
 }
 
 .fn-menu-label {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 12px;
   font-weight: 500;
   color: #cdd6f4;
 }
 
 .fn-menu-state {
-  border-radius: 999px;
+  border-radius: $radius-pill;
   min-width: 38px;
   padding: 2px 7px;
   background: rgba(255, 255, 255, 0.06);
 
   label {
-    font-family: 'MesloLGS Nerd Font';
+    font-family: $font-icon;
     font-size: 9px;
     font-weight: 800;
-    color: rgba(226, 226, 226, 0.55);
+    color: rgba($text, 0.55);
   }
 }
 
@@ -546,7 +568,7 @@ popover.cpuram-popover {
   background: rgba(137, 180, 250, 0.22);
 
   label {
-    color: #89b4fa;
+    color: $blue;
   }
 }
 
@@ -584,16 +606,12 @@ popover.cpuram-popover {
 popover.tray-popover {
   // Nodo popover externo: quitar todo el marco/sombra/padding del tema.
   // Solo debe verse el contenedor > contents estilado abajo.
-  background: transparent;
-  border: none;
-  box-shadow: none;
+  @extend %chrome-reset;
   padding: 0;
   margin: 0;
 
   > arrow {
-    background: transparent;
-    border: none;
-    box-shadow: none;
+    @extend %chrome-reset;
     min-width: 0;
     min-height: 0;
   }
@@ -617,7 +635,7 @@ popover.tray-popover {
     min-height: 26px;
     margin: 1px 0;
     color: #cdd6f4;
-    font-family: 'MesloLGS Nerd Font', 'Inter', sans-serif;
+    font-family: $font-icon, 'Inter', sans-serif;
     font-size: 12px;
     font-weight: 500;
     transition: background-color 120ms ease;
@@ -625,7 +643,7 @@ popover.tray-popover {
     &:hover,
     &:focus {
       background: rgba(137, 180, 250, 0.14);
-      color: #ffffff;
+      color: $white;
     }
 
     &:active {
@@ -640,7 +658,7 @@ popover.tray-popover {
     check,
     radio,
     arrow {
-      color: #89b4fa;
+      color: $blue;
       min-width: 14px;
       min-height: 14px;
     }
@@ -659,8 +677,8 @@ popover.tray-popover {
   min-width: 20px;
 
   label {
-    font-family: 'MesloLGS Nerd Font';
-    color: #89b4fa;
+    font-family: $font-icon;
+    color: $blue;
     font-size: 14px;
     margin: 0 3px;
   }
@@ -692,7 +710,7 @@ popover.tray-overflow-popover > contents {
   transition: background-color 140ms ease, border-color 140ms ease;
 
   & button,
-  & box:not(.battery):not(.battery-body):not(.battery-cap):not(.battery-seg):not(.network-bars):not(.network-bar):not(.volume-bars):not(.volume-bar) {
+  & box:not(.battery):not(.battery-body):not(.battery-cap):not(.battery-seg):not(.network-bars):not(.network-bar) {
     margin: 0;
     background-color: transparent;
     padding: 0 3px;
@@ -715,10 +733,6 @@ popover.tray-overflow-popover > contents {
   .bar-pill.qs-system-pill {
     border: none;
     box-shadow: none;
-  }
-
-  .bar-pill.nb-pill {
-    margin-right: 0;
   }
 
   .bar-pill.qs-system-pill {
@@ -783,7 +797,7 @@ popover.tray-overflow-popover > contents {
 }
 
 .mic-indicator .icon {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 16px;
 }
 
@@ -792,21 +806,21 @@ popover.tray-overflow-popover > contents {
   color: $text-dim;
 
   .icon-active {
-    font-family: 'MesloLGS Nerd Font';
+    font-family: $font-icon;
     font-size: 16px;
-    color: #cba6f7;
+    color: $violet;
   }
 
   .icon-desactive {
-    font-family: 'MesloLGS Nerd Font';
+    font-family: $font-icon;
     font-size: 16px;
-    color: rgba(226, 226, 226, 0.45);
+    color: rgba($text, 0.45);
   }
 
   .label-number-notis {
-    font-family: 'MesloLGS Nerd Font';
+    font-family: $font-icon;
     font-size: 10px;
-    color: #cba6f7;
+    color: $violet;
     font-weight: 700;
   }
 
@@ -823,7 +837,7 @@ popover.tray-overflow-popover > contents {
 
 .network {
   color: #87fae9;
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 16px;
 
   .network-bars {
@@ -834,7 +848,7 @@ popover.tray-overflow-popover > contents {
   .network-bar {
     min-width: 3px;
     border-radius: 1px;
-    background-color: rgba(226, 226, 226, 0.18);
+    background-color: rgba($text, 0.18);
 
     &.active {
       background-color: #87fae9;
@@ -846,14 +860,13 @@ popover.tray-overflow-popover > contents {
     &.bar-4 { min-height: 13px; }
   }
 
-  .network-bars.offline .network-bar,
-  &.network-off .network-bar {
-    background-color: rgba(226, 226, 226, 0.18);
+  .network-bars.offline .network-bar {
+    background-color: rgba($text, 0.18);
   }
 
   // Portal cautivo: asociado al AP pero requiere iniciar sesión.
   &.portal .network-bar.active {
-    background-color: #fab387;
+    background-color: $orange;
   }
   // Asociado pero sin internet real (LIMITED/NONE).
   &.limited .network-bar.active {
@@ -869,17 +882,13 @@ popover.tray-overflow-popover > contents {
     font-size: 11px;
     margin-left: 2px;
   }
-  &.portal .network-status-glyph  { color: #fab387; }
+  &.portal .network-status-glyph  { color: $orange; }
   &.limited .network-status-glyph { color: #f9e2af; }
-
-  &.disconnected {
-    color: $text-dim;
-  }
 }
 
 .volume {
   color: $text;
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 17px;
 
   &.muted {
@@ -887,23 +896,11 @@ popover.tray-overflow-popover > contents {
   }
 
   &.bt-muted {
-    color: rgba(226, 226, 226, 0.45);
+    color: rgba($text, 0.45);
   }
 
   &.icon-muted {
-    color: rgba(226, 226, 226, 0.45);
-  }
-}
-
-.bar-nightlight {
-  color: $orange;
-  font-family: 'MesloLGS Nerd Font';
-  font-size: 16px;
-
-  .bar-nightlight-label {
-    font-family: 'MesloLGS Nerd Font';
-    font-size: 13px;
-    font-weight: 700;
+    color: rgba($text, 0.45);
   }
 }
 
@@ -916,7 +913,7 @@ popover.tray-overflow-popover > contents {
   padding: 0 4px;
 
   .bluetooth-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 16px;
     color: #6c7086;              // gris: activo pero sin dispositivo conectado
   }
@@ -933,7 +930,7 @@ popover.tray-overflow-popover > contents {
   min-height: 30px;
   border-radius: 4px;
   border: none;
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 17px;
   color: rgb(245, 50, 105);
 
@@ -942,90 +939,8 @@ popover.tray-overflow-popover > contents {
   }
 
   &:hover {
-    background: linear-gradient(135deg, #89b4fa, #cba6f7);
+    background: linear-gradient(135deg, $blue, $violet);
     color: #1a1a1a;
-  }
-}
-
-.calendar-popover {
-  background: transparent;
-  padding: 0;
-
-  contents {
-    background: rgba(24, 24, 37, 0.95);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(137, 180, 250, 0.2);
-    border-radius: 10px;
-    padding: 6px;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-    margin: 4px;
-  }
-
-  arrow {
-    background: rgba(24, 24, 37, 0.95);
-    border: 1px solid rgba(137, 180, 250, 0.2);
-  }
-}
-
-.calendar-widget {
-  background: transparent;
-  color: $text;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
-  font-size: 12px;
-
-  header {
-    background: transparent;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    margin-bottom: 4px;
-    padding-bottom: 2px;
-
-    button {
-      color: $blue;
-      padding: 2px;
-      border-radius: 4px;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.1);
-      }
-    }
-
-    label {
-      font-weight: 800;
-      color: $violet;
-      font-size: 13px;
-    }
-  }
-
-  grid {
-    label.day-name {
-      color: $orange;
-      font-weight: 700;
-      padding: 4px;
-      opacity: 0.8;
-    }
-
-    label.day-number {
-      padding: 4px;
-      border-radius: 6px;
-      min-width: 24px;
-      min-height: 24px;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.1);
-      }
-
-      &.today {
-        background: $blue;
-        color: #11111b;
-        font-weight: 800;
-        box-shadow: 0 2px 8px rgba(137, 180, 250, 0.4);
-      }
-
-      &.other-month {
-        color: $text-dim;
-        opacity: 0.3;
-      }
-    }
   }
 }
 
@@ -1054,7 +969,7 @@ popover.tray-overflow-popover > contents {
   transition:
     box-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1),
     transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
-  color: rgba(226, 226, 226, 0.4);
+  color: rgba($text, 0.4);
   min-width: 128px;
   min-height: 148px;
   border-radius: 10px;
@@ -1072,11 +987,11 @@ popover.tray-overflow-popover > contents {
   }
 
   .power-icon {
-    font-family: "MesloLGS Nerd Font", monospace;
+    font-family: $font-icon, monospace;
     font-size: 44px;
     min-width: 56px;
     min-height: 56px;
-    color: #ffffff;
+    color: $white;
     transition:
       transform 120ms cubic-bezier(0.16, 1, 0.3, 1),
       text-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -1093,8 +1008,8 @@ popover.tray-overflow-popover > contents {
   }
 
   &:hover {
-    background: linear-gradient(135deg, rgb(137, 180, 250), #cba6f7);
-    color: #ffffff;
+    background: linear-gradient(135deg, rgb(137, 180, 250), $violet);
+    color: $white;
     transform: translateY(-2px) scaleY(1.045);
     box-shadow: none;
 
@@ -1139,16 +1054,16 @@ popover.tray-overflow-popover > contents {
   background-color: rgba(24, 24, 37, 0.95);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(137, 180, 250, 0.2);
-  border-radius: 99px;
+  border-radius: $radius-pill;
   padding: 6px 16px;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
   transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .osd-icon {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 16px;
-  color: #89b4fa;
+  color: $blue;
 }
 
 .osd-progress-container {
@@ -1167,16 +1082,16 @@ progressbar.osd-progress {
   progress {
     min-height: 6px;
     border-radius: 10px;
-    background: linear-gradient(90deg, #89b4fa, #cba6f7);
+    background: linear-gradient(90deg, $blue, $violet);
     box-shadow: 0 0 10px rgba(137, 180, 250, 0.5);
   }
 }
 
 .osd-percentage {
-  font-family: 'MesloLGS Nerd Font';
+  font-family: $font-icon;
   font-size: 12px;
   font-weight: 800;
-  color: #e2e2e2;
+  color: $text;
 }
 
 .osd-mic-spacer {
@@ -1185,9 +1100,7 @@ progressbar.osd-progress {
 
 // ── bar-pill-btn (wrapper del bar-pill clickeable) ────────────────────────────
 .Bar .bar-pill-btn {
-  background: transparent;
-  border: none;
-  box-shadow: none;
+  @extend %chrome-reset;
   padding: 0;
   margin: 0;
   outline: none;
@@ -1211,7 +1124,7 @@ $qs-accent2: #7000ff;
 $qs-green: #00ff9d;
 $qs-yellow: #fff200;
 $qs-orange: #ff7b00;
-$qs-text: #ffffff;
+$qs-text: $white;
 $qs-text-dim: rgba(255, 255, 255, 0.5);
 $qs-tile-act: rgba(0, 242, 255, 0.1);
 $qs-tile-brd: rgba(0, 242, 255, 0.3);
@@ -1261,7 +1174,7 @@ window.qs-window > box,
   min-width: 330px;
   max-width: 330px;
   color: $qs-text;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", sans-serif;
+  font-family: $font-icon, sans-serif;
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
@@ -1277,7 +1190,7 @@ window.qs-window > box,
   font-size: 22px;
   font-weight: 700;
   color: $qs-text;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
+  font-family: $font-icon;
   margin: 0;
 }
 
@@ -1286,39 +1199,6 @@ window.qs-window > box,
   font-weight: 400;
   color: $qs-text-dim;
   margin: 0;
-}
-
-.qs-dnd-btn {
-  background: transparent;
-  background-color: transparent;
-  border: none;
-  box-shadow: none;
-  text-shadow: none;
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  margin: 0;
-  color: rgba(255, 255, 255, 0.4);
-  transition: color 150ms ease;
-
-  &:hover {
-    color: rgba(255, 255, 255, 0.95);
-  }
-
-  &.active {
-    color: #ff5555;
-
-    &:hover {
-      color: #ff7777;
-    }
-  }
-
-  .qs-dnd-icon {
-    font-family: "MesloLGS Nerd Font";
-    font-size: 13px;
-    margin: 0;
-    padding: 0;
-  }
 }
 
 .qs-notif-btn {
@@ -1339,7 +1219,7 @@ window.qs-window > box,
   }
 
   &.has-notifs {
-    color: #cba6f7;
+    color: $violet;
 
     &:hover {
       color: #d8bbf9;
@@ -1347,7 +1227,7 @@ window.qs-window > box,
   }
 
   .qs-notif-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 17px;
     margin: 0;
     padding: 0;
@@ -1374,7 +1254,7 @@ window.qs-window > box,
     border-color: rgba(0, 242, 255, 0.45);
     box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.12), 0 0 12px rgba(0, 242, 255, 0.08);
 
-    .qs-tile-label { color: #fff; }
+    .qs-tile-label { color: $white; }
 
     .qs-tile-icon {
       color: $qs-accent;
@@ -1383,7 +1263,7 @@ window.qs-window > box,
   }
 
   .qs-tile-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 16px;
     margin: 0;
     min-width: 20px;
@@ -1401,7 +1281,7 @@ window.qs-window > box,
   .qs-wifi-signal-bar {
     min-width: 3px;
     border-radius: 1px;
-    background-color: rgba(226, 226, 226, 0.18);
+    background-color: rgba($text, 0.18);
 
     &.active {
       background-color: rgba(255, 255, 255, 0.82);
@@ -1450,7 +1330,7 @@ window.qs-window > box,
   min-height: 100px;
 
   .qs-media-art {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 24px;
     min-width: 40px;
     min-height: 40px;
@@ -1461,14 +1341,14 @@ window.qs-window > box,
   .qs-media-title {
     font-size: 12px;
     font-weight: 600;
-    color: #ffffff;
+    color: $white;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 1), 0 0 6px rgba(0, 0, 0, 0.85);
     margin: 0;
   }
 
   .qs-media-artist {
     font-size: 11px;
-    color: #ffffff;
+    color: $white;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 1), 0 0 6px rgba(0, 0, 0, 0.85);
     margin: 0;
   }
@@ -1476,8 +1356,8 @@ window.qs-window > box,
   .qs-media-btn {
     background: transparent;
     border: none;
-    color: #ffffff;
-    font-family: "MesloLGS Nerd Font";
+    color: $white;
+    font-family: $font-icon;
     font-size: 18px;
     padding: 1px 4px;
     border-radius: 7px;
@@ -1516,7 +1396,7 @@ window.qs-window > box,
 
     trough {
       min-height: 5px;
-      border-radius: 99px;
+      border-radius: $radius-pill;
       background: rgba(255, 255, 255, 0.16);
       border: 1px solid rgba(255, 255, 255, 0.08);
       box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
@@ -1524,7 +1404,7 @@ window.qs-window > box,
 
     progress {
       min-height: 5px;
-      border-radius: 99px;
+      border-radius: $radius-pill;
       background: currentColor;
       box-shadow: 0 0 6px currentColor;
     }
@@ -1541,7 +1421,7 @@ window.qs-window > box,
   }
 
   .qs-media-spotify-logo {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 15px;
     color: rgba(255, 255, 255, 0.9);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 1), 0 0 8px rgba(0, 0, 0, 0.85);
@@ -1562,7 +1442,7 @@ window.qs-window > box,
     background: transparent;
     border: none;
     color: $qs-text-dim;
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 12px;
     padding: 0 4px;
     border-radius: 4px;
@@ -1616,7 +1496,7 @@ window.qs-window > box,
 }
 
 .qs-section-icon {
-  font-family: "MesloLGS Nerd Font";
+  font-family: $font-icon;
   font-size: 12px;
   color: $qs-accent;
   margin: 0;
@@ -1632,20 +1512,6 @@ window.qs-window > box,
   &.muted {
     color: $qs-text-dim;
     opacity: 0.5;
-  }
-}
-
-.qs-icon-mute-btn {
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  box-shadow: none;
-  transition: all 200ms ease;
-
-  &:hover {
-    transform: scale(1.1);
-    opacity: 1;
   }
 }
 
@@ -1666,7 +1532,7 @@ window.qs-window > box,
   }
 }
 
-.qs-audio-icon {
+.qs-stream-icon {
   font-size: 1em;
   min-width: 18px;
 }
@@ -1732,13 +1598,13 @@ scale.qs-slider {
 
   trough {
     min-height: 4px;
-    border-radius: 99px;
+    border-radius: $radius-pill;
     background: rgba(255, 255, 255, 0.06);
   }
 
   progress {
     min-height: 4px;
-    border-radius: 99px;
+    border-radius: $radius-pill;
     background: $qs-accent;
     box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
   }
@@ -1747,9 +1613,7 @@ scale.qs-slider {
     min-width: 0;
     min-height: 0;
     opacity: 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
+    @extend %chrome-reset;
     margin: 0;
     padding: 0;
     -gtk-icon-size: 0;
@@ -1804,9 +1668,7 @@ scale.qs-slider {
 
 // ── Quick settings toggle ─────────────────────────────────────────────────────
 button.qs-toggle {
-  background: transparent;
-  border: none;
-  box-shadow: none;
+  @extend %chrome-reset;
   padding: 0;
   min-width: 28px;
   min-height: 16px;
@@ -1839,7 +1701,7 @@ button.qs-toggle {
     transition: margin-left 160ms ease, background-color 160ms ease;
 
     &.on {
-      background: #ffffff;
+      background: $white;
       margin-left: 15px;
     }
   }
@@ -1906,10 +1768,10 @@ tooltip {
   padding: 2px 4px;
 
   label {
-    font-family: 'MesloLGS Nerd Font', 'Inter', sans-serif;
+    font-family: $font-icon, 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
-    color: #e2e2e2;
+    color: $text;
     margin: 2px;
   }
 }
@@ -1925,20 +1787,20 @@ tooltip {
   transition: all 120ms ease-out;
 
   label {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 13px;
-    color: rgba(226, 226, 226, 0.45);
+    color: rgba($text, 0.45);
     margin: 0;
   }
 
   &:hover {
     background: rgba(255, 255, 255, 0.08);
-    label { color: rgba(226, 226, 226, 0.9); }
+    label { color: rgba($text, 0.9); }
   }
 
   &.active {
     background: rgba(203, 166, 247, 0.14);
-    label { color: #cba6f7; }
+    label { color: $violet; }
   }
 
   &.scanning label { color: #a78bfa; }
@@ -2007,7 +1869,7 @@ button.qs-user-settings-btn {
       outline: none;
       padding: 0;
       min-height: 20px;
-      caret-color: #89b4fa;
+      caret-color: $blue;
       font-size: 12px;
       color: #cdd6f4;
 
@@ -2021,29 +1883,14 @@ button.qs-user-settings-btn {
 .qs-wifi-list-scroll {
   min-height: 180px;
 
-  scrollbar {
-    background: none;
-    border: none;
-    box-shadow: none;
+  scrollbar,
+  scrollbar slider,
+  scrollbar button {
+    opacity: 0;
+    @extend %chrome-reset;
     outline: none;
-    margin: 0;
-    padding: 0;
-    -gtk-icon-size: 0;
-
-    &.vertical {
-      min-width: 0;
-    }
-
-    &.horizontal {
-      min-height: 0;
-    }
-  }
-
-  scrollbar slider {
-    background: none;
-    border: none;
-    box-shadow: none;
-    outline: none;
+    min-width: 0;
+    min-height: 0;
     margin: 0;
     padding: 0;
     -gtk-icon-size: 0;
@@ -2076,7 +1923,7 @@ button.qs-user-settings-btn {
     box-shadow: 0 0 15px rgba(255, 123, 0, 0.1);
 
     .qs-wifi-signal-bar.active {
-      background-color: #fab387;
+      background-color: $orange;
     }
 
     .qs-wifi-name {
@@ -2110,7 +1957,7 @@ button.qs-user-settings-btn {
   .qs-wifi-signal-bar {
     min-width: 3px;
     border-radius: 1px;
-    background-color: rgba(226, 226, 226, 0.18);
+    background-color: rgba($text, 0.18);
 
     &.active {
       background-color: rgba(255, 255, 255, 0.82);
@@ -2139,7 +1986,7 @@ button.qs-user-settings-btn {
   .qs-wifi-portal-icon {
     font-size: 12px;
     color: rgba(255, 255, 255, 0.3);
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
   }
 
 
@@ -2160,31 +2007,6 @@ button.qs-user-settings-btn {
 
 .qs-wifi-password-label {
   font-size: 0.9em;
-}
-
-.qs-wifi-advanced {
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  padding-top: 6px;
-
-  .qs-wifi-adv-btn {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 8px;
-    padding: 6px;
-    color: rgba(200, 190, 255, 0.55);
-    font-size: 11px;
-    transition: all 100ms ease;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: rgba(230, 225, 255, 0.92);
-    }
-
-    label {
-      font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
-      margin: 0;
-    }
-  }
 }
 
 .qs-wifi-info-section {
@@ -2220,7 +2042,7 @@ button.qs-user-settings-btn {
   background: transparent;
   border: none;
   color: rgba(200, 190, 255, 0.55);
-  font-family: "MesloLGS Nerd Font";
+  font-family: $font-icon;
   font-size: 14px;
   padding: 0 4px;
   border-radius: 4px;
@@ -2273,17 +2095,17 @@ button.qs-user-settings-btn {
     border-color: rgba(89, 180, 250, 0.38);
 
     .qs-audio-name {
-      color: #89b4fa;
+      color: $blue;
       font-weight: 700;
     }
 
-    .qs-audio-icon { color: #89b4fa; }
+    .qs-audio-icon { color: $blue; }
 
-    scale.qs-slider progress { background: #89b4fa; }
+    scale.qs-slider progress { background: $blue; }
   }
 
   .qs-audio-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 12px;
     color: rgba(255, 255, 255, 0.35);
     min-width: 14px;
@@ -2299,7 +2121,7 @@ button.qs-user-settings-btn {
 
   .qs-audio-vol-pct {
     font-size: 9px;
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     color: rgba(255, 255, 255, 0.28);
     min-width: 22px;
     margin: 0;
@@ -2328,21 +2150,6 @@ button.qs-user-settings-btn {
   }
 }
 
-.qs-wifi-list-scroll {
-
-  scrollbar,
-  scrollbar slider,
-  scrollbar button {
-    opacity: 0;
-    min-width: 0;
-    min-height: 0;
-    background: transparent;
-    border: none;
-    margin: 0;
-    padding: 0;
-  }
-}
-
 // ── Notification Button ───────────────────────────────────────────────────────
 .bar-pill.nb-pill {
   background-color: transparent;
@@ -2351,13 +2158,17 @@ button.qs-user-settings-btn {
   padding: 0;
   min-width: 28px;
 
+  .bar-status-pair & {
+    margin-right: 0;
+  }
+
   .nb-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 16px;
-    color: rgba(226, 226, 226, 0.48);
+    color: rgba($text, 0.48);
     margin-left: -2px;
 
-    &.has-notifs { color: #cba6f7; }
+    &.has-notifs { color: $violet; }
     &.dnd        { color: rgb(245, 50, 105); }
   }
 
@@ -2382,7 +2193,7 @@ button.qs-user-settings-btn {
   animation: notif-slide-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
 
   .notif-popup-app-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 11px;
     margin: 0;
     margin-right: 4px;
@@ -2391,31 +2202,31 @@ button.qs-user-settings-btn {
   .notif-popup-app-name {
     font-size: 10px;
     font-weight: 500;
-    color: rgba(226, 226, 226, 0.4);
-    font-family: "MesloLGS Nerd Font";
+    color: rgba($text, 0.4);
+    font-family: $font-icon;
     margin: 0;
   }
 
   .notif-popup-dot {
     font-size: 10px;
-    color: rgba(226, 226, 226, 0.25);
-    font-family: "MesloLGS Nerd Font";
+    color: rgba($text, 0.25);
+    font-family: $font-icon;
     margin: 0;
   }
 
   .notif-popup-summary {
     font-size: 11px;
     font-weight: 400;
-    color: rgba(226, 226, 226, 0.85);
-    font-family: "MesloLGS Nerd Font";
+    color: rgba($text, 0.85);
+    font-family: $font-icon;
     margin: 0;
   }
 
   .notif-popup-body {
     font-size: 10px;
     font-weight: 400;
-    color: rgba(226, 226, 226, 0.45);
-    font-family: "MesloLGS Nerd Font";
+    color: rgba($text, 0.45);
+    font-family: $font-icon;
     margin: 0;
   }
 
@@ -2490,14 +2301,12 @@ window.np-window.csd decoration {
   min-width: 349px;
   max-width: 349px;
   box-shadow: none;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
-  color: #e2e2e2;
+  font-family: $font-icon;
+  color: $text;
   animation: np-slide-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
 
   button {
-    background: transparent;
-    border: none;
-    box-shadow: none;
+    @extend %chrome-reset;
     outline: none;
     padding: 0;
     margin: 0;
@@ -2514,7 +2323,7 @@ window.np-window.csd decoration {
 .np-title {
   font-size: 11px;
   font-weight: 700;
-  color: rgba(226, 226, 226, 0.6);
+  color: rgba($text, 0.6);
   letter-spacing: 0.06em;
   margin: 0;
 }
@@ -2522,7 +2331,7 @@ window.np-window.csd decoration {
 .np-unread-badge-btn {
   background: rgba(203, 166, 247, 0.12);
   border: none;
-  border-radius: 99px;
+  border-radius: $radius-pill;
   padding: 1px 7px;
   min-height: 18px;
   transition: all 120ms ease;
@@ -2535,7 +2344,7 @@ window.np-window.csd decoration {
 .np-unread-count {
   font-size: 10px;
   font-weight: 700;
-  color: #cba6f7;
+  color: $violet;
   margin: 0;
 }
 
@@ -2554,32 +2363,32 @@ window.np-window.csd decoration {
 
   &.active {
     background: rgba(203, 166, 247, 0.12);
-    .np-btn-icon { color: #cba6f7; }
+    .np-btn-icon { color: $violet; }
   }
 
   &.dnd-active {
-    background: rgba(243, 139, 168, 0.12);
-    .np-btn-icon { color: #f38ba8; }
+    background: rgba($pink, 0.12);
+    .np-btn-icon { color: $pink; }
   }
 
   &.danger {
-    .np-btn-icon { color: rgba(243, 139, 168, 0.45); }
+    .np-btn-icon { color: rgba($pink, 0.45); }
 
     &:hover {
-      background: rgba(243, 139, 168, 0.1);
-      .np-btn-icon { color: #f38ba8; }
+      background: rgba($pink, 0.1);
+      .np-btn-icon { color: $pink; }
     }
 
     &.confirm {
-      background: rgba(243, 139, 168, 0.15);
-      .np-btn-icon { color: #f38ba8; }
+      background: rgba($pink, 0.15);
+      .np-btn-icon { color: $pink; }
     }
   }
 
   .np-btn-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 12px;
-    color: rgba(226, 226, 226, 0.45);
+    color: rgba($text, 0.45);
     margin: 0;
   }
 }
@@ -2587,8 +2396,8 @@ window.np-window.csd decoration {
 .np-footer-count {
   font-size: 9px;
   font-weight: 700;
-  color: #f38ba8;
-  font-family: "MesloLGS Nerd Font";
+  color: $pink;
+  font-family: $font-icon;
   margin: 0;
 }
 
@@ -2631,7 +2440,7 @@ window.np-window.csd decoration {
 
   &.active {
     background: rgba(203, 166, 247, 0.12);
-    .np-filter-chip-label { color: #cba6f7; }
+    .np-filter-chip-label { color: $violet; }
   }
 
   &:hover:not(.active) {
@@ -2641,7 +2450,7 @@ window.np-window.csd decoration {
   .np-filter-chip-label {
     font-size: 10px;
     font-weight: 400;
-    color: rgba(226, 226, 226, 0.5);
+    color: rgba($text, 0.5);
     margin: 0;
   }
 }
@@ -2670,23 +2479,15 @@ window.np-window.csd decoration {
 }
 
 .np-empty-icon {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 28px;
-  color: rgba(226, 226, 226, 0.12);
-  margin: 0;
+  @include empty-icon(28px, rgba($text, 0.12), $font-icon);
 }
 
 .np-empty-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(226, 226, 226, 0.25);
-  margin: 0;
+  @include empty-text(12px, rgba($text, 0.25), 600);
 }
 
 .np-empty-sub {
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.15);
-  margin: 0;
+  @include empty-text(10px, rgba($text, 0.15));
 }
 
 // App group
@@ -2706,35 +2507,35 @@ window.np-window.csd decoration {
 }
 
 .np-group-chevron {
-  font-family: "MesloLGS Nerd Font";
+  font-family: $font-icon;
   font-size: 11px;
-  color: rgba(226, 226, 226, 0.4);
+  color: rgba($text, 0.4);
   margin: 0;
 }
 
 .np-group-name {
   font-size: 11px;
   font-weight: 700;
-  color: rgba(226, 226, 226, 0.6);
+  color: rgba($text, 0.6);
   margin: 0;
 }
 
 .np-group-badge {
   background: rgba(203, 166, 247, 0.2);
-  border-radius: 99px;
+  border-radius: $radius-pill;
   padding: 0 5px;
 }
 
 .np-group-count {
   font-size: 9px;
   font-weight: 800;
-  color: #cba6f7;
+  color: $violet;
   margin: 0;
 }
 
 .np-group-total {
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.3);
+  color: rgba($text, 0.3);
   margin: 0;
 }
 
@@ -2775,9 +2576,9 @@ window.np-window.csd decoration {
   }
 
   .notif-checkbox-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 12px;
-    color: rgba(226, 226, 226, 0.4);
+    color: rgba($text, 0.4);
     margin: 0;
   }
 }
@@ -2795,20 +2596,6 @@ window.np-window.csd decoration {
   padding: 6px 10px;
 }
 
-.notif-app-icon-wrap {
-  border-radius: 8px;
-  min-width: 32px;
-  min-height: 32px;
-  padding: 0;
-
-  .notif-app-icon {
-    font-family: "MesloLGS Nerd Font";
-    font-size: 15px;
-    margin: 0;
-    padding: 0;
-  }
-}
-
 .notif-app-img {
   margin: 0;
   padding: 0;
@@ -2818,38 +2605,38 @@ window.np-window.csd decoration {
 .notif-app-name {
   font-size: 10px;
   font-weight: 500;
-  color: rgba(226, 226, 226, 0.4);
-  font-family: "MesloLGS Nerd Font";
+  color: rgba($text, 0.4);
+  font-family: $font-icon;
   margin: 0;
 }
 
 .notif-dot {
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.25);
-  font-family: "MesloLGS Nerd Font";
+  color: rgba($text, 0.25);
+  font-family: $font-icon;
   margin: 0;
 }
 
 .notif-timestamp {
   font-size: 9px;
-  color: rgba(226, 226, 226, 0.25);
-  font-family: "MesloLGS Nerd Font";
+  color: rgba($text, 0.25);
+  font-family: $font-icon;
   margin: 0;
 }
 
 .notif-summary {
   font-size: 11px;
   font-weight: 400;
-  color: rgba(226, 226, 226, 0.85);
-  font-family: "MesloLGS Nerd Font";
+  color: rgba($text, 0.85);
+  font-family: $font-icon;
   margin: 0;
 }
 
 .notif-body {
   font-size: 10px;
   font-weight: 400;
-  color: rgba(226, 226, 226, 0.45);
-  font-family: "MesloLGS Nerd Font";
+  color: rgba($text, 0.45);
+  font-family: $font-icon;
   margin: 0;
 }
 
@@ -2865,31 +2652,31 @@ window.np-window.csd decoration {
   min-height: 28px;
   padding: 0;
   transition: all 100ms ease;
-  font-family: "MesloLGS Nerd Font";
+  font-family: $font-icon;
   font-size: 12px;
-  color: rgba(226, 226, 226, 0.4);
+  color: rgba($text, 0.4);
 
   &:hover {
     background: rgba(255, 255, 255, 0.08);
-    color: #e2e2e2;
+    color: $text;
   }
 
   &.active {
-    background: rgba(243, 139, 168, 0.15);
-    border-color: rgba(243, 139, 168, 0.3);
-    color: #f38ba8;
+    background: rgba($pink, 0.15);
+    border-color: rgba($pink, 0.3);
+    color: $pink;
   }
 
   &.dismiss:hover {
-    background: rgba(243, 139, 168, 0.15);
-    border-color: rgba(243, 139, 168, 0.3);
-    color: #f38ba8;
+    background: rgba($pink, 0.15);
+    border-color: rgba($pink, 0.3);
+    color: $pink;
   }
 
   &.reply:hover {
     background: rgba(137, 180, 250, 0.15);
     border-color: rgba(137, 180, 250, 0.3);
-    color: #89b4fa;
+    color: $blue;
   }
 
   label { margin: 0; }
@@ -2907,12 +2694,12 @@ window.np-window.csd decoration {
   border-radius: 6px;
   padding: 2px 10px;
   font-size: 11px;
-  color: rgba(226, 226, 226, 0.7);
+  color: rgba($text, 0.7);
   transition: all 100ms ease;
 
   &:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: #e2e2e2;
+    color: $text;
   }
 
   label { margin: 0; }
@@ -2931,8 +2718,8 @@ window.np-window.csd decoration {
   border-radius: 8px;
   padding: 4px 8px;
   font-size: 11px;
-  color: #e2e2e2;
-  font-family: "MesloLGS Nerd Font";
+  color: $text;
+  font-family: $font-icon;
 }
 
 .notif-reply-send {
@@ -2959,23 +2746,19 @@ window.np-window.csd decoration {
   min-height: 28px;
   padding: 0;
   transition: all 100ms ease;
-  font-family: "MesloLGS Nerd Font";
+  font-family: $font-icon;
   font-size: 12px;
-  color: rgba(226, 226, 226, 0.4);
+  color: rgba($text, 0.4);
 
   &:hover {
-    color: #f38ba8;
-    background: rgba(243, 139, 168, 0.1);
+    color: $pink;
+    background: rgba($pink, 0.1);
   }
 
   label { margin: 0; }
 }
 
 // ── Notification Settings Subpanel ────────────────────────────────────────────
-.ns-panel {
-  min-width: 360px;
-}
-
 .ns-header {
   padding: 14px 14px 8px;
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
@@ -2989,9 +2772,9 @@ window.np-window.csd decoration {
   min-height: 28px;
   padding: 0;
   transition: all 100ms ease;
-  font-family: "MesloLGS Nerd Font";
+  font-family: $font-icon;
   font-size: 14px;
-  color: rgba(226, 226, 226, 0.55);
+  color: rgba($text, 0.55);
 
   &:hover {
     background: rgba(255, 255, 255, 0.08);
@@ -3003,28 +2786,8 @@ window.np-window.csd decoration {
 .ns-title {
   font-size: 12px;
   font-weight: 700;
-  color: #e2e2e2;
+  color: $text;
   margin: 0;
-}
-
-.ns-reset-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  min-width: 28px;
-  min-height: 28px;
-  padding: 0;
-  transition: all 100ms ease;
-  font-family: "MesloLGS Nerd Font";
-  font-size: 13px;
-  color: rgba(226, 226, 226, 0.4);
-
-  &:hover {
-    background: rgba(243, 139, 168, 0.1);
-    color: #f38ba8;
-  }
-
-  label { margin: 0; }
 }
 
 .ns-scroll {
@@ -3059,7 +2822,7 @@ window.np-window.csd decoration {
   min-height: 30px;
 
   .ns-app-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 15px;
     margin: 0;
   }
@@ -3068,7 +2831,7 @@ window.np-window.csd decoration {
 .ns-app-name {
   font-size: 12px;
   font-weight: 600;
-  color: #e2e2e2;
+  color: $text;
   margin: 0;
 }
 
@@ -3086,69 +2849,18 @@ window.np-window.csd decoration {
   }
 
   &.muted {
-    background: rgba(243, 139, 168, 0.1);
-    border-color: rgba(243, 139, 168, 0.3);
+    background: rgba($pink, 0.1);
+    border-color: rgba($pink, 0.3);
 
-    .ns-mute-icon { color: #f38ba8; }
+    .ns-mute-icon { color: $pink; }
   }
 
   .ns-mute-icon {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 13px;
-    color: rgba(226, 226, 226, 0.5);
+    color: rgba($text, 0.5);
     margin: 0;
   }
-}
-
-.ns-label-dim {
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.35);
-  margin: 0;
-}
-
-.ns-importance-btn {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 6px;
-  padding: 2px 8px;
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.5);
-  transition: all 100ms ease;
-
-  &.active {
-    color: #e2e2e2;
-  }
-
-  &:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  label { margin: 0; }
-}
-
-.ns-lock-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  min-width: 26px;
-  min-height: 26px;
-  padding: 0;
-  transition: all 100ms ease;
-  font-family: "MesloLGS Nerd Font";
-  font-size: 13px;
-  color: rgba(226, 226, 226, 0.4);
-
-  &.active {
-    background: rgba(166, 227, 161, 0.1);
-    border-color: rgba(166, 227, 161, 0.3);
-    color: #a6e3a1;
-  }
-
-  &:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.06);
-  }
-
-  label { margin: 0; }
 }
 
 .ns-empty-state {
@@ -3156,16 +2868,11 @@ window.np-window.csd decoration {
 }
 
 .ns-empty-icon {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 32px;
-  color: rgba(226, 226, 226, 0.15);
-  margin: 0;
+  @include empty-icon(32px, rgba($text, 0.15), $font-icon);
 }
 
 .ns-empty-label {
-  font-size: 12px;
-  color: rgba(226, 226, 226, 0.3);
-  margin: 0;
+  @include empty-text(12px, rgba($text, 0.3));
 }
 
 // ── Pixel Volume OSD ─────────────────────────────────────────────────────────
@@ -3218,7 +2925,7 @@ window.pv-osd-window {
 }
 
 .pv-title {
-  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
+  font-family: "Press Start 2P", $font-icon, monospace;
   font-size: 7px;
   letter-spacing: 0.5px;
   margin: 0;
@@ -3226,14 +2933,14 @@ window.pv-osd-window {
 }
 
 .pv-percent {
-  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
+  font-family: "Press Start 2P", $font-icon, monospace;
   font-size: 9px;
   font-weight: 900;
   margin: 0 2px 0 0;
 }
 
 .pv-percent-sym {
-  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
+  font-family: "Press Start 2P", $font-icon, monospace;
   font-size: 6px;
   margin: 0;
   opacity: 0.65;
@@ -3250,7 +2957,7 @@ window.pv-osd-window {
   transition: none;
 
   .pv-mute-label {
-    font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
+    font-family: "Press Start 2P", $font-icon, monospace;
     font-size: 7px;
     color: #999999;
     margin: 0;
@@ -3285,16 +2992,16 @@ $cal-bg:          rgba(8, 8, 12, 1);
 $cal-bg-surface:  rgba(255, 255, 255, 0.03);
 $cal-bg-surface2: rgba(255, 255, 255, 0.06);
 $cal-border:      rgba(255, 255, 255, 0.1);
-$cal-text:        #e2e2e2;
-$cal-text-dim:    rgba(226, 226, 226, 0.45);
-$cal-text-hint:   rgba(226, 226, 226, 0.25);
-$cal-blue:        #89b4fa;
-$cal-violet:      #cba6f7;
+$cal-text:        $text;
+$cal-text-dim:    rgba($text, 0.45);
+$cal-text-hint:   rgba($text, 0.25);
+$cal-blue:        $blue;
+$cal-violet:      $violet;
 $cal-accent-bg:   rgba(137, 180, 250, 0.12);
 $cal-accent-dim:  rgba(137, 180, 250, 0.7);
-$cal-danger:      #f38ba8;
-$cal-danger-bg:   rgba(243, 139, 168, 0.1);
-$cal-font:        "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+$cal-danger:      $pink;
+$cal-danger-bg:   rgba($pink, 0.1);
+$cal-font:        $font-icon, monospace;
 
 window.cal-panel,
 window.cal-panel.background,
@@ -3585,21 +3292,15 @@ window.cal-panel > box {
 }
 
 .cal-empty-icon {
-  font-size: 32px;
-  margin: 0;
+  @include empty-icon(32px);
 }
 
 .cal-empty-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: $cal-text-dim;
-  margin: 0;
+  @include empty-text(14px, $cal-text-dim, 600);
 }
 
 .cal-empty-sub {
-  font-size: 11px;
-  color: $cal-text-hint;
-  margin: 0;
+  @include empty-text(11px, $cal-text-hint);
 }
 
 // ── Icon buttons ──────────────────────────────────────────────────────────────
@@ -3631,7 +3332,7 @@ window.cal-panel > box {
   &.danger:hover {
     background-color: $cal-danger-bg;
     label { color: $cal-danger; }
-    border-color: rgba(243, 139, 168, 0.35);
+    border-color: rgba($pink, 0.35);
   }
 }
 
@@ -3764,7 +3465,7 @@ window.cal-panel > box {
   }
 
   slider {
-    background-color: #fff;
+    background-color: $white;
     border-radius: 50%;
     min-width: 16px;
     min-height: 16px;
@@ -3813,21 +3514,21 @@ window.cal-panel > box {
   border: none;
   border-radius: 8px;
   padding: 6px 10px;
-  color: rgba(226, 226, 226, 0.5);
-  font-family: "MesloLGS Nerd Font";
+  color: rgba($text, 0.5);
+  font-family: $font-icon;
   font-size: 12px;
   transition: all 120ms ease;
-  &:hover { background: rgba(255, 255, 255, 0.05); color: #e2e2e2; }
-  &.active { background: rgba(203, 166, 247, 0.15); color: #cba6f7; }
+  &:hover { background: rgba(255, 255, 255, 0.05); color: $text; }
+  &.active { background: rgba(203, 166, 247, 0.15); color: $violet; }
 }
-.st-tab-hint { font-size: 10px; color: rgba(226, 226, 226, 0.4); font-family: "MesloLGS Nerd Font"; }
+.st-tab-hint { font-size: 10px; color: rgba($text, 0.4); font-family: $font-icon; }
 .st-add-btn {
   background: rgba(166, 227, 161, 0.12);
   border: 1px solid rgba(166, 227, 161, 0.3);
   border-radius: 6px;
   padding: 4px 10px;
   color: #a6e3a1;
-  font-family: "MesloLGS Nerd Font";
+  font-family: $font-icon;
   font-size: 11px;
   &:hover { background: rgba(166, 227, 161, 0.2); }
 }
@@ -3839,53 +3540,53 @@ window.cal-panel > box {
   border-radius: 8px;
   padding: 8px 10px;
 }
-.re-row-name { font-size: 12px; color: #e2e2e2; font-family: "MesloLGS Nerd Font"; font-weight: 500; }
-.re-row-summary { font-size: 10px; color: rgba(226, 226, 226, 0.45); font-family: "MesloLGS Nerd Font"; }
-.re-row-body { font-size: 9px; color: rgba(226, 226, 226, 0.3); font-family: "MesloLGS Nerd Font"; }
+.re-row-name { font-size: 12px; color: $text; font-family: $font-icon; font-weight: 500; }
+.re-row-summary { font-size: 10px; color: rgba($text, 0.45); font-family: $font-icon; }
+.re-row-body { font-size: 9px; color: rgba($text, 0.3); font-family: $font-icon; }
 .re-badge {
-  font-size: 9px; color: rgba(226, 226, 226, 0.5);
+  font-size: 9px; color: rgba($text, 0.5);
   background: rgba(255, 255, 255, 0.06); border-radius: 4px; padding: 1px 5px;
-  font-family: "MesloLGS Nerd Font";
+  font-family: $font-icon;
 }
 .re-edit-btn, .re-delete, .re-save, .re-advanced-toggle, .re-seg, .re-toggle {
-  font-family: "MesloLGS Nerd Font"; transition: all 100ms ease; border-radius: 6px;
+  font-family: $font-icon; transition: all 100ms ease; border-radius: 6px;
 }
 .re-edit-btn {
   background: transparent; border: 1px solid rgba(255, 255, 255, 0.08);
-  min-width: 30px; min-height: 30px; color: rgba(226, 226, 226, 0.6);
-  &:hover { background: rgba(255, 255, 255, 0.08); color: #e2e2e2; }
+  min-width: 30px; min-height: 30px; color: rgba($text, 0.6);
+  &:hover { background: rgba(255, 255, 255, 0.08); color: $text; }
 }
 .re-panel { padding: 4px 2px; }
-.re-section { font-size: 11px; color: #cba6f7; font-family: "MesloLGS Nerd Font"; font-weight: 600; margin-top: 4px; }
+.re-section { font-size: 11px; color: $violet; font-family: $font-icon; font-weight: 600; margin-top: 4px; }
 .re-field { }
-.re-field-label { font-size: 10px; color: rgba(226, 226, 226, 0.5); font-family: "MesloLGS Nerd Font"; }
+.re-field-label { font-size: 10px; color: rgba($text, 0.5); font-family: $font-icon; }
 .re-entry {
   background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px; padding: 4px 8px; font-size: 11px; color: #e2e2e2; font-family: "MesloLGS Nerd Font";
+  border-radius: 8px; padding: 4px 8px; font-size: 11px; color: $text; font-family: $font-icon;
 }
 .re-seg, .re-toggle {
   background: transparent; border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 3px 8px; font-size: 10px; color: rgba(226, 226, 226, 0.55);
-  &:hover { background: rgba(255, 255, 255, 0.06); color: #e2e2e2; }
-  &.active { background: rgba(137, 180, 250, 0.18); border-color: rgba(137, 180, 250, 0.4); color: #89b4fa; }
+  padding: 3px 8px; font-size: 10px; color: rgba($text, 0.55);
+  &:hover { background: rgba(255, 255, 255, 0.06); color: $text; }
+  &.active { background: rgba(137, 180, 250, 0.18); border-color: rgba(137, 180, 250, 0.4); color: $blue; }
 }
 .re-toggle {
   min-width: 30px;
   min-height: 30px;
   padding: 0;
 }
-.re-advanced-toggle { background: transparent; border: none; color: rgba(226, 226, 226, 0.5); font-size: 11px; padding: 2px 0; }
+.re-advanced-toggle { background: transparent; border: none; color: rgba($text, 0.5); font-size: 11px; padding: 2px 0; }
 .re-save {
   background: rgba(137, 180, 250, 0.15); border: 1px solid rgba(137, 180, 250, 0.3);
-  padding: 6px; color: #89b4fa; font-size: 12px;
+  padding: 6px; color: $blue; font-size: 12px;
   &:hover { background: rgba(137, 180, 250, 0.25); }
 }
 .re-delete {
-  background: rgba(243, 139, 168, 0.12); border: 1px solid rgba(243, 139, 168, 0.3);
-  padding: 6px 12px; color: #f38ba8; font-size: 12px;
-  &:hover { background: rgba(243, 139, 168, 0.22); }
+  background: rgba($pink, 0.12); border: 1px solid rgba($pink, 0.3);
+  padding: 6px 12px; color: $pink; font-size: 12px;
+  &:hover { background: rgba($pink, 0.22); }
 }
-.re-hint { font-size: 9px; color: rgba(226, 226, 226, 0.4); font-family: "MesloLGS Nerd Font"; }
+.re-hint { font-size: 9px; color: rgba($text, 0.4); font-family: $font-icon; }
 
 /* ── Color picker (rules + apps) ─────────────────────────────────────── */
 .cp-auto {
@@ -3894,11 +3595,11 @@ window.cal-panel > box {
   border-radius: 6px;
   padding: 3px 8px;
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.6);
-  font-family: "MesloLGS Nerd Font";
+  color: rgba($text, 0.6);
+  font-family: $font-icon;
   transition: all 100ms ease;
-  &:hover { background: rgba(255, 255, 255, 0.06); color: #e2e2e2; }
-  &.active { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.35); color: #e2e2e2; }
+  &:hover { background: rgba(255, 255, 255, 0.06); color: $text; }
+  &.active { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.35); color: $text; }
 }
 .cp-swatch {
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -3908,9 +3609,9 @@ window.cal-panel > box {
   padding: 0;
   transition: all 100ms ease;
   &:hover { border-color: rgba(255, 255, 255, 0.5); }
-  &.active { border: 2px solid #ffffff; }
+  &.active { border: 2px solid $white; }
   .cp-swatch-check {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 12px;
     color: rgba(8, 8, 12, 0.85);
   }
@@ -3925,9 +3626,9 @@ window.cal-panel > box {
   padding: 0;
   transition: all 100ms ease;
   &:hover { border-color: rgba(255, 255, 255, 0.5); }
-  &.open { border: 2px solid #ffffff; }
+  &.open { border: 2px solid $white; }
   .ns-color-check {
-    font-family: "MesloLGS Nerd Font";
+    font-family: $font-icon;
     font-size: 12px;
     color: rgba(8, 8, 12, 0.85);
   }
@@ -3959,8 +3660,8 @@ window.cal-panel > box {
 .sp-nav-title {
   font-size: 11px;
   font-weight: 700;
-  color: rgba(226, 226, 226, 0.45);
-  font-family: "MesloLGS Nerd Font";
+  color: rgba($text, 0.45);
+  font-family: $font-icon;
   margin: 2px 8px 10px;
 }
 .sp-nav-item {
@@ -3968,13 +3669,13 @@ window.cal-panel > box {
   border: none;
   border-radius: 8px;
   padding: 8px 10px;
-  color: rgba(226, 226, 226, 0.6);
-  font-family: "MesloLGS Nerd Font";
+  color: rgba($text, 0.6);
+  font-family: $font-icon;
   font-size: 12px;
   transition: all 120ms ease;
-  &:hover { background: rgba(255, 255, 255, 0.05); color: #e2e2e2; }
-  &.active { background: rgba(203, 166, 247, 0.15); color: #cba6f7; }
-  .sp-nav-icon { font-family: "MesloLGS Nerd Font"; font-size: 14px; }
+  &:hover { background: rgba(255, 255, 255, 0.05); color: $text; }
+  &.active { background: rgba(203, 166, 247, 0.15); color: $violet; }
+  .sp-nav-icon { font-family: $font-icon; font-size: 14px; }
 }
 
 .sp-content { padding: 18px 20px; }
@@ -3983,8 +3684,8 @@ window.cal-panel > box {
 .sp-section-title {
   font-size: 15px;
   font-weight: 700;
-  color: #e2e2e2;
-  font-family: "MesloLGS Nerd Font";
+  color: $text;
+  font-family: $font-icon;
 }
 
 .sp-energy-card {
@@ -3992,17 +3693,17 @@ window.cal-panel > box {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   padding: 12px 14px;
-  .sp-energy-icon { font-family: "MesloLGS Nerd Font"; font-size: 18px; color: #89b4fa; }
-  .sp-energy-status { font-size: 13px; font-weight: 600; color: #e2e2e2; font-family: "MesloLGS Nerd Font"; }
-  .sp-energy-status.active { color: #fab387; }
+  .sp-energy-icon { font-family: $font-icon; font-size: 18px; color: $blue; }
+  .sp-energy-status { font-size: 13px; font-weight: 600; color: $text; font-family: $font-icon; }
+  .sp-energy-status.active { color: $orange; }
   .sp-energy-icon { color: #a6e3a1; }
-  .sp-energy-sub { font-size: 11px; color: rgba(226, 226, 226, 0.5); font-family: "MesloLGS Nerd Font"; }
+  .sp-energy-sub { font-size: 11px; color: rgba($text, 0.5); font-family: $font-icon; }
 }
 
 .sp-field { }
-.sp-field-label { font-size: 12px; color: #e2e2e2; font-family: "MesloLGS Nerd Font"; }
-.sp-field-value { font-size: 12px; font-weight: 700; color: #cba6f7; font-family: "MesloLGS Nerd Font"; }
-.sp-field-hint { font-size: 10px; color: rgba(226, 226, 226, 0.4); font-family: "MesloLGS Nerd Font"; }
+.sp-field-label { font-size: 12px; color: $text; font-family: $font-icon; }
+.sp-field-value { font-size: 12px; font-weight: 700; color: $violet; font-family: $font-icon; }
+.sp-field-hint { font-size: 10px; color: rgba($text, 0.4); font-family: $font-icon; }
 
 /* ── Centered notification-settings window (Phase 5) ────────────────── */
 .nsw-window {
@@ -4023,10 +3724,10 @@ window.cal-panel > box {
 
 .re-error {
   font-size: 10px;
-  color: #f38ba8;
-  font-family: "MesloLGS Nerd Font";
-  background: rgba(243, 139, 168, 0.1);
-  border: 1px solid rgba(243, 139, 168, 0.3);
+  color: $pink;
+  font-family: $font-icon;
+  background: rgba($pink, 0.1);
+  border: 1px solid rgba($pink, 0.3);
   border-radius: 6px;
   padding: 6px 8px;
 }

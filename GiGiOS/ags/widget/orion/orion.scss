@@ -62,7 +62,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   min-width: 40px;
   min-height: 3px;
   border-radius: 2px;
-  background: rgba(122, 162, 247, 0.18);
+  background: rgba($j-accent, 0.18);
 }
 
 // ── Button resets ────────────────────────────────────────────
@@ -79,7 +79,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 // ── Tabs bar ─────────────────────────────────────────────────
 .tabs-bar {
   background: $j-bg-tabs;
-  border-bottom: 1px solid rgba(122, 162, 247, 0.15);
+  border-bottom: 1px solid rgba($j-accent, 0.15);
   min-height: 32px;
 }
 
@@ -152,8 +152,8 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   min-height: 24px;
   border-radius: 6px;
 }
-.pdai-save  { background: rgba(122, 162, 247, 0.1); color: $j-accent; }
-.pdai-clear { background: rgba(247, 118, 142, 0.1); color: $j-accent-red; }
+.pdai-save  { background: rgba($j-accent, 0.1); color: $j-accent; }
+.pdai-clear { background: rgba($j-accent-red, 0.1); color: $j-accent-red; }
 .pd-action-name { font-size: 11px; color: $j-text-primary; }
 .pd-action-sub  { font-size: 9px;  color: $j-text-muted; }
 
@@ -182,7 +182,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 .search-zone { padding: 7px 13px 6px; }
 .search-bar {
   background: $j-bg-item;
-  border: 1px solid rgba(122, 162, 247, 0.1);
+  border: 1px solid rgba($j-accent, 0.1);
   border-radius: $j-radius-md;
   padding: 5px 10px;
 
@@ -206,9 +206,6 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 }
 
 // ── Nav sections ─────────────────────────────────────────────
-.nav-sections {
-  padding: 8px 11px 6px;
-}
 .ns {
   padding: 4px 8px;
   border-radius: $j-radius-xs;
@@ -218,12 +215,6 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   &:hover { color: $j-text-secondary; background: $j-bg-item-hover; border-color: $j-border-subtle; }
   &.active { color: $j-accent; background: $j-bg-item-active; border-color: $j-border-active; }
 }
-.ns-reactive { color: $j-accent-teal; }
-.ns-reactive.active {
-  background: rgba(115, 218, 202, 0.08);
-  border-color: rgba(115, 218, 202, 0.25);
-}
-
 .section-content { min-height: 10px; padding-bottom: 15px; }
 
 // ── Apps grid ────────────────────────────────────────────────
@@ -247,16 +238,6 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 .app-item-img { color: $j-text-secondary; }
 .app-dragging { opacity: 0.35; }
 .app-label { font-size: 9px; color: $j-text-muted; }
-
-.app-badge-warn {
-  font-size: 8px;
-  font-weight: bold;
-  color: $j-accent-amber;
-  background: rgba(224, 175, 104, 0.2);
-  border-radius: 4px;
-  padding: 0 3px;
-  min-width: 12px;
-}
 
 .j-hdiv { background: $j-border-subtle; min-height: 1px; margin: 5px 11px; }
 
@@ -297,12 +278,12 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 }
 .sys-label { font-size: 9px; color: $j-text-muted; font-family: $j-font-mono; }
 .sys-val   { font-size: 12px; font-weight: 500; color: $j-accent; font-family: $j-font-mono; }
-.sys-bar   { background: rgba(122, 162, 247, 0.07); border-radius: 2px; min-height: 2px; }
+.sys-bar   { background: rgba($j-accent, 0.07); border-radius: 2px; min-height: 2px; }
 .sys-fill  { border-radius: 2px; min-height: 2px; }
-.sf-blue   { background: rgba(122, 162, 247, 0.55); }
-.sf-pink   { background: rgba(247, 118, 142, 0.55); }
-.sf-teal   { background: rgba(115, 218, 202, 0.55); }
-.sf-amber  { background: rgba(224, 175, 104, 0.55); }
+.sf-blue   { background: rgba($j-accent, 0.55); }
+.sf-pink   { background: rgba($j-accent-red, 0.55); }
+.sf-teal   { background: rgba($j-accent-teal, 0.55); }
+.sf-amber  { background: rgba($j-accent-amber, 0.55); }
 
 // ── Section title ─────────────────────────────────────────────────────────────
 .section-title {
@@ -326,7 +307,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 .kb-group-title:first-child { padding-top: 4px; }
 .kb-row {
   padding: 2px 0;
-  border-bottom: 1px solid rgba(122, 162, 247, 0.04);
+  border-bottom: 1px solid rgba($j-accent, 0.04);
 }
 .kb-key {
   font-size: 10px;
@@ -397,18 +378,6 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   border-radius: $j-radius-sm;
   &:hover { background: $j-bg-item-hover; }
 }
-.rx-opts-btn {
-  background: transparent;
-  border: none;
-  border-radius: $j-radius-xs;
-  color: $j-text-muted;
-  font-size: 14px;
-  padding: 0 8px;
-  min-width: 28px;
-
-  &:hover { background: $j-bg-item-hover; color: $j-text-primary; }
-}
-
 // ── App context menu (popover) ───────────────────────────────────────────────
 popover.background {
   background: rgba(12, 16, 28, 0.97);
@@ -418,19 +387,6 @@ popover.background {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 .rx-menu { min-width: 160px; }
-.rx-menu-btn {
-  background: transparent;
-  border: none;
-  border-radius: $j-radius-xs;
-  padding: 6px 10px;
-  color: $j-text-primary;
-  font-size: 11px;
-
-  &:hover { background: $j-bg-item-hover; }
-  &:disabled { color: $j-text-muted; }
-
-  image { color: $j-text-secondary; }
-}
 
 // ── Right panel (app context) ─────────────────────────────────────────────────
 .right-panel {
@@ -567,7 +523,7 @@ popover.background {
   font-family: $j-font-mono;
   padding: 3px 10px;
   &:hover { background: $j-bg-item-hover; border-color: $j-border-normal; color: $j-text-primary; }
-  &.active { background: rgba(122, 162, 247, 0.1); border-color: $j-border-active; color: $j-accent; }
+  &.active { background: rgba($j-accent, 0.1); border-color: $j-border-active; color: $j-accent; }
 }
 
 .apps-list-scroll {
@@ -615,13 +571,8 @@ popover.background {
     padding: 3px 10px;
     &:hover { background: $j-bg-item-hover; border-color: $j-border-normal; }
     &.git-chip-active {
-      background: rgba(122,162,247,0.1);
+      background: rgba($j-accent, 0.1);
       border-color: $j-border-active;
-    }
-    &.git-chip-add {
-      padding: 3px 7px;
-      color: $j-text-muted;
-      &:hover { color: $j-accent; border-color: $j-border-normal; }
     }
   }
 
@@ -668,7 +619,7 @@ popover.background {
   }
 
   .git-branch-chip {
-    background: rgba(122,162,247,0.08);
+    background: rgba($j-accent, 0.08);
     border-radius: 5px;
     padding: 1px 7px;
   }
@@ -678,10 +629,10 @@ popover.background {
   .git-stat-pill {
     font-size: 10px; font-family: $j-font-mono; font-weight: 500;
     padding: 1px 6px; border-radius: 10px;
-    &.gsp-ahead  { background: rgba(115,218,202,0.1); color: $j-accent-teal; }
-    &.gsp-behind { background: rgba(224,175,104,0.1); color: $j-accent-amber; }
-    &.gsp-mod    { background: rgba(122,162,247,0.1); color: $j-accent; }
-    &.gsp-err    { background: rgba(247,118,142,0.1); color: $j-accent-red; }
+    &.gsp-ahead  { background: rgba($j-accent-teal, 0.1); color: $j-accent-teal; }
+    &.gsp-behind { background: rgba($j-accent-amber, 0.1); color: $j-accent-amber; }
+    &.gsp-mod    { background: rgba($j-accent, 0.1); color: $j-accent; }
+    &.gsp-err    { background: rgba($j-accent-red, 0.1); color: $j-accent-red; }
   }
 
   // ── Column cards ────────────────────────────────────────────────────────────
@@ -725,14 +676,14 @@ popover.background {
     border-bottom: 0.5px solid $j-border-subtle;
     &:last-child { border-bottom: none; }
     &:hover { background: $j-bg-item-hover; }
-    &.git-file-active { background: rgba(122,162,247,0.07); }
+    &.git-file-active { background: rgba($j-accent, 0.07); }
   }
   .git-file-stat {
     font-size: 10px; font-weight: 600;
     min-width: 13px; min-height: 13px; border-radius: 3px;
-    &.fs-m { background: rgba(224,175,104,0.15); color: $j-accent-amber; }
-    &.fs-a { background: rgba(115,218,202,0.15); color: $j-accent-teal; }
-    &.fs-d { background: rgba(247,118,142,0.15); color: $j-accent-red; }
+    &.fs-m { background: rgba($j-accent-amber, 0.15); color: $j-accent-amber; }
+    &.fs-a { background: rgba($j-accent-teal, 0.15); color: $j-accent-teal; }
+    &.fs-d { background: rgba($j-accent-red, 0.15); color: $j-accent-red; }
     &.fs-u { background: rgba(86,95,137,0.15);   color: $j-text-muted; }
   }
   .git-file-name { font-size: 11px; color: $j-text-primary; font-family: $j-font-mono; }
@@ -784,27 +735,20 @@ popover.background {
   .git-diff-body { padding: 2px 0; font-family: $j-font-mono; font-size: 10px; }
   .git-diff-line {
     padding: 0 10px; line-height: 1.6;
-    &.dl-add { background: rgba(115,218,202,0.08); color: $j-accent-teal; }
-    &.dl-rem { background: rgba(247,118,142,0.08); color: $j-accent-red; }
+    &.dl-add { background: rgba($j-accent-teal, 0.08); color: $j-accent-teal; }
+    &.dl-rem { background: rgba($j-accent-red, 0.08); color: $j-accent-red; }
     &.dl-ctx { color: $j-text-secondary; }
   }
 
   // ── Scan panel ───────────────────────────────────────────────────────────────
 
-  .git-scan-panel {
-    background: $j-bg-item;
-    border: 0.5px solid $j-border-subtle;
-    border-radius: $j-radius-sm;
-    padding: 8px 10px;
-    margin-bottom: 2px;
-  }
   .git-scan-lbl   { font-size: 11px; color: $j-text-secondary; }
   .git-scan-empty { font-size: 11px; color: $j-text-muted; font-style: italic; }
 
   .git-disc-item {
     padding: 5px 6px; border-radius: 7px;
     border: 0.5px solid $j-border-subtle;
-    background: rgba(122,162,247,0.02);
+    background: rgba($j-accent, 0.02);
     &:hover { background: $j-bg-item-hover; }
   }
   .git-disc-icon { color: $j-text-muted; }
@@ -815,43 +759,8 @@ popover.background {
     min-width: 20px; min-height: 20px; border-radius: 5px;
     border: 0.5px solid $j-border-subtle;
     color: $j-text-muted;
-    &.git-disc-pin:hover    { background: rgba(122,162,247,0.12); border-color: $j-border-active; color: $j-accent; }
-    &.git-disc-ignore:hover { background: rgba(247,118,142,0.1);  border-color: rgba(247,118,142,0.25); color: $j-accent-red; }
-  }
-
-  // ── Add-repo popover ─────────────────────────────────────────────────────────
-
-  .git-add-popover {
-    padding: 12px;
-    min-width: 260px;
-  }
-  .git-add-title {
-    font-size: 11px; font-weight: 600; color: $j-text-primary;
-    margin-bottom: 2px;
-  }
-  .git-add-entry {
-    background: rgba(0,0,0,0.2);
-    border: 0.5px solid $j-border-subtle;
-    border-radius: 7px;
-    font-size: 11px; font-family: $j-font-mono;
-    color: $j-text-primary;
-    padding: 4px 9px;
-    &:focus { border-color: $j-border-active; }
-  }
-  .git-add-err {
-    font-size: 10px; color: $j-accent-red;
-    font-family: $j-font-mono;
-  }
-  .git-add-cancel {
-    font-size: 11px; color: $j-text-secondary;
-    border: 0.5px solid $j-border-subtle; border-radius: 7px; padding: 4px 10px;
-    &:hover { background: $j-bg-item-hover; }
-  }
-  .git-add-confirm {
-    font-size: 11px; color: $j-accent;
-    background: rgba(122,162,247,0.08);
-    border: 0.5px solid $j-border-active; border-radius: 7px; padding: 4px 10px;
-    &:hover { background: rgba(122,162,247,0.15); }
+    &.git-disc-pin:hover    { background: rgba($j-accent, 0.12); border-color: $j-border-active; color: $j-accent; }
+    &.git-disc-ignore:hover { background: rgba($j-accent-red, 0.1);  border-color: rgba($j-accent-red, 0.25); color: $j-accent-red; }
   }
 
   // ── Action bar ───────────────────────────────────────────────────────────────
@@ -860,8 +769,8 @@ popover.background {
     font-size: 10px; font-family: $j-font-mono;
     color: $j-accent-teal;
     padding: 3px 8px;
-    background: rgba(115,218,202,0.07);
+    background: rgba($j-accent-teal, 0.07);
     border-radius: $j-radius-xs;
-    border: 0.5px solid rgba(115,218,202,0.15);
+    border: 0.5px solid rgba($j-accent-teal, 0.15);
   }
 }

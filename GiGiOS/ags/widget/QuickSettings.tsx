@@ -1605,7 +1605,7 @@ function QsAudioMenu({ onBack }: { onBack: () => void }) {
                   return (
                     <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item", "qs-audio-app-item"]}>
                       <box spacing={6} valign={Gtk.Align.CENTER}>
-                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} />
+                        <Gtk.Image iconName={icon} cssClasses={["qs-stream-icon"]} />
                         <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.START}>
                           <label cssClasses={["qs-section-label"]} label={name} halign={Gtk.Align.START} ellipsize={3} />
                         </box>
@@ -1807,7 +1807,7 @@ function QsMicMenu({ onBack }: { onBack: () => void }) {
                   return (
                     <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item", "qs-audio-app-item"]}>
                       <box spacing={6} valign={Gtk.Align.CENTER}>
-                        <Gtk.Image iconName={icon} cssClasses={["qs-audio-icon"]} />
+                        <Gtk.Image iconName={icon} cssClasses={["qs-stream-icon"]} />
                         <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.START}>
                           <label cssClasses={["qs-section-label"]} label={name} halign={Gtk.Align.START} ellipsize={3} />
                         </box>
