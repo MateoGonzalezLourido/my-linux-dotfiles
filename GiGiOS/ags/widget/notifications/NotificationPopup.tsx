@@ -22,6 +22,7 @@ import {
 } from "./store"
 import { ingest } from "./ingest.ts"
 import { canFitPopup } from "./popupLayout.ts"
+import { PopupBurstGuard } from "./popupBurst.ts"
 import { barVisible, anyPanelVisible } from "../state"
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -32,6 +33,9 @@ const POPUP_MAX        = 5
 const POPUP_WIDTH      = 360
 const POPUP_SPACING    = 8
 const SCREEN_GAP       = 16
+const BURST_THRESHOLD  = 20
+const BURST_WINDOW_MS  = 8000
+const BURST_QUIET_MS   = 1200
 const PANEL_MARGIN_TOP = 38   // marginTop común de todos los paneles
 const POPUP_GAP        = 10   // separación entre el borde inferior del panel y el popup
 
@@ -94,6 +98,10 @@ const popupHeights = new Map<number, number>()
 const popupTimers  = new Map<number, number>()
 const dismissCbs   = new Map<number, () => void>()
 const pendingPopups: StoredNotification[] = []
+const burstGuard = new PopupBurstGuard(BURST_THRESHOLD, BURST_WINDOW_MS)
+let burstSummaryTimer: number | null = null
+let nextSyntheticId = -1
+let notificationSignalConnected = false
 
 function _removeImmediate(id: number, refill = true) {
   const timer = popupTimers.get(id)
@@ -182,6 +190,55 @@ function addPopup(notif: StoredNotification) {
   if (popupWidgets.has(notif.id)) _removeImmediate(notif.id, false)
   pendingPopups.push(notif)
   drainQueue()
+}
+
+function createBurstSummary(count: number): StoredNotification {
+  return {
+    id: nextSyntheticId--,
+    appName: "GiGiOS",
+    appIcon: "",
+    summary: "Muchas notificaciones nuevas",
+    body: `Han llegado ${count} notificaciones. Revísalas en el panel de notificaciones.`,
+    timestamp: Date.now(),
+    read: false,
+    urgency: 1,
+    actions: [],
+    meta: {
+      lifetime: "timed",
+      clearOnBoot: false,
+      noHistory: true,
+      muteAudio: true,
+      dontShow: false,
+      dedupKey: "gigios-popup-burst-summary",
+      conditions: [],
+      matchedRules: [],
+    },
+  }
+}
+
+function scheduleBurstSummary() {
+  if (burstSummaryTimer !== null) GLib.source_remove(burstSummaryTimer)
+
+  burstSummaryTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, BURST_QUIET_MS, () => {
+    burstSummaryTimer = null
+    const count = burstGuard.finish()
+    if (count > BURST_THRESHOLD) addPopup(createBurstSummary(count))
+    return GLib.SOURCE_REMOVE
+  })
+}
+
+function handleIncomingPopup(notif: StoredNotification) {
+  const burst = burstGuard.record(Date.now())
+  if (!burst.bursting) {
+    addPopup(notif)
+    return
+  }
+
+  if (burst.triggered) {
+    pendingPopups.splice(0)
+    dismissAll()
+  }
+  scheduleBurstSummary()
 }
 
 // Nivel de módulo: garantiza que se registra una sola vez y no depende del
@@ -282,14 +339,17 @@ export default function NotificationPopup(gdkmonitor: Gdk.Monitor) {
   const { TOP, RIGHT } = Astal.WindowAnchor
   const notifd = AstalNotifd.get_default()
 
-  notifd.connect("notified", (_self, id) => {
-    const n = notifd.get_notification(id)
-    if (!n) return
-    const stored = ingest(n)
-    if (!stored) return            // suppressed or dontShow
-    if (notifd.dontDisturb) return
-    addPopup(stored)
-  })
+  if (!notificationSignalConnected) {
+    notificationSignalConnected = true
+    notifd.connect("notified", (_self, id) => {
+      const n = notifd.get_notification(id)
+      if (!n) return
+      const stored = ingest(n)
+      if (!stored) return            // suppressed or dontShow
+      if (notifd.dontDisturb) return
+      handleIncomingPopup(stored)
+    })
+  }
 
   const container = (
     <box
