@@ -2754,6 +2754,9 @@ button.qs-toggle.on .qs-toggle-track {
   background: rgba(0, 242, 255, 0.42);
   border-color: rgba(0, 242, 255, 0.9);
 }
+button.qs-toggle:disabled {
+  opacity: 0.4;
+}
 
 .qs-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.07);
@@ -4917,6 +4920,19 @@ window.cal-panel > box {
   min-width: 64px;
 }
 
+.dev-status-dot {
+  min-width: 9px;
+  min-height: 9px;
+  border-radius: 999px;
+  background: rgba(226, 226, 226, 0.35);
+}
+.dev-status-dot.on {
+  background: #a6e3a1;
+}
+.dev-status-dot.off {
+  background: rgb(245, 50, 105);
+}
+
 .dev-select {
   min-width: 190px;
 }
@@ -4948,6 +4964,53 @@ button.dev-reset.confirm {
   color: #ff8fa7;
   background: rgba(245, 50, 105, 0.12);
   border-color: rgba(245, 50, 105, 0.28);
+}
+
+.dl-seg {
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 3px;
+}
+
+button.dl-seg-btn {
+  min-height: 24px;
+  min-width: 50px;
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(226, 226, 226, 0.5);
+  background: transparent;
+  border: none;
+  transition: all 120ms ease;
+}
+button.dl-seg-btn:hover {
+  color: #e2e2e2;
+  background: rgba(255, 255, 255, 0.05);
+}
+button.dl-seg-btn.active {
+  color: #cba6f7;
+  background: rgba(203, 166, 247, 0.15);
+}
+
+.dl-tz-select {
+  min-width: 210px;
+}
+
+button.dl-city-result {
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  color: rgba(226, 226, 226, 0.82);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+}
+button.dl-city-result:hover {
+  color: #e2e2e2;
+  background: rgba(203, 166, 247, 0.1);
+  border-color: rgba(203, 166, 247, 0.2);
 }
 
 .account-section {

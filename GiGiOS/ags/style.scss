@@ -1943,6 +1943,10 @@ button.qs-toggle {
     background: rgba(0, 242, 255, 0.42);
     border-color: rgba(0, 242, 255, 0.9);
   }
+
+  &:disabled {
+    opacity: 0.4;
+  }
 }
 
 // ── Footer ────────────────────────────────────────────────────────────────────
@@ -4011,6 +4015,14 @@ window.cal-panel > box {
   &:last-child { border-bottom: none; }
 }
 .dev-value { min-width: 64px; }
+.dev-status-dot {
+  min-width: 9px;
+  min-height: 9px;
+  border-radius: 999px;
+  background: rgba($text, 0.35);            // por defecto: no instalado
+  &.on { background: #a6e3a1; }             // activo
+  &.off { background: $red; }               // inactivo pero instalado
+}
 .dev-select { min-width: 190px; }
 scale.dev-slider { margin: 0 2px 2px; }
 .dev-reset-row {
@@ -4028,6 +4040,41 @@ button.dev-reset {
   border: 1px solid rgba(255, 255, 255, 0.08);
   &:hover { color: $text; background: rgba(255, 255, 255, 0.09); }
   &.confirm { color: #ff8fa7; background: rgba(245, 50, 105, 0.12); border-color: rgba(245, 50, 105, 0.28); }
+}
+
+// ── Fecha e idioma ──────────────────────────────────────────────────────────
+// Control segmentado (formato de hora, origen de ubicación). Mismo lenguaje
+// visual que las pestañas .st-tab: contenedor sutil, botón activo violeta suave.
+.dl-seg {
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 3px;
+}
+button.dl-seg-btn {
+  min-height: 24px;
+  min-width: 50px;
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba($text, 0.5);
+  background: transparent;
+  border: none;
+  transition: all 120ms ease;
+  &:hover { color: $text; background: rgba(255, 255, 255, 0.05); }
+  &.active { color: $violet; background: rgba(203, 166, 247, 0.15); }
+}
+.dl-tz-select { min-width: 210px; }
+button.dl-city-result {
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  color: rgba($text, 0.82);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  &:hover { color: $text; background: rgba($violet, 0.1); border-color: rgba($violet, 0.2); }
 }
 
 // ── Cuenta ──────────────────────────────────────────────────────────────────

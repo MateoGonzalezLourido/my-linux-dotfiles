@@ -2,18 +2,21 @@ import GLib from "gi://GLib"
 import { createState, createEffect } from "ags"
 import { Gtk } from "ags/gtk4"
 import { barVisible, widgetsRefresh, toggleCalendar } from "../state.tsx";
+import { timeFormat, formatClock } from "../settings/preferences"
 
 let cacheLastTimeRendered = ""
 /*NOTA: EL RELOJ NO SE PARA PORQUE SU INTERVAL ES DE 1 MINUTO, EL COSTE ES NULO, SOLO PARAMOS EL RENDER */
 export default function Clock() {
   const now = GLib.DateTime.new_now_local()
-  const [time, setTime] = createState(now.format("%H:%M") ?? "")
+  const [time, setTime] = createState(formatClock(now))
   const [stopwatch, setStopwatch] = createState(0)
   const [running, setRunning] = createState(false)
   let swInterval: number | null = null
   let startTime = 0
-  //formato del reloj
-  const string_clock = () => GLib.DateTime.new_now_local().format("%H:%M") ?? ""
+  //formato del reloj (12h/24h según preferencia; ver widget/settings/preferences.ts)
+  const string_clock = () => formatClock()
+  // Repinta al instante cuando el usuario cambia el formato en Ajustes > Fecha e idioma.
+  const unsubFormat = timeFormat.subscribe(() => setTime(string_clock()))
   let clockInterval: number | null = null
   //logica de timers para actualizar el reloj
   GLib.timeout_add(GLib.PRIORITY_DEFAULT, (60 - now.get_second()) * 1000, () => {
@@ -88,6 +91,7 @@ export default function Clock() {
     <button
       valign={Gtk.Align.CENTER}
       cssClasses={["bar-pill-btn"]}
+      $={(self: Gtk.Button) => self.connect("destroy", () => { if (typeof unsubFormat === "function") unsubFormat() })}
     >
       <box
         cssClasses={running((r) => r ? ["bar-pill", "clock", "clock-pill", "stopwatch"] : ["bar-pill", "clock", "clock-pill"])}

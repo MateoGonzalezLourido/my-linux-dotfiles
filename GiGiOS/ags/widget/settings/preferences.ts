@@ -39,6 +39,24 @@ export { tempMonitorEnabled }
 const [clipboardHistoryEnabled, _setClipboardHistoryEnabled] = createState(true)
 export { clipboardHistoryEnabled }
 
+// Formato del reloj de la barra: "24h" (por defecto, p. ej. 14:30) o "12h"
+// (02:30 PM). Lo lee widget/bar/Clock.tsx de forma reactiva, así que el cambio
+// se ve al instante sin reiniciar. Vive en "Fecha e idioma" (DateLanguageSection).
+export type TimeFormat = "24h" | "12h"
+const [timeFormat, _setTimeFormat] = createState<TimeFormat>("24h")
+export { timeFormat }
+
+// Formatea una hora según la preferencia. En 12h calculamos AM/PM a mano en vez
+// de usar %p: en locales como es_US.UTF-8 %p viene vacío y el reloj quedaría
+// ambiguo ("09:09 " sin sufijo). Así el formato es independiente del idioma.
+export function formatClock(dt: GLib.DateTime = GLib.DateTime.new_now_local(), fmt: TimeFormat = timeFormat.get()): string {
+  if (fmt === "12h") {
+    const period = dt.get_hour() < 12 ? "AM" : "PM"
+    return `${dt.format("%I:%M") ?? ""} ${period}`
+  }
+  return dt.format("%H:%M") ?? ""
+}
+
 // ── Carga inicial ─────────────────────────────────────────────────────────────
 function load() {
   try {
@@ -49,6 +67,7 @@ function load() {
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
+    if (saved.timeFormat === "12h" || saved.timeFormat === "24h") _setTimeFormat(saved.timeFormat)
   } catch (e) { /* archivo ausente o corrupto → nos quedamos con los defaults */ }
 }
 
@@ -62,6 +81,7 @@ function save() {
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
+      timeFormat: timeFormat.get(),
     }
     GLib.file_set_contents(PREFS_PATH, JSON.stringify(config, null, 2))
   } catch (e) { /* no-op: un fallo de escritura no debe romper la UI */ }
@@ -85,6 +105,10 @@ export function setClipboardHistoryEnabled(on: boolean) {
   save()
   const action = on ? "start" : "stop"
   execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/clipboard-history.sh`, action]).catch(() => {})
+}
+export function setTimeFormat(fmt: TimeFormat) {
+  _setTimeFormat(fmt)
+  save()
 }
 
 load()
