@@ -39,6 +39,19 @@ export { tempMonitorEnabled }
 const [clipboardHistoryEnabled, _setClipboardHistoryEnabled] = createState(true)
 export { clipboardHistoryEnabled }
 
+// No molestar automático: cuando está activo, un watcher en el shell
+// (widget/notifications/autoDnd) enciende notifd.dontDisturb mientras haya un
+// juego corriendo o una app de la lista de abajo en pantalla completa. Silencia
+// SOLO los popups para el usuario; el procesamiento e historial siguen. Default: desactivado.
+const [autoDndEnabled, _setAutoDndEnabled] = createState(false)
+export { autoDndEnabled }
+
+// Lista de clases de ventana que, al ponerse en pantalla completa, también
+// disparan el No molestar automático (además de los juegos). Se guarda como
+// substrings en minúsculas y se compara contra class/initialClass. Default: vacía.
+const [autoDndFullscreenApps, _setAutoDndFullscreenApps] = createState<string[]>([])
+export { autoDndFullscreenApps }
+
 // Formato del reloj de la barra: "24h" (por defecto, p. ej. 14:30) o "12h"
 // (02:30 PM). Lo lee widget/bar/Clock.tsx de forma reactiva, así que el cambio
 // se ve al instante sin reiniciar. Vive en "Fecha e idioma" (DateLanguageSection).
@@ -57,6 +70,19 @@ export function formatClock(dt: GLib.DateTime = GLib.DateTime.new_now_local(), f
   return dt.format("%H:%M") ?? ""
 }
 
+// Normaliza una lista de clases: minúsculas, sin espacios sobrantes, sin vacíos
+// ni duplicados. Se aplica tanto al cargar como al añadir, así el watcher y la UI
+// nunca ven basura.
+function sanitizeApps(apps: unknown[]): string[] {
+  const out: string[] = []
+  for (const a of apps) {
+    if (typeof a !== "string") continue
+    const norm = a.trim().toLowerCase()
+    if (norm.length > 0 && !out.includes(norm)) out.push(norm)
+  }
+  return out
+}
+
 // ── Carga inicial ─────────────────────────────────────────────────────────────
 function load() {
   try {
@@ -67,6 +93,10 @@ function load() {
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
+    if (typeof saved.autoDnd === "boolean") _setAutoDndEnabled(saved.autoDnd)
+    if (Array.isArray(saved.autoDndFullscreenApps)) {
+      _setAutoDndFullscreenApps(sanitizeApps(saved.autoDndFullscreenApps))
+    }
     if (saved.timeFormat === "12h" || saved.timeFormat === "24h") _setTimeFormat(saved.timeFormat)
   } catch (e) { /* archivo ausente o corrupto → nos quedamos con los defaults */ }
 }
@@ -81,6 +111,8 @@ function save() {
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
+      autoDnd: autoDndEnabled.get(),
+      autoDndFullscreenApps: autoDndFullscreenApps.get(),
       timeFormat: timeFormat.get(),
     }
     GLib.file_set_contents(PREFS_PATH, JSON.stringify(config, null, 2))
@@ -108,6 +140,21 @@ export function setClipboardHistoryEnabled(on: boolean) {
 }
 export function setTimeFormat(fmt: TimeFormat) {
   _setTimeFormat(fmt)
+  save()
+}
+export function setAutoDndEnabled(on: boolean) {
+  _setAutoDndEnabled(on)
+  save()
+}
+/** Añade una clase a la lista de apps fullscreen. Normaliza y evita duplicados. */
+export function addAutoDndApp(cls: string) {
+  const next = sanitizeApps([...autoDndFullscreenApps.get(), cls])
+  _setAutoDndFullscreenApps(next)
+  save()
+}
+/** Quita una clase (comparación exacta contra el valor ya normalizado). */
+export function removeAutoDndApp(cls: string) {
+  _setAutoDndFullscreenApps(autoDndFullscreenApps.get().filter((a) => a !== cls))
   save()
 }
 

@@ -9,6 +9,7 @@ import {
   tempMonitorEnabled, setTempMonitorEnabled,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
 } from "./preferences"
+import AutoDndSetting from "./AutoDndSetting"
 
 export default function PersonalizationSection() {
   return (
@@ -122,6 +123,9 @@ export default function PersonalizationSection() {
           </button>
         </box>
       </box>
+
+      {/* No molestar automático (juegos / apps en pantalla completa) */}
+      <AutoDndSetting />
     </box>
   )
 }

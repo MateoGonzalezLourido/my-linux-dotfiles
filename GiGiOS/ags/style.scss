@@ -1823,6 +1823,19 @@ button.sp-add-rule {
   &:hover { background: rgba(203, 166, 247, 0.20); }
 }
 
+// No molestar automático: lista de apps que silencian en pantalla completa
+.adnd-apps { margin-top: 2px; }
+.adnd-app-name {
+  font-size: 12px;
+  color: $text;
+  font-family: $font-icon;
+}
+entry.adnd-entry {
+  font-size: 12px;
+  font-family: $font-icon;
+  text-align: left;
+}
+
 // ── Sliders ───────────────────────────────────────────────────────────────────
 scale.qs-slider {
   min-height: 0;

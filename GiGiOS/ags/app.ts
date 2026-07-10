@@ -14,6 +14,7 @@ import SettingsPanel from "./widget/SettingsPanel"
 import Orion from "./widget/orion/Orion"
 import { startCleanupEngine } from "./widget/notifications/cleanup/cleanupEngine"
 import { runAppSettingsMigration } from "./widget/notifications/settings/runMigration"
+import { initAutoDnd } from "./widget/notifications/autoDnd/watcher"
 
 app.start({
   css: style,
@@ -32,5 +33,6 @@ app.start({
     app.get_monitors().map(SettingsPanel)
     startCleanupEngine()
     runAppSettingsMigration()
+    initAutoDnd()
   },
 })
