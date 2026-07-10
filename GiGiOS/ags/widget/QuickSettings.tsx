@@ -52,6 +52,43 @@ function wifiSignalBarClasses(strength: number) {
   })
 }
 
+function focusSearchAndType(entry: Gtk.Entry, char: string) {
+  entry.text = entry.text + char
+  entry.set_position(-1)
+  entry.grab_focus()
+}
+
+function isTextInputWidget(widget: Gtk.Widget | null) {
+  if (!widget) return false
+  const editable = widget as any
+  return widget instanceof Gtk.Entry
+    || (typeof editable.get_text === "function" && typeof editable.set_text === "function")
+}
+
+function handleSearchSectionKey(controller: Gtk.EventControllerKey, entry: Gtk.Entry, keyval: number, state: Gdk.ModifierType) {
+  const widget = controller.get_widget()
+  const root = widget?.get_root() as any
+  const focus = root?.get_focus?.() as Gtk.Widget | null
+  if (isTextInputWidget(focus)) return false
+
+  const s = state as unknown as number
+  const CTRL = 4, ALT = 8, SUPER = 0x4000000
+  if ((s & CTRL) || (s & ALT) || (s & SUPER)) return false
+
+  if (keyval === Gdk.KEY_BackSpace) {
+    entry.text = entry.text.slice(0, -1)
+    entry.set_position(-1)
+    entry.grab_focus()
+    return true
+  }
+
+  const cp = Gdk.keyval_to_unicode(keyval)
+  if (cp < 0x20) return false
+
+  focusSearchAndType(entry, String.fromCodePoint(cp))
+  return true
+}
+
 // ── Auto-Switch Audio (Switch-on-Connect) ───────────────────────────────────
 try {
   const wp = AstalWp.get_default()
@@ -2063,18 +2100,21 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     autoScan()
   })
 
+  const searchEntry = new Gtk.Entry()
+  searchEntry.set_css_classes(["qs-wifi-search-entry"])
+  searchEntry.set_placeholder_text("Buscar dispositivos")
+  searchEntry.set_hexpand(true)
+  searchEntry.set_text(search())
+  searchEntry.connect("changed", () => setSearch(searchEntry.text))
+
   return (
     <box cssClasses={["qs-bluetooth-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+      <Gtk.EventControllerKey
+        onKeyPressed={(self, keyval, _keycode, state) => handleSearchSectionKey(self, searchEntry, keyval, state)}
+      />
       <QsMenuHeader title="Bluetooth" onBack={onBack} titleHexpand={false}>
-        <box cssClasses={["qs-wifi-search"]} spacing={5} hexpand valign={Gtk.Align.CENTER}>
-          <label cssClasses={["qs-wifi-search-icon"]} label="󰍉" />
-          <Gtk.Entry
-            cssClasses={["qs-wifi-search-entry"]}
-            placeholderText="Buscar dispositivos"
-            hexpand
-            text={search()}
-            onChanged={(self) => setSearch(self.text)}
-          />
+        <box cssClasses={["qs-wifi-search"]} spacing={0} hexpand valign={Gtk.Align.CENTER}>
+          {searchEntry}
         </box>
         <button
           cssClasses={["qs-icon-btn"]}
@@ -2244,19 +2284,21 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   })
 
   const wifiEnabled = createBinding(wifi, "enabled")
+  const searchEntry = new Gtk.Entry()
+  searchEntry.set_css_classes(["qs-wifi-search-entry"])
+  searchEntry.set_placeholder_text("Buscar redes")
+  searchEntry.set_hexpand(true)
+  searchEntry.set_text(search())
+  searchEntry.connect("changed", () => setSearch(searchEntry.text))
 
   return (
     <box cssClasses={["qs-wifi-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+      <Gtk.EventControllerKey
+        onKeyPressed={(self, keyval, _keycode, state) => handleSearchSectionKey(self, searchEntry, keyval, state)}
+      />
       <QsMenuHeader title="Wi-Fi" onBack={onBack} titleHexpand={false}>
-        <box cssClasses={["qs-wifi-search"]} spacing={5} hexpand valign={Gtk.Align.CENTER}>
-          <label cssClasses={["qs-wifi-search-icon"]} label="󰍉" />
-          <Gtk.Entry
-            cssClasses={["qs-wifi-search-entry"]}
-            placeholderText="Buscar redes"
-            hexpand
-            text={search()}
-            onChanged={(self) => setSearch(self.text)}
-          />
+        <box cssClasses={["qs-wifi-search"]} spacing={0} hexpand valign={Gtk.Align.CENTER}>
+          {searchEntry}
         </box>
         <button
           cssClasses={["qs-icon-btn"]}

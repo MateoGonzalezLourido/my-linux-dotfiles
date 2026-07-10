@@ -258,10 +258,6 @@
   outline: none;
 }
 
-.nav-sections {
-  padding: 8px 11px 6px;
-}
-
 .ns {
   padding: 4px 8px;
   border-radius: 7px;
@@ -278,15 +274,6 @@
   color: #7aa2f7;
   background: rgba(122, 162, 247, 0.08);
   border-color: rgba(122, 162, 247, 0.25);
-}
-
-.ns-reactive {
-  color: #73daca;
-}
-
-.ns-reactive.active {
-  background: rgba(115, 218, 202, 0.08);
-  border-color: rgba(115, 218, 202, 0.25);
 }
 
 .section-content {
@@ -328,16 +315,6 @@
 .app-label {
   font-size: 9px;
   color: #2a3050;
-}
-
-.app-badge-warn {
-  font-size: 8px;
-  font-weight: bold;
-  color: #e0af68;
-  background: rgba(224, 175, 104, 0.2);
-  border-radius: 4px;
-  padding: 0 3px;
-  min-width: 12px;
 }
 
 .j-hdiv {
@@ -554,20 +531,6 @@
   background: rgba(122, 162, 247, 0.07);
 }
 
-.rx-opts-btn {
-  background: transparent;
-  border: none;
-  border-radius: 7px;
-  color: #2a3050;
-  font-size: 14px;
-  padding: 0 8px;
-  min-width: 28px;
-}
-.rx-opts-btn:hover {
-  background: rgba(122, 162, 247, 0.07);
-  color: #c0caf5;
-}
-
 popover.background {
   background: rgba(12, 16, 28, 0.97);
   border: 1px solid rgba(122, 162, 247, 0.11);
@@ -578,24 +541,6 @@ popover.background {
 
 .rx-menu {
   min-width: 160px;
-}
-
-.rx-menu-btn {
-  background: transparent;
-  border: none;
-  border-radius: 7px;
-  padding: 6px 10px;
-  color: #c0caf5;
-  font-size: 11px;
-}
-.rx-menu-btn:hover {
-  background: rgba(122, 162, 247, 0.07);
-}
-.rx-menu-btn:disabled {
-  color: #2a3050;
-}
-.rx-menu-btn image {
-  color: #565f89;
 }
 
 .right-panel {
@@ -817,14 +762,6 @@ popover.background {
 .git-section .git-chip.git-chip-active {
   background: rgba(122, 162, 247, 0.1);
   border-color: rgba(122, 162, 247, 0.25);
-}
-.git-section .git-chip.git-chip-add {
-  padding: 3px 7px;
-  color: #2a3050;
-}
-.git-section .git-chip.git-chip-add:hover {
-  color: #7aa2f7;
-  border-color: rgba(122, 162, 247, 0.11);
 }
 .git-section .git-chip-name {
   font-size: 11px;
@@ -1111,13 +1048,6 @@ popover.background {
 .git-section .git-diff-line.dl-ctx {
   color: #565f89;
 }
-.git-section .git-scan-panel {
-  background: rgba(122, 162, 247, 0.025);
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  border-radius: 9px;
-  padding: 8px 10px;
-  margin-bottom: 2px;
-}
 .git-section .git-scan-lbl {
   font-size: 11px;
   color: #565f89;
@@ -1166,54 +1096,6 @@ popover.background {
   border-color: rgba(247, 118, 142, 0.25);
   color: #f7768e;
 }
-.git-section .git-add-popover {
-  padding: 12px;
-  min-width: 260px;
-}
-.git-section .git-add-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: #c0caf5;
-  margin-bottom: 2px;
-}
-.git-section .git-add-entry {
-  background: rgba(0, 0, 0, 0.2);
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  border-radius: 7px;
-  font-size: 11px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #c0caf5;
-  padding: 4px 9px;
-}
-.git-section .git-add-entry:focus {
-  border-color: rgba(122, 162, 247, 0.25);
-}
-.git-section .git-add-err {
-  font-size: 10px;
-  color: #f7768e;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-.git-section .git-add-cancel {
-  font-size: 11px;
-  color: #565f89;
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  border-radius: 7px;
-  padding: 4px 10px;
-}
-.git-section .git-add-cancel:hover {
-  background: rgba(122, 162, 247, 0.07);
-}
-.git-section .git-add-confirm {
-  font-size: 11px;
-  color: #7aa2f7;
-  background: rgba(122, 162, 247, 0.08);
-  border: 0.5px solid rgba(122, 162, 247, 0.25);
-  border-radius: 7px;
-  padding: 4px 10px;
-}
-.git-section .git-add-confirm:hover {
-  background: rgba(122, 162, 247, 0.15);
-}
 .git-section .git-action-bar {
   font-size: 10px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
@@ -1222,6 +1104,14 @@ popover.background {
   background: rgba(115, 218, 202, 0.07);
   border-radius: 7px;
   border: 0.5px solid rgba(115, 218, 202, 0.15);
+}
+
+.np-panel button, .qs-wifi-list-scroll scrollbar,
+.qs-wifi-list-scroll scrollbar slider,
+.qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, .game-tray .game-tray-icon, popover.ws-preview-popover > contents {
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .Bar button,
@@ -1243,7 +1133,7 @@ popover.background {
 .Bar {
   background-color: rgb(8, 8, 12);
   color: #e2e2e2;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+  font-family: "MesloLGS Nerd Font", monospace;
   font-size: 17px;
   font-weight: 600;
   transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -1267,6 +1157,8 @@ popover.background {
 
 .Bar > centerbox {
   padding: 0 15px;
+  margin-left: 9px;
+  margin-right: 10px;
 }
 
 .clock {
@@ -1274,7 +1166,7 @@ popover.background {
   background-color: rgba(255, 255, 255, 0.03);
   font-size: 16px;
   color: #cba6f7;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   font-weight: 700;
   padding: 0 8px;
   border-radius: 6px;
@@ -1398,9 +1290,6 @@ popover.background {
 
 popover.ws-preview-popover > contents {
   padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
 }
 
 .ws-preview-bg {
@@ -1441,9 +1330,6 @@ popover.ws-preview-popover > contents {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 .game-tray .game-tray-icon {
-  background: transparent;
-  border: none;
-  box-shadow: none;
   min-width: 22px;
   min-height: 22px;
   padding: 0 3px;
@@ -1545,9 +1431,6 @@ popover.ws-preview-popover > contents {
 
 popover.cpuram-popover > contents {
   padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
 }
 popover.cpuram-popover > arrow {
   background: #0e0e1a;
@@ -1711,16 +1594,10 @@ popover.cpuram-popover > arrow {
 }
 
 popover.tray-popover {
-  background: transparent;
-  border: none;
-  box-shadow: none;
   padding: 0;
   margin: 0;
 }
 popover.tray-popover > arrow {
-  background: transparent;
-  border: none;
-  box-shadow: none;
   min-width: 0;
   min-height: 0;
 }
@@ -1798,7 +1675,7 @@ popover.tray-overflow-popover > contents {
   border: 1px solid rgba(255, 255, 255, 0.018);
   transition: background-color 140ms ease, border-color 140ms ease;
 }
-.bar-pill button, .bar-pill box:not(.battery):not(.battery-body):not(.battery-cap):not(.battery-seg):not(.network-bars):not(.network-bar):not(.volume-bars):not(.volume-bar) {
+.bar-pill button, .bar-pill box:not(.battery):not(.battery-body):not(.battery-cap):not(.battery-seg):not(.network-bars):not(.network-bar) {
   margin: 0;
   background-color: transparent;
   padding: 0 3px;
@@ -1810,13 +1687,14 @@ popover.tray-overflow-popover > contents {
   margin: 0;
 }
 
+.bar-end-box {
+  margin-left: 20px;
+}
+
 .bar-status-pair .bar-pill.nb-pill,
 .bar-status-pair .bar-pill.qs-system-pill {
   border: none;
   box-shadow: none;
-}
-.bar-status-pair .bar-pill.nb-pill {
-  margin-right: 0;
 }
 .bar-status-pair .bar-pill.qs-system-pill {
   margin-left: 0;
@@ -1868,6 +1746,11 @@ popover.tray-overflow-popover > contents {
 .mic-indicator.muted {
   color: rgba(226, 226, 226, 0.45);
   animation: none;
+}
+
+.mic-indicator .icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
 }
 
 .notifications {
@@ -1928,7 +1811,7 @@ popover.tray-overflow-popover > contents {
 .network .network-bar.bar-4 {
   min-height: 13px;
 }
-.network .network-bars.offline .network-bar, .network.network-off .network-bar {
+.network .network-bars.offline .network-bar {
   background-color: rgba(226, 226, 226, 0.18);
 }
 .network.portal .network-bar.active {
@@ -1950,9 +1833,6 @@ popover.tray-overflow-popover > contents {
 .network.limited .network-status-glyph {
   color: #f9e2af;
 }
-.network.disconnected {
-  color: rgba(226, 226, 226, 0.45);
-}
 
 .volume {
   color: #e2e2e2;
@@ -1967,17 +1847,6 @@ popover.tray-overflow-popover > contents {
 }
 .volume.icon-muted {
   color: rgba(226, 226, 226, 0.45);
-}
-
-.bar-nightlight {
-  color: #fab387;
-  font-family: "MesloLGS Nerd Font";
-  font-size: 16px;
-}
-.bar-nightlight .bar-nightlight-label {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 13px;
-  font-weight: 700;
 }
 
 .bluetooth {
@@ -2014,75 +1883,6 @@ popover.tray-overflow-popover > contents {
 .bt-power:hover {
   background: linear-gradient(135deg, #89b4fa, #cba6f7);
   color: #1a1a1a;
-}
-
-.calendar-popover {
-  background: transparent;
-  padding: 0;
-}
-.calendar-popover contents {
-  background: rgba(24, 24, 37, 0.95);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(137, 180, 250, 0.2);
-  border-radius: 10px;
-  padding: 6px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-  margin: 4px;
-}
-.calendar-popover arrow {
-  background: rgba(24, 24, 37, 0.95);
-  border: 1px solid rgba(137, 180, 250, 0.2);
-}
-
-.calendar-widget {
-  background: transparent;
-  color: #e2e2e2;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
-  font-size: 12px;
-}
-.calendar-widget header {
-  background: transparent;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  margin-bottom: 4px;
-  padding-bottom: 2px;
-}
-.calendar-widget header button {
-  color: #89b4fa;
-  padding: 2px;
-  border-radius: 4px;
-}
-.calendar-widget header button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-.calendar-widget header label {
-  font-weight: 800;
-  color: #cba6f7;
-  font-size: 13px;
-}
-.calendar-widget grid label.day-name {
-  color: #fab387;
-  font-weight: 700;
-  padding: 4px;
-  opacity: 0.8;
-}
-.calendar-widget grid label.day-number {
-  padding: 4px;
-  border-radius: 6px;
-  min-width: 24px;
-  min-height: 24px;
-}
-.calendar-widget grid label.day-number:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-.calendar-widget grid label.day-number.today {
-  background: #89b4fa;
-  color: #11111b;
-  font-weight: 800;
-  box-shadow: 0 2px 8px rgba(137, 180, 250, 0.4);
-}
-.calendar-widget grid label.day-number.other-month {
-  color: rgba(226, 226, 226, 0.45);
-  opacity: 0.3;
 }
 
 .power-window {
@@ -2179,7 +1979,7 @@ popover.tray-overflow-popover > contents {
   background-color: rgba(24, 24, 37, 0.95);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(137, 180, 250, 0.2);
-  border-radius: 99px;
+  border-radius: 999px;
   padding: 6px 16px;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
   transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -2217,10 +2017,11 @@ progressbar.osd-progress progress {
   color: #e2e2e2;
 }
 
+.osd-mic-spacer {
+  min-width: 220px;
+}
+
 .Bar .bar-pill-btn {
-  background: transparent;
-  border: none;
-  box-shadow: none;
   padding: 0;
   margin: 0;
   outline: none;
@@ -2279,18 +2080,22 @@ window.qs-window > box,
   min-width: 330px;
   max-width: 330px;
   color: #ffffff;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", sans-serif;
+  font-family: "MesloLGS Nerd Font", sans-serif;
 }
 
 .qs-header {
   padding-bottom: 4px;
 }
 
+.qs-header-actions {
+  margin-left: 8px;
+}
+
 .qs-clock {
   font-size: 22px;
   font-weight: 700;
   color: #ffffff;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 
@@ -2299,35 +2104,6 @@ window.qs-window > box,
   font-weight: 400;
   color: rgba(255, 255, 255, 0.5);
   margin: 0;
-}
-
-.qs-dnd-btn {
-  background: transparent;
-  background-color: transparent;
-  border: none;
-  box-shadow: none;
-  text-shadow: none;
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  margin: 0;
-  color: rgba(255, 255, 255, 0.4);
-  transition: color 150ms ease;
-}
-.qs-dnd-btn:hover {
-  color: rgba(255, 255, 255, 0.95);
-}
-.qs-dnd-btn.active {
-  color: #ff5555;
-}
-.qs-dnd-btn.active:hover {
-  color: #ff7777;
-}
-.qs-dnd-btn .qs-dnd-icon {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 13px;
-  margin: 0;
-  padding: 0;
 }
 
 .qs-notif-btn {
@@ -2378,7 +2154,7 @@ window.qs-window > box,
   box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.12), 0 0 12px rgba(0, 242, 255, 0.08);
 }
 .qs-tile.active .qs-tile-label {
-  color: #fff;
+  color: #ffffff;
 }
 .qs-tile.active .qs-tile-icon {
   color: #00f2ff;
@@ -2502,14 +2278,14 @@ window.qs-window > box,
 }
 .qs-media progressbar.qs-media-progress trough {
   min-height: 5px;
-  border-radius: 99px;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 .qs-media progressbar.qs-media-progress progress {
   min-height: 5px;
-  border-radius: 99px;
+  border-radius: 999px;
   background: currentColor;
   box-shadow: 0 0 6px currentColor;
 }
@@ -2527,6 +2303,15 @@ window.qs-window > box,
   font-size: 15px;
   color: rgba(255, 255, 255, 0.9);
   text-shadow: 0 1px 3px rgb(0, 0, 0), 0 0 8px rgba(0, 0, 0, 0.85);
+  margin-top: 8px;
+  margin-right: 14px;
+}
+.qs-media .qs-media-content {
+  background-color: transparent;
+  padding: 8px 14px 2px;
+}
+.qs-media .qs-media-switcher-row {
+  margin-bottom: 2px;
 }
 .qs-media .qs-media-switch {
   background: transparent;
@@ -2569,6 +2354,15 @@ window.qs-window > box,
 .qs-section button.qs-icon-btn.active label {
   color: #00f2ff;
 }
+.qs-section.qs-display-panel {
+  padding: 10px;
+  margin-top: 4px;
+}
+
+.qs-night-light-block {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 8px;
+}
 
 .qs-section-icon {
   font-family: "MesloLGS Nerd Font";
@@ -2587,19 +2381,6 @@ window.qs-window > box,
   opacity: 0.5;
 }
 
-.qs-icon-mute-btn {
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  box-shadow: none;
-  transition: all 200ms ease;
-}
-.qs-icon-mute-btn:hover {
-  transform: scale(1.1);
-  opacity: 1;
-}
-
 .qs-section-label {
   font-size: 10px;
   font-weight: 600;
@@ -2612,6 +2393,19 @@ window.qs-window > box,
   color: rgba(255, 255, 255, 0.5);
   margin: 0;
 }
+.qs-section-pct.is-silent {
+  opacity: 0.5;
+}
+
+.qs-stream-icon {
+  font-size: 1em;
+  min-width: 18px;
+}
+
+.qs-audio-silent-icon {
+  opacity: 0.3;
+  font-size: 0.75em;
+}
 
 .qs-dropdown-header {
   font-size: 9px;
@@ -2619,6 +2413,12 @@ window.qs-window > box,
   color: rgba(255, 255, 255, 0.22);
   font-weight: 700;
   margin: 4px 0 2px;
+}
+
+button.qs-dropdown-header {
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .qs-sink-item {
@@ -2646,6 +2446,10 @@ window.qs-window > box,
   font-size: 12px;
   margin: 0;
 }
+.qs-sink-item .qs-sink-res {
+  font-size: 0.8em;
+  opacity: 0.5;
+}
 
 scale.qs-slider {
   min-height: 0;
@@ -2653,12 +2457,12 @@ scale.qs-slider {
 }
 scale.qs-slider trough {
   min-height: 4px;
-  border-radius: 99px;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
 }
 scale.qs-slider progress {
   min-height: 4px;
-  border-radius: 99px;
+  border-radius: 999px;
   background: #00f2ff;
   box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
 }
@@ -2666,9 +2470,6 @@ scale.qs-slider slider {
   min-width: 0;
   min-height: 0;
   opacity: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
   margin: 0;
   padding: 0;
   -gtk-icon-size: 0;
@@ -2703,9 +2504,6 @@ scale.qs-slider.temperature slider {
 }
 
 button.qs-toggle {
-  background: transparent;
-  border: none;
-  box-shadow: none;
   padding: 0;
   min-width: 28px;
   min-height: 16px;
@@ -2866,20 +2664,23 @@ button.qs-user-settings-btn label {
   line-height: 1;
 }
 .qs-wifi-header .qs-wifi-search {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid transparent;
   border-radius: 6px;
   padding: 0 7px;
   min-height: 22px;
   transition: border-color 120ms ease, background 120ms ease;
 }
+.qs-wifi-header .qs-wifi-search:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
 .qs-wifi-header .qs-wifi-search:focus-within {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(137, 180, 250, 0.55);
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 .qs-wifi-header .qs-wifi-search .qs-wifi-search-icon {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.32);
 }
 .qs-wifi-header .qs-wifi-search .qs-wifi-search-entry {
   background: none;
@@ -2890,35 +2691,22 @@ button.qs-user-settings-btn label {
   min-height: 20px;
   caret-color: #89b4fa;
   font-size: 12px;
-  color: #cdd6f4;
+  color: rgba(226, 226, 226, 0.78);
 }
 .qs-wifi-header .qs-wifi-search .qs-wifi-search-entry selection {
-  background: rgba(137, 180, 250, 0.35);
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .qs-wifi-list-scroll {
   min-height: 180px;
 }
-.qs-wifi-list-scroll scrollbar {
-  background: none;
-  border: none;
-  box-shadow: none;
+.qs-wifi-list-scroll scrollbar,
+.qs-wifi-list-scroll scrollbar slider,
+.qs-wifi-list-scroll scrollbar button {
+  opacity: 0;
   outline: none;
-  margin: 0;
-  padding: 0;
-  -gtk-icon-size: 0;
-}
-.qs-wifi-list-scroll scrollbar.vertical {
   min-width: 0;
-}
-.qs-wifi-list-scroll scrollbar.horizontal {
   min-height: 0;
-}
-.qs-wifi-list-scroll scrollbar slider {
-  background: none;
-  border: none;
-  box-shadow: none;
-  outline: none;
   margin: 0;
   padding: 0;
   -gtk-icon-size: 0;
@@ -3011,27 +2799,15 @@ button.qs-user-settings-btn label {
   color: #ff7b00;
   font-size: 14px;
 }
+.qs-wifi-item.qs-audio-app-item {
+  padding: 4px 6px;
+}
+.qs-wifi-item.password-prompt {
+  padding: 10px;
+}
 
-.qs-wifi-advanced {
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  padding-top: 6px;
-}
-.qs-wifi-advanced .qs-wifi-adv-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 8px;
-  padding: 6px;
-  color: rgba(200, 190, 255, 0.55);
-  font-size: 11px;
-  transition: all 100ms ease;
-}
-.qs-wifi-advanced .qs-wifi-adv-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(230, 225, 255, 0.92);
-}
-.qs-wifi-advanced .qs-wifi-adv-btn label {
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
-  margin: 0;
+.qs-wifi-password-label {
+  font-size: 0.9em;
 }
 
 .qs-wifi-info-section {
@@ -3079,6 +2855,22 @@ button.qs-user-settings-btn label {
   background: transparent;
   border-radius: 12px;
   padding: 2px;
+}
+
+.qs-bt-unnamed-label {
+  font-size: 0.8em;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.qs-bt-unnamed-chevron {
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.qs-bt-empty-label {
+  opacity: 0.5;
+  margin-top: 20px;
 }
 
 .qs-audio-item {
@@ -3148,24 +2940,15 @@ button.qs-user-settings-btn label {
   min-height: 3px;
 }
 
-.qs-wifi-list-scroll scrollbar,
-.qs-wifi-list-scroll scrollbar slider,
-.qs-wifi-list-scroll scrollbar button {
-  opacity: 0;
-  min-width: 0;
-  min-height: 0;
-  background: transparent;
-  border: none;
-  margin: 0;
-  padding: 0;
-}
-
 .bar-pill.nb-pill {
   background-color: transparent;
   border: 1px solid transparent;
   box-shadow: none;
   padding: 0;
   min-width: 28px;
+}
+.bar-status-pair .bar-pill.nb-pill {
+  margin-right: 0;
 }
 .bar-pill.nb-pill .nb-icon {
   font-family: "MesloLGS Nerd Font";
@@ -3295,14 +3078,11 @@ window.np-window.csd decoration {
   min-width: 349px;
   max-width: 349px;
   box-shadow: none;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font";
+  font-family: "MesloLGS Nerd Font";
   color: #e2e2e2;
   animation: np-slide-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .np-panel button {
-  background: transparent;
-  border: none;
-  box-shadow: none;
   outline: none;
   padding: 0;
   margin: 0;
@@ -3325,7 +3105,7 @@ window.np-window.csd decoration {
 .np-unread-badge-btn {
   background: rgba(203, 166, 247, 0.12);
   border: none;
-  border-radius: 99px;
+  border-radius: 999px;
   padding: 1px 7px;
   min-height: 18px;
   transition: all 120ms ease;
@@ -3464,6 +3244,10 @@ window.np-window.csd decoration {
   padding: 0;
 }
 
+.np-empty-state {
+  padding: 40px 0;
+}
+
 .np-empty-icon {
   font-family: "MesloLGS Nerd Font";
   font-size: 28px;
@@ -3514,7 +3298,7 @@ window.np-window.csd decoration {
 
 .np-group-badge {
   background: rgba(203, 166, 247, 0.2);
-  border-radius: 99px;
+  border-radius: 999px;
   padding: 0 5px;
 }
 
@@ -3549,6 +3333,10 @@ window.np-window.csd decoration {
   border-radius: 0;
 }
 
+.notif-checkbox-wrap {
+  margin: 0 6px;
+}
+
 .notif-checkbox {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -3577,19 +3365,6 @@ window.np-window.csd decoration {
 
 .np-panel .notif-item-btn {
   padding: 6px 10px;
-}
-
-.notif-app-icon-wrap {
-  border-radius: 8px;
-  min-width: 32px;
-  min-height: 32px;
-  padding: 0;
-}
-.notif-app-icon-wrap .notif-app-icon {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 15px;
-  margin: 0;
-  padding: 0;
 }
 
 .notif-app-img {
@@ -3677,6 +3452,7 @@ window.np-window.csd decoration {
 
 .notif-dbus-actions {
   border-top: 0.5px solid rgba(255, 255, 255, 0.04);
+  padding: 4px 8px 4px 16px;
 }
 
 .notif-dbus-btn {
@@ -3699,6 +3475,7 @@ window.np-window.csd decoration {
 .notif-reply-box {
   border-top: 0.5px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.02);
+  padding: 6px 8px;
 }
 
 .notif-reply-entry {
@@ -3747,10 +3524,6 @@ window.np-window.csd decoration {
   margin: 0;
 }
 
-.ns-panel {
-  min-width: 360px;
-}
-
 .ns-header {
   padding: 14px 14px 8px;
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
@@ -3779,26 +3552,6 @@ window.np-window.csd decoration {
   font-size: 12px;
   font-weight: 700;
   color: #e2e2e2;
-  margin: 0;
-}
-
-.ns-reset-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  min-width: 28px;
-  min-height: 28px;
-  padding: 0;
-  transition: all 100ms ease;
-  font-family: "MesloLGS Nerd Font";
-  font-size: 13px;
-  color: rgba(226, 226, 226, 0.4);
-}
-.ns-reset-btn:hover {
-  background: rgba(243, 139, 168, 0.1);
-  color: #f38ba8;
-}
-.ns-reset-btn label {
   margin: 0;
 }
 
@@ -3870,53 +3623,8 @@ window.np-window.csd decoration {
   margin: 0;
 }
 
-.ns-label-dim {
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.35);
-  margin: 0;
-}
-
-.ns-importance-btn {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 6px;
-  padding: 2px 8px;
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.5);
-  transition: all 100ms ease;
-}
-.ns-importance-btn.active {
-  color: #e2e2e2;
-}
-.ns-importance-btn:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.08);
-}
-.ns-importance-btn label {
-  margin: 0;
-}
-
-.ns-lock-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  min-width: 26px;
-  min-height: 26px;
-  padding: 0;
-  transition: all 100ms ease;
-  font-family: "MesloLGS Nerd Font";
-  font-size: 13px;
-  color: rgba(226, 226, 226, 0.4);
-}
-.ns-lock-btn.active {
-  background: rgba(166, 227, 161, 0.1);
-  border-color: rgba(166, 227, 161, 0.3);
-  color: #a6e3a1;
-}
-.ns-lock-btn:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.06);
-}
-.ns-lock-btn label {
-  margin: 0;
+.ns-empty-state {
+  padding: 32px 0;
 }
 
 .ns-empty-icon {
@@ -4077,7 +3785,7 @@ window.cal-panel > box {
 .cal-panel {
   background-color: rgb(8, 8, 12);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+  font-family: "MesloLGS Nerd Font", monospace;
   font-size: 13px;
   color: #e2e2e2;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6);
@@ -4389,7 +4097,7 @@ window.cal-panel > box {
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(226, 226, 226, 0.45);
   background-color: transparent;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+  font-family: "MesloLGS Nerd Font", monospace;
 }
 .cal-btn label {
   margin: 0;
@@ -4453,7 +4161,7 @@ window.cal-panel > box {
   padding: 7px 10px;
   color: #e2e2e2;
   font-size: 12px;
-  font-family: "MesloLGS Nerd Font", "MesloLGS Nerd Font", monospace;
+  font-family: "MesloLGS Nerd Font", monospace;
   transition: border-color 120ms;
 }
 .cal-form-entry:focus {
@@ -4502,7 +4210,7 @@ window.cal-panel > box {
   border-color: #89b4fa;
 }
 .cal-panel switch slider {
-  background-color: #fff;
+  background-color: #ffffff;
   border-radius: 50%;
   min-width: 16px;
   min-height: 16px;

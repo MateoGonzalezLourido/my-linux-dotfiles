@@ -1845,21 +1845,25 @@ button.qs-user-settings-btn {
   }
 
   .qs-wifi-search {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid transparent;
     border-radius: 6px;
     padding: 0 7px;
     min-height: 22px;
     transition: border-color 120ms ease, background 120ms ease;
 
+    &:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
     &:focus-within {
-      background: rgba(255, 255, 255, 0.07);
-      border-color: rgba(137, 180, 250, 0.55);
+      background: rgba(255, 255, 255, 0.045);
+      border-color: rgba(255, 255, 255, 0.08);
     }
 
     .qs-wifi-search-icon {
       font-size: 11px;
-      color: rgba(255, 255, 255, 0.4);
+      color: rgba(255, 255, 255, 0.32);
     }
 
     .qs-wifi-search-entry {
@@ -1871,10 +1875,10 @@ button.qs-user-settings-btn {
       min-height: 20px;
       caret-color: $blue;
       font-size: 12px;
-      color: #cdd6f4;
+      color: rgba($text, 0.78);
 
       selection {
-        background: rgba(137, 180, 250, 0.35);
+        background: rgba(255, 255, 255, 0.16);
       }
     }
   }
