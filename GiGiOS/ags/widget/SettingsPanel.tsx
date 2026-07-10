@@ -12,12 +12,14 @@ import PersonalizationSection from "./settings/PersonalizationSection"
 import DisplaySection from "./settings/DisplaySection"
 import SystemSection from "./settings/SystemSection"
 import AccountSection from "./settings/AccountSection"
+import DevicesSection from "./settings/DevicesSection"
 
-type SectionId = "account" | "energy" | "display" | "system" | "notifications" | "personalization"
+type SectionId = "account" | "energy" | "display" | "devices" | "system" | "notifications" | "personalization"
 const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
   { id: "account", label: "Cuenta", icon: "󰀄" },
   { id: "energy", label: "Energía", icon: "󰁹" },
   { id: "display", label: "Pantalla", icon: "󰍹" },
+  { id: "devices", label: "Dispositivos", icon: "󰓢" },
   { id: "system", label: "Sistema", icon: "󰌢" },
   { id: "notifications", label: "Notificaciones", icon: "󰂚" },
   { id: "personalization", label: "Personalización", icon: "󰏘" },
@@ -61,6 +63,7 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
               if (s === "account") return <AccountSection />
               if (s === "energy") return <EnergySection />
               if (s === "display") return <DisplaySection />
+              if (s === "devices") return <DevicesSection />
               if (s === "system") return <SystemSection />
               if (s === "notifications") return <SettingsTabs />
               return <PersonalizationSection />

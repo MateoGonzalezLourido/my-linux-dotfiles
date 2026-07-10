@@ -3991,6 +3991,45 @@ window.cal-panel > box {
   margin-bottom: -4px;
 }
 
+// ── Dispositivos ────────────────────────────────────────────────────────────
+.dev-section { padding-bottom: 12px; }
+.dev-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 11px;
+}
+.dev-card-header {
+  padding: 11px 14px 9px;
+  background: rgba($violet, 0.045);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.dev-card-icon { color: $violet; font-family: $font-icon; font-size: 15px; }
+.dev-row {
+  min-height: 45px;
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  &:last-child { border-bottom: none; }
+}
+.dev-value { min-width: 64px; }
+.dev-select { min-width: 190px; }
+scale.dev-slider { margin: 0 2px 2px; }
+.dev-reset-row {
+  padding: 12px 14px;
+  border: 1px solid rgba(245, 50, 105, 0.14);
+  border-radius: 10px;
+  background: rgba(245, 50, 105, 0.025);
+}
+button.dev-reset {
+  min-height: 30px;
+  padding: 4px 12px;
+  border-radius: 7px;
+  color: rgba($text, 0.72);
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  &:hover { color: $text; background: rgba(255, 255, 255, 0.09); }
+  &.confirm { color: #ff8fa7; background: rgba(245, 50, 105, 0.12); border-color: rgba(245, 50, 105, 0.28); }
+}
+
 // ── Cuenta ──────────────────────────────────────────────────────────────────
 .account-section { padding-bottom: 10px; }
 .account-profile-card, .account-auth-card {

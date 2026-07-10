@@ -2761,6 +2761,11 @@ button.qs-toggle.on .qs-toggle-track {
   margin-top: 2px;
 }
 
+.qs-user-block {
+  margin: 0;
+  padding: 0;
+}
+
 .qs-avatar {
   background: rgba(139, 120, 255, 0.2);
   border: 1px solid rgba(139, 120, 255, 0.3);
@@ -4875,6 +4880,238 @@ window.cal-panel > box {
   letter-spacing: 0.06em;
   font-weight: 700;
   margin-bottom: -4px;
+}
+
+.dev-section {
+  padding-bottom: 12px;
+}
+
+.dev-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 11px;
+}
+
+.dev-card-header {
+  padding: 11px 14px 9px;
+  background: rgba(203, 166, 247, 0.045);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.dev-card-icon {
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 15px;
+}
+
+.dev-row {
+  min-height: 45px;
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+.dev-row:last-child {
+  border-bottom: none;
+}
+
+.dev-value {
+  min-width: 64px;
+}
+
+.dev-select {
+  min-width: 190px;
+}
+
+scale.dev-slider {
+  margin: 0 2px 2px;
+}
+
+.dev-reset-row {
+  padding: 12px 14px;
+  border: 1px solid rgba(245, 50, 105, 0.14);
+  border-radius: 10px;
+  background: rgba(245, 50, 105, 0.025);
+}
+
+button.dev-reset {
+  min-height: 30px;
+  padding: 4px 12px;
+  border-radius: 7px;
+  color: rgba(226, 226, 226, 0.72);
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+button.dev-reset:hover {
+  color: #e2e2e2;
+  background: rgba(255, 255, 255, 0.09);
+}
+button.dev-reset.confirm {
+  color: #ff8fa7;
+  background: rgba(245, 50, 105, 0.12);
+  border-color: rgba(245, 50, 105, 0.28);
+}
+
+.account-section {
+  padding-bottom: 10px;
+}
+
+.account-profile-card, .account-auth-card {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 10px;
+}
+
+.account-avatar {
+  min-width: 58px;
+  min-height: 58px;
+  border-radius: 50%;
+  border: 2px solid rgba(203, 166, 247, 0.45);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.account-avatar.fallback {
+  background: rgba(203, 166, 247, 0.18);
+  color: #cba6f7;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.account-current-user {
+  color: #e2e2e2;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.account-form-label {
+  min-width: 130px;
+  color: rgba(226, 226, 226, 0.72);
+  font-size: 11px;
+}
+
+.account-entry {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 7px;
+  color: #e2e2e2;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.account-entry:focus {
+  border-color: rgba(203, 166, 247, 0.6);
+}
+
+.account-secondary-btn, .account-save-btn {
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.account-secondary-btn {
+  color: #cba6f7;
+  background: rgba(203, 166, 247, 0.12);
+  border: 1px solid rgba(203, 166, 247, 0.22);
+}
+
+.account-save-btn {
+  color: #0b0910;
+  background: #cba6f7;
+  border: none;
+}
+
+.account-expand-btn {
+  min-height: 38px;
+  padding: 0 12px;
+  color: rgba(226, 226, 226, 0.78);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.account-expand-btn:hover, .account-expand-btn.open {
+  color: #cba6f7;
+  background: rgba(203, 166, 247, 0.09);
+  border-color: rgba(203, 166, 247, 0.2);
+}
+
+.account-expand-icon, .account-expand-arrow {
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font";
+}
+
+.account-password-fields {
+  padding: 0 4px 2px;
+}
+
+.account-notice {
+  color: #89b4fa;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.sys-section {
+  padding-bottom: 8px;
+}
+
+.sys-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.sys-card-header {
+  padding: 3px 0 5px;
+  background: transparent;
+  border: none;
+}
+
+.sys-card-icon {
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 14px;
+}
+
+.sys-card-title {
+  margin: 0;
+}
+
+.sys-row {
+  min-height: 20px;
+  padding: 8px 0;
+}
+
+.sys-row.bordered {
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.sys-label {
+  min-width: 150px;
+  color: #aaa7b4;
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.sys-value {
+  color: #f0edf5;
+  font-family: "Inter", sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.sys-loading {
+  min-height: 220px;
+  color: #aaa7b4;
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+}
+
+.sys-loading spinner {
+  margin-right: 9px;
+  color: #cba6f7;
 }
 
 /* ── Centered notification-settings window (Phase 5) ────────────────── */

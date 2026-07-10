@@ -12,6 +12,7 @@
 
 import GLib from "gi://GLib"
 import { createState } from "ags"
+import { execAsync } from "ags/process"
 
 const PREFS_PATH = `${GLib.get_user_config_dir()}/gigios/preferences.json`
 
@@ -33,6 +34,11 @@ export { batteryMonitorEnabled }
 const [tempMonitorEnabled, _setTempMonitorEnabled] = createState(true)
 export { tempMonitorEnabled }
 
+// Historial del portapapeles (wl-paste + cliphist). Al desactivarlo se detiene
+// la captura de nuevas copias y se limpia lo ya guardado. Default: activado.
+const [clipboardHistoryEnabled, _setClipboardHistoryEnabled] = createState(true)
+export { clipboardHistoryEnabled }
+
 // ── Carga inicial ─────────────────────────────────────────────────────────────
 function load() {
   try {
@@ -42,6 +48,7 @@ function load() {
     if (typeof saved.workspacePreview === "boolean") _setWsPreviewEnabled(saved.workspacePreview)
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
+    if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
   } catch (e) { /* archivo ausente o corrupto → nos quedamos con los defaults */ }
 }
 
@@ -54,6 +61,7 @@ function save() {
       workspacePreview: wsPreviewEnabled.get(),
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
+      clipboardHistory: clipboardHistoryEnabled.get(),
     }
     GLib.file_set_contents(PREFS_PATH, JSON.stringify(config, null, 2))
   } catch (e) { /* no-op: un fallo de escritura no debe romper la UI */ }
@@ -71,6 +79,12 @@ export function setBatteryMonitorEnabled(on: boolean) {
 export function setTempMonitorEnabled(on: boolean) {
   _setTempMonitorEnabled(on)
   save()
+}
+export function setClipboardHistoryEnabled(on: boolean) {
+  _setClipboardHistoryEnabled(on)
+  save()
+  const action = on ? "start" : "stop"
+  execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/clipboard-history.sh`, action]).catch(() => {})
 }
 
 load()

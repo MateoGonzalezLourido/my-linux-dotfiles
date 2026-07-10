@@ -16,7 +16,6 @@ import {
   quickSettingsVisible,
   closeAllPanels,
   panelAutoClose,
-  nightLightActive,
   nightLightTemp,
   qsView,
   setQsView,
@@ -39,7 +38,7 @@ import {
 import {
   monitors, saveDisplayConfig,
   applyPatch, acquirePoll, releasePoll,
-  initDisplayService, setNightLightManual, setManualTemp,
+  initDisplayService, setManualTemp, nightOn, toggleNightNow,
 } from "./display/service"
 import { DisplaySelect } from "./display/controls"
 import { InlineEditableValue } from "./InlineEditableValue"
@@ -823,10 +822,10 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           icon="󰍹"
           label="Pantalla"
           subtitle={monitor}
-          active={nightLightActive}
+          active={nightOn}
           onToggle={onDisplayClick}
           onSecondaryClick={onDisplayClick}
-          onRightClick={() => setNightLightManual(!nightLightActive.get())}
+          onRightClick={() => toggleNightNow()}
         />
       </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
@@ -2072,10 +2071,10 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
               <Gtk.EventControllerFocus onLeave={commitTemp} />
             </Gtk.Entry>
             <button
-              cssClasses={nightLightActive((n) => n ? ["qs-toggle", "on"] : ["qs-toggle"])}
-              onClicked={() => setNightLightManual(!nightLightActive.get())}
+              cssClasses={nightOn((n) => n ? ["qs-toggle", "on"] : ["qs-toggle"])}
+              onClicked={() => toggleNightNow()}
             >
-              <ToggleSwitch active={nightLightActive} />
+              <ToggleSwitch active={nightOn} />
             </button>
           </box>
           {tempScale}
