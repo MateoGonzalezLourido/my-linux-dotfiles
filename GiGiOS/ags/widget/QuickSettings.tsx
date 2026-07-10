@@ -484,6 +484,7 @@ function makeScale(
   getValue: () => number,
   setValue: (v: number) => void,
   subscribe?: (cb: () => void) => void,
+  layout: { hexpand?: boolean; heightRequest?: number; widthRequest?: number } = {},
 ): Gtk.Scale {
   const adj = new Gtk.Adjustment({ lower: 0, upper: 1, stepIncrement: 0.01 })
   adj.value = clamp(getValue())
@@ -494,8 +495,11 @@ function makeScale(
     orientation: Gtk.Orientation.HORIZONTAL,
     adjustment: adj,
     drawValue: false,
-    hexpand: true,
+    hexpand: layout.hexpand ?? true,
+    valign: Gtk.Align.CENTER,
   })
+  if (layout.heightRequest !== undefined) scale.heightRequest = layout.heightRequest
+  if (layout.widthRequest !== undefined) scale.widthRequest = layout.widthRequest
   scale.cssClasses = classes
 
   scale.connect("change-value", (_self, _scroll, val) => {
@@ -1616,6 +1620,7 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                       saveAudioPresets(p)
                     },
                     (cb) => { ep.connect("notify::volume", cb) },
+                    { heightRequest: 4 },
                   )
 
                   const activate = async () => {
@@ -1636,16 +1641,31 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                         : `pactl list short source-outputs | awk '{print $1}' | xargs -r -I{} pactl move-source-output {} "${name}"`
                     ]).catch(() => {})
                   }
+                  const toggleMute = () => {
+                    ep.mute = !ep.mute
+                  }
 
                   return (
                     <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={activeClasses}>
-                      <button onClicked={activate} cssClasses={["qs-audio-card-btn"]} hexpand>
+                      <box hexpand>
+                        <Gtk.GestureClick
+                          button={Gdk.BUTTON_PRIMARY}
+                          onPressed={activate}
+                        />
                         <label cssClasses={["qs-audio-name"]} label={endpointLabel(ep)} ellipsize={3} halign={Gtk.Align.START} />
-                      </button>
+                      </box>
                       <box spacing={5} valign={Gtk.Align.CENTER}>
-                        <label cssClasses={["qs-audio-icon"]} label={createComputed(() => deviceIcon(vol(), mute()))} />
-                        {scale}
-                        <label cssClasses={["qs-audio-vol-pct"]} label={vol((v) => `${Math.round(v * 100)}`)} />
+                        <button cssClasses={["qs-audio-card-btn"]} onClicked={toggleMute} tooltipText={mute((m) => m ? "Activar sonido" : "Silenciar")}>
+                          <label cssClasses={["qs-audio-icon"]} label={createComputed(() => deviceIcon(vol(), mute()))} />
+                        </button>
+                        <box spacing={5} valign={Gtk.Align.CENTER} hexpand>
+                          <Gtk.GestureClick
+                            button={Gdk.BUTTON_PRIMARY}
+                            onPressed={activate}
+                          />
+                          {scale}
+                          <label cssClasses={["qs-audio-vol-pct"]} label={vol((v) => `${Math.round(v * 100)}`)} />
+                        </box>
                       </box>
                     </box>
                   )
@@ -1702,6 +1722,8 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                       // Apply to stream if active (throttled)
                       applyVol(v)
                     },
+                    undefined,
+                    { heightRequest: 4 },
                   )
                   const icon = props["application.icon_name"]
                     || props["window.icon_name"]
