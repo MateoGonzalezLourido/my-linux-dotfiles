@@ -17,6 +17,7 @@ import { startCleanupEngine } from "./widget/notifications/cleanup/cleanupEngine
 import { runAppSettingsMigration } from "./widget/notifications/settings/runMigration"
 import { initAutoDnd } from "./widget/notifications/autoDnd/watcher"
 import { initTrayApps } from "./widget/settings/trayApps"
+import { initGamingState } from "./widget/power/gamingState"
 
 app.start({
   css: style,
@@ -42,5 +43,6 @@ app.start({
     runAppSettingsMigration()
     initAutoDnd()
     initTrayApps()
+    initGamingState()
   },
 })

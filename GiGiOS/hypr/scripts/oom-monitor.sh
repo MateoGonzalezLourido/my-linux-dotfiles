@@ -51,6 +51,9 @@ fi
 RUN_UNTRUSTED="$HOME/.config/hypr/scripts/run-untrusted.sh"
 # Escaneo a demanda (para archivos grandes que el barrido se salta).
 SCAN_FILE="$HOME/.config/hypr/scripts/scan-file.sh"
+# Estado "jugando" que escribe AGS (widget/power/gamingState.ts) y umbral de ahorro.
+RUNTIME_STATE="$HOME/.config/gigios/runtime-state.json"
+POWER_CONFIG="$HOME/.config/power-save/config.json"
 
 # ¿Es "lanzable"? Bit de ejecución, tipo de instalador conocido o binario ELF.
 # Se usa en monitor_downloads para avisar solo de lo que podrías ejecutar.
@@ -62,6 +65,47 @@ is_runnable() {
         *.appimage|*.run|*.sh|*.bin|*.exe|*.msi|*.deb|*.rpm|*.desktop) return 0 ;;
     esac
     [[ "$(head -c4 "$f" 2>/dev/null)" == $'\x7fELF' ]]
+}
+
+# ── Estado de energía (leído del kernel, sin depender de AGS) ──────────────────
+_on_battery() {   # 0 = con batería (descargando)
+    local s
+    for s in /sys/class/power_supply/*/status; do
+        [[ -r "$s" ]] || continue
+        [[ "$(<"$s")" == Discharging ]] && return 0
+    done
+    return 1
+}
+_battery_pct() {  # imprime el % de la primera batería legible (100 si no hay)
+    local c
+    for c in /sys/class/power_supply/*/capacity; do
+        [[ -r "$c" ]] && { cat "$c"; return; }
+    done
+    echo 100
+}
+
+# ¿Debe pausarse el escaneo AUTOMÁTICO de descargas AHORA? Reevalúa condiciones en
+# vivo. Los flags de qué-pausa-está-activada (dl_pause_*) los fija _dl_sweep por
+# barrido y los ve por ámbito dinámico. Fail-open: si algo no se puede leer, no
+# pausa (mejor escanear de más que de menos). El botón de forzado NO llama a esto.
+_dl_paused() {
+    # Juego: flag que escribe AGS.
+    if [[ "${dl_pause_juego:-false}" == true ]]; then
+        [[ "$(jq -r '.gaming // false' "$RUNTIME_STATE" 2>/dev/null)" == true ]] && return 0
+    fi
+    # Batería / ahorro: solo tiene sentido si estás desenchufado.
+    if [[ "${dl_pause_bateria:-false}" == true || "${dl_pause_ahorro:-false}" == true ]] && _on_battery; then
+        [[ "${dl_pause_bateria:-false}" == true ]] && return 0
+        if [[ "${dl_pause_ahorro:-false}" == true ]]; then
+            local pct thr
+            pct=$(_battery_pct)
+            thr=$(jq -r '.thresholdPct // 15' "$POWER_CONFIG" 2>/dev/null)
+            [[ "$thr" =~ ^[0-9]+$ ]] || thr=15
+            [[ "$pct" =~ ^[0-9]+$ ]] || pct=100
+            (( pct <= thr )) && return 0
+        fi
+    fi
+    return 1
 }
 
 # ── Kernel monitor (SOLO kernel, anclado con -k) ──────────────────────────────
@@ -385,6 +429,22 @@ monitor_units() {
 # distinto = hash distinto = se analiza. Recrear el mismo fichero = mismo hash =
 # no se re-analiza. La primera vez (sin estado) siembra sin avisar de ejecutables
 # pero SÍ analiza con ClamAV todo lo existente (una alerta de malware no es spam).
+#
+# ── Recursos, pausas e higiene (ver docs/superpowers/specs/2026-07-11-*) ──────
+#   • PRIORIDAD: hashing y ClamAV van bajo `nice -n19 ionice -c3` (idle): ceden
+#     CPU/IO ante todo lo demás.
+#   • PAUSAS (leídas de security.json EN CADA BARRIDO, sin reiniciar): dlPause
+#     InPowerSave / OnBattery / WhileGaming. _dl_paused evalúa en vivo la batería
+#     (/sys) y el flag de juego (runtime-state.json que escribe AGS). Si alguna
+#     activada está activa → el barrido difiere TODO (no marca nada → se recoge al
+#     reanudar). Tope de tamaño dlMaxScanGB también en vivo.
+#   • INTERRUMPIBLE: clamscan recarga ~200 MB de firmas por llamada (~13 s), así
+#     que NO se trocea. Se lanza UN clamscan sobre todo el lote en 2º plano y se
+#     vigila la pausa: si cambia la condición se MATA (latencia ~2 s) y NO se marca
+#     nada → el lote se reescanea al reanudar; si termina, se marca todo.
+#   • DESCARGAS A MEDIAS: se ignoran los temporales de navegador/gestor (.part,
+#     .crdownload, .aria2, .!qB…) Y su nombre base, y todo lo modificado hace
+#     <15 s (aún escribiéndose). Un fichero movido fuera a mitad se salta.
 
 # Aviso de un único ejecutable nuevo (con botón "Lanzar aislado" si procede).
 download_alert() {
@@ -421,13 +481,24 @@ monitor_downloads() {
     # Motor antivirus. Preferimos clamscan (standalone, funciona con solo tener la
     # base de firmas) sobre clamdscan, que necesita el daemon clamd corriendo y si
     # no está devuelve error silencioso (no detectaría nada).
+    # --max-filesize/--max-scansize: SIN esto clamscan SALTA (y asume limpios) los
+    # ficheros > MaxFileSize (100 MB por defecto) → falso negativo. Los subimos al
+    # tope que clamscan admite (2 GiB-1). Solo aplican a clamscan; clamdscan usa la
+    # config del daemon (clamd.conf). La clasificación ya no manda a clamscan nada
+    # ≥ clam_max (2 GiB-1), así que este tope siempre cubre lo que se le envía.
     local clam=()
     if command -v clamscan >/dev/null 2>&1; then
-        clam=(clamscan --no-summary)
+        clam=(clamscan --no-summary --max-filesize=2147483647 --max-scansize=2147483647)
     elif command -v clamdscan >/dev/null 2>&1; then
         clam=(clamdscan --fdpass --no-summary)
     fi
-    local scan_max=314572800   # 300 MiB: no auto-escaneamos archivos enormes
+    # scan_max (tope de auto-análisis) es DINÁMICO: se recalcula en cada barrido
+    # desde dlMaxScanGB de security.json (aplica sin reiniciar). Ver _dl_sweep.
+
+    # Prioridad baja para hashing y ClamAV: ceden CPU/IO ante el resto del sistema.
+    local -a lowprio=()
+    command -v nice   >/dev/null 2>&1 && lowprio+=(nice -n 19)
+    command -v ionice >/dev/null 2>&1 && lowprio+=(ionice -c 3)
 
     # Hash de contenido: xxh64sum es rapidísimo (varios GB/s); si no está, caemos a
     # sha1/md5. Solo se calcula cuando mtime|tamaño cambió, así que en régimen
@@ -462,52 +533,88 @@ monitor_downloads() {
         [[ -n "$line" ]] && _scanned["$line"]=1
     done < "$hash_file"
 
-    # Un barrido completo. Ve el estado persistente (dir, clam, _idx, _scanned,
-    # seeded…) por ámbito dinámico de bash y muta _idx/_scanned/seeded del ámbito de
-    # monitor_downloads. Se invoca por evento (inotify) y por la red de seguridad.
+    # ¿Es un temporal de descarga en curso (navegador/gestor)?
+    _dl_is_temp() {
+        case "${1,,}" in
+            *.part|*.crdownload|*.download|*.opdownload|*.partial|*.tmp|*.temp|\
+            *.aria2|*.!qb|*.!ut|*.bc!|*.crswap) return 0 ;;
+        esac
+        return 1
+    }
+
+    # Un barrido completo, por fases (ver cabecera). Ve el estado persistente
+    # (_idx/_scanned/seeded/dir/clam/lowprio/hasher…) por ámbito dinámico y muta
+    # _idx/_scanned/seeded. Se invoca por evento (inotify) y por la red de seguridad.
     _dl_sweep() {
-        local -a new_exec=() scan_batch=() big_files=()
-        local -A _now _bhash
-        local changed=false f sig sz h listfile line vfile vsig mb
+        # ── Config en vivo (relee cada barrido → aplica sin reiniciar) ──────────
+        local dl_pause_ahorro=false dl_pause_bateria=false dl_pause_juego=false maxgb=1
+        if command -v jq >/dev/null 2>&1 && [[ -f "$SEC_CONFIG" ]]; then
+            dl_pause_ahorro=$(jq -r '.dlPauseInPowerSave // false' "$SEC_CONFIG" 2>/dev/null)
+            dl_pause_bateria=$(jq -r '.dlPauseOnBattery // false'  "$SEC_CONFIG" 2>/dev/null)
+            dl_pause_juego=$(jq -r '.dlPauseWhileGaming // false'  "$SEC_CONFIG" 2>/dev/null)
+            maxgb=$(jq -r '.dlMaxScanGB // 1'                      "$SEC_CONFIG" 2>/dev/null)
+        fi
+        local scan_max
+        scan_max=$(awk -v g="$maxgb" 'BEGIN{v=g*1073741824; if(v<1)v=1073741824; printf "%d", v}')
+        # Techo real del auto-análisis = min(tope usuario, 2 GiB-1 que es lo máximo
+        # que clamscan escanea). Lo que pase de ahí va a "archivo grande" (aviso),
+        # no a clamscan, para que no lo salte y lo dé por limpio.
+        local clam_max=$scan_max
+        (( clam_max > 2147483647 )) && clam_max=2147483647
+
+        # Puerta: si alguna pausa activada está activa AHORA, difiere TODO (no
+        # hashea, no escanea, no avisa). El siguiente evento / red de seguridad
+        # reintenta; nada se marca → lo pendiente se recoge al reanudar.
+        _dl_paused && return
+
+        local -a scan_batch=() big_files=() new_exec=() all=() present=()
+        local -A _now _bhash tempbase
+        local changed=false f sig sz h mtime now mb lf out pid killed line vfile vsig
+        now=$(date +%s)
+        local settle=15   # s: no tocar lo modificado hace <settle (aún escribiéndose)
+
+        # ── Fase A.1: recolectar rutas y marcar temporales (+ su nombre base) ───
         while IFS= read -r f; do
+            all+=("$f")
+            _dl_is_temp "$f" && tempbase["${f%.*}"]=1
+        done < <(find "$dir" -type f 2>/dev/null)
+
+        # ── Fase A.2: clasificar (barato: solo stat + hash de lo nuevo) ─────────
+        for f in "${all[@]}"; do
             [[ -f "$f" ]] || continue
-            # mtime y tamaño en una sola llamada a stat.
+            _dl_is_temp "$f" && continue                 # el propio temporal
+            [[ -n "${tempbase[$f]:-}" ]] && continue     # final mientras exista su temp
             sig=$(stat -c '%Y|%s' "$f" 2>/dev/null) || continue
             _now["$f"]=1
-            [[ "${_idx[$f]:-}" == "$sig" ]] && continue   # sin cambios → saltar
+            mtime="${sig%%|*}"; sz="${sig#*|}"
+            (( now - mtime < settle )) && continue       # aún escribiéndose → luego
+            [[ "${_idx[$f]:-}" == "$sig" ]] && continue  # sin cambios → saltar
 
-            # Fichero nuevo o cambiado.
-            changed=true
-            _idx["$f"]="$sig"
-            sz="${sig#*|}"
-
-            if (( ${#clam[@]} && sz > 0 && sz < scan_max )) && [[ -n "$hasher" ]]; then
-                h=$("$hasher" -- "$f" 2>/dev/null); h="${h%% *}"
+            if (( ${#clam[@]} && sz > 0 && sz < clam_max )) && [[ -n "$hasher" ]]; then
+                h=$("${lowprio[@]}" "$hasher" -- "$f" 2>/dev/null); h="${h%% *}"
                 if [[ -n "$h" && -n "${_scanned[$h]:-}" ]]; then
-                    continue   # mismo contenido ya analizado → ni escanear ni avisar
+                    _idx["$f"]="$sig"; changed=true       # contenido conocido → marcar y saltar
+                    continue
                 fi
                 scan_batch+=("$f"); [[ -n "$h" ]] && _bhash["$f"]="$h"
                 [[ "$seeded" == true ]] && is_runnable "$f" && new_exec+=("$f")
-            elif (( ${#clam[@]} && sz >= scan_max )); then
-                # Demasiado grande para el auto-análisis: se avisa (con botón para
-                # escanearlo a mano). Solo cuando ya sembrado, para no avisar de lo
-                # que ya tenías (p. ej. un .rar viejo) en el primer barrido.
+            elif (( ${#clam[@]} && sz >= clam_max )); then
+                _idx["$f"]="$sig"; changed=true           # grande: avisar y marcar (no cada vez)
                 [[ "$seeded" == true ]] && big_files+=("$f")
                 [[ "$seeded" == true ]] && is_runnable "$f" && new_exec+=("$f")
             else
-                # Sin ClamAV / sin hasher: no podemos analizar, solo avisar del exe.
+                _idx["$f"]="$sig"; changed=true           # sin clam/hasher: solo aviso de exe
                 [[ "$seeded" == true ]] && is_runnable "$f" && new_exec+=("$f")
             fi
-        done < <(find "$dir" -type f 2>/dev/null)
+        done
 
-        # Podar del índice lo que ya no existe (así no crece sin límite y un
-        # fichero borrado+recreado vuelve a evaluarse).
+        # Podar del índice lo que ya no existe (no crece sin límite; un fichero
+        # borrado+recreado vuelve a evaluarse).
         for f in "${!_idx[@]}"; do
             [[ -n "${_now[$f]:-}" ]] || { unset '_idx[$f]'; changed=true; }
         done
 
-        # Archivos demasiado grandes para el auto-análisis: aviso con botón para
-        # escanearlos igualmente (o desde Ajustes › Seguridad).
+        # Archivos demasiado grandes para el auto-análisis: aviso con botón.
         for f in "${big_files[@]}"; do
             mb=$(( $(stat -c%s "$f" 2>/dev/null || echo 0) / 1048576 ))
             if [[ -x "$SCAN_FILE" ]]; then
@@ -522,7 +629,7 @@ monitor_downloads() {
             fi
         done
 
-        # 1) Aviso de ejecutables nuevos. ≤4 → individual con botón; más → resumen.
+        # Aviso de ejecutables nuevos. ≤4 → individual con botón; más → resumen.
         if (( ${#new_exec[@]} )); then
             if (( ${#new_exec[@]} <= 4 )); then
                 for f in "${new_exec[@]}"; do download_alert "$f"; done
@@ -532,34 +639,63 @@ monitor_downloads() {
             fi
         fi
 
-        # 2) Análisis antivirus en LOTE (una sola invocación de ClamAV; --file-list
-        #    evita reventar ARG_MAX y recargar la base de firmas por fichero).
-        if (( ${#scan_batch[@]} )); then
-            listfile=$(mktemp)
-            printf '%s\n' "${scan_batch[@]}" > "$listfile"
-            "${clam[@]}" --file-list="$listfile" 2>/dev/null | while IFS= read -r line; do
+        # ── Fase B: análisis antivirus, UNA invocación en 2º plano, interrumpible ─
+        # clamscan recarga ~200 MB de firmas EN CADA llamada (~13 s), así que NO se
+        # trocea: se lanza UN clamscan --file-list sobre todo el lote (una sola carga
+        # de BD). Se corre en 2º plano y se vigila la pausa: si entras en juego/ahorro
+        # a mitad, se MATA (latencia ~2 s) y NO se marca nada → se reescanea al
+        # reanudar. Si termina solo, se marca todo. Antes se filtra a lo que aún
+        # existe (movido fuera de Descargas).
+        for f in "${scan_batch[@]}"; do [[ -f "$f" ]] && present+=("$f"); done
+        if (( ${#present[@]} )); then
+            killed=false
+            lf=$(mktemp); out=$(mktemp)
+            printf '%s\n' "${present[@]}" > "$lf"
+            "${lowprio[@]}" "${clam[@]}" --file-list="$lf" > "$out" 2>/dev/null &
+            pid=$!
+            while kill -0 "$pid" 2>/dev/null; do
+                if _dl_paused; then kill "$pid" 2>/dev/null; killed=true; break; fi
+                sleep 2
+            done
+            wait "$pid" 2>/dev/null
+            # Avisar de lo detectado (aunque se cortara: lo ya escaneado cuenta).
+            while IFS= read -r line; do
                 [[ "$line" == *" FOUND" ]] || continue     # "/ruta: Firma FOUND"
                 vfile="${line%%: *}"
                 vsig="${line##*: }"; vsig="${vsig% FOUND}"
                 notify-send -u critical "🦠 Malware detectado en Descargas" \
                     "$(basename "$vfile"): $vsig — NO lo ejecutes. Ruta: $vfile" -t 0
-            done
-            rm -f "$listfile"
-            # Marcar como analizado el CONTENIDO de todo lo escaneado (limpio o no):
-            # así un fichero infectado que se queda en Descargas avisa UNA vez, y
-            # recrear el mismo contenido no vuelve a analizarse (lo pedido).
-            for f in "${scan_batch[@]}"; do
-                h="${_bhash[$f]:-}"
-                [[ -n "$h" && -z "${_scanned[$h]:-}" ]] || continue
-                _scanned["$h"]=1
-                printf '%s\n' "$h" >> "$hash_file"
-            done
+            done < "$out"
+            # Marcar índice + hash del CONTENIDO SOLO si terminó (no cortado): un
+            # infectado que se queda avisa UNA vez y recrear el mismo contenido no se
+            # re-analiza; si se cortó, nada se marca → el lote se reescanea al reanudar.
+            if [[ "$killed" == false ]]; then
+                for f in "${present[@]}"; do
+                    sig=$(stat -c '%Y|%s' "$f" 2>/dev/null) || continue
+                    _idx["$f"]="$sig"; changed=true
+                    h="${_bhash[$f]:-}"
+                    [[ -n "$h" && -z "${_scanned[$h]:-}" ]] && { _scanned["$h"]=1; printf '%s\n' "$h" >> "$hash_file"; }
+                done
+            fi
+            rm -f "$lf" "$out"
         fi
 
         # Persistir el índice (reescritura atómica) solo si cambió algo.
         if [[ "$changed" == true ]]; then
             { for f in "${!_idx[@]}"; do printf '%s|%s\n' "${_idx[$f]}" "$f"; done; } \
                 > "$idx_file.tmp" 2>/dev/null && mv -f "$idx_file.tmp" "$idx_file" 2>/dev/null
+        fi
+
+        # Válvula de seguridad de download-hashes (append-only, ~17 B/entrada): si
+        # supera 10 MB, conservar solo las 100 más recientes (por ser append-only,
+        # son las 100 últimas líneas) y reconstruir la memoria para dejar fichero y
+        # RAM consistentes. A 10 MB esto tarda años; es un tope duro, no rutina.
+        local hsz
+        hsz=$(stat -c%s "$hash_file" 2>/dev/null || echo 0)
+        if (( hsz > 10485760 )); then
+            tail -n 100 "$hash_file" > "$hash_file.tmp" 2>/dev/null && mv -f "$hash_file.tmp" "$hash_file"
+            _scanned=()
+            while IFS= read -r h; do [[ -n "$h" ]] && _scanned["$h"]=1; done < "$hash_file"
         fi
 
         seeded=true
