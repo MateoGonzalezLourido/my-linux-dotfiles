@@ -602,7 +602,7 @@ popover.tray-popover {
   // Contenedor del menú (mismo look que .fn-menu / .ws-preview-bg)
   > contents {
     min-width: 190px;
-    padding: 6px;
+    padding: 3px;
     background: #0e0e1a;
     border: 1px solid rgba(137, 180, 250, 0.18);
     border-radius: 12px;
@@ -611,15 +611,21 @@ popover.tray-popover {
     animation: pop-liquid-in 200ms cubic-bezier(0.22, 1.2, 0.36, 1);
   }
 
-  // Cada fila del menú
+  // GTK4 pinta las acciones de Gtk.PopoverMenu como button.model. Conservamos
+  // modelbutton como fallback para versiones/temas que aún expongan ese nodo.
+  button.model,
   modelbutton {
+    background: transparent;
+    border: none;
+    box-shadow: none;
     border-radius: 8px;
-    padding: 7px 10px;
-    min-height: 26px;
-    margin: 1px 0;
+    padding: 2px 5px;
+    min-width: 0;
+    min-height: 20px;
+    margin: 0;
     color: #cdd6f4;
     font-family: $font-icon, 'Inter', sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     transition: background-color 120ms ease;
 
@@ -647,9 +653,19 @@ popover.tray-popover {
     }
   }
 
+  // Encabezados de sección que algunas apps usan para repetir su propio nombre.
+  label.title {
+    font-size: 0;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+  }
+
   // Separadores entre secciones
   separator {
-    margin: 5px 4px;
+    margin: 3px 2px;
     min-height: 1px;
     background: rgba(137, 180, 250, 0.14);
   }

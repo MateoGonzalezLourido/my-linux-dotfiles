@@ -1586,7 +1586,7 @@ popover.tray-popover > arrow {
 }
 popover.tray-popover > contents {
   min-width: 190px;
-  padding: 6px;
+  padding: 3px;
   background: #0e0e1a;
   border: 1px solid rgba(137, 180, 250, 0.18);
   border-radius: 12px;
@@ -1594,27 +1594,39 @@ popover.tray-popover > contents {
   transform-origin: top center;
   animation: pop-liquid-in 200ms cubic-bezier(0.22, 1.2, 0.36, 1);
 }
+popover.tray-popover button.model,
 popover.tray-popover modelbutton {
+  background: transparent;
+  border: none;
+  box-shadow: none;
   border-radius: 8px;
-  padding: 7px 10px;
-  min-height: 26px;
-  margin: 1px 0;
+  padding: 2px 5px;
+  min-width: 0;
+  min-height: 20px;
+  margin: 0;
   color: #cdd6f4;
   font-family: "MesloLGS Nerd Font", "Inter", sans-serif;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   transition: background-color 120ms ease;
 }
-popover.tray-popover modelbutton:hover, popover.tray-popover modelbutton:focus {
+popover.tray-popover button.model:hover, popover.tray-popover button.model:focus,
+popover.tray-popover modelbutton:hover,
+popover.tray-popover modelbutton:focus {
   background: rgba(137, 180, 250, 0.14);
   color: #ffffff;
 }
+popover.tray-popover button.model:active,
 popover.tray-popover modelbutton:active {
   background: rgba(137, 180, 250, 0.22);
 }
+popover.tray-popover button.model:disabled,
 popover.tray-popover modelbutton:disabled {
   color: rgba(205, 214, 244, 0.35);
 }
+popover.tray-popover button.model check,
+popover.tray-popover button.model radio,
+popover.tray-popover button.model arrow,
 popover.tray-popover modelbutton check,
 popover.tray-popover modelbutton radio,
 popover.tray-popover modelbutton arrow {
@@ -1622,8 +1634,16 @@ popover.tray-popover modelbutton arrow {
   min-width: 14px;
   min-height: 14px;
 }
+popover.tray-popover label.title {
+  font-size: 0;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+}
 popover.tray-popover separator {
-  margin: 5px 4px;
+  margin: 3px 2px;
   min-height: 1px;
   background: rgba(137, 180, 250, 0.14);
 }
@@ -3214,7 +3234,7 @@ button.qs-user-settings-btn label {
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 10px;
   padding: 8px 10px;
-  min-width: 280px;
+  min-width: 340px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
   animation: notif-slide-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }

@@ -1,4 +1,6 @@
 import AstalTray from "gi://AstalTray"
+import GLib from "gi://GLib"
+import Pango from "gi://Pango"
 import { Gtk } from "ags/gtk4"
 import { createBinding, createComputed, For, With, type Accessor } from "ags"
 import { openBarMenu, closeBarMenu, panelAutoClose } from "../state"
@@ -6,6 +8,83 @@ import { hiddenTrayApps, trayOverflowAt } from "../settings/trayApps"
 
 // Prefijos de action group que exponen los menús StatusNotifierItem (dbusmenu.* …).
 const ACTION_GROUP_NAMES = ["dbusmenu", "tray", "indicator", "item", "app", "unity"]
+const TRAY_MENU_MAX_WIDTH = 260
+const TRAY_MENU_MAX_HEIGHT = 480
+const TRAY_MENU_MAX_LABEL_CHARS = 24
+
+function constrainMenuLabels(widget: Gtk.Widget) {
+  if (widget instanceof Gtk.Label) {
+    widget.set_max_width_chars(TRAY_MENU_MAX_LABEL_CHARS)
+    widget.set_ellipsize(Pango.EllipsizeMode.END)
+    widget.set_wrap(false)
+  }
+
+  for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+    constrainMenuLabels(child)
+  }
+}
+
+// Gtk.PopoverMenu exige que su hijo directo siga siendo un Gtk.Stack. Limitamos
+// cada página dentro del stack para no romper la navegación de sus submenús.
+function constrainPopoverMenu(pop: Gtk.Popover) {
+  const stack = pop.get_child()
+  if (!(stack instanceof Gtk.Stack)) return
+  if ((pop as any)._trayConstraintBusy) return
+
+  // Los labels imponen su texto completo como ancho mínimo si no se limitan.
+  // Esto debe repetirse porque algunas apps actualizan las opciones al abrir.
+  constrainMenuLabels(stack)
+  stack.queue_resize()
+
+  const pages = stack.get_pages()
+  if (!(pop as any)._trayPagesWatched) {
+    ;(pop as any)._trayPagesWatched = true
+    pages.connect("items-changed", () => {
+      GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+        constrainPopoverMenu(pop)
+        return GLib.SOURCE_REMOVE
+      })
+    })
+  }
+
+  const entries: Array<{ child: Gtk.Widget; name: string | null }> = []
+  for (let i = 0; i < pages.get_n_items(); i++) {
+    const page = pages.get_item(i) as Gtk.StackPage | null
+    if (!page) continue
+    const child = page.get_child()
+    if (!child.has_css_class("tray-menu-scroll")) {
+      entries.push({ child, name: page.get_name() })
+    }
+  }
+
+  ;(pop as any)._trayConstraintBusy = true
+  try {
+    for (const { child, name } of entries) {
+      const [, naturalWidth] = child.measure(Gtk.Orientation.HORIZONTAL, -1)
+      const width = Math.min(naturalWidth, TRAY_MENU_MAX_WIDTH)
+      const [, naturalHeight] = child.measure(Gtk.Orientation.VERTICAL, width)
+      const height = Math.min(naturalHeight, TRAY_MENU_MAX_HEIGHT)
+
+      stack.remove(child)
+      const scroll = new Gtk.ScrolledWindow({
+        cssClasses: ["tray-menu-scroll"],
+        hscrollbarPolicy: Gtk.PolicyType.AUTOMATIC,
+        vscrollbarPolicy: Gtk.PolicyType.AUTOMATIC,
+        propagateNaturalWidth: true,
+        propagateNaturalHeight: true,
+        maxContentWidth: TRAY_MENU_MAX_WIDTH,
+        maxContentHeight: TRAY_MENU_MAX_HEIGHT,
+        widthRequest: width,
+        heightRequest: height,
+      })
+      scroll.set_child(child)
+      if (name) stack.add_named(scroll, name)
+      else stack.add_child(scroll)
+    }
+  } finally {
+    ;(pop as any)._trayConstraintBusy = false
+  }
+}
 
 // El umbral de agrupación (nº de apps a partir del cual todos los iconos se
 // recogen en el menú desplegable de la flecha, al estilo del overflow del system
@@ -71,6 +150,11 @@ function TrayItemButton({
           pop.add_css_class("tray-popover")
           pop.set_has_arrow(false)
           pop.set_autohide(false)
+          constrainPopoverMenu(pop)
+          GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            constrainPopoverMenu(pop)
+            return GLib.SOURCE_REMOVE
+          })
           if (!(pop as any)._traySetup) {
             ;(pop as any)._traySetup = true
             const motion = new Gtk.EventControllerMotion()
