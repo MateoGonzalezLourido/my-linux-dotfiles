@@ -17,18 +17,41 @@ archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 - `_legacy/`        — copias archivadas sin uso
 - `bin/link.sh`     — crea/repara/valida los symlinks
 
-## Instalar / reparar symlinks
+## Instalación nueva (Arch/CachyOS)
+
+El instalador instala paquetes oficiales, usa `paru` o `yay` para AGS/Astal,
+descarga el checkout bare, crea los enlaces, compila el CSS y ejecuta la
+validación final:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | bash
+```
+
+Antes de iniciar Hyprland, revisa la GPU en `hypr/hyprland.conf`. Por seguridad
+no se activa ningún perfil específico en una instalación nueva. Los únicos
+pasos deliberadamente manuales son los que necesitan datos o privilegios del
+usuario: Spotify, `sudo freshclam`, `sudo sensors-detect` y fuentes propietarias.
+La guía completa y la resolución de problemas están en [hypr/SETUP.md](hypr/SETUP.md).
+
+Para instalar solo los archivos y gestionar paquetes por tu cuenta:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | INSTALL_PACKAGES=0 bash
+```
+
+## Reparar o validar
 
 ```sh
 bin/link.sh          # crea o repara los symlinks
 bin/link.sh --check  # solo reporta estado
+bin/preflight.sh --installed # archivos, scripts, comandos y enlaces
 ```
 
 `link.sh` no mueve ni borra datos: si una ruta canónica todavía es un directorio
 real (sin migrar), avisa y no la toca.
 
-## Restore en una máquina nueva
+## Datos privados
 
-1. Clonar este repo en `~/GiGiOS`.
-2. Restaurar `~/.config/gigios/spotify-creds.json` (secreto, fuera de git; chmod 600).
-3. Correr `bin/link.sh`.
+`~/.config/gigios/spotify-creds.json` nunca se versiona. Restáuralo desde una
+copia segura o ejecuta `~/.config/ags/scripts/spotify-auth.sh`. La foto
+`assets/face.png` también es opcional: sin ella AGS muestra las iniciales.

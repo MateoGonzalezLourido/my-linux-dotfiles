@@ -1882,6 +1882,9 @@ popover.tray-overflow-popover > contents {
 .volume.bt-muted {
   color: rgba(226, 226, 226, 0.45);
 }
+.volume.no-output {
+  color: rgb(245, 50, 105);
+}
 .volume.icon-muted {
   color: rgba(226, 226, 226, 0.45);
 }
@@ -5344,5 +5347,3 @@ button.dl-city-result:hover {
   border-radius: 6px;
   padding: 6px 8px;
 }
-
-/*# sourceMappingURL=out.css.map */

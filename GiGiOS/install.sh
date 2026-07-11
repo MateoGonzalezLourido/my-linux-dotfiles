@@ -1,42 +1,63 @@
 #!/usr/bin/env bash
-# Instalador de dotfiles (repo bare) + GiGiOS.
+# Instalador de dotfiles (repo bare) + GiGiOS para Arch Linux/CachyOS.
 # Clona el repo, hace checkout en $HOME (respaldando lo que choque) y crea los
 # symlinks de GiGiOS. Pensado para una máquina nueva o recuperación.
 #
 # Uso:
 #   curl -sSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | bash
-#   DOTFILES_BRANCH=desktop curl -sSL <url> | bash    # otra rama
+#   curl -sSL <url> | DOTFILES_BRANCH=desktop bash    # otra rama
+#   curl -sSL <url> | INSTALL_PACKAGES=0 bash        # sin instalar paquetes
 #
 # Variables:
 #   DOTFILES_REPO    URL del repo   (por defecto HTTPS público)
 #   DOTFILES_BRANCH  rama a instalar (por defecto: laptop)
+#   INSTALL_PACKAGES 1 instala las dependencias (por defecto); 0 las omite
 set -euo pipefail
 
 REPO_URL="${DOTFILES_REPO:-https://github.com/MateoGonzalezLourido/my-linux-dotfiles.git}"
 BRANCH="${DOTFILES_BRANCH:-laptop}"
 DOTGIT="$HOME/.dotfiles"
 BACKUP="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
+INSTALL_PACKAGES="${INSTALL_PACKAGES:-1}"
 
 dotfiles() { git --git-dir="$DOTGIT" --work-tree="$HOME" "$@"; }
 info() { printf '\033[1;36m::\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
 
-command -v git >/dev/null || die "git no está instalado."
+install_packages() {
+  local official=(
+    git curl python xdg-utils hyprland hyprlock hypridle hyprpolkitagent hyprsunset
+    gjs gtk4-layer-shell gobject-introspection npm dart-sass
+    ttf-meslo-nerd rofi wofi cliphist wl-clipboard brightnessctl playerctl
+    qalculate-gtk wf-recorder grim slurp jq bc hyprshot
+    network-manager-applet blueman fish kitty dolphin kde-cli-tools
+    libpulse pipewire wireplumber libnotify awww
+    smartmontools lm_sensors pciutils usbutils alsa-utils inotify-tools dbus
+    networkmanager bluez bluez-utils xdg-user-dirs
+    clamav firejail bubblewrap xxhash file
+  )
 
-# Dolphin necesita kde-cli-tools para construir la caché de aplicaciones que
-# alimenta el menú "Abrir con..." fuera de una sesión completa de Plasma.
-if command -v pacman >/dev/null; then
-  missing_packages=()
-  pacman -Q dolphin >/dev/null 2>&1 || missing_packages+=(dolphin)
-  pacman -Q kde-cli-tools >/dev/null 2>&1 || missing_packages+=(kde-cli-tools)
-  if ((${#missing_packages[@]})); then
-    info "Instalando dependencias de Dolphin: ${missing_packages[*]}"
-    sudo pacman -S --needed "${missing_packages[@]}"
+  [[ "$INSTALL_PACKAGES" == 1 ]] || { warn "Dependencias omitidas (INSTALL_PACKAGES=$INSTALL_PACKAGES)."; return; }
+  command -v pacman >/dev/null || die "La instalación automática solo admite Arch/CachyOS (falta pacman). Usá INSTALL_PACKAGES=0 y seguí hypr/SETUP.md."
+  info "Instalando dependencias de repos oficiales ..."
+  sudo pacman -S --needed "${official[@]}"
+
+  if ! command -v ags >/dev/null; then
+    if command -v paru >/dev/null; then
+      info "Instalando AGS y las bibliotecas Astal desde AUR ..."
+      paru -S --needed aylurs-gtk-shell-git libastal-meta
+    elif command -v yay >/dev/null; then
+      info "Instalando AGS y las bibliotecas Astal desde AUR ..."
+      yay -S --needed aylurs-gtk-shell-git libastal-meta
+    else
+      die "AGS requiere AUR. Instalá paru o yay y repetí el instalador; también podés usar INSTALL_PACKAGES=0."
+    fi
   fi
-else
-  warn "No encontré pacman; comprobá manualmente que Dolphin y kde-cli-tools estén instalados."
-fi
+}
+
+install_packages
+command -v git >/dev/null || die "git no está instalado."
 
 # --- 1. Clonar el repo bare (o reutilizar) ---
 if [ -d "$DOTGIT" ]; then
@@ -82,7 +103,15 @@ else
   warn "No encontré $LINK. ¿El checkout trajo GiGiOS/bin/link.sh?"
 fi
 
-# --- 4. Reconstruir la caché de aplicaciones de KDE/Dolphin ---
+# --- 4. Generar el CSS que importa app.ts ---
+if command -v sass >/dev/null && [ -f "$HOME/GiGiOS/ags/style.scss" ]; then
+  info "Compilando el CSS de AGS ..."
+  sass --no-source-map "$HOME/GiGiOS/ags/style.scss" "$HOME/GiGiOS/ags/out.css"
+else
+  warn "No pude compilar AGS/out.css (falta sass o style.scss)."
+fi
+
+# --- 5. Reconstruir la caché de aplicaciones de KDE/Dolphin ---
 if command -v kbuildsycoca6 >/dev/null; then
   info "Reconstruyendo la caché de aplicaciones de KDE 6 ..."
   kbuildsycoca6 --noincremental
@@ -93,9 +122,14 @@ else
   warn "No encontré kbuildsycoca6 ni kbuildsycoca5; el menú 'Abrir con...' podría quedar vacío."
 fi
 
-# --- 5. Notas finales ---
+# --- 6. Verificación y notas finales ---
+if [ -x "$HOME/GiGiOS/bin/preflight.sh" ]; then
+  info "Validando la instalación ..."
+  HOME="$HOME" GIGIOS="$HOME/GiGiOS" "$HOME/GiGiOS/bin/preflight.sh" --installed \
+    || warn "La validación encontró tareas pendientes (ver arriba)."
+fi
 echo
-info "Instalación completa."
+info "Instalación base completa."
 echo "  • Rama:     $BRANCH"
 [ -d "$BACKUP" ] && echo "  • Backups:  $BACKUP"
 cat <<'EOF'
@@ -104,5 +138,7 @@ cat <<'EOF'
   • Shell:    abrí una terminal nueva para tener el alias 'dotfiles'.
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:
               dotfiles remote set-url origin git@github.com:MateoGonzalezLourido/my-linux-dotfiles.git
-  • Sesión:   en Hyprland → 'hyprctl reload' y relanzá ags para aplicar todo.
+  • Hardware: antes de iniciar Hyprland elegí el perfil GPU; ver hypr/SETUP.md.
+  • Sistema:  ejecutá una vez 'sudo freshclam' y, si necesitás sensores, 'sudo sensors-detect'.
+  • Sesión:   cerrá y abrí sesión; después comprobá con 'ags run ~/.config/ags/app.ts'.
 EOF

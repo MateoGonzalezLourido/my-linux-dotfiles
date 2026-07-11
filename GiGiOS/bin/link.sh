@@ -98,7 +98,7 @@ done
 face_src="$GIGIOS/assets/face.png"
 face_dst="$HOME/.cache/gigios/face.png"
 if [[ ! -e "$face_src" ]]; then
-  echo "FALTA origen: $face_src (esperado para $face_dst)"; status=1
+  echo "OPCIONAL $face_src no existe; AGS mostrará iniciales y hyprlock omitirá el avatar"
 elif [[ -f "$face_dst" ]] && cmp -s "$face_src" "$face_dst"; then
   echo "OK    $face_dst"
 elif [[ "$mode" == check ]]; then

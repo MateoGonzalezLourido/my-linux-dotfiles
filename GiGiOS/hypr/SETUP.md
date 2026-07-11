@@ -1,12 +1,63 @@
-# Setup para migrar este dotfiles (Hyprland + AGS) a otro PC
+# Instalar GiGiOS en otro PC
 
-Este documento existe para poder llevar `~/.config/hypr/` y `~/.config/ags/` a otra
-máquina y que todo funcione igual: bar/paneles de AGS, atajos de Hyprland, scripts de
-monitorización ("escáneres" en `hypr/scripts/`) y utilidades varias (capturas, grabación,
-portapapeles, Spotify...).
+## Instalación recomendada
 
-Generado inspeccionando el sistema actual (Arch/CachyOS). Los nombres de paquete son los
-de `pacman`/AUR; si el PC destino usa otra distro, hay que traducirlos.
+En una instalación de **Arch Linux o CachyOS**, con conexión a Internet y `paru` o `yay`
+disponible, ejecuta:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | bash
+```
+
+El instalador se encarga de:
+
+- instalar Hyprland, AGS/Astal y las herramientas del escritorio;
+- descargar la rama `laptop` mediante el repositorio bare de dotfiles;
+- respaldar los archivos locales que entren en conflicto;
+- crear los enlaces de `~/.config/ags`, `~/.config/hypr` y demás rutas XDG;
+- compilar `style.scss` a `out.css`;
+- reconstruir la caché de aplicaciones de Dolphin;
+- ejecutar la validación final.
+
+### Después del instalador
+
+Solo quedan estas decisiones personales:
+
+1. **GPU:** antes de abrir Hyprland, activa como máximo un perfil en
+   `~/GiGiOS/hypr/hyprland.conf`. Déjalos ambos desactivados para Intel o AMD sin NVIDIA;
+   usa `gpu/laptop-hibrida.conf` para un portátil Intel+NVIDIA o
+   `gpu/sobremesa-nvidia.conf` para una NVIDIA como GPU principal. Consulta la §9.
+2. **Spotify:** ejecuta `~/.config/ags/scripts/spotify-auth.sh` si quieres integrar tu
+   cuenta. Es opcional y las credenciales nunca se incluyen en Git.
+3. **Seguridad:** ejecuta una vez `sudo freshclam` para descargar las firmas de ClamAV.
+4. **Sensores:** ejecuta `sudo sensors-detect` solamente si quieres monitorización de
+   temperatura y el equipo la necesita.
+
+Finalmente, cierra y vuelve a abrir la sesión. Puedes comprobar el resultado con:
+
+```sh
+~/GiGiOS/bin/preflight.sh --installed
+ags run ~/.config/ags/app.ts
+```
+
+La foto personal, las fuentes propietarias del lock screen y la configuración de Spotify
+son opcionales; su ausencia no impide arrancar GiGiOS.
+
+### Instalación sin gestionar paquetes
+
+Si ya instalaste las dependencias o no usas Arch/CachyOS:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | INSTALL_PACKAGES=0 bash
+```
+
+En otra distribución tendrás que traducir manualmente los paquetes descritos debajo.
+
+---
+
+Las siguientes secciones son la referencia detallada de componentes, dependencias,
+hardware, datos personales y resolución de problemas. No es necesario ejecutar cada
+bloque de `pacman` después de haber usado el instalador recomendado.
 
 ## 1. Base: Hyprland + utilidades de sesión
 
@@ -24,11 +75,6 @@ sudo pacman -S hyprland hyprlock hypridle hyprpolkitagent hyprsunset
   `~/.config/gigios/display.json`). **Nota de `hyprland.conf`**: `render { cm_enabled = false }`
   está así a propósito porque el CTM de color management de Hyprland pisa el de
   `hyprsunset` y se ve lavado — no lo actives sin desactivar uno de los dos.
-- Fuente del compositor de la sesión watchdog: `hyprland-watchdog.sh` asume que Hyprland
-  corre como **servicio systemd de usuario** llamado `wayland-wm@hyprland.desktop.service`
-  (típico de sesiones gestionadas por `uwsm`/greetd con systemd). Si el otro PC lanza
-  Hyprland de otra forma (TTY directo, otro display manager), ese watchdog no tiene nada
-  que reiniciar y hay que adaptar `HYPRLAND_UNIT` o desactivar el script.
 
 ## 2. AGS (el shell en sí)
 
@@ -52,15 +98,14 @@ sudo pacman -S gjs gtk4-layer-shell gobject-introspection npm dart-sass
 Comprueba versión con `ags --version` (aquí: `3.1.0`). No hay `package.json` — AGS resuelve
 todo en runtime, no hace falta `npm install`.
 
-**Compilar el CSS** — `out.css`/`out.css.map` son artefactos generados de `style.scss`, no
-se editan a mano y **no basta con copiarlos**: en el PC nuevo, tras copiar el repo, corre:
+**Compilar el CSS** — `out.css` es un artefacto generado de `style.scss` y no se edita a
+mano. `install.sh` lo recompila automáticamente. Si modificas SCSS después, corre:
 
 ```sh
 cd ~/.config/ags && sass style.scss out.css
 ```
 
-(o deja que corra automáticamente si tienes algún watcher; aquí no hay ninguno configurado,
-así que es un paso manual tras cada `git pull`/copia).
+No hace falta hacerlo manualmente durante la primera instalación.
 
 **Tests de Node** (opcionales, solo para desarrollo, no para que el shell funcione):
 
@@ -114,8 +159,7 @@ Qué usa cada cosa:
   ```sh
   sudo pacman -S libpulse pipewire
   ```
-- **`wf-recorder`** — grabación de pantalla (`SUPER+P` toggle vía `record.sh`,
-  `SUPER+SHIFT+P` con región vía `slurp`).
+- **`wf-recorder`** — grabación de una región con `SUPER+SHIFT+P` vía `slurp`.
 - **`qalculate-gtk`** — calculadora (`XF86Calculator`).
 - **`nm-connection-editor`** / **`blueman-manager`** — los abre AGS desde QuickSettings
   para "más opciones" de red/bluetooth.
@@ -154,14 +198,13 @@ kbuildsycoca6 --noincremental
 ## 5. Wallpaper
 
 ```sh
-paru -S awww
+sudo pacman -S awww
 ```
 
-`awww` (fork/paquete específico, **no confundir con `swww`**) se lanza como
+`awww` (**no confundir con `swww`**) se lanza como
 `awww-daemon` en `autostart.conf`, y `scripts/wallpaper.sh` hace `awww img "$WALLPAPER"`
-sobre un fichero elegido al azar de `~/Wallpapers/*.{jpg,png}` — crea esa carpeta y pon ahí
-tus fondos en el PC nuevo (la carpeta no viaja sola con el dotfiles porque no vive dentro de
-`~/.config`).
+sobre un fichero elegido al azar de `~/GiGiOS/Wallpapers/*.{jpg,png}`. El repositorio ya
+incluye fondos iniciales; puedes sustituirlos por los tuyos.
 
 ## 6. Portapapeles y utilidades base
 
@@ -214,7 +257,6 @@ Detalle por script:
 | `bt-monitor.sh` | pérdida de conexión Bluetooth | `dbus-monitor` (`dbus`) + `bluetoothctl` (`bluez-utils`) |
 | `usb-monitor.sh` | conectar/desconectar USB | `udevadm` (systemd, ya en el sistema base) |
 | `boot-healthcheck.sh` | chequeo general al arrancar (servicios fallidos, errores de journal, disco, NVIDIA, SMART, batería, fans, audio, bluetooth, USB) | autodescubre hardware, así que no falla si falta algo; pero para chequeos completos quiere `smartctl` (`smartmontools`), `sensors` (`lm_sensors`), `lspci`/`lsusb` (`pciutils`/`usbutils`), `rfkill` (`util-linux`), `aplay` (`alsa-utils`), `nvidia-smi` (`nvidia-utils`) |
-| `hyprland-watchdog.sh` | reinicia Hyprland si se cuelga | ver nota de la sección 1 sobre `wayland-wm@hyprland.desktop.service` |
 
 ### 8.1 Escaneo antivirus, integridad y sandbox
 
@@ -274,11 +316,8 @@ GiGiOS/hypr/scripts/scan-file.sh
 GiGiOS/hypr/scripts/run-untrusted.sh
 ```
 
-**Estado de esta rama al redactar esta guía:** esos cuatro archivos están referenciados
-por el código, pero no están versionados. El escaneo automático básico de
-`oom-monitor.sh` funciona con ClamAV, pero los botones de escaneo manual/sandbox no, y la
-importación de `SecuritySection` impide iniciar el panel de AGS. Hay que recuperar esos
-archivos antes de considerar completa la migración.
+Los cuatro archivos están versionados y `bin/preflight.sh` comprueba su presencia y los
+permisos ejecutables de los scripts.
 
 ## 9. Elegir la configuración de GPU correcta
 
@@ -300,16 +339,13 @@ perfiles al mismo tiempo.
   escoger la GPU automáticamente; crea un perfil específico únicamente si necesitas
   fijar dispositivos o solucionar una particularidad del driver.
 
-Estado actual del repositorio: solo está versionado `gpu/laptop-hibrida.conf`.
-`hyprland.conf` menciona `gpu/sobremesa-nvidia.conf`, pero ese archivo todavía no existe;
-hay que recuperarlo o crearlo antes de usar esta rama en el sobremesa NVIDIA.
+Los perfiles de portátil híbrido y sobremesa NVIDIA están versionados. Ninguno se carga
+por defecto para que el primer arranque sea portable: activa exactamente uno solo si lo
+necesita tu hardware.
 
-También revisa por separado `envs/firefox.conf`, porque ahora fuerza
-`LIBVA_DRIVER_NAME=nvidia` y `MOZ_DISABLE_RDD_SANDBOX=1`. Es apropiado únicamente cuando
-Firefox realmente decodifica vídeo con NVIDIA. En un sistema AMD/Intel, o en el portátil
-híbrido si Firefox corre sobre Intel, elimina esas dos variables o deja de cargar el
-archivo. Sin este ajuste puede fallar la aceleración de vídeo y se desactiva
-innecesariamente parte del sandbox multimedia de Firefox.
+`envs/firefox.conf` solo activa Wayland/EGL y no fuerza un driver VA-API ni desactiva el
+sandbox multimedia. Los ajustes exclusivos de NVIDIA están aislados en el perfil de
+sobremesa.
 
 ```sh
 # solo si hay NVIDIA
@@ -332,8 +368,8 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
   de esta máquina (ej. `~/Documentos/Github/Ravage`); si esas rutas no existen en el PC
   nuevo, la sección Git de Orion simplemente no los mostrará — no es un error, solo revisa
   que las rutas sigan siendo válidas o vuelve a dejar que el auto-scan los descubra.
-- **`~/Wallpapers/`** no viaja con `~/.config` — cópiala aparte o `wallpaper.sh` no
-  encontrará nada que mostrar.
+- **`~/GiGiOS/Wallpapers/`** viaja con este repositorio y contiene los fondos que usa
+  `wallpaper.sh`.
 - Los JSON en `~/.config/gigios/` (`display.json`, `system_state.json`,
   `preferences.json`, `notif-*.json`, etc.) sí son datos de usuario y sí conviene copiarlos
   si quieres el mismo estado (brillo, night light, reglas de notificación...) en el PC
@@ -348,7 +384,8 @@ Ejecuta esto en la máquina origen antes del push:
 ```sh
 cd ~/Github-Repos/my-linux-dotfiles
 git status --short
-GiGiOS/bin/link.sh --check
+GiGiOS/bin/preflight.sh
+GIGIOS="$PWD/GiGiOS" GiGiOS/bin/link.sh --check
 bash -n GiGiOS/install.sh GiGiOS/inicializador/init.sh GiGiOS/hypr/scripts/*.sh
 bin/verify-files.sh
 ```
@@ -372,51 +409,35 @@ for f in \
 done
 ```
 
-En el estado actual de la rama `laptop`, esos archivos se referencian pero faltan. También
-falta `GiGiOS/assets/face.png`, que está ignorado por `.gitignore`; por eso
-`link.sh --check` fallará al validar el avatar. Recupera y añade conscientemente estos archivos
-antes del push. Un `SETUP.md` completo no puede sustituir código que no está en Git.
+El preflight falla si falta código obligatorio. `assets/face.png` es deliberadamente
+opcional y está ignorado para no publicar una foto personal; sin él se muestran iniciales.
 
-### Instalación
+### Resumen de la instalación
 
-El instalador oficial hace el checkout bare sobre `$HOME`, respalda conflictos, crea los
-enlaces, instala Dolphin/KDE tools y reconstruye su caché:
+La instalación completa está al principio de esta guía. Como lista de comprobación final:
 
-```sh
-curl -sSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | bash
-```
-
-No instala todavía todo el escritorio; después sigue estas secciones:
-
-1. Instala Hyprland + utilidades de sesión (§1).
-2. Instala AGS vía AUR + sus dependencias (§2) y corre
-   `sass style.scss out.css`.
-3. Instala fuentes (§3) y copia las que no están empaquetadas.
-4. Instala el resto de utilidades de escritorio (§4, §6).
-5. Corre `spotify-auth.sh` una vez (§7) para regenerar `~/.config/gigios/spotify-creds.json`.
-6. Instala las dependencias de monitorización y seguridad (§8 y §8.1), corre
+1. Comprueba y activa, si corresponde, un único perfil GPU (§9).
+2. Copia las fuentes no empaquetadas si quieres reproducir exactamente el lock screen (§3).
+3. Corre `spotify-auth.sh` una vez (§7) para regenerar las credenciales.
+4. Corre
    `sudo freshclam` y `sudo sensors-detect` cuando corresponda.
-7. Ajusta lo específico de esta máquina (§10): `monitors.conf`, foto de perfil
-   (`assets/face.png`), el perfil de `gpu/` y `envs/firefox.conf` según la GPU,
-   `~/Wallpapers/`.
-8. Si usaste `install.sh`, las configuraciones ya están colocadas. Restaura
+5. Ajusta `monitors.conf`, el avatar opcional y los fondos si quieres personalizarlos.
+6. Restaura
    `~/.config/gigios/` solo si quieres conservar el mismo estado y recarga Hyprland
    (`hyprctl reload` o vuelve a iniciar sesión). Comprueba con
    `ags run ~/.config/ags/app.ts` que el shell arranca sin errores.
-9. Corre `~/GiGiOS/bin/link.sh --check` y `kbuildsycoca6 --noincremental`.
-10. Copia las fuentes manuales, pon tus fondos (§12) y valida tu foto (§13).
+7. Corre `~/GiGiOS/bin/preflight.sh --installed`.
 
-## 12. Cómo poner fondos de pantalla (carpeta `~/Wallpapers`)
+## 12. Cómo poner fondos de pantalla (`~/GiGiOS/Wallpapers`)
 
 El wallpaper lo gestiona `awww` (daemon `awww-daemon`, lanzado en `autostart.conf`) más
 `hypr/scripts/wallpaper.sh`, que también se lanza una vez al arrancar la sesión.
 
 **Para tener fondos disponibles:**
 
-1. Crea la carpeta si no existe y copia ahí tus imágenes:
+1. Copia imágenes al directorio versionado:
    ```sh
-   mkdir -p ~/Wallpapers
-   cp /ruta/a/tus/fotos/*.png /ruta/a/tus/fotos/*.jpg ~/Wallpapers/
+   cp /ruta/a/tus/fotos/*.png /ruta/a/tus/fotos/*.jpg ~/GiGiOS/Wallpapers/
    ```
 2. **El script solo busca `*.jpg` y `*.png`** (glob exacto en `wallpaper.sh`:
    `"$WALLPAPER_DIR"/*.{jpg,png}`). Si tus imágenes son `.jpeg`, `.webp` o `.gif`,
@@ -431,15 +452,14 @@ El wallpaper lo gestiona `awww` (daemon `awww-daemon`, lanzado en `autostart.con
 ~/.config/hypr/scripts/wallpaper.sh
 
 # Poner una imagen concreta a mano
-awww img ~/Wallpapers/mi-foto-favorita.png --transition-type grow --transition-duration 1.5
+awww img ~/GiGiOS/Wallpapers/mi-foto-favorita.png --transition-type grow --transition-duration 1.5
 ```
 
 No hay atajo de teclado asignado para esto en `keybinds.conf` — si quieres uno, se añadiría
 algo como `bind = $mainMod, W, exec, ~/.config/hypr/scripts/wallpaper.sh` (no está puesto
 actualmente, solo como referencia si lo quieres tú mismo).
 
-**Importante para la migración**: `~/Wallpapers/` está fuera de `~/.config`, así que copiar
-`hypr/` y `ags/` **no** trae tus fondos — hay que copiar esa carpeta aparte.
+Los fondos están dentro de GiGiOS, por lo que viajan con un clon completo del repositorio.
 
 ## 13. Cómo poner tu foto de perfil
 
@@ -490,7 +510,7 @@ migrar y qué se regenera solo.
 | `~/.local/share/orion/profiles/*.json` | sesiones guardadas de Orion (`ProfileManager.ts`) |
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `widget/power/powerState.ts`) |
 | `~/GiGiOS/assets/face.png` | foto de perfil (master versionado); `link.sh` la copia a `~/.cache/gigios/face.png` (§13) |
-| `~/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
+| `~/GiGiOS/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
 | `~/.config/gigios/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
 
 ### 14.2 Config/código del dotfiles — genérico, viaja igual para cualquiera que use este setup
@@ -507,15 +527,13 @@ directorios que sueles copiar**:
 
 | Ruta | Por qué importa |
 |---|---|
-| `~/.local/bin/compact-workspaces.fish` | referenciado desde `keybinds.conf` (`SUPER+SHIFT+N`); viaja como `.local/bin/compact-workspaces.fish` en el checkout bare |
-| `~/.local/bin/toggle-gaps-borders.fish` | referenciado desde `keybinds.conf` (`SUPER+SHIFT+E`) |
+| `~/.config/hypr/scripts/compact-workspaces.sh` | compacta workspaces (`SUPER+SHIFT+N`); incluido en GiGiOS |
+| `~/.config/hypr/scripts/toggle-gaps-borders.sh` | alterna gaps (`SUPER+SHIFT+E`); incluido en GiGiOS |
 | `~/.config/inicializador/init.sh` | lo lanza `autostart.conf`; está versionado en `GiGiOS/inicializador/` y `GiGiOS/bin/link.sh` crea el enlace |
 | `~/.local/share/fonts/SF Pro Display/*.otf` | fuente del lock screen, no empaquetada (§3) |
 | `~/.local/share/fonts/steelfish outline regular/*.otf` | fuente del lock screen, no empaquetada (§3) |
 
-Los dos scripts `.local/bin` sí viajan al hacer el checkout bare completo sobre `$HOME`.
-Las fuentes manuales siguen siendo las únicas entradas de esta tabla que hay que copiar
-por separado.
+Las fuentes manuales son las únicas entradas de esta tabla que hay que copiar por separado.
 
 ### 14.4 Rutas efímeras — se regeneran solas, no hace falta copiarlas ni preocuparse
 
@@ -523,7 +541,7 @@ por separado.
 |---|---|
 | `/tmp/ags-bar-toggle` | fichero señal para el toggle manual del bar (`CTRL+SUPER+SPACE`) |
 | `/tmp/ags-ws-preview-*.png` | capturas de `grim` para el preview de workspace al clic-derecho |
-| `/tmp/hypr-gaps-state` | marca si `toggle-gaps-borders.fish` está en modo "sin gaps" |
+| `$XDG_RUNTIME_DIR/gigios-gaps-disabled` | marca si el toggle está en modo "sin gaps" |
 | `~/.cache/ags/media` | carátulas de álbum cacheadas por el reproductor multimedia |
 | `~/.config/hypr/logs/boot-healthcheck.log`, `~/.config/hypr/logs/watchdog.log` | logs propios, rotan solos, no son necesarios para funcionar |
 
