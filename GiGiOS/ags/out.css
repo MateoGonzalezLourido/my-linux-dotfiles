@@ -3337,13 +3337,25 @@ window.np-window.csd decoration {
   box-shadow: none;
   font-family: "MesloLGS Nerd Font";
   color: #e2e2e2;
-  animation: np-slide-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .np-panel button {
   outline: none;
   padding: 0;
   margin: 0;
   transition: all 120ms ease;
+}
+
+.np-panel.np-entering {
+  animation: np-panel-slide-in 280ms cubic-bezier(0.16, 1, 0.3, 1), np-panel-fade-in 45ms linear;
+}
+
+.np-panel.np-preparing {
+  opacity: 0;
+  transform: translateX(220px);
+}
+
+.np-panel.np-leaving {
+  animation: np-panel-slide-out 280ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .np-header {
@@ -3435,14 +3447,28 @@ window.np-window.csd decoration {
   margin: 0;
 }
 
-@keyframes np-slide-in {
+@keyframes np-panel-slide-in {
   from {
-    transform: translateX(16px);
-    opacity: 0;
+    transform: translateX(220px);
   }
   to {
     transform: translateX(0);
+  }
+}
+@keyframes np-panel-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
     opacity: 1;
+  }
+}
+@keyframes np-panel-slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(410px);
   }
 }
 .np-filter-scroll {

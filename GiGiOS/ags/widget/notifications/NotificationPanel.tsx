@@ -1,6 +1,6 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState, For, With, onCleanup } from "ags"
+import { createState, For, With, onCleanup, type Accessor } from "ags"
 import GLib from "gi://GLib"
 import AstalNotifd from "gi://AstalNotifd"
 import {
@@ -179,7 +179,13 @@ function AppFilterChips() {
 
 type ListView = "hidden" | "flat" | "grouped"
 
-function NotificationList() {
+function NotificationList({
+  maxContentHeight,
+  rendered,
+}: {
+  maxContentHeight: number
+  rendered: Accessor<boolean>
+}) {
   const empty = notifications((ns) => (ns?.length ?? 0) === 0)
   let scrollRef: Gtk.ScrolledWindow | null = null
 
@@ -202,10 +208,10 @@ function NotificationList() {
   // NotificationList se construye una sola vez (no se remonta), así que estas dos
   // suscripciones viven toda la sesión sin fugarse.
   const currentView = (): ListView =>
-    !notifPanelVisible.get() ? "hidden" : groupByApp.get() ? "grouped" : "flat"
+    !rendered.get() ? "hidden" : groupByApp.get() ? "grouped" : "flat"
   const [view, setView] = createState<ListView>(currentView())
   const updView = () => setView(currentView())
-  notifPanelVisible.subscribe(updView)
+  rendered.subscribe(updView)
   groupByApp.subscribe(updView)
 
   return (
@@ -213,6 +219,8 @@ function NotificationList() {
       cssClasses={["np-list-scroll"]}
       hscrollbarPolicy={Gtk.PolicyType.NEVER}
       vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+      propagateNaturalHeight={true}
+      maxContentHeight={maxContentHeight}
       vexpand
       $={(self: Gtk.ScrolledWindow) => { scrollRef = self }}
     >
@@ -361,13 +369,69 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, RIGHT } = Astal.WindowAnchor
   const PANEL_TOTAL_WIDTH = 407
   const PANEL_PANEL_WIDTH = 389
+  // Espacio reservado para la barra superior, la cabecera del panel y un
+  // pequeño margen inferior. La lista crece de forma natural hasta este límite.
+  const MAX_LIST_HEIGHT = Math.max(210, gdkmonitor.get_geometry().height - 120)
   const autoClose = panelAutoClose(closeNotifPanel, 400, notifPanelVisible)
+  // La animación dura 280 ms; estos 20 ms extra garantizan que GTK pinte el
+  // último frame con el panel completamente fuera antes de ocultar la ventana.
+  const PANEL_EXIT_MS = 300
+  const PANEL_PREPARE_MS = 32
+  const [panelRendered, setPanelRendered] = createState(notifPanelVisible.get())
   let panelRef: any = null
+  let enterTimer: number | null = null
+  let exitTimer: number | null = null
+
+  function beginEntrance(): void {
+    if (enterTimer !== null) GLib.source_remove(enterTimer)
+    panelRef?.remove_css_class("np-leaving")
+    panelRef?.remove_css_class("np-entering")
+    panelRef?.add_css_class("np-preparing")
+    setPanelRendered(true)
+
+    // Dos fotogramas aproximadamente: da tiempo a crear, medir y estilizar los
+    // items antes de iniciar la animación visible, especialmente en la 1.ª apertura.
+    enterTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_PREPARE_MS, () => {
+      panelRef?.remove_css_class("np-preparing")
+      panelRef?.add_css_class("np-entering")
+      enterTimer = null
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  // La ventana permanece creada mientras está oculta, así que la clase debe
+  // retirarse al cerrar y añadirse de nuevo en cada apertura para reiniciar CSS.
+  // `panelRendered` retrasa el ocultado hasta que acaba la animación de salida.
+  notifPanelVisible.subscribe(() => {
+    if (notifPanelVisible.get()) {
+      if (exitTimer !== null) {
+        GLib.source_remove(exitTimer)
+        exitTimer = null
+      }
+      beginEntrance()
+      return
+    }
+
+    if (enterTimer !== null) {
+      GLib.source_remove(enterTimer)
+      enterTimer = null
+    }
+    panelRef?.remove_css_class("np-preparing")
+    panelRef?.remove_css_class("np-entering")
+    panelRef?.add_css_class("np-leaving")
+    if (exitTimer !== null) GLib.source_remove(exitTimer)
+    exitTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_EXIT_MS, () => {
+      setPanelRendered(false)
+      panelRef?.remove_css_class("np-leaving")
+      exitTimer = null
+      return GLib.SOURCE_REMOVE
+    })
+  })
 
   const win = (
     <window
       name="notification-panel"
-      visible={notifPanelVisible}
+      visible={panelRendered}
       gdkmonitor={gdkmonitor}
       layer={Astal.Layer.TOP}
       exclusivity={Astal.Exclusivity.NORMAL}
@@ -389,13 +453,22 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
 
       <box cssClasses={["np-wrapper"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0}>
         <box cssClasses={["np-bar-connector"]} valign={Gtk.Align.START} />
-        <box cssClasses={["np-panel"]} widthRequest={PANEL_PANEL_WIDTH} orientation={Gtk.Orientation.VERTICAL} spacing={0} $={(self: any) => { panelRef = self }}>
+        <box
+          cssClasses={["np-panel"]}
+          widthRequest={PANEL_PANEL_WIDTH}
+          orientation={Gtk.Orientation.VERTICAL}
+          spacing={0}
+          $={(self: any) => {
+            panelRef = self
+            if (notifPanelVisible.get()) beginEntrance()
+          }}
+        >
           <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
 
           {/* Vista principal (los ajustes ahora viven en una ventana centrada aparte) */}
           <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
             <PanelHeader />
-            <NotificationList />
+            <NotificationList maxContentHeight={MAX_LIST_HEIGHT} rendered={panelRendered} />
             <PanelFooter />
           </box>
         </box>
