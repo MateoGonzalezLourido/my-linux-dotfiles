@@ -24,6 +24,20 @@ die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
 
 command -v git >/dev/null || die "git no está instalado."
 
+# Dolphin necesita kde-cli-tools para construir la caché de aplicaciones que
+# alimenta el menú "Abrir con..." fuera de una sesión completa de Plasma.
+if command -v pacman >/dev/null; then
+  missing_packages=()
+  pacman -Q dolphin >/dev/null 2>&1 || missing_packages+=(dolphin)
+  pacman -Q kde-cli-tools >/dev/null 2>&1 || missing_packages+=(kde-cli-tools)
+  if ((${#missing_packages[@]})); then
+    info "Instalando dependencias de Dolphin: ${missing_packages[*]}"
+    sudo pacman -S --needed "${missing_packages[@]}"
+  fi
+else
+  warn "No encontré pacman; comprobá manualmente que Dolphin y kde-cli-tools estén instalados."
+fi
+
 # --- 1. Clonar el repo bare (o reutilizar) ---
 if [ -d "$DOTGIT" ]; then
   info "Ya existe $DOTGIT; hago fetch en vez de clonar."
@@ -68,7 +82,18 @@ else
   warn "No encontré $LINK. ¿El checkout trajo GiGiOS/bin/link.sh?"
 fi
 
-# --- 4. Notas finales ---
+# --- 4. Reconstruir la caché de aplicaciones de KDE/Dolphin ---
+if command -v kbuildsycoca6 >/dev/null; then
+  info "Reconstruyendo la caché de aplicaciones de KDE 6 ..."
+  kbuildsycoca6 --noincremental
+elif command -v kbuildsycoca5 >/dev/null; then
+  info "Reconstruyendo la caché de aplicaciones de KDE 5 ..."
+  kbuildsycoca5 --noincremental
+else
+  warn "No encontré kbuildsycoca6 ni kbuildsycoca5; el menú 'Abrir con...' podría quedar vacío."
+fi
+
+# --- 5. Notas finales ---
 echo
 info "Instalación completa."
 echo "  • Rama:     $BRANCH"

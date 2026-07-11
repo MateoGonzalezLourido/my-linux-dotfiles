@@ -136,7 +136,15 @@ $fileManager = dolphin
 ```
 
 ```sh
-sudo pacman -S kitty dolphin
+sudo pacman -S --needed kitty dolphin kde-cli-tools
+```
+
+`kde-cli-tools` permite que Dolphin descubra las aplicaciones instaladas para el menú
+**Abrir con…**. La configuración incluye `~/.config/menus/applications.menu`; después de
+instalarla, se puede reconstruir manualmente la caché con:
+
+```sh
+kbuildsycoca6 --noincremental
 ```
 
 **Menú de apagado** — `keybinds.conf` intenta `hyprshutdown` y si no existe cae a
