@@ -1,7 +1,8 @@
 import AstalBattery from "gi://AstalBattery"
+import GLib from "gi://GLib"
 import { For, createState } from "ags"
 import { Gtk } from "ags/gtk4"
-import { barVisible, widgetsRefresh } from "../state"
+import { widgetsRefresh } from "../state"
 
 const SEGMENTS = 5
 const LOW_BATTERY_THRESHOLD = 10
@@ -12,6 +13,25 @@ export default function Battery() {
   // AstalBattery puede existir como servicio aunque el equipo no tenga una
   // batería física. En ese caso no se muestra ningún hueco en la barra.
   if (!bat?.isPresent) return (<box visible={false} />)
+
+  const powerNowPath = [
+    bat.nativePath ? `${bat.nativePath}/power_now` : "",
+    "/sys/class/power_supply/BAT0/power_now",
+  ].find((path) => path && GLib.file_test(path, GLib.FileTest.EXISTS))
+
+  const readInstantPower = () => {
+    if (!powerNowPath) return null
+    try {
+      const [ok, bytes] = GLib.file_get_contents(powerNowPath)
+      if (!ok) return null
+      const microwatts = Number(new TextDecoder().decode(bytes).trim())
+      return Number.isFinite(microwatts) && microwatts >= 0 ? microwatts / 1_000_000 : null
+    } catch {
+      return null
+    }
+  }
+
+  let instantPower = readInstantPower()
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600)
@@ -29,9 +49,10 @@ export default function Battery() {
     } else {
       text = bat.timeToEmpty > 0 ? `- ${formatTime(bat.timeToEmpty)}` : `- ${Math.round(bat.percentage * 100)}`
     }
-    if (bat.energyRate > 0) {
+    const watts = instantPower ?? Math.abs(bat.energyRate)
+    if (watts > 0) {
       const sign = bat.charging ? "+" : "-"
-      text += `\n${sign} ${bat.energyRate.toFixed(1)}w`
+      text += `\n${sign} ${watts.toFixed(1)}w`
     }
     return text
   }
@@ -74,23 +95,30 @@ export default function Battery() {
   const [segmentClasses, setSegmentClasses] = createState(getSegmentClasses())
   const [tooltip, setTooltip]   = createState(getTooltip())
 
+  // AstalBattery/UPower puede mantener energyRate cacheado durante bastante
+  // tiempo. Leer power_now directamente fuerza una muestra nueva del kernel.
+  const tooltipTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 4000, () => {
+    instantPower = readInstantPower()
+    setTooltip(getTooltip())
+    return GLib.SOURCE_CONTINUE
+  })
+
   const sync = () => {
     setBodyClass(["battery-body", statusClass()])
     setSegmentClasses(getSegmentClasses())
     setTooltip(getTooltip())
   }
 
-  const updateVars = () => {
-    if (!barVisible.get()) return
-    sync()
-  }
-
-  bat.connect("notify::percentage",    updateVars)
-  bat.connect("notify::charging",      updateVars)
-  bat.connect("notify::state",         updateVars)   // cargando→cargado (FULLY_CHARGED)
-  bat.connect("notify::time-to-empty", updateVars)
-  bat.connect("notify::time-to-full",  updateVars)
-  bat.connect("notify::energy-rate",   updateVars)
+  // Mantener el estado local actualizado incluso con la barra oculta. Ignorar
+  // estos eventos creaba una carrera al mostrarla: widgetsRefresh sincronizaba
+  // antes de que barVisible pasara a true y cualquier cambio durante esa ventana
+  // se perdía hasta la siguiente notificación de UPower.
+  bat.connect("notify::percentage",    sync)
+  bat.connect("notify::charging",      sync)
+  bat.connect("notify::state",         sync)   // carga↔descarga y cargando→cargado
+  bat.connect("notify::time-to-empty", sync)
+  bat.connect("notify::time-to-full",  sync)
+  bat.connect("notify::energy-rate",   sync)
 
   // Al volver visible, sincronizar con el estado real del hardware.
   // gnim invoca el callback sin argumentos → hay que leer .get().
@@ -106,6 +134,7 @@ export default function Battery() {
       halign={Gtk.Align.CENTER}
       valign={Gtk.Align.CENTER}
       tooltipText={tooltip}
+      $={(self: Gtk.Box) => self.connect("destroy", () => GLib.source_remove(tooltipTimer))}
     >
       <box
         cssClasses={bodyClass}
