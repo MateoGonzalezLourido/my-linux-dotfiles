@@ -774,3 +774,40 @@ popover.background {
     border: 0.5px solid rgba($j-accent-teal, 0.15);
   }
 }
+
+// ── Temas / Wallpapers (RiceSection) ─────────────────────────
+.rice-content {
+  padding: 12px 14px;
+}
+
+.rice-header {
+  margin-bottom: 6px;
+}
+
+.rice-random-btn {
+  padding: 5px 12px;
+  border-radius: $j-radius-sm;
+  border: 0.5px solid rgba($j-accent, 0.2);
+  background: rgba($j-accent, 0.08);
+  color: $j-accent;
+  &:hover { background: rgba($j-accent, 0.16); border-color: $j-border-active; }
+}
+
+.rice-toggle-row {
+  padding: 6px 2px 12px;
+  border-bottom: 0.5px solid $j-border-subtle;
+  margin-bottom: 10px;
+}
+
+.rice-thumb {
+  padding: 0;
+  border-radius: $j-radius-md;
+  border: 2px solid transparent;
+  background: transparent;
+  &:hover { border-color: rgba($j-accent-purple, 0.5); }
+  &.wp-current { border-color: $j-accent-purple; }
+}
+
+.rice-thumb-img {
+  border-radius: $j-radius-sm;
+}
