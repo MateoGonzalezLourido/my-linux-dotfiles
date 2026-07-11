@@ -33,7 +33,10 @@ import EmptyState from "../components/EmptyState"
 function PanelHeader() {
   const notifd = AstalNotifd.get_default()
   const unread = notifications((ns) => ns?.filter(n => !n.read).length ?? 0)
+  const hasNotifs = notifications((ns) => (ns?.length ?? 0) > 0)
   const [dnd, setDnd] = createState(notifd.dontDisturb)
+  const [confirmClear, setConfirmClear] = createState(false)
+  let confirmTimer: number | null = null
   notifd.connect("notify::dont-disturb", () => setDnd(notifd.dontDisturb))
 
   return (
@@ -48,6 +51,40 @@ function PanelHeader() {
           onClicked={markAllRead}
         >
           <label cssClasses={["np-unread-count"]} label={unread((u) => String(u))} />
+        </button>
+
+        <button
+          cssClasses={["np-icon-btn"]}
+          visible={unread((u) => u > 0)}
+          tooltipText="Marcar todas como leídas"
+          onClicked={markAllRead}
+        >
+          <label cssClasses={["np-btn-icon"]} label="󰄵" />
+        </button>
+
+        <button
+          cssClasses={confirmClear((confirm) => confirm
+            ? ["np-icon-btn", "danger", "confirm"]
+            : ["np-icon-btn", "danger"])}
+          visible={hasNotifs}
+          tooltipText={confirmClear((confirm) => confirm ? "Pulsa de nuevo para confirmar" : "Borrar todas")}
+          onClicked={() => {
+            if (confirmClear.get()) {
+              clearAllNotifications()
+              setConfirmClear(false)
+              if (confirmTimer !== null) GLib.source_remove(confirmTimer)
+            } else {
+              setConfirmClear(true)
+              if (confirmTimer !== null) GLib.source_remove(confirmTimer)
+              confirmTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+                setConfirmClear(false)
+                confirmTimer = null
+                return GLib.SOURCE_REMOVE
+              })
+            }
+          }}
+        >
+          <label cssClasses={["np-btn-icon"]} label={confirmClear((confirm) => confirm ? "󰃰" : "󰮚")} />
         </button>
 
         <button
@@ -144,6 +181,21 @@ type ListView = "hidden" | "flat" | "grouped"
 
 function NotificationList() {
   const empty = notifications((ns) => (ns?.length ?? 0) === 0)
+  let scrollRef: Gtk.ScrolledWindow | null = null
+
+  // <For> vuelve a insertar los widgets cuando cambia el array, incluso si solo
+  // se ha marcado una notificación como leída. Restaurar el ajuste evita que GTK
+  // lleve el viewport al primer elemento enfocable después de esa reinserción.
+  function preserveScrollPosition(update: () => void): void {
+    const adjustment = scrollRef?.get_vadjustment()
+    const previousValue = adjustment?.get_value() ?? 0
+    update()
+    if (!adjustment) return
+    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+      adjustment.set_value(previousValue)
+      return GLib.SOURCE_REMOVE
+    })
+  }
 
   // Vista activa combinando visibilidad + modo agrupado en un solo estado, para poder
   // usar un ÚNICO <With> (anidar dos <With> = Fragments anidados, no soportado por gnim).
@@ -162,6 +214,7 @@ function NotificationList() {
       hscrollbarPolicy={Gtk.PolicyType.NEVER}
       vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
       vexpand
+      $={(self: Gtk.ScrolledWindow) => { scrollRef = self }}
     >
       <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
         <EmptyState
@@ -182,21 +235,27 @@ function NotificationList() {
             scope y DESTRUYE todos los widgets de items — liberando su RAM en vez de
             dejarlos residentes. Al reabrir se reconstruyen (iconos ya cacheados). */}
         <With value={view}>
-          {(v) => v === "flat" ? <FlatList /> : v === "grouped" ? <GroupedList /> : null}
+          {(v) => v === "flat"
+            ? <FlatList preserveScroll={preserveScrollPosition} />
+            : v === "grouped"
+              ? <GroupedList preserveScroll={preserveScrollPosition} />
+              : null}
         </With>
       </box>
     </Gtk.ScrolledWindow>
   )
 }
 
-function FlatList() {
+function FlatList({ preserveScroll }: { preserveScroll: (update: () => void) => void }) {
   // Este componente solo existe mientras el panel está abierto en modo lista (lo controla
   // <With>), así que basta con seguir a `notifications` para actualizarse en vivo. La
   // suscripción se cancela al desmontar via onCleanup para no fugarse entre reaperturas.
   const [list, setList] = createState<StoredNotification[]>(
     notifications.get().slice().reverse()
   )
-  onCleanup(notifications.subscribe(() => setList(notifications.get().slice().reverse())))
+  onCleanup(notifications.subscribe(() => {
+    preserveScroll(() => setList(notifications.get().slice().reverse()))
+  }))
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
@@ -213,7 +272,7 @@ function FlatList() {
 
 type GroupEntry = { appName: string; notifs: StoredNotification[] }
 
-function GroupedList() {
+function GroupedList({ preserveScroll }: { preserveScroll: (update: () => void) => void }) {
   // Igual que FlatList: solo existe mientras el panel está abierto en modo agrupado
   // (lo controla <With>). El filtro solo hace show/hide del grupo completo.
   const getGroups = (): GroupEntry[] => {
@@ -227,7 +286,9 @@ function GroupedList() {
     return Array.from(map.entries()).map(([appName, notifs]) => ({ appName, notifs: notifs.slice().reverse() }))
   }
   const [groups, setGroups] = createState<GroupEntry[]>(getGroups())
-  onCleanup(notifications.subscribe(() => setGroups(getGroups())))
+  onCleanup(notifications.subscribe(() => {
+    preserveScroll(() => setGroups(getGroups()))
+  }))
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
@@ -274,27 +335,12 @@ function AppGroup({ appName, notifs }: { appName: string; notifs: StoredNotifica
 // ── Footer (flotante sobre la lista via Overlay) ───────────────────────────────
 
 function PanelFooter() {
-  const [confirmClear, setConfirmClear] = createState(false)
-  const hasNotifs = notifications((ns) => (ns?.length ?? 0) > 0)
-  const unread = notifications((ns) => ns?.filter(n => !n.read).length ?? 0)
   const hasSelected = selectedIds((s) => (s?.size ?? 0) > 0)
-  let confirmTimer: number | null = null
 
   return (
-    <box cssClasses={["np-footer"]} spacing={4}>
-      <button
-        cssClasses={["np-icon-btn"]}
-        visible={unread((u) => u > 0)}
-        onClicked={markAllRead}
-      >
-        <label cssClasses={["np-btn-icon"]} label="󰄵" />
-      </button>
-
-      <box hexpand />
-
+    <box cssClasses={["np-footer"]} spacing={4} visible={hasSelected}>
       <button
         cssClasses={["np-icon-btn", "danger"]}
-        visible={hasSelected}
         onClicked={() => {
           clearSelected()
           setSelectionMode(false)
@@ -305,28 +351,6 @@ function PanelFooter() {
           <label cssClasses={["np-footer-count"]} label={selectedIds((s) => String(s.size))} />
         </box>
       </button>
-
-      <button
-        cssClasses={confirmClear((c) => c ? ["np-icon-btn", "danger", "confirm"] : ["np-icon-btn", "danger"])}
-        visible={hasNotifs}
-        onClicked={() => {
-          if (confirmClear.get()) {
-            clearAllNotifications()
-            setConfirmClear(false)
-            if (confirmTimer !== null) GLib.source_remove(confirmTimer)
-          } else {
-            setConfirmClear(true)
-            if (confirmTimer !== null) GLib.source_remove(confirmTimer)
-            confirmTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
-              setConfirmClear(false)
-              confirmTimer = null
-              return GLib.SOURCE_REMOVE
-            })
-          }
-        }}
-      >
-        <label cssClasses={["np-btn-icon"]} label={confirmClear((c) => c ? "󰃰" : "󰮚")} />
-      </button>
     </box>
   )
 }
@@ -335,8 +359,8 @@ function PanelFooter() {
 
 export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, RIGHT } = Astal.WindowAnchor
-  const PANEL_TOTAL_WIDTH = 367
-  const PANEL_PANEL_WIDTH = 349
+  const PANEL_TOTAL_WIDTH = 407
+  const PANEL_PANEL_WIDTH = 389
   const autoClose = panelAutoClose(closeNotifPanel, 400, notifPanelVisible)
   let panelRef: any = null
 

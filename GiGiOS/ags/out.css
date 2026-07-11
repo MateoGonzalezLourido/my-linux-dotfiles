@@ -3231,7 +3231,7 @@ button.qs-user-settings-btn label {
 
 .notif-popup-item {
   background: rgba(16, 16, 24, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 10px;
   padding: 8px 10px;
   min-width: 340px;
@@ -3247,27 +3247,27 @@ button.qs-user-settings-btn label {
 .notif-popup-item .notif-popup-app-name {
   font-size: 10px;
   font-weight: 500;
-  color: rgba(226, 226, 226, 0.4);
+  color: rgba(226, 226, 226, 0.55);
   font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 .notif-popup-item .notif-popup-dot {
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.35);
   font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 .notif-popup-item .notif-popup-summary {
   font-size: 11px;
   font-weight: 400;
-  color: rgba(226, 226, 226, 0.85);
+  color: rgba(226, 226, 226, 0.9);
   font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 .notif-popup-item .notif-popup-body {
   font-size: 10px;
   font-weight: 400;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.62);
   font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
@@ -3333,7 +3333,7 @@ window.np-window.csd decoration {
   border-top-right-radius: 0;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
-  min-width: 349px;
+  min-width: 389px;
   box-shadow: none;
   font-family: "MesloLGS Nerd Font";
   color: #e2e2e2;
@@ -3354,7 +3354,7 @@ window.np-window.csd decoration {
 .np-title {
   font-size: 11px;
   font-weight: 700;
-  color: rgba(226, 226, 226, 0.6);
+  color: rgba(226, 226, 226, 0.68);
   letter-spacing: 0.06em;
   margin: 0;
 }
@@ -3423,7 +3423,7 @@ window.np-window.csd decoration {
 .np-icon-btn .np-btn-icon {
   font-family: "MesloLGS Nerd Font";
   font-size: 12px;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.5);
   margin: 0;
 }
 
@@ -3481,7 +3481,7 @@ window.np-window.csd decoration {
 .np-filter-chip .np-filter-chip-label {
   font-size: 10px;
   font-weight: 400;
-  color: rgba(226, 226, 226, 0.5);
+  color: rgba(226, 226, 226, 0.58);
   margin: 0;
 }
 
@@ -3490,7 +3490,7 @@ window.np-window.csd decoration {
 }
 
 .np-list-scroll {
-  min-height: 160px;
+  min-height: 210px;
 }
 .np-list-scroll scrollbar, .np-list-scroll scrollbar slider {
   opacity: 0;
@@ -3542,14 +3542,14 @@ window.np-window.csd decoration {
 .np-group-chevron {
   font-family: "MesloLGS Nerd Font";
   font-size: 11px;
-  color: rgba(226, 226, 226, 0.4);
+  color: rgba(226, 226, 226, 0.48);
   margin: 0;
 }
 
 .np-group-name {
   font-size: 11px;
   font-weight: 700;
-  color: rgba(226, 226, 226, 0.6);
+  color: rgba(226, 226, 226, 0.68);
   margin: 0;
 }
 
@@ -3568,7 +3568,7 @@ window.np-window.csd decoration {
 
 .np-group-total {
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.3);
+  color: rgba(226, 226, 226, 0.4);
   margin: 0;
 }
 
@@ -3578,7 +3578,7 @@ window.np-window.csd decoration {
 }
 
 .notif-item-wrapper {
-  margin-bottom: 2px;
+  margin-bottom: 5px;
 }
 
 .notif-item {
@@ -3621,7 +3621,10 @@ window.np-window.csd decoration {
 }
 
 .np-panel .notif-item-btn {
-  padding: 6px 10px;
+  padding: 7px 10px;
+}
+.np-panel .notif-item-btn.expanded {
+  background: rgba(203, 166, 247, 0.025);
 }
 
 .notif-app-img {
@@ -3633,21 +3636,21 @@ window.np-window.csd decoration {
 .notif-app-name {
   font-size: 10px;
   font-weight: 500;
-  color: rgba(226, 226, 226, 0.4);
+  color: rgba(226, 226, 226, 0.55);
   font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 
 .notif-dot {
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.35);
   font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
 
 .notif-timestamp {
   font-size: 9px;
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.4);
   font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
@@ -3655,7 +3658,7 @@ window.np-window.csd decoration {
 .notif-summary {
   font-size: 11px;
   font-weight: 400;
-  color: rgba(226, 226, 226, 0.85);
+  color: rgba(226, 226, 226, 0.9);
   font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
@@ -3663,9 +3666,23 @@ window.np-window.csd decoration {
 .notif-body {
   font-size: 10px;
   font-weight: 400;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.62);
   font-family: "MesloLGS Nerd Font";
   margin: 0;
+}
+
+.notif-expand-indicator {
+  min-width: 10px;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 10px;
+  color: rgba(203, 166, 247, 0.65);
+  margin: 1px 0 0;
+  transform: rotate(0deg);
+  transition: color 160ms ease, transform 160ms ease;
+}
+.notif-expand-indicator.expanded {
+  color: #cba6f7;
+  transform: rotate(180deg);
 }
 
 .notif-hover-actions {

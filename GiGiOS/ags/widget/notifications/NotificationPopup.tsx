@@ -271,9 +271,9 @@ function PopupItem({ notif, onDismiss, registerDismissCb }: {
       cssClasses={["notif-popup-item"]}
       css={`border-left: 3px solid ${color};`}
       orientation={Gtk.Orientation.VERTICAL}
-      spacing={3}
+      spacing={6}
     >
-      <box spacing={4} valign={Gtk.Align.CENTER}>
+      <box spacing={5} valign={Gtk.Align.CENTER}>
         <label cssClasses={["notif-popup-app-icon"]} label={icon} css={`color: ${color};`} />
         <label
           cssClasses={["notif-popup-app-name"]}

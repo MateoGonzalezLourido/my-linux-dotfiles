@@ -7,10 +7,11 @@
  */
 
 import { Gtk, Gdk } from "ags/gtk4"
-import { createState } from "ags"
+import { createState, onCleanup } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import GdkPixbuf from "gi://GdkPixbuf"
+import Pango from "gi://Pango"
 import AstalNotifd from "gi://AstalNotifd"
 import {
   StoredNotification,
@@ -20,11 +21,42 @@ import {
   removeNotification,
   updateAppSettings,
   appSettings,
+  notifications,
   selectionMode,
   selectedIds,
   setSelectedIds,
   timeTick,
 } from "./store"
+
+// La expansión debe sobrevivir a `markRead`: esa operación reemplaza el objeto
+// almacenado y AGS puede reconstruir el componente de la tarjeta.
+const [expandedNotificationIds, setExpandedNotificationIds] = createState<Set<number>>(new Set())
+const notificationButtons = new Map<number, Gtk.Button>()
+
+function toggleNotificationExpanded(id: number): void {
+  const next = new Set(expandedNotificationIds.get())
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  setExpandedNotificationIds(next)
+}
+
+function restoreNotificationFocus(id: number): void {
+  // `markRead` puede reconstruir el botón. Esperar al siguiente ciclo garantiza
+  // que el mapa ya apunte al widget nuevo, no al que acaba de ser destruido.
+  GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+    notificationButtons.get(id)?.grab_focus()
+    return GLib.SOURCE_REMOVE
+  })
+}
+
+// No conservar IDs de notificaciones que ya hayan sido eliminadas.
+notifications.subscribe(() => {
+  const current = notifications.get()
+  const validIds = new Set(current.map((n) => n.id))
+  const expanded = expandedNotificationIds.get()
+  if (![...expanded].some((id) => !validIds.has(id))) return
+  setExpandedNotificationIds(new Set([...expanded].filter((id) => validIds.has(id))))
+})
 
 // ── Helpers para tipo de notificación ─────────────────────────────────────────
 
@@ -65,6 +97,19 @@ export default function NotificationItem({ notif }: { notif: StoredNotification 
   const [replyOpen, setReplyOpen] = createState(false)
   const [replyText, setReplyText] = createState("")
   const [dismissed, setDismissed] = createState(false)
+  const bodyExpanded = expandedNotificationIds((ids) => ids.has(notif.id))
+  let mainButton: Gtk.Button | null = null
+  onCleanup(() => {
+    if (mainButton && notificationButtons.get(notif.id) === mainButton) {
+      notificationButtons.delete(notif.id)
+    }
+  })
+
+  const summaryText = stripMarkup(notif.summary)
+  const bodyText = stripMarkup(notif.body)
+  // Aproximación conservadora al límite visual de dos líneas. También cubre
+  // cuerpos con saltos explícitos aunque tengan pocos caracteres.
+  const bodyNeedsExpansion = bodyText.length > 90 || bodyText.split("\n").length > 2
 
   const isMessaging = isMessagingApp(notif.appName)
   const isSelected = selectedIds((s) => s?.has(notif.id) ?? false)
@@ -129,6 +174,8 @@ export default function NotificationItem({ notif }: { notif: StoredNotification 
       return
     }
     markRead(notif.id)
+    if (bodyNeedsExpansion) toggleNotificationExpanded(notif.id)
+    restoreNotificationFocus(notif.id)
     // Invocar la acción default si existe
     try {
       const notifd = AstalNotifd.get_default()
@@ -182,50 +229,72 @@ export default function NotificationItem({ notif }: { notif: StoredNotification 
 
         {/* Contenido principal */}
         <button
-          cssClasses={["notif-item-btn"]}
+          cssClasses={bodyExpanded((expanded) => expanded
+            ? ["notif-item-btn", "expanded"]
+            : ["notif-item-btn"])}
           onClicked={handleClick}
           hexpand
+          $={(self: Gtk.Button) => {
+            mainButton = self
+            notificationButtons.set(notif.id, self)
+          }}
         >
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
-            {/* App · Título + timestamp en una fila */}
-            <box spacing={4} valign={Gtk.Align.CENTER}>
-              {appIconWidget}
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={5} hexpand>
+            {/* El indicador solo ocupa espacio en la fila superior. */}
+            <box spacing={6} hexpand>
               <label
-                cssClasses={["notif-app-name"]}
-                label={notif.appName}
-                halign={Gtk.Align.START}
-                ellipsize={3}
-                visible={!!notif.appName}
-              />
-              <label
-                cssClasses={["notif-dot"]}
-                label="·"
-                visible={!!notif.appName && !!(notif.summary)}
-              />
-              <label
-                cssClasses={["notif-summary"]}
-                label={stripMarkup(notif.summary)}
-                hexpand
-                halign={Gtk.Align.START}
-                ellipsize={3}
-                visible={!!(notif.summary)}
-              />
-              {!notif.summary && <box hexpand />}
-              <label
-                cssClasses={["notif-timestamp"]}
-                label={timeTick((_) => getRelativeTime(notif.timestamp))}
-                halign={Gtk.Align.END}
+                cssClasses={bodyExpanded((expanded) => expanded
+                  ? ["notif-expand-indicator", "expanded"]
+                  : ["notif-expand-indicator"])}
+                label="󰅀"
+                visible={bodyNeedsExpansion}
                 valign={Gtk.Align.CENTER}
               />
+              {/* App · Título + timestamp en una fila */}
+              <box spacing={4} valign={Gtk.Align.CENTER} hexpand>
+                {appIconWidget}
+                <label
+                  cssClasses={["notif-app-name"]}
+                  label={notif.appName}
+                  halign={Gtk.Align.START}
+                  ellipsize={3}
+                  visible={!!notif.appName}
+                />
+                <label
+                  cssClasses={["notif-dot"]}
+                  label="·"
+                  visible={!!notif.appName && !!(notif.summary)}
+                />
+                <label
+                  cssClasses={["notif-summary"]}
+                  label={summaryText}
+                  tooltipText={summaryText}
+                  hexpand
+                  halign={Gtk.Align.START}
+                  ellipsize={3}
+                  visible={!!(notif.summary)}
+                />
+                {!notif.summary && <box hexpand />}
+                <label
+                  cssClasses={["notif-timestamp"]}
+                  label={timeTick((_) => getRelativeTime(notif.timestamp))}
+                  halign={Gtk.Align.END}
+                  valign={Gtk.Align.CENTER}
+                />
+              </box>
             </box>
-            {/* Body */}
+            {/* Body: usa todo el ancho, sin la sangría del indicador. */}
             <label
               cssClasses={["notif-body"]}
-              label={stripMarkup(notif.body)}
+              label={bodyText}
               halign={Gtk.Align.START}
               wrap={true}
-              lines={2}
-              ellipsize={3}
+              wrapMode={Pango.WrapMode.WORD_CHAR}
+              xalign={0}
+              lines={bodyExpanded((expanded) => expanded ? -1 : 2)}
+              ellipsize={bodyExpanded((expanded) => expanded
+                ? Pango.EllipsizeMode.NONE
+                : Pango.EllipsizeMode.END)}
               visible={!!(notif.body)}
             />
           </box>
