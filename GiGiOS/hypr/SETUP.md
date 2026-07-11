@@ -198,7 +198,7 @@ ya cubierto por `hyprshot`/`grim` arriba, pero decláralo explícito):
 
 ```sh
 sudo pacman -S libnotify smartmontools lm_sensors pciutils usbutils alsa-utils \
-  util-linux inotify-tools dbus networkmanager bluez bluez-utils
+  util-linux inotify-tools dbus networkmanager bluez bluez-utils xdg-user-dirs
 ```
 
 Detalle por script:
@@ -215,6 +215,62 @@ Detalle por script:
 | `usb-monitor.sh` | conectar/desconectar USB | `udevadm` (systemd, ya en el sistema base) |
 | `boot-healthcheck.sh` | chequeo general al arrancar (servicios fallidos, errores de journal, disco, NVIDIA, SMART, batería, fans, audio, bluetooth, USB) | autodescubre hardware, así que no falla si falta algo; pero para chequeos completos quiere `smartctl` (`smartmontools`), `sensors` (`lm_sensors`), `lspci`/`lsusb` (`pciutils`/`usbutils`), `rfkill` (`util-linux`), `aplay` (`alsa-utils`), `nvidia-smi` (`nvidia-utils`) |
 | `hyprland-watchdog.sh` | reinicia Hyprland si se cuelga | ver nota de la sección 1 sobre `wayland-wm@hyprland.desktop.service` |
+
+### 8.1 Escaneo antivirus, integridad y sandbox
+
+El monitor `oom-monitor.sh` incorpora tres funciones de seguridad adicionales:
+
+- vigila cambios en archivos críticos mediante `inotifywait`;
+- analiza archivos nuevos o modificados dentro de la carpeta XDG de Descargas con
+  ClamAV, deduplicando por hash de contenido;
+- ofrece analizar archivos grandes y lanzar ejecutables no confiables dentro de un
+  sandbox cuando están disponibles los scripts auxiliares.
+
+Instala sus dependencias:
+
+```sh
+sudo pacman -S --needed clamav bubblewrap xxhash xdg-user-dirs file
+sudo freshclam
+```
+
+- `clamav` proporciona `clamscan`. Sin una base descargada con `freshclam`, el programa
+  existe pero no puede detectar firmas.
+- `bubblewrap` proporciona `bwrap`, usado para construir el sandbox. Esto reduce el
+  acceso del proceso al sistema; **no convierte un archivo desconocido en seguro**.
+- `xxhash` proporciona `xxh64sum` para evitar volver a escanear contenido idéntico. Si
+  falta, el monitor cae a `sha1sum` o `md5sum` de `coreutils`, pero será más lento.
+- `xdg-user-dirs` permite encontrar `~/Descargas` aunque el sistema use otro idioma.
+- `file` lo usa `bin/verify-files.sh` para detectar ejecutables disfrazados por sus
+  magic bytes antes de cada `git push`.
+
+Tras instalar ClamAV, comprueba la configuración con un archivo legítimo cualquiera:
+
+```sh
+clamscan --version
+clamscan --no-summary ~/Descargas/algún-archivo
+```
+
+El estado se guarda en `~/.cache/gigios/download-index` y
+`~/.cache/gigios/download-hashes`; es caché regenerable y no se copia al migrar. Las
+preferencias viven en `~/.config/gigios/security.json` y se leen una sola vez al arrancar
+`oom-monitor.sh`: después de cambiar un interruptor de Seguridad hay que cerrar sesión o
+reiniciar manualmente ese script.
+
+Para que la interfaz y las acciones funcionen, el repo debe contener estos archivos; los
+dos scripts `.sh` deben tener permiso de ejecución:
+
+```text
+GiGiOS/ags/widget/settings/SecuritySection.tsx
+GiGiOS/ags/widget/settings/securityPrefs.ts
+GiGiOS/hypr/scripts/scan-file.sh
+GiGiOS/hypr/scripts/run-untrusted.sh
+```
+
+**Estado de esta rama al redactar esta guía:** esos cuatro archivos están referenciados
+por el código, pero no están versionados. El escaneo automático básico de
+`oom-monitor.sh` funciona con ClamAV, pero los botones de escaneo manual/sandbox no, y la
+importación de `SecuritySection` impide iniciar el panel de AGS. Hay que recuperar esos
+archivos antes de considerar completa la migración.
 
 ## 9. NVIDIA (solo si el PC nuevo tiene GPU NVIDIA)
 
@@ -257,22 +313,69 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
 
 ## 11. Orden recomendado para el PC nuevo
 
+### Antes de migrar: preflight del repositorio
+
+Ejecuta esto en la máquina origen antes del push:
+
+```sh
+cd ~/Github-Repos/my-linux-dotfiles
+git status --short
+GiGiOS/bin/link.sh --check
+bash -n GiGiOS/install.sh GiGiOS/inicializador/init.sh GiGiOS/hypr/scripts/*.sh
+bin/verify-files.sh
+```
+
+Comprueba además que no falte ningún archivo referenciado por la configuración:
+
+```sh
+for f in \
+  GiGiOS/hypr/scripts/clipboard-history.sh \
+  GiGiOS/hypr/scripts/scan-file.sh \
+  GiGiOS/hypr/scripts/run-untrusted.sh \
+  GiGiOS/ags/widget/settings/AccountSection.tsx \
+  GiGiOS/ags/widget/settings/AppsSection.tsx \
+  GiGiOS/ags/widget/settings/DateLanguageSection.tsx \
+  GiGiOS/ags/widget/settings/DevicesSection.tsx \
+  GiGiOS/ags/widget/settings/DisplaySection.tsx \
+  GiGiOS/ags/widget/settings/SecuritySection.tsx \
+  GiGiOS/ags/widget/settings/SystemSection.tsx \
+  GiGiOS/ags/widget/settings/securityPrefs.ts; do
+  test -f "$f" || echo "FALTA: $f"
+done
+```
+
+En el estado actual de la rama `laptop`, esos archivos se referencian pero faltan. También
+falta `GiGiOS/assets/face.png`, que está ignorado por `.gitignore`; por eso
+`link.sh --check` fallará al validar el avatar. Recupera y añade conscientemente estos archivos
+antes del push. Un `SETUP.md` completo no puede sustituir código que no está en Git.
+
+### Instalación
+
+El instalador oficial hace el checkout bare sobre `$HOME`, respalda conflictos, crea los
+enlaces, instala Dolphin/KDE tools y reconstruye su caché:
+
+```sh
+curl -sSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | bash
+```
+
+No instala todavía todo el escritorio; después sigue estas secciones:
+
 1. Instala Hyprland + utilidades de sesión (§1).
-2. Instala AGS vía AUR + sus deps (§2), copia el repo `~/.config/ags` y corre
+2. Instala AGS vía AUR + sus dependencias (§2) y corre
    `sass style.scss out.css`.
 3. Instala fuentes (§3) y copia las que no están empaquetadas.
 4. Instala el resto de utilidades de escritorio (§4, §6).
 5. Corre `spotify-auth.sh` una vez (§7) para regenerar `~/.config/gigios/spotify-creds.json`.
-6. Instala las deps de los scripts de monitorización (§8).
+6. Instala las dependencias de monitorización y seguridad (§8 y §8.1), corre
+   `sudo freshclam` y `sudo sensors-detect` cuando corresponda.
 7. Ajusta lo específico de esta máquina (§10): `monitors.conf`, foto de perfil
    (`assets/face.png`), `nvidia.conf`/`envs/firefox.conf` si no hay NVIDIA, `~/Wallpapers/`.
-8. Copia `~/.config/hypr/` y `~/.config/ags/` (y `~/.config/gigios/` si quieres el
-   mismo estado de ajustes), recarga Hyprland (`hyprctl reload` o relogin) y comprueba con
+8. Si usaste `install.sh`, las configuraciones ya están colocadas. Restaura
+   `~/.config/gigios/` solo si quieres conservar el mismo estado y recarga Hyprland
+   (`hyprctl reload` o vuelve a iniciar sesión). Comprueba con
    `ags run ~/.config/ags/app.ts` que el shell arranca sin errores.
-9. No olvides lo que **no vive dentro de ninguno de los dos repos** (ver §14, tabla
-   "fuera de ambos repos"): `~/.local/bin/*.fish`, `~/.config/inicializador/init.sh` y
-   las fuentes manuales. Si solo copias `hypr/` y `ags/`, estas rutas no se copian solas.
-10. Pon tus fondos de pantalla (§12) y tu foto de perfil (§13).
+9. Corre `~/GiGiOS/bin/link.sh --check` y `kbuildsycoca6 --noincremental`.
+10. Copia las fuentes manuales, pon tus fondos (§12) y valida tu foto (§13).
 
 ## 12. Cómo poner fondos de pantalla (carpeta `~/Wallpapers`)
 
@@ -351,6 +454,7 @@ migrar y qué se regenera solo.
 | `~/.config/gigios/notif-history.json` | historial de notificaciones |
 | `~/.config/gigios/notif-cleanup-state.json` | estado del motor de limpieza de notifs |
 | `~/.config/gigios/notif-migrated.json` | marca de migración ya aplicada (evita re-migrar) |
+| `~/.config/gigios/security.json` | interruptores del monitor de seguridad; se leen al iniciar `oom-monitor.sh` |
 | `~/.config/ags/calendar-events.json` | tus eventos del panel de calendario |
 | `~/.config/jarvis/git-repos.json` | repos que Orion conoce para la sección Git (rutas locales — revisa que existan en el PC nuevo) |
 | `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
@@ -367,18 +471,22 @@ Todo lo demás dentro de `~/.config/hypr/*.conf`, `~/.config/hypr/scripts/`,
 tabla anterior: `app.ts`, `widget/**`, `style.scss`
 (→ `out.css` generado, no se edita a mano).
 
-### 14.3 Fuera de ambos repos — ¡no se copian solas al copiar `hypr/` o `ags/`!
+### 14.3 Fuera de `hypr/` y `ags/`, pero incluidos en este repositorio
 
 Esto es lo más fácil de olvidar en una migración porque **no vive bajo ninguno de los dos
 directorios que sueles copiar**:
 
 | Ruta | Por qué importa |
 |---|---|
-| `~/.local/bin/compact-workspaces.fish` | referenciado desde `keybinds.conf` (`SUPER+SHIFT+N`), no está bajo control de versiones en ningún sitio visible |
+| `~/.local/bin/compact-workspaces.fish` | referenciado desde `keybinds.conf` (`SUPER+SHIFT+N`); viaja como `.local/bin/compact-workspaces.fish` en el checkout bare |
 | `~/.local/bin/toggle-gaps-borders.fish` | referenciado desde `keybinds.conf` (`SUPER+SHIFT+E`) |
-| `~/.config/inicializador/init.sh` | lo lanza `autostart.conf` en cada arranque para aplicar brillo/night light/wifi/bluetooth/volumen guardados; **no es un git repo**, es una carpeta suelta |
+| `~/.config/inicializador/init.sh` | lo lanza `autostart.conf`; está versionado en `GiGiOS/inicializador/` y `GiGiOS/bin/link.sh` crea el enlace |
 | `~/.local/share/fonts/SF Pro Display/*.otf` | fuente del lock screen, no empaquetada (§3) |
 | `~/.local/share/fonts/steelfish outline regular/*.otf` | fuente del lock screen, no empaquetada (§3) |
+
+Los dos scripts `.local/bin` sí viajan al hacer el checkout bare completo sobre `$HOME`.
+Las fuentes manuales siguen siendo las únicas entradas de esta tabla que hay que copiar
+por separado.
 
 ### 14.4 Rutas efímeras — se regeneran solas, no hace falta copiarlas ni preocuparse
 
