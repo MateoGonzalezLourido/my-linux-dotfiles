@@ -11,6 +11,7 @@
 //   4. expón un setter público que mute el estado y llame a save().
 
 import GLib from "gi://GLib"
+import Gio from "gi://Gio"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
 
@@ -123,6 +124,14 @@ function save() {
 export function setWsPreviewEnabled(on: boolean) {
   _setWsPreviewEnabled(on)
   save()
+  // DEBUG-WSPREVIEW (temporal): registrar cada toggle y el valor resultante.
+  try {
+    const line = `${new Date().toISOString()} setWsPreviewEnabled(arg=${on}) -> get()=${wsPreviewEnabled.get()}\n`
+    const f = Gio.File.new_for_path("/tmp/ws-preview-debug.log")
+    const os = f.append_to(Gio.FileCreateFlags.NONE, null)
+    os.write_bytes(new GLib.Bytes(new TextEncoder().encode(line)), null)
+    os.close(null)
+  } catch (_) {}
 }
 export function setBatteryMonitorEnabled(on: boolean) {
   _setBatteryMonitorEnabled(on)

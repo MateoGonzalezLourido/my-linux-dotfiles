@@ -2,6 +2,7 @@ import AstalHyprland from "gi://AstalHyprland"
 import Gdk from "gi://Gdk"
 import GdkPixbuf from "gi://GdkPixbuf"
 import GLib from "gi://GLib"
+import Gio from "gi://Gio"
 import Graphene from "gi://Graphene"
 import { createState, For } from "ags"
 import { Gtk } from "ags/gtk4"
@@ -15,6 +16,18 @@ import { getIcon } from "./appIcons"
 // La preview de workspace se captura/muestra solo si el usuario la tiene activada
 // Y no está suspendida por el modo ahorro de energía.
 const wsPreviewActive = () => wsPreviewEnabled.get() && !wsPreviewSuspended.get()
+
+// DEBUG-WSPREVIEW (temporal): traza a archivo para diagnosticar el fallo tras
+// apagar/encender el toggle. Eliminar tras el diagnóstico.
+const wsDebug = (msg: string) => {
+  try {
+    const line = `${new Date().toISOString()} ${msg}\n`
+    const f = Gio.File.new_for_path("/tmp/ws-preview-debug.log")
+    const os = f.append_to(Gio.FileCreateFlags.NONE, null)
+    os.write_bytes(new GLib.Bytes(new TextEncoder().encode(line)), null)
+    os.close(null)
+  } catch (_) {}
+}
 
 // Blocks update() while hyprctl commands are in flight so intermediate
 // states (clients in workspace 9999, etc.) never trigger a re-render.
@@ -149,6 +162,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
   const previewAutoClose = panelAutoClose(() => { if (_preview) _preview.popdown() }, 250)
 
   const showPreview = (anchor: Gtk.Widget) => {
+    wsDebug(`showPreview ws=${ws.id} active=${wsPreviewActive()} enabled=${wsPreviewEnabled.get()} suspended=${wsPreviewSuspended.get()} _preview=${_preview !== null}`)
     if (!wsPreviewActive()) return
     if (_preview) { _preview.popdown(); return }
 
