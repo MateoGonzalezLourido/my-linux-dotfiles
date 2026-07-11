@@ -11,12 +11,13 @@ import SettingsTabs from "./notifications/settings/SettingsTabs"
 import PersonalizationSection from "./settings/PersonalizationSection"
 import DisplaySection from "./settings/DisplaySection"
 import SystemSection from "./settings/SystemSection"
+import SecuritySection from "./settings/SecuritySection"
 import AccountSection from "./settings/AccountSection"
 import DevicesSection from "./settings/DevicesSection"
 import DateLanguageSection from "./settings/DateLanguageSection"
 import AppsSection from "./settings/AppsSection"
 
-type SectionId = "account" | "energy" | "display" | "devices" | "datetime" | "apps" | "system" | "notifications" | "personalization"
+type SectionId = "account" | "energy" | "display" | "devices" | "datetime" | "apps" | "system" | "security" | "notifications" | "personalization"
 const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
   { id: "account", label: "Cuenta", icon: "󰀄" },
   { id: "energy", label: "Energía", icon: "󰁹" },
@@ -25,6 +26,7 @@ const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
   { id: "datetime", label: "Fecha e idioma", icon: "󰃭" },
   { id: "apps", label: "Apps", icon: "󰀻" },
   { id: "system", label: "Sistema", icon: "󰌢" },
+  { id: "security", label: "Seguridad", icon: "󰒃" },
   { id: "notifications", label: "Notificaciones", icon: "󰂚" },
   { id: "personalization", label: "Personalización", icon: "󰏘" },
 ]
@@ -71,6 +73,7 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
               if (s === "datetime") return <DateLanguageSection />
               if (s === "apps") return <AppsSection />
               if (s === "system") return <SystemSection />
+              if (s === "security") return <SecuritySection />
               if (s === "notifications") return <SettingsTabs />
               return <PersonalizationSection />
             }}
