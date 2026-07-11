@@ -23,6 +23,12 @@ const PREFS_PATH = `${GLib.get_user_config_dir()}/gigios/preferences.json`
 const [wsPreviewEnabled, _setWsPreviewEnabled] = createState(true)
 export { wsPreviewEnabled }
 
+// Reproductor de Spotify en el centro de la barra. Al desactivarlo el componente
+// se desmonta por completo, por lo que no mantiene polling, timers ni carátulas.
+// Default: activado para conservar el comportamiento existente.
+const [spotifyBarEnabled, _setSpotifyBarEnabled] = createState(true)
+export { spotifyBarEnabled }
+
 // Monitor de batería (scripts/battery-monitor.sh): el propio script bash lee
 // este valor UNA sola vez al arrancar (no hay polling desde bash), así que un
 // cambio aquí solo se aplica reiniciando el script/Hyprland. Default: activado.
@@ -91,6 +97,7 @@ function load() {
     if (!ok) return
     const saved = JSON.parse(new TextDecoder().decode(content))
     if (typeof saved.workspacePreview === "boolean") _setWsPreviewEnabled(saved.workspacePreview)
+    if (typeof saved.spotifyBar === "boolean") _setSpotifyBarEnabled(saved.spotifyBar)
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
@@ -109,6 +116,7 @@ function save() {
     if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) GLib.mkdir_with_parents(dir, 0o755)
     const config = {
       workspacePreview: wsPreviewEnabled.get(),
+      spotifyBar: spotifyBarEnabled.get(),
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
@@ -132,6 +140,10 @@ export function setWsPreviewEnabled(on: boolean) {
     os.write_bytes(new GLib.Bytes(new TextEncoder().encode(line)), null)
     os.close(null)
   } catch (_) {}
+}
+export function setSpotifyBarEnabled(on: boolean) {
+  _setSpotifyBarEnabled(on)
+  save()
 }
 export function setBatteryMonitorEnabled(on: boolean) {
   _setBatteryMonitorEnabled(on)

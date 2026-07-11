@@ -17,6 +17,8 @@ import Recording from "./bar/Recording"
 import MicIndicator from "./bar/MicIndicator"
 import NotificationButton from "./bar/NotificationButton"
 import PowerButton from "./bar/PowerButton"
+import SpotifyNowPlaying from "./bar/SpotifyNowPlaying"
+import { spotifyBarEnabled } from "./settings/preferences"
 import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging, barPinnedByKey, setBarPinnedByKey, barKeyboardActive } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
@@ -170,6 +172,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       </box>
 
       <box $type="center" halign={Gtk.Align.CENTER} spacing={8}>
+        <With value={spotifyBarEnabled}>{(on: boolean) => on && <SpotifyNowPlaying />}</With>
       </box>
 
       <box $type="end" halign={Gtk.Align.END} spacing={2} cssClasses={["bar-end-box"]}>

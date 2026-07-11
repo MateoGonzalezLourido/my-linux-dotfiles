@@ -364,12 +364,27 @@ monitor_units() {
 # Usa un BARRIDO recursivo con find (NO inotify): `inotifywait -r` no vigila las
 # subcarpetas creadas después de arrancar, y el caso típico —descargar un .rar/
 # .zip y extraerlo a una carpeta nueva— caía justo en ese punto ciego. El sondeo
-# ve cualquier archivo a cualquier profundidad, sin importar cuándo apareció.
+# ve cualquier archivo a cualquier profundidad, sin importar cuándo apareció. El
+# bucle corre CADA 30 s durante toda la sesión (no solo al arrancar).
 #
-# Dedup persistente en ~/.cache/gigios/download-seen (clave = ruta|tamaño). Para
-# el AVISO de ejecutables, la primera vez que corre (sin estado) solo SIEMBRA lo
-# ya existente sin avisar (no inundar). El ANÁLISIS antivirus SÍ escanea también
-# lo existente en el primer barrido: una alerta de malware no es spam.
+# ── Deduplicación por CONTENIDO (no por ruta) ─────────────────────────────────
+# El esquema viejo (clave ruta|tamaño, append-only, permanente) tenía un fallo
+# grave: una vez visto un fichero NO se volvía a analizar JAMÁS, ni tras borrarlo
+# y recrearlo, ni tras reiniciar (el estado persistía). Y como no miraba el
+# contenido, reemplazar un fichero por otro DISTINTO del mismo tamaño pasaba
+# desapercibido. Ahora hay dos estados en ~/.cache/gigios/:
+#   • download-index  (mtime|tamaño|ruta por fichero existente) — memo BARATO para
+#     saltarse en cada pasada lo que no ha cambiado sin volver a hashear. Se PODA
+#     a los ficheros que existen ahora, así no crece sin control.
+#   • download-hashes (un hash xxh64 por contenido ya analizado) — memoria de
+#     "esto ya lo miré". PERSISTE aunque borres el fichero.
+# Regla resultante (justo lo pedido): si el memo mtime|tamaño coincide → no se
+# toca. Si cambió (fichero nuevo, editado, o borrado+recreado con otra fecha) se
+# calcula el hash del contenido: si ese hash YA se analizó → NO se re-analiza
+# (mismo contenido); si es un hash nuevo → SÍ se analiza. Reemplazar por contenido
+# distinto = hash distinto = se analiza. Recrear el mismo fichero = mismo hash =
+# no se re-analiza. La primera vez (sin estado) siembra sin avisar de ejecutables
+# pero SÍ analiza con ClamAV todo lo existente (una alerta de malware no es spam).
 
 # Aviso de un único ejecutable nuevo (con botón "Lanzar aislado" si procede).
 download_alert() {
@@ -414,37 +429,82 @@ monitor_downloads() {
     fi
     local scan_max=314572800   # 300 MiB: no auto-escaneamos archivos enormes
 
-    local seen_file="$HOME/.cache/gigios/download-seen"
-    mkdir -p "$(dirname "$seen_file")" 2>/dev/null
-    declare -A _seen
-    local seeded=false key f sz listfile line vfile vsig mb
-    local -a new_exec scan_batch big_files
-    if [[ -f "$seen_file" ]]; then
-        seeded=true
-        while IFS= read -r key; do [[ -n "$key" ]] && _seen["$key"]=1; done < "$seen_file"
-    fi
+    # Hash de contenido: xxh64sum es rapidísimo (varios GB/s); si no está, caemos a
+    # sha1/md5. Solo se calcula cuando mtime|tamaño cambió, así que en régimen
+    # normal casi nunca se hashea nada.
+    local hasher=""
+    for cand in xxh64sum xxhsum sha1sum md5sum; do
+        command -v "$cand" >/dev/null 2>&1 && { hasher="$cand"; break; }
+    done
 
-    while :; do
-        new_exec=(); scan_batch=(); big_files=()
+    local cache="$HOME/.cache/gigios"
+    local idx_file="$cache/download-index"     # mtime|tamaño|ruta (podado)
+    local hash_file="$cache/download-hashes"   # hashes ya analizados (persistente)
+    mkdir -p "$cache" 2>/dev/null
+    # Limpieza única del estado viejo (clave ruta|tamaño, append-only, 6 MB).
+    rm -f "$cache/download-seen" 2>/dev/null
+
+    declare -A _idx      # ruta -> "mtime|tamaño"  (memo barato, persiste entre barridos)
+    declare -A _scanned  # hash -> 1              (contenido ya analizado, persistente)
+    local seeded=false line mtime rest sz f
+
+    # Cargar estado. Índice: formato mtime|tamaño|ruta (la ruta puede llevar '|',
+    # por eso troceamos a mano y todo lo que sobra tras el 2º '|' es la ruta).
+    if [[ -f "$idx_file" ]]; then
+        seeded=true
+        while IFS= read -r line; do
+            mtime="${line%%|*}"; rest="${line#*|}"
+            sz="${rest%%|*}";    f="${rest#*|}"
+            [[ -n "$f" ]] && _idx["$f"]="$mtime|$sz"
+        done < "$idx_file"
+    fi
+    [[ -f "$hash_file" ]] && while IFS= read -r line; do
+        [[ -n "$line" ]] && _scanned["$line"]=1
+    done < "$hash_file"
+
+    # Un barrido completo. Ve el estado persistente (dir, clam, _idx, _scanned,
+    # seeded…) por ámbito dinámico de bash y muta _idx/_scanned/seeded del ámbito de
+    # monitor_downloads. Se invoca por evento (inotify) y por la red de seguridad.
+    _dl_sweep() {
+        local -a new_exec=() scan_batch=() big_files=()
+        local -A _now _bhash
+        local changed=false f sig sz h listfile line vfile vsig mb
         while IFS= read -r f; do
             [[ -f "$f" ]] || continue
-            sz=$(stat -c%s "$f" 2>/dev/null || echo 0)
-            key="$f|$sz"
-            [[ -n "${_seen[$key]:-}" ]] && continue
-            _seen["$key"]=1
-            printf '%s\n' "$key" >> "$seen_file"
-            # Análisis antivirus: TODO archivo nuevo bajo el tope (incluso al sembrar).
-            if (( ${#clam[@]} && sz > 0 && sz < scan_max )); then
-                scan_batch+=("$f")
-            elif (( ${#clam[@]} && sz >= scan_max )) && [[ "$seeded" == true ]]; then
-                # Demasiado grande para el auto-análisis: se avisa (con la opción de
+            # mtime y tamaño en una sola llamada a stat.
+            sig=$(stat -c '%Y|%s' "$f" 2>/dev/null) || continue
+            _now["$f"]=1
+            [[ "${_idx[$f]:-}" == "$sig" ]] && continue   # sin cambios → saltar
+
+            # Fichero nuevo o cambiado.
+            changed=true
+            _idx["$f"]="$sig"
+            sz="${sig#*|}"
+
+            if (( ${#clam[@]} && sz > 0 && sz < scan_max )) && [[ -n "$hasher" ]]; then
+                h=$("$hasher" -- "$f" 2>/dev/null); h="${h%% *}"
+                if [[ -n "$h" && -n "${_scanned[$h]:-}" ]]; then
+                    continue   # mismo contenido ya analizado → ni escanear ni avisar
+                fi
+                scan_batch+=("$f"); [[ -n "$h" ]] && _bhash["$f"]="$h"
+                [[ "$seeded" == true ]] && is_runnable "$f" && new_exec+=("$f")
+            elif (( ${#clam[@]} && sz >= scan_max )); then
+                # Demasiado grande para el auto-análisis: se avisa (con botón para
                 # escanearlo a mano). Solo cuando ya sembrado, para no avisar de lo
                 # que ya tenías (p. ej. un .rar viejo) en el primer barrido.
-                big_files+=("$f")
+                [[ "$seeded" == true ]] && big_files+=("$f")
+                [[ "$seeded" == true ]] && is_runnable "$f" && new_exec+=("$f")
+            else
+                # Sin ClamAV / sin hasher: no podemos analizar, solo avisar del exe.
+                [[ "$seeded" == true ]] && is_runnable "$f" && new_exec+=("$f")
             fi
-            # Aviso de ejecutable: solo los "lanzables" y solo cuando ya sembrado.
-            [[ "$seeded" == true ]] && is_runnable "$f" && new_exec+=("$f")
         done < <(find "$dir" -type f 2>/dev/null)
+
+        # Podar del índice lo que ya no existe (así no crece sin límite y un
+        # fichero borrado+recreado vuelve a evaluarse).
+        for f in "${!_idx[@]}"; do
+            [[ -n "${_now[$f]:-}" ]] || { unset '_idx[$f]'; changed=true; }
+        done
 
         # Archivos demasiado grandes para el auto-análisis: aviso con botón para
         # escanearlos igualmente (o desde Ajustes › Seguridad).
@@ -485,11 +545,62 @@ monitor_downloads() {
                     "$(basename "$vfile"): $vsig — NO lo ejecutes. Ruta: $vfile" -t 0
             done
             rm -f "$listfile"
+            # Marcar como analizado el CONTENIDO de todo lo escaneado (limpio o no):
+            # así un fichero infectado que se queda en Descargas avisa UNA vez, y
+            # recrear el mismo contenido no vuelve a analizarse (lo pedido).
+            for f in "${scan_batch[@]}"; do
+                h="${_bhash[$f]:-}"
+                [[ -n "$h" && -z "${_scanned[$h]:-}" ]] || continue
+                _scanned["$h"]=1
+                printf '%s\n' "$h" >> "$hash_file"
+            done
+        fi
+
+        # Persistir el índice (reescritura atómica) solo si cambió algo.
+        if [[ "$changed" == true ]]; then
+            { for f in "${!_idx[@]}"; do printf '%s|%s\n' "${_idx[$f]}" "$f"; done; } \
+                > "$idx_file.tmp" 2>/dev/null && mv -f "$idx_file.tmp" "$idx_file" 2>/dev/null
         fi
 
         seeded=true
-        sleep 30
-    done
+    }
+
+    # ── Bucle dirigido por eventos ────────────────────────────────────────────
+    # inotify actúa de DESPERTADOR, no de escáner: al despertar barremos con find,
+    # así da igual que inotify se pierda subcarpetas nuevas o descarte eventos bajo
+    # avalancha (el barrido lo ve todo). En reposo el proceso queda BLOQUEADO en
+    # inotifywait — cero CPU/IO, sin sondear cada 30 s. Latencia típica ~debounce s.
+    local debounce=3 safety=300 rc t0
+    local -a ev=(-e create -e close_write -e moved_to -e moved_from -e delete)
+
+    _dl_sweep   # primer barrido inmediato (siembra y caza lo ya existente)
+
+    if command -v inotifywait >/dev/null 2>&1; then
+        while :; do
+            # Bloquea hasta un evento en Descargas, o hasta `safety` s (red de
+            # seguridad por si inotify se queda corto: overflow, watch fallido…).
+            inotifywait -q -r -t "$safety" "${ev[@]}" "$dir" >/dev/null 2>&1
+            rc=$?
+            if (( rc == 0 )); then
+                # Debounce: agrupa la avalancha (extraer un juego = miles de eventos)
+                # esperando `debounce` s de calma, con tope de 30 s para no quedarnos
+                # sin barrer si algo escribe sin parar (descarga larga, torrent…).
+                t0=$SECONDS
+                while inotifywait -q -r -t "$debounce" "${ev[@]}" "$dir" >/dev/null 2>&1; do
+                    (( SECONDS - t0 >= 30 )) && break
+                done
+            elif (( rc == 1 )); then
+                # Error de inotify (límite de watches, dir recreado…): degradamos a
+                # poll suave para no hacer busy-loop, pero seguimos barriendo.
+                sleep 30
+            fi
+            # rc==2 (timeout de la red de seguridad) → barrido directo.
+            _dl_sweep
+        done
+    else
+        # Sin inotify-tools: poll clásico de 30 s (comportamiento anterior).
+        while :; do sleep 30; _dl_sweep; done
+    fi
 }
 
 # ── Run in parallel ───────────────────────────────────────────────────────────

@@ -84,6 +84,42 @@ $radius-pill: 999px;
   opacity: 1;
 }
 
+// ── Spotify — centro de la barra ─────────────────────────────────────────────
+.bar-spotify {
+  min-height: 34px;
+  padding: 0 7px 0 3px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  color: $text;
+}
+
+.bar-spotify-art {
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.bar-spotify-placeholder {
+  min-width: 30px;
+  min-height: 30px;
+  font-family: $font-icon;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.bar-spotify-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.bar-spotify-artist {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+}
+
 .Bar>centerbox {
   padding: 0 15px;
   margin-left: 9px;

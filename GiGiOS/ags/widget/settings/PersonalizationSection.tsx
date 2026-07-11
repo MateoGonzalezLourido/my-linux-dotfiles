@@ -5,6 +5,7 @@
 import { Gtk } from "ags/gtk4"
 import {
   wsPreviewEnabled, setWsPreviewEnabled,
+  spotifyBarEnabled, setSpotifyBarEnabled,
   batteryMonitorEnabled, setBatteryMonitorEnabled,
   tempMonitorEnabled, setTempMonitorEnabled,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
@@ -38,6 +39,33 @@ export default function PersonalizationSection() {
           >
             <box cssClasses={["qs-toggle-track"]}>
               <box cssClasses={wsPreviewEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* reproductor de Spotify en la barra */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Spotify en la barra" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Muestra la canción de Spotify en el centro de la barra.\nAl desactivarlo, no se ejecutan consultas, animaciones ni descargas de carátulas."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={spotifyBarEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setSpotifyBarEnabled(!spotifyBarEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={spotifyBarEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
             </box>
           </button>
         </box>
