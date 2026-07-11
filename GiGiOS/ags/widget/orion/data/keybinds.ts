@@ -1,5 +1,7 @@
 import { readFile } from "ags/file"
+import { createState } from "ags"
 import GLib from "gi://GLib"
+import Gio from "gi://Gio"
 
 const HYPR = `${GLib.get_home_dir()}/.config/hypr`
 
@@ -47,6 +49,7 @@ export function fmtBinding(rawMods: string, rawKey: string): string {
 const EXEC_PATTERNS: [RegExp, string][] = [
   [/toggle-fake-fullscreen/, "Simular ventana maximizada"],
   [/toggle-gaps-borders/, "Pegar ventanas (toggle)"],
+  [/compact-workspaces/, "Compactar workspaces"],
   [/kitty/, "Abrir terminal"],
   [/dolphin/, "Abrir gestor de archivos"],
   [/nautilus/, "Abrir gestor de archivos"],
@@ -54,24 +57,25 @@ const EXEC_PATTERNS: [RegExp, string][] = [
   [/\bcode\b/, "Abrir VS Code"],
   [/obsidian/, "Abrir Obsidian"],
   [/discord/, "Abrir Discord"],
-  [/cliphist.*wl-copy|wofi.*dmenu/, "Abrir portapapeles"],
-  [/rofi.*drun|hyprlauncher|pkill.*rofi/, "Abrir lanzador de apps"],
+  [/clipboard-history|cliphist.*wl-copy|wofi.*dmenu/, "Abrir portapapeles"],
+  [/rofi-launch|rofi.*drun|hyprlauncher|pkill.*rofi/, "Abrir lanzador de apps"],
   [/hyprshot.*region/, "Captura de región"],
   [/hyprshot.*output/, "Captura de pantalla"],
   [/wf-recorder.*slurp/, "Grabar región de pantalla"],
   [/record\.sh|wf-recorder/, "Grabar pantalla (toggle)"],
   [/qalculate/, "Abrir calculadora"],
   [/hyprshutdown|hyprctl.*exit/, "Salir de Hyprland"],
-  [/wpctl.*set-volume.*5%\+/, "Subir volumen 5%"],
-  [/wpctl.*set-volume.*5%-/, "Bajar volumen 5%"],
+  [/wpctl.*set-volume.*%\+/, "Subir volumen"],
+  [/wpctl.*set-volume.*%-/, "Bajar volumen"],
   [/wpctl.*set-mute.*SOURCE/, "Silenciar/activar micrófono"],
   [/wpctl.*set-mute/, "Silenciar/activar audio"],
-  [/brightnessctl.*5%\+/, "Subir brillo 5%"],
-  [/brightnessctl.*5%-/, "Bajar brillo 5%"],
+  [/brightnessctl.*%\+/, "Subir brillo"],
+  [/brightnessctl.*%-/, "Bajar brillo"],
   [/playerctl next/, "Siguiente pista"],
   [/playerctl previous/, "Pista anterior"],
   [/playerctl play-pause/, "Play / Pausa"],
-  [/ags toggle orion/, "Mostrar/ocultar panel Orion"],
+  [/toggle-orion|ags toggle orion/, "Mostrar/ocultar panel Orion"],
+  [/ags-bar-toggle/, "Mostrar/ocultar barra"],
 ]
 
 function describeExec(cmd: string): string {
@@ -114,10 +118,7 @@ function formatGroupName(comment: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : ""
 }
 
-let _keybindsCache: KeybindGroup[] | null = null
-
-export function getKeybinds(): KeybindGroup[] {
-  if (_keybindsCache) return _keybindsCache
+function parseKeybinds(): KeybindGroup[] {
   const vars = loadVars()
   const groups: KeybindGroup[] = []
   let cur: KeybindGroup = { name: "General", binds: [] }
@@ -136,7 +137,7 @@ export function getKeybinds(): KeybindGroup[] {
         prevBlank = false
         continue
       }
-      const m = t.match(/^(bind[elm]?)\s*=\s*([^,]*),\s*([^,]+),\s*([^,#]+)(?:,\s*([^#]*))?/)
+      const m = t.match(/^(bind[a-z]*)\s*=\s*([^,]*),\s*([^,]+),\s*([^,#]+)(?:,\s*([^#]*))?/)
       if (m) {
         const [, type, rawMods, rawKey, rawAction, rawArgs = ""] = m
         const mods = resolveVars(rawMods.trim(), vars)
@@ -153,6 +154,38 @@ export function getKeybinds(): KeybindGroup[] {
   } catch (_) {}
 
   if (cur.binds.length > 0) groups.push(cur)
-  _keybindsCache = groups
   return groups
+}
+
+// Reactive keybinds: parsed at load, re-parsed whenever keybinds.conf or
+// variables.conf change on disk, so the UI reflects edits without restarting AGS.
+const [keybinds, setKeybinds] = createState<KeybindGroup[]>(parseKeybinds())
+export { keybinds }
+
+/** Current parsed keybinds (used by the search handler, which reads synchronously). */
+export function getKeybinds(): KeybindGroup[] {
+  return keybinds.get()
+}
+
+let _refreshTimer: number | null = null
+function scheduleRefresh() {
+  // Editors write in bursts; debounce so we parse once the file settles.
+  if (_refreshTimer) clearTimeout(_refreshTimer)
+  _refreshTimer = setTimeout(() => {
+    _refreshTimer = null
+    setKeybinds(parseKeybinds())
+  }, 200)
+}
+
+// Kept alive for the process lifetime so the monitors keep firing.
+const _monitors: Gio.FileMonitor[] = []
+for (const name of ["keybinds.conf", "variables.conf"]) {
+  try {
+    const monitor = Gio.file_new_for_path(`${HYPR}/${name}`)
+      .monitor(Gio.FileMonitorFlags.NONE, null)
+    monitor.connect("changed", scheduleRefresh)
+    _monitors.push(monitor)
+  } catch (e) {
+    console.error(`[keybinds] monitor error for ${name}:`, e)
+  }
 }
