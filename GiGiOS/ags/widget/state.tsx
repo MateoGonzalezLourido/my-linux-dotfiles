@@ -60,13 +60,6 @@ export function openSettingsPanel() {
 export const [qsView, setQsView] = createState<"main" | "wifi" | "bluetooth" | "display" | "audio" | "mic">("main")
 export const [infoSsid, setInfoSsid] = createState<string | null>(null)
 
-quickSettingsVisible.subscribe(() => {
-  if (!quickSettingsVisible.get()) {
-    setQsView("main")
-    setInfoSsid(null)
-  }
-})
-
 // anyPanelVisible = true si CUALQUIER panel está abierto.
 // La barra observa esto para no ocultarse mientras haya un panel abierto.
 // Abrir un panel cierra el resto (exclusividad mutua).
@@ -178,8 +171,6 @@ export function closeAllPanels() {
   setQuickSettingsVisible(false)
   setFunctionsMenuVisible(false)
   setTrayMenuVisible(false)
-  setQsView("main")
-  setInfoSsid(null)
   closeNotifPanel()
 }
 

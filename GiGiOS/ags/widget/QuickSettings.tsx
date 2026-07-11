@@ -15,7 +15,6 @@ import cairo from "gi://cairo"
 import {
   quickSettingsVisible,
   closeAllPanels,
-  panelAutoClose,
   nightLightTemp,
   qsView,
   setQsView,
@@ -2739,51 +2738,161 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   const PANEL_TOTAL_WIDTH = 350
   const PANEL_PANEL_WIDTH = 330
   const PANEL_TOP = 37
-  const SLIDE_PX  = 20
-  const MS_IN     = 200
+  const PANEL_PREPARE_MS = 32
+  const PANEL_ENTER_MS = 280
+  // Tiempo mínimo en el reloj de fotogramas antes de desmapear. La salida CSS
+  // dura 220 ms; después se exige además un frame final ya fuera de pantalla.
+  const PANEL_EXIT_MS = 280
 
-  let win: any = null
   let qsPanelRef: any = null
-  let animId: number | null = null
-  const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
+  let qsAnimationRef: any = null
+  let qsWindowRef: any = null
+  const [qsRendered, setQsRendered] = createState(quickSettingsVisible.get())
+  const [qsExitCss, setQsExitCss] = createState(".qs-wrapper {}")
+  let enterTimer: number | null = null
+  let entranceGuardTimer: number | null = null
+  let exitTickId: number | null = null
+  let hoverCloseTimer: number | null = null
+  let entranceActive = false
+  // Recorte de la región de entrada; se asigna tras construir la ventana. Debe re-ejecutarse al
+  // terminar la animación de entrada (el transform de deslizamiento falsea la medida mientras corre).
+  let reclipInput: (() => void) | null = null
 
-  function animateTo(target: number, ms: number) {
-    if (animId !== null) { GLib.source_remove(animId); animId = null }
-    if (!win) return
-    const from: number = win.marginTop
-    const start = GLib.get_monotonic_time()
-    const step = () => {
-      if (!win) return
-      const t = Math.min((GLib.get_monotonic_time() - start) / 1000 / ms, 1)
-      win.marginTop = Math.round(from + (target - from) * easeOut(t))
-      if (t < 1) {
-        animId = GLib.timeout_add(GLib.PRIORITY_HIGH, 16, () => { step(); return GLib.SOURCE_REMOVE })
-      } else {
-        animId = null
-      }
-    }
-    step()
+  function cancelExitWait(): void {
+    if (exitTickId === null || !qsAnimationRef) return
+    qsAnimationRef.remove_tick_callback(exitTickId)
+    exitTickId = null
   }
 
-  // Subscribe fires BEFORE the visible binding, so margin is set before window maps.
-  // El callback de gnim no recibe el valor: hay que leer .get() (con `(v)` el slide
-  // de apertura no ocurría porque v era undefined y siempre caía en el else).
-  quickSettingsVisible.subscribe(() => {
-    if (!win) return
-    if (animId !== null) { GLib.source_remove(animId); animId = null }
-    if (quickSettingsVisible.get()) {
-      win.marginTop = PANEL_TOP - SLIDE_PX
-      animateTo(PANEL_TOP, MS_IN)
-    } else {
-      win.marginTop = PANEL_TOP
-    }
-  })
+  function finishExit(): void {
+    setQsRendered(false)
+    exitTickId = null
+    // Reiniciar el contenido solo después de que `visible=false` se haya
+    // aplicado; hacerlo antes podía redimensionar el panel aún visible.
+    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+      if (!quickSettingsVisible.get() && !qsRendered.get()) {
+        setQsView("main")
+        setInfoSsid(null)
+      }
+      return GLib.SOURCE_REMOVE
+    })
+  }
 
-  const qsAutoClose = panelAutoClose(closeAllPanels, 300, quickSettingsVisible)
+  function cancelHoverClose(): void {
+    if (hoverCloseTimer === null) return
+    GLib.source_remove(hoverCloseTimer)
+    hoverCloseTimer = null
+  }
+
+  function pointerIsOverQuickSettings(): boolean {
+    try {
+      const surface = qsWindowRef?.get_surface()
+      const pointer = qsWindowRef?.get_display()?.get_default_seat()?.get_pointer()
+      if (!surface || !pointer) return false
+      const [inside] = surface.get_device_position(pointer)
+      return inside
+    } catch (_) {
+      return false
+    }
+  }
+
+  function handlePointerEnter(): void {
+    cancelHoverClose()
+  }
+
+  function handlePointerLeave(): void {
+    cancelHoverClose()
+    if (entranceActive || !quickSettingsVisible.get()) return
+    hoverCloseTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+      hoverCloseTimer = null
+      if (quickSettingsVisible.get() && !pointerIsOverQuickSettings()) closeAllPanels()
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  function beginEntrance(): void {
+    if (enterTimer !== null) GLib.source_remove(enterTimer)
+    if (entranceGuardTimer !== null) GLib.source_remove(entranceGuardTimer)
+    entranceActive = true
+    // Quitar la animación de salida dinámica mientras la ventana aún está oculta.
+    setQsExitCss(".qs-wrapper {}")
+    qsAnimationRef?.remove_css_class("qs-entering")
+    qsAnimationRef?.add_css_class("qs-preparing")
+    setQsRendered(true)
+
+    enterTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_PREPARE_MS, () => {
+      qsAnimationRef?.remove_css_class("qs-preparing")
+      qsAnimationRef?.add_css_class("qs-entering")
+      entranceGuardTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_ENTER_MS, () => {
+        entranceActive = false
+        entranceGuardTimer = null
+        // El transform ya está en identidad: re-medir la región de entrada, que
+        // se había calculado desplazada mientras el panel se deslizaba.
+        reclipInput?.()
+        return GLib.SOURCE_REMOVE
+      })
+      enterTimer = null
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  // Mantener la ventana mapeada durante la salida permite completar el recorrido
+  // hacia arriba antes de ocultarla realmente.
+  quickSettingsVisible.subscribe(() => {
+    cancelHoverClose()
+    if (quickSettingsVisible.get()) {
+      cancelExitWait()
+      beginEntrance()
+      return
+    }
+
+    if (enterTimer !== null) {
+      GLib.source_remove(enterTimer)
+      enterTimer = null
+    }
+    if (entranceGuardTimer !== null) {
+      GLib.source_remove(entranceGuardTimer)
+      entranceGuardTimer = null
+    }
+    entranceActive = false
+    qsAnimationRef?.remove_css_class("qs-preparing")
+    qsAnimationRef?.remove_css_class("qs-entering")
+    // Igual que el recorrido horizontal de Notificaciones, pero usando la altura
+    // real de QS: el borde inferior cruza y=0 justo en el último frame.
+    const exitDistance = Math.max(1, Math.ceil(qsAnimationRef?.get_height?.() ?? 0) + 2)
+    setQsExitCss(`
+      @keyframes qs-panel-slide-out-dynamic {
+        from { transform: translateY(0); }
+        to { transform: translateY(-${exitDistance}px); }
+      }
+      .qs-wrapper {
+        animation: qs-panel-slide-out-dynamic 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+      }
+    `)
+    cancelExitWait()
+    let firstFrameUs: number | null = null
+    let finalFramePresented = false
+    exitTickId = qsAnimationRef.add_tick_callback((_widget: any, frameClock: any) => {
+      const nowUs = frameClock.get_frame_time()
+      if (firstFrameUs === null) firstFrameUs = nowUs
+      const elapsedMs = (nowUs - firstFrameUs) / 1000
+      if (elapsedMs < PANEL_EXIT_MS) return true
+
+      // Este tick dibujará el estado final. Esperar al siguiente garantiza que
+      // ese frame llegó al compositor antes de ocultar la superficie.
+      if (!finalFramePresented) {
+        finalFramePresented = true
+        return true
+      }
+
+      finishExit()
+      return false
+    })
+  })
 
   const result = <window
     name="quick-settings"
-    visible={quickSettingsVisible}
+    visible={qsRendered}
     gdkmonitor={gdkmonitor}
     layer={Astal.Layer.TOP}
     exclusivity={Astal.Exclusivity.NORMAL}
@@ -2795,6 +2904,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     marginRight={0}
     decorated={false}
     cssClasses={["qs-window"]}
+    $={(self: any) => { qsWindowRef = self }}
   >
       <Gtk.EventControllerKey
         onKeyPressed={(_self, keyval) => {
@@ -2809,7 +2919,16 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
           return false
         }}
       />
-      <box cssClasses={["qs-wrapper"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0}>
+      <box
+        cssClasses={["qs-wrapper"]}
+        css={qsExitCss}
+        orientation={Gtk.Orientation.HORIZONTAL}
+        spacing={0}
+        $={(self: any) => {
+          qsAnimationRef = self
+          if (quickSettingsVisible.get()) beginEntrance()
+        }}
+      >
       <box cssClasses={["qs-bar-connector"]} valign={Gtk.Align.START} />
       <box
         cssClasses={["qs-panel"]}
@@ -2817,10 +2936,14 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
         spacing={3}
         overflow={Gtk.Overflow.HIDDEN}
         widthRequest={PANEL_PANEL_WIDTH}
-        $={(self: any) => { qsPanelRef = self }}
+        $={(self: any) => {
+          qsPanelRef = self
+        }}
       >
-        {/* Auto-cierre al salir el ratón (mismo patrón que NotificationPanel) */}
-        <Gtk.EventControllerMotion onEnter={qsAutoClose.onEnter} onLeave={qsAutoClose.onLeave} />
+        <Gtk.EventControllerMotion
+          onEnter={handlePointerEnter}
+          onLeave={handlePointerLeave}
+        />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={3} visible={qsView((v) => v === "main")}>
           <QsHeader />
           <QsTiles
@@ -2862,7 +2985,6 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
       </box>
     </window>
 
-  win = result
-  clipWindowInputToContent(result, qsPanelRef)
+  reclipInput = clipWindowInputToContent(result, qsPanelRef)
   return result
 }

@@ -10,7 +10,14 @@
 import GLib from "gi://GLib"
 import cairo from "gi://cairo"
 
-export function clipWindowInputToContent(win: any, content: any): void {
+// Returns a `reclip` function: call it to re-measure and re-apply the input region. This is
+// REQUIRED after any CSS-`transform` entrance animation on `content` (or an ancestor) settles.
+// `compute_bounds()` — and, equivalently, summing `get_allocation()` up the tree — reports the
+// TRANSFORMED position, so if the region is measured while the slide-in transform is still active
+// it freezes offset from where the panel is finally painted, and the whole surface stops receiving
+// pointer input (the panel looks "not there"). Re-measuring once the transform is back to identity
+// fixes it. Content resizes are handled automatically via the surface size signals below.
+export function clipWindowInputToContent(win: any, content: any): () => void {
   let surfaceHandlers: { surface: any; ids: number[] } | null = null
 
   const apply = () => {
@@ -58,4 +65,8 @@ export function clipWindowInputToContent(win: any, content: any): void {
 
   win.connect("map", () => { hookSurface(); scheduleApply() })
   if (win.get_mapped?.()) { hookSurface(); scheduleApply() }
+
+  // Callers MUST invoke this when a transform-based entrance animation finishes, so the region is
+  // re-measured with the transform back at identity (see the header note above).
+  return scheduleApply
 }

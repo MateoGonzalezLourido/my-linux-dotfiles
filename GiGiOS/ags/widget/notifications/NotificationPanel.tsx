@@ -23,7 +23,6 @@ import {
   StoredNotification,
 } from "./store"
 import NotificationItem from "./NotificationItem"
-import { panelAutoClose } from "../state"
 import { clipWindowInputToContent } from "../inputRegion"
 import EmptyState from "../components/EmptyState"
 
@@ -372,29 +371,76 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   // Espacio reservado para la barra superior, la cabecera del panel y un
   // pequeño margen inferior. La lista crece de forma natural hasta este límite.
   const MAX_LIST_HEIGHT = Math.max(210, gdkmonitor.get_geometry().height - 120)
-  const autoClose = panelAutoClose(closeNotifPanel, 400, notifPanelVisible)
   // La animación dura 280 ms; estos 20 ms extra garantizan que GTK pinte el
   // último frame con el panel completamente fuera antes de ocultar la ventana.
   const PANEL_EXIT_MS = 300
   const PANEL_PREPARE_MS = 32
+  const PANEL_ENTER_MS = 280
   const [panelRendered, setPanelRendered] = createState(notifPanelVisible.get())
   let panelRef: any = null
+  let animationRef: any = null
+  let windowRef: any = null
   let enterTimer: number | null = null
+  let enterSettleTimer: number | null = null
   let exitTimer: number | null = null
+  let hoverCloseTimer: number | null = null
+  // Recorte de la región de entrada; se asigna tras construir la ventana. Debe re-ejecutarse al
+  // terminar la animación de entrada (el transform de deslizamiento falsea la medida mientras corre).
+  let reclipInput: (() => void) | null = null
+
+  function cancelHoverClose(): void {
+    if (hoverCloseTimer === null) return
+    GLib.source_remove(hoverCloseTimer)
+    hoverCloseTimer = null
+  }
+
+  function pointerIsOverPanel(): boolean {
+    try {
+      const surface = windowRef?.get_surface()
+      const pointer = windowRef?.get_display()?.get_default_seat()?.get_pointer()
+      if (!surface || !pointer) return false
+      const [inside] = surface.get_device_position(pointer)
+      return inside
+    } catch (_) {
+      return false
+    }
+  }
+
+  function handlePointerEnter(): void {
+    cancelHoverClose()
+  }
+
+  function handlePointerLeave(): void {
+    cancelHoverClose()
+    if (!notifPanelVisible.get()) return
+    hoverCloseTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+      hoverCloseTimer = null
+      if (notifPanelVisible.get() && !pointerIsOverPanel()) closeNotifPanel()
+      return GLib.SOURCE_REMOVE
+    })
+  }
 
   function beginEntrance(): void {
     if (enterTimer !== null) GLib.source_remove(enterTimer)
-    panelRef?.remove_css_class("np-leaving")
-    panelRef?.remove_css_class("np-entering")
-    panelRef?.add_css_class("np-preparing")
+    if (enterSettleTimer !== null) { GLib.source_remove(enterSettleTimer); enterSettleTimer = null }
+    animationRef?.remove_css_class("np-leaving")
+    animationRef?.remove_css_class("np-entering")
+    animationRef?.add_css_class("np-preparing")
     setPanelRendered(true)
 
     // Dos fotogramas aproximadamente: da tiempo a crear, medir y estilizar los
     // items antes de iniciar la animación visible, especialmente en la 1.ª apertura.
     enterTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_PREPARE_MS, () => {
-      panelRef?.remove_css_class("np-preparing")
-      panelRef?.add_css_class("np-entering")
+      animationRef?.remove_css_class("np-preparing")
+      animationRef?.add_css_class("np-entering")
       enterTimer = null
+      // Al terminar el deslizamiento (transform en identidad) re-medir la región
+      // de entrada, calculada desplazada mientras el panel entraba.
+      enterSettleTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_ENTER_MS, () => {
+        reclipInput?.()
+        enterSettleTimer = null
+        return GLib.SOURCE_REMOVE
+      })
       return GLib.SOURCE_REMOVE
     })
   }
@@ -403,6 +449,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   // retirarse al cerrar y añadirse de nuevo en cada apertura para reiniciar CSS.
   // `panelRendered` retrasa el ocultado hasta que acaba la animación de salida.
   notifPanelVisible.subscribe(() => {
+    cancelHoverClose()
     if (notifPanelVisible.get()) {
       if (exitTimer !== null) {
         GLib.source_remove(exitTimer)
@@ -416,13 +463,17 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
       GLib.source_remove(enterTimer)
       enterTimer = null
     }
-    panelRef?.remove_css_class("np-preparing")
-    panelRef?.remove_css_class("np-entering")
-    panelRef?.add_css_class("np-leaving")
+    if (enterSettleTimer !== null) {
+      GLib.source_remove(enterSettleTimer)
+      enterSettleTimer = null
+    }
+    animationRef?.remove_css_class("np-preparing")
+    animationRef?.remove_css_class("np-entering")
+    animationRef?.add_css_class("np-leaving")
     if (exitTimer !== null) GLib.source_remove(exitTimer)
     exitTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_EXIT_MS, () => {
       setPanelRendered(false)
-      panelRef?.remove_css_class("np-leaving")
+      animationRef?.remove_css_class("np-leaving")
       exitTimer = null
       return GLib.SOURCE_REMOVE
     })
@@ -443,6 +494,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
       marginRight={0}
       decorated={false}
       cssClasses={["np-window"]}
+      $={(self: any) => { windowRef = self }}
     >
       <Gtk.EventControllerKey
         onKeyPressed={(_self, keyval) => {
@@ -451,7 +503,15 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
         }}
       />
 
-      <box cssClasses={["np-wrapper"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0}>
+      <box
+        cssClasses={["np-wrapper"]}
+        orientation={Gtk.Orientation.HORIZONTAL}
+        spacing={0}
+        $={(self: any) => {
+          animationRef = self
+          if (notifPanelVisible.get()) beginEntrance()
+        }}
+      >
         <box cssClasses={["np-bar-connector"]} valign={Gtk.Align.START} />
         <box
           cssClasses={["np-panel"]}
@@ -460,10 +520,9 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
           spacing={0}
           $={(self: any) => {
             panelRef = self
-            if (notifPanelVisible.get()) beginEntrance()
           }}
         >
-          <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
+          <Gtk.EventControllerMotion onEnter={handlePointerEnter} onLeave={handlePointerLeave} />
 
           {/* Vista principal (los ajustes ahora viven en una ventana centrada aparte) */}
           <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
@@ -476,6 +535,6 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
     </window>
   )
 
-  clipWindowInputToContent(win, panelRef)
+  reclipInput = clipWindowInputToContent(win, panelRef)
   return win
 }
