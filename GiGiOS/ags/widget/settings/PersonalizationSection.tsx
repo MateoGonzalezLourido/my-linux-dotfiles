@@ -6,6 +6,12 @@ import { Gtk } from "ags/gtk4"
 import {
   wsPreviewEnabled, setWsPreviewEnabled,
   spotifyBarEnabled, setSpotifyBarEnabled,
+  batteryBarEnabled, setBatteryBarEnabled,
+  networkBarEnabled, setNetworkBarEnabled,
+  micIndicatorEnabled, setMicIndicatorEnabled,
+  trayBarEnabled, setTrayBarEnabled,
+  notificationBarEnabled, setNotificationBarEnabled,
+  workspacesBarEnabled, setWorkspacesBarEnabled,
   batteryMonitorEnabled, setBatteryMonitorEnabled,
   tempMonitorEnabled, setTempMonitorEnabled,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
@@ -67,6 +73,168 @@ export default function PersonalizationSection() {
           >
             <box cssClasses={["qs-toggle-track"]}>
               <box cssClasses={spotifyBarEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* indicador de batería en la barra */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Batería en la barra" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Muestra el estado de la batería en la barra.\nAGS la oculta automáticamente si no detecta ninguna; desactívala para evitar incluso esa detección."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={batteryBarEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setBatteryBarEnabled(!batteryBarEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={batteryBarEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* indicador de red en la barra */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Red en la barra" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Muestra Wi-Fi o Ethernet cuando hay una conexión activa.\nAl desactivarlo, el widget de red no se carga en la barra."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={networkBarEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setNetworkBarEnabled(!networkBarEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={networkBarEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* indicador de uso del micrófono */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Indicador de micrófono en la barra" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Avisa cuando una aplicación usa un micrófono disponible.\nAl desactivarlo, el indicador y sus escuchas de actividad no se cargan."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={micIndicatorEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setMicIndicatorEnabled(!micIndicatorEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={micIndicatorEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* apps en segundo plano de la barra */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Apps en segundo plano en la barra" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Renderiza en la barra los iconos de la bandeja del sistema.\nAl desactivarlo, se desmontan por completo sus iconos, menús y popovers."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={trayBarEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setTrayBarEnabled(!trayBarEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={trayBarEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* botón de notificaciones de la barra */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Notificaciones en la barra" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Muestra el botón de notificaciones en la barra.\nNo afecta al panel ni a las notificaciones de Quick Settings."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={notificationBarEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setNotificationBarEnabled(!notificationBarEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={notificationBarEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* selector de workspaces de la barra */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Workspaces en la barra" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Muestra el selector de workspaces en la barra.\nNo afecta a los escritorios ni a sus atajos de Hyprland."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={workspacesBarEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setWorkspacesBarEnabled(!workspacesBarEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={workspacesBarEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
             </box>
           </button>
         </box>

@@ -30,10 +30,24 @@ export default function MicIndicator() {
     }
 
     if (audio) {
+        // PipeWire puede mantener fuentes virtuales incluso en equipos sin una
+        // entrada física. Solo cuentan endpoints asociados a un Device real y
+        // cuya ruta no esté marcada explícitamente como no disponible.
+        const syncHardware = () => {
+            const microphones = audio.microphones ?? []
+            setHasMic(microphones.some((endpoint) => {
+                if (!endpoint.device) return false
+                const route = endpoint.route
+                return !route || route.available !== AstalWp.Available.NO
+            }))
+        }
         const sync = () => setIsRecording((audio.recorders?.length ?? 0) > 0)
         sync()
+        syncHardware()
         audio.connect("recorder-added", sync)
         audio.connect("recorder-removed", sync)
+        audio.connect("microphone-added", syncHardware)
+        audio.connect("microphone-removed", syncHardware)
         // Cubre el caso de que ya hubiera una captura al arrancar/recargar AGS
         // (el recorder-added pudo emitirse antes de conectar los handlers).
         audio.connect("notify::recorders", sync)
@@ -42,7 +56,6 @@ export default function MicIndicator() {
         const bindMic = (next: AstalWp.Endpoint | null) => {
             if (mic && muteId) mic.disconnect(muteId)
             mic = next
-            setHasMic(!!mic)
             muteId = mic ? mic.connect("notify::mute", syncMute) : 0
             syncMute()
         }

@@ -9,7 +9,9 @@ const WARN_BATTERY_THRESHOLD = 15
 
 export default function Battery() {
   const bat = AstalBattery.get_default()
-  if (!bat) return (<box />)
+  // AstalBattery puede existir como servicio aunque el equipo no tenga una
+  // batería física. En ese caso no se muestra ningún hueco en la barra.
+  if (!bat?.isPresent) return (<box visible={false} />)
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600)

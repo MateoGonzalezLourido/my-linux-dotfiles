@@ -18,7 +18,7 @@ import MicIndicator from "./bar/MicIndicator"
 import NotificationButton from "./bar/NotificationButton"
 import PowerButton from "./bar/PowerButton"
 import SpotifyNowPlaying from "./bar/SpotifyNowPlaying"
-import { spotifyBarEnabled } from "./settings/preferences"
+import { batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled } from "./settings/preferences"
 import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging, barPinnedByKey, setBarPinnedByKey, barKeyboardActive } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
@@ -166,7 +166,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         <Clock />
         <box spacing={1}>
           <Functions />
-          <Workspaces />
+          <With value={workspacesBarEnabled}>{(on: boolean) => on && <Workspaces />}</With>
         </box>
         <GamesIndicator />
       </box>
@@ -176,19 +176,19 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       </box>
 
       <box $type="end" halign={Gtk.Align.END} spacing={2} cssClasses={["bar-end-box"]}>
-        <SystemTray />
+        <With value={trayBarEnabled}>{(on: boolean) => on && <SystemTray />}</With>
         <box cssClasses={["bar-status-pair"]} spacing={0}>
-          <NotificationButton />
+          <With value={notificationBarEnabled}>{(on: boolean) => on && <NotificationButton />}</With>
           <button
             cssClasses={["bar-pill-btn"]}
             onClicked={() => quickSettingsVisible.get() ? closeAllPanels() : openQuickSettings()}
           >
             <box cssClasses={["bar-pill", "qs-system-pill"]}>
               <Bluetooth />
-              <MicIndicator />
-              <Network />
+              <With value={micIndicatorEnabled}>{(on: boolean) => on && <MicIndicator />}</With>
+              <With value={networkBarEnabled}>{(on: boolean) => on && <Network />}</With>
               <Volume />
-              <Battery />
+              <With value={batteryBarEnabled}>{(on: boolean) => on && <Battery />}</With>
             </box>
           </button>
         </box>

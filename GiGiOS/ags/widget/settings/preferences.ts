@@ -29,6 +29,39 @@ export { wsPreviewEnabled }
 const [spotifyBarEnabled, _setSpotifyBarEnabled] = createState(true)
 export { spotifyBarEnabled }
 
+// Batería de la barra. Si se desactiva, el widget no se monta y por tanto no
+// inicializa AstalBattery ni sus señales. Si se deja activa, Battery.tsx oculta
+// el indicador automáticamente cuando el equipo no expone una batería.
+// Default: activada para conservar el comportamiento existente.
+const [batteryBarEnabled, _setBatteryBarEnabled] = createState(true)
+export { batteryBarEnabled }
+
+// Red de la barra. Al desactivarla, Network.tsx no se monta ni se conecta a las
+// señales de AstalNetwork. Si está activa, el propio widget se oculta cuando no
+// hay ningún enlace Wi-Fi o Ethernet activo.
+const [networkBarEnabled, _setNetworkBarEnabled] = createState(true)
+export { networkBarEnabled }
+
+// Indicador puntual de uso del micrófono en la barra. Al desactivarlo, el
+// componente no se monta ni escucha cambios de capturas en AstalWp.
+const [micIndicatorEnabled, _setMicIndicatorEnabled] = createState(true)
+export { micIndicatorEnabled }
+
+// Apps en segundo plano (SystemTray) de la barra. Desactivada, no se monta el
+// contenedor ni se renderizan sus iconos, bindings, menús o popovers.
+const [trayBarEnabled, _setTrayBarEnabled] = createState(true)
+export { trayBarEnabled }
+
+// Botón de notificaciones de la barra. Solo controla NotificationButton; el
+// panel, el historial y los controles de Quick Settings siguen disponibles.
+const [notificationBarEnabled, _setNotificationBarEnabled] = createState(true)
+export { notificationBarEnabled }
+
+// Selector de workspaces de la barra. Solo controla su representación en el
+// bar; no cambia la configuración ni los atajos de Hyprland.
+const [workspacesBarEnabled, _setWorkspacesBarEnabled] = createState(true)
+export { workspacesBarEnabled }
+
 // Monitor de batería (scripts/battery-monitor.sh): el propio script bash lee
 // este valor UNA sola vez al arrancar (no hay polling desde bash), así que un
 // cambio aquí solo se aplica reiniciando el script/Hyprland. Default: activado.
@@ -104,6 +137,12 @@ function load() {
     const saved = JSON.parse(new TextDecoder().decode(content))
     if (typeof saved.workspacePreview === "boolean") _setWsPreviewEnabled(saved.workspacePreview)
     if (typeof saved.spotifyBar === "boolean") _setSpotifyBarEnabled(saved.spotifyBar)
+    if (typeof saved.batteryBar === "boolean") _setBatteryBarEnabled(saved.batteryBar)
+    if (typeof saved.networkBar === "boolean") _setNetworkBarEnabled(saved.networkBar)
+    if (typeof saved.micIndicator === "boolean") _setMicIndicatorEnabled(saved.micIndicator)
+    if (typeof saved.trayBar === "boolean") _setTrayBarEnabled(saved.trayBar)
+    if (typeof saved.notificationBar === "boolean") _setNotificationBarEnabled(saved.notificationBar)
+    if (typeof saved.workspacesBar === "boolean") _setWorkspacesBarEnabled(saved.workspacesBar)
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
@@ -124,6 +163,12 @@ function save() {
     const config = {
       workspacePreview: wsPreviewEnabled.get(),
       spotifyBar: spotifyBarEnabled.get(),
+      batteryBar: batteryBarEnabled.get(),
+      networkBar: networkBarEnabled.get(),
+      micIndicator: micIndicatorEnabled.get(),
+      trayBar: trayBarEnabled.get(),
+      notificationBar: notificationBarEnabled.get(),
+      workspacesBar: workspacesBarEnabled.get(),
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
@@ -151,6 +196,30 @@ export function setWsPreviewEnabled(on: boolean) {
 }
 export function setSpotifyBarEnabled(on: boolean) {
   _setSpotifyBarEnabled(on)
+  save()
+}
+export function setBatteryBarEnabled(on: boolean) {
+  _setBatteryBarEnabled(on)
+  save()
+}
+export function setNetworkBarEnabled(on: boolean) {
+  _setNetworkBarEnabled(on)
+  save()
+}
+export function setMicIndicatorEnabled(on: boolean) {
+  _setMicIndicatorEnabled(on)
+  save()
+}
+export function setTrayBarEnabled(on: boolean) {
+  _setTrayBarEnabled(on)
+  save()
+}
+export function setNotificationBarEnabled(on: boolean) {
+  _setNotificationBarEnabled(on)
+  save()
+}
+export function setWorkspacesBarEnabled(on: boolean) {
+  _setWorkspacesBarEnabled(on)
   save()
 }
 export function setBatteryMonitorEnabled(on: boolean) {

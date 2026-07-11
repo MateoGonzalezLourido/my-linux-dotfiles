@@ -20,8 +20,9 @@ function activeBars(strength: number) {
 type NetKind    = "wired" | "wifi" | "none"
 type NetQuality = "connected" | "portal" | "limited" | "offline"
 
-// Las barras solo tienen sentido para wifi; con cable se muestra un glyph y con
-// "none" se pintan atenuadas.
+// Las barras solo tienen sentido para wifi; con cable se muestra un glyph. Si no
+// hay ningún enlace activo, el widget completo se oculta (no se representa una
+// Wi-Fi inexistente mediante barras vacías).
 function barClasses(strength: number, kind: NetKind) {
   const active = kind === "wifi" ? activeBars(strength) : 0
 
@@ -123,6 +124,7 @@ export default function Network() {
       cssClasses={snap((s) => ["network", s.kind === "wired" ? "wired" : s.quality])}
       valign={Gtk.Align.CENTER}
       tooltipText={snap((s) => s.tip)}
+      visible={snap((s) => s.kind !== "none")}
     >
       <box
         cssClasses={snap((s) => s.kind === "none" ? ["network-bars", "offline"] : ["network-bars"])}

@@ -36,12 +36,15 @@ export default function Volume() {
   if (!wp?.audio) return (<box />)
   const audio = wp.audio
 
-  let speaker = audio.defaultSpeaker
-  if (!speaker) return (<box />)
+  let speaker: AstalWp.Endpoint | null = audio.defaultSpeaker ?? null
 
   const [icon, setIcon]   = createState(speakerIcon(speaker))
-  const [muted, setMuted] = createState(speaker.mute)
-  const [tooltip, setTooltip] = createState(`${Math.round(speaker.volume * 100)}`)
+  const [appearance, setAppearance] = createState(
+    speaker ? (speaker.mute ? "muted" : "normal") : "no-output",
+  )
+  const [tooltip, setTooltip] = createState(
+    speaker ? `${Math.round(speaker.volume * 100)}` : "Sin dispositivo de salida",
+  )
   const [slashed, setSlashed] = createState(isHeadsetMuted(speaker))
 
   // Diagonal (esquina inferior-izq → superior-der) sobre el icono de cascos.
@@ -77,10 +80,9 @@ export default function Volume() {
   slashed.subscribe(() => { slashArea.set_visible(slashed.get()); slashArea.queue_draw() })
 
   const sync = () => {
-    if (!speaker) return
     setIcon(speakerIcon(speaker))
-    setMuted(speaker.mute)
-    setTooltip(`${Math.round(speaker.volume * 100)}`)
+    setAppearance(speaker ? (speaker.mute ? "muted" : "normal") : "no-output")
+    setTooltip(speaker ? `${Math.round(speaker.volume * 100)}` : "Sin dispositivo de salida")
     setSlashed(isHeadsetMuted(speaker))
   }
 
@@ -112,7 +114,7 @@ export default function Volume() {
   }
   bindSpeaker(speaker)
 
-  audio.connect("notify::default-speaker", () => bindSpeaker(audio.defaultSpeaker))
+  audio.connect("notify::default-speaker", () => bindSpeaker(audio.defaultSpeaker ?? null))
 
   // Al arrancar, WirePlumber puede no haber poblado aún icon/name/description del
   // endpoint, y además barVisible es false los primeros ~2s (update() se ignora),
@@ -131,7 +133,9 @@ export default function Volume() {
 
   return (
     <button
-      cssClasses={muted((m) => m ? ["volume", "bt-muted"] : ["volume"])}
+      cssClasses={appearance((state) => state === "no-output"
+        ? ["volume", "no-output"]
+        : state === "muted" ? ["volume", "bt-muted"] : ["volume"])}
       tooltipText={tooltip}
       onClicked={toggleMute}
     >
@@ -141,7 +145,7 @@ export default function Volume() {
       />
       <Gtk.Overlay $={(self) => { self.add_overlay(slashArea) }}>
         <label
-          cssClasses={muted((m) => m ? ["icon-muted"] : [])}
+          cssClasses={appearance((state) => state === "muted" ? ["icon-muted"] : [])}
           label={icon}
         />
       </Gtk.Overlay>

@@ -933,6 +933,11 @@ popover.tray-overflow-popover > contents {
     color: rgba($text, 0.45);
   }
 
+  // Sin ningún sink disponible: el rojo lo diferencia de un mute voluntario.
+  &.no-output {
+    color: $red;
+  }
+
   &.icon-muted {
     color: rgba($text, 0.45);
   }
