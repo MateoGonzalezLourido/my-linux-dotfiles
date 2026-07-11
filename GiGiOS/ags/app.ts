@@ -12,6 +12,7 @@ import SettingsWindow from "./widget/notifications/settings/SettingsWindow"
 import CalendarPanel from "./widget/CalendarPanel"
 import SettingsPanel from "./widget/SettingsPanel"
 import Orion from "./widget/orion/Orion"
+import { orionEnabled } from "./widget/settings/preferences"
 import { startCleanupEngine } from "./widget/notifications/cleanup/cleanupEngine"
 import { runAppSettingsMigration } from "./widget/notifications/settings/runMigration"
 import { initAutoDnd } from "./widget/notifications/autoDnd/watcher"
@@ -29,7 +30,12 @@ app.start({
     app.get_monitors().map(NotificationPopup)
     app.get_monitors().map(NotificationPanel)
     app.get_monitors().map(SettingsWindow)
-    app.get_monitors().map(Orion)
+    // La construcción debe ocurrir dentro del contexto reactivo de main(). Si
+    // está desactivado no se crea la ventana, por lo que tampoco puede arrancar
+    // el polling ni ningún proceso auxiliar de Orion.
+    if (orionEnabled.get()) {
+      app.get_monitors().map(Orion)
+    }
     try { app.get_monitors().map(CalendarPanel) } catch(e) { console.error("[app] CalendarPanel failed:", e) }
     app.get_monitors().map(SettingsPanel)
     startCleanupEngine()

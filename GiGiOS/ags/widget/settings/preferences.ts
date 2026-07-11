@@ -46,6 +46,12 @@ export { tempMonitorEnabled }
 const [clipboardHistoryEnabled, _setClipboardHistoryEnabled] = createState(true)
 export { clipboardHistoryEnabled }
 
+// Menú Orion. app.ts consulta este valor antes de importar el módulo: cuando
+// está desactivado no se crea su ventana ni se cargan watchers/servicios de
+// Orion. El cambio se aplica en el siguiente arranque o recarga de AGS.
+const [orionEnabled, _setOrionEnabled] = createState(true)
+export { orionEnabled }
+
 // No molestar automático: cuando está activo, un watcher en el shell
 // (widget/notifications/autoDnd) enciende notifd.dontDisturb mientras haya un
 // juego corriendo o una app de la lista de abajo en pantalla completa. Silencia
@@ -101,6 +107,7 @@ function load() {
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
+    if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
     if (typeof saved.autoDnd === "boolean") _setAutoDndEnabled(saved.autoDnd)
     if (Array.isArray(saved.autoDndFullscreenApps)) {
       _setAutoDndFullscreenApps(sanitizeApps(saved.autoDndFullscreenApps))
@@ -120,6 +127,7 @@ function save() {
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
+      orion: orionEnabled.get(),
       autoDnd: autoDndEnabled.get(),
       autoDndFullscreenApps: autoDndFullscreenApps.get(),
       timeFormat: timeFormat.get(),
@@ -158,6 +166,10 @@ export function setClipboardHistoryEnabled(on: boolean) {
   save()
   const action = on ? "start" : "stop"
   execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/clipboard-history.sh`, action]).catch(() => {})
+}
+export function setOrionEnabled(on: boolean) {
+  _setOrionEnabled(on)
+  save()
 }
 export function setTimeFormat(fmt: TimeFormat) {
   _setTimeFormat(fmt)

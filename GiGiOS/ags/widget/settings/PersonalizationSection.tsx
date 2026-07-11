@@ -9,6 +9,7 @@ import {
   batteryMonitorEnabled, setBatteryMonitorEnabled,
   tempMonitorEnabled, setTempMonitorEnabled,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
+  orionEnabled, setOrionEnabled,
 } from "./preferences"
 import AutoDndSetting from "./AutoDndSetting"
 
@@ -66,6 +67,33 @@ export default function PersonalizationSection() {
           >
             <box cssClasses={["qs-toggle-track"]}>
               <box cssClasses={spotifyBarEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* menú de inicio avanzado Orion */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Menú Orion" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Activa el menú de inicio avanzado Orion.\nAl desactivarlo, Orion no se carga en el siguiente arranque de AGS."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={orionEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setOrionEnabled(!orionEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={orionEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
             </box>
           </button>
         </box>
