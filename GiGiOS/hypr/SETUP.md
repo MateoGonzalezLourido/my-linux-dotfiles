@@ -229,14 +229,20 @@ El monitor `oom-monitor.sh` incorpora tres funciones de seguridad adicionales:
 Instala sus dependencias:
 
 ```sh
-sudo pacman -S --needed clamav bubblewrap xxhash xdg-user-dirs file
+sudo pacman -S --needed clamav firejail bubblewrap xxhash xdg-user-dirs file
 sudo freshclam
 ```
 
 - `clamav` proporciona `clamscan`. Sin una base descargada con `freshclam`, el programa
   existe pero no puede detectar firmas.
+- `firejail` es el motor principal usado para lanzar archivos o aplicaciones no
+  confiables con aislamiento de procesos, red y sistema de archivos según el perfil
+  aplicado por `run-untrusted.sh`.
 - `bubblewrap` proporciona `bwrap`, usado para construir el sandbox. Esto reduce el
-  acceso del proceso al sistema; **no convierte un archivo desconocido en seguro**.
+  acceso del proceso al sistema y puede servir como backend o alternativa cuando así lo
+  decida `run-untrusted.sh`.
+- Firejail y Bubblewrap no son antivirus: contienen el proceso, mientras que ClamAV
+  analiza el archivo. **Ninguno convierte un archivo desconocido en seguro.**
 - `xxhash` proporciona `xxh64sum` para evitar volver a escanear contenido idéntico. Si
   falta, el monitor cae a `sha1sum` o `md5sum` de `coreutils`, pero será más lento.
 - `xdg-user-dirs` permite encontrar `~/Descargas` aunque el sistema use otro idioma.
@@ -247,6 +253,8 @@ Tras instalar ClamAV, comprueba la configuración con un archivo legítimo cualq
 
 ```sh
 clamscan --version
+firejail --version
+bwrap --version
 clamscan --no-summary ~/Descargas/algún-archivo
 ```
 
@@ -272,14 +280,36 @@ por el código, pero no están versionados. El escaneo automático básico de
 importación de `SecuritySection` impide iniciar el panel de AGS. Hay que recuperar esos
 archivos antes de considerar completa la migración.
 
-## 9. NVIDIA (solo si el PC nuevo tiene GPU NVIDIA)
+## 9. Elegir la configuración de GPU correcta
 
-`nvidia.conf` y `envs/firefox.conf` asumen NVIDIA (`LIBVA_DRIVER_NAME=nvidia`,
-`__GLX_VENDOR_LIBRARY_NAME=nvidia`, `GBM_BACKEND=nvidia-drm`, etc.). **Si el PC destino
-tiene AMD/Intel, quita el `source = ~/.config/hypr/nvidia.conf` de `hyprland.conf`** y edita
-`envs/firefox.conf` (borra `LIBVA_DRIVER_NAME=nvidia`, deja el resto — VA-API con Mesa no
-necesita esas variables). Sin este ajuste, Firefox/apps con aceleración de vídeo pueden
-fallar en un PC no-NVIDIA.
+Antes de iniciar Hyprland en otro equipo, identifica las GPU disponibles:
+
+```sh
+lspci -k | grep -A3 -E 'VGA|3D|Display'
+ls -l /dev/dri/by-path 2>/dev/null
+```
+
+Los perfiles viven en `~/.config/hypr/gpu/` y se seleccionan en el bloque **GPU** de
+`hyprland.conf`. Descomenta **solo uno** que corresponda al hardware; nunca cargues dos
+perfiles al mismo tiempo.
+
+- **Portátil Intel + NVIDIA para offload:** usa `gpu/laptop-hibrida.conf`. Hyprland y la
+  pantalla funcionan sobre Intel; los juegos pesados se lanzan con `prime-run`.
+- **Sobremesa NVIDIA:** debería usar `gpu/sobremesa-nvidia.conf`.
+- **Solo AMD o solo Intel:** no cargues ningún perfil NVIDIA. Normalmente Hyprland puede
+  escoger la GPU automáticamente; crea un perfil específico únicamente si necesitas
+  fijar dispositivos o solucionar una particularidad del driver.
+
+Estado actual del repositorio: solo está versionado `gpu/laptop-hibrida.conf`.
+`hyprland.conf` menciona `gpu/sobremesa-nvidia.conf`, pero ese archivo todavía no existe;
+hay que recuperarlo o crearlo antes de usar esta rama en el sobremesa NVIDIA.
+
+También revisa por separado `envs/firefox.conf`, porque ahora fuerza
+`LIBVA_DRIVER_NAME=nvidia` y `MOZ_DISABLE_RDD_SANDBOX=1`. Es apropiado únicamente cuando
+Firefox realmente decodifica vídeo con NVIDIA. En un sistema AMD/Intel, o en el portátil
+híbrido si Firefox corre sobre Intel, elimina esas dos variables o deja de cargar el
+archivo. Sin este ajuste puede fallar la aceleración de vídeo y se desactiva
+innecesariamente parte del sandbox multimedia de Firefox.
 
 ```sh
 # solo si hay NVIDIA
@@ -290,12 +320,10 @@ sudo pacman -S nvidia-utils
 
 Estas no son paquetes, son configuración/datos ligados al hardware o cuenta actuales:
 
-- **`monitors.conf`** tiene hardcodeado el panel exacto de este portátil
-  (`desc:BOE 0x0CDD 0x0000FFA1, 1920x1200@60, 0x0, 1.33`). En el PC nuevo esa línea no
-  coincidirá con ningún monitor y Hyprland caerá al fallback genérico
-  (`monitor = , preferred, auto, 1`), lo cual funciona pero sin el escalado 1.33 pensado
-  para esta pantalla. Ajusta o borra esa línea según el monitor real del PC destino
-  (`hyprctl monitors` te da el descriptor correcto una vez arrancado).
+- **`monitors.conf`** usa actualmente el fallback genérico
+  (`monitor = , preferred, auto, 1`), adecuado para el monitor 2560×1440 de 27 pulgadas.
+  Después puedes ajustar resolución, frecuencia, posición o escala desde AGS; usa
+  `hyprctl monitors` para comprobar el descriptor y los valores aplicados.
 - **Foto de perfil**: el master versionado es `assets/face.png`; `bin/link.sh` la copia a
   `~/.cache/gigios/face.png`, la única copia de runtime que leen tanto `hyprlock` como el
   avatar de AGS. Para cambiarla, reemplaza `assets/face.png` y vuelve a correr `bin/link.sh`
@@ -369,7 +397,8 @@ No instala todavía todo el escritorio; después sigue estas secciones:
 6. Instala las dependencias de monitorización y seguridad (§8 y §8.1), corre
    `sudo freshclam` y `sudo sensors-detect` cuando corresponda.
 7. Ajusta lo específico de esta máquina (§10): `monitors.conf`, foto de perfil
-   (`assets/face.png`), `nvidia.conf`/`envs/firefox.conf` si no hay NVIDIA, `~/Wallpapers/`.
+   (`assets/face.png`), el perfil de `gpu/` y `envs/firefox.conf` según la GPU,
+   `~/Wallpapers/`.
 8. Si usaste `install.sh`, las configuraciones ya están colocadas. Restaura
    `~/.config/gigios/` solo si quieres conservar el mismo estado y recarga Hyprland
    (`hyprctl reload` o vuelve a iniciar sesión). Comprueba con
