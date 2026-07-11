@@ -1,7 +1,8 @@
 import AstalTray from "gi://AstalTray"
 import { Gtk } from "ags/gtk4"
-import { createBinding, For, With, type Accessor } from "ags"
+import { createBinding, createComputed, For, With, type Accessor } from "ags"
 import { openBarMenu, closeBarMenu, panelAutoClose } from "../state"
+import { hiddenTrayApps } from "../settings/trayApps"
 
 // Prefijos de action group que exponen los menús StatusNotifierItem (dbusmenu.* …).
 const ACTION_GROUP_NAMES = ["dbusmenu", "tray", "indicator", "item", "app", "unity"]
@@ -208,7 +209,15 @@ function OverflowTray({ items }: { items: Accessor<AstalTray.TrayItem[]> }) {
 
 export default function SystemTray() {
   const tray = AstalTray.get_default()
-  const items = createBinding(tray, "items")
+  const rawItems = createBinding(tray, "items")
+
+  // Oculta las apps que el usuario marcó en Ajustes › Apps. Reactivo sobre AMBAS
+  // fuentes (tray + lista de ocultas), así ocultar/mostrar se refleja al instante.
+  // El umbral de overflow opera sobre la lista YA filtrada, de modo que las apps
+  // ocultas no cuentan y desaparecen del todo (incluida la flecha).
+  const items = createComputed(() =>
+    rawItems().filter((i: AstalTray.TrayItem) => !hiddenTrayApps().includes(i.id))
+  )
 
   // Solo cambia de rama al cruzar el umbral (4↔5): dentro del modo overflow el
   // popover se reconstruye al abrirse, así que basta con no rebuildar el árbol.
