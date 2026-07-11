@@ -13,7 +13,7 @@ archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 - `cache/power-save/` — flag de ahorro de energía, runtime git-ignored  (symlink: `~/.config/power-save`)
 - `Wallpapers/`     — fondos  (usados directo por `wallpaper.sh`, sin symlink)
 - `state/orion/`    — datos del launcher  (symlink: `~/.local/share/orion`)
-- `assets/face.png` — foto de perfil, master versionado  (copia de runtime: `~/.cache/gigios/face.png`)
+- `assets/face.png` — foto personal opcional e ignorada por Git (copia de runtime: `~/.cache/gigios/face.png`)
 - `_legacy/`        — copias archivadas sin uso
 - `bin/link.sh`     — crea/repara/valida los symlinks
 

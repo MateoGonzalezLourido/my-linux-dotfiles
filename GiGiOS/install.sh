@@ -27,23 +27,33 @@ die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
 
 install_packages() {
   local official=(
-    git curl python xdg-utils hyprland hyprlock hypridle hyprpolkitagent hyprsunset
+    git curl python xdg-utils base-devel hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
+    xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
     ttf-meslo-nerd rofi wofi cliphist wl-clipboard brightnessctl playerctl
-    qalculate-gtk wf-recorder grim slurp jq bc hyprshot
+    qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
     network-manager-applet blueman fish kitty dolphin kde-cli-tools
-    libpulse pipewire wireplumber libnotify awww
+    libpulse pipewire pipewire-audio pipewire-pulse pipewire-alsa wireplumber
+    gst-plugin-pipewire libnotify awww upower libgudev
     smartmontools lm_sensors pciutils usbutils alsa-utils inotify-tools dbus
     networkmanager bluez bluez-utils xdg-user-dirs
-    clamav firejail bubblewrap xxhash file
+    clamav firejail bubblewrap xxhash file cups geoclue
+    mesa-utils lshw fd github-cli
   )
 
   [[ "$INSTALL_PACKAGES" == 1 ]] || { warn "Dependencias omitidas (INSTALL_PACKAGES=$INSTALL_PACKAGES)."; return; }
   command -v pacman >/dev/null || die "La instalación automática solo admite Arch/CachyOS (falta pacman). Usá INSTALL_PACKAGES=0 y seguí hypr/SETUP.md."
+  command -v sudo >/dev/null || die "Falta sudo. Instálalo y concede permisos al usuario antes de continuar."
   info "Instalando dependencias de repos oficiales ..."
   sudo pacman -S --needed "${official[@]}"
 
-  if ! command -v ags >/dev/null; then
+  local astal_ready=1 namespace
+  command -v ags >/dev/null || astal_ready=0
+  for namespace in Battery Bluetooth Hyprland Mpris Network Notifd Tray Wp; do
+    compgen -G "/usr/lib/girepository-1.0/Astal${namespace}-*.typelib" >/dev/null \
+      || astal_ready=0
+  done
+  if [[ "$astal_ready" != 1 ]]; then
     if command -v paru >/dev/null; then
       info "Instalando AGS y las bibliotecas Astal desde AUR ..."
       paru -S --needed aylurs-gtk-shell-git libastal-meta
@@ -51,9 +61,13 @@ install_packages() {
       info "Instalando AGS y las bibliotecas Astal desde AUR ..."
       yay -S --needed aylurs-gtk-shell-git libastal-meta
     else
-      die "AGS requiere AUR. Instalá paru o yay y repetí el instalador; también podés usar INSTALL_PACKAGES=0."
+      die "AGS/Astal requieren AUR. Instalá paru o yay y repetí el instalador; también podés usar INSTALL_PACKAGES=0."
     fi
   fi
+
+  info "Activando los servicios que usa el panel de red y Bluetooth ..."
+  sudo systemctl enable --now NetworkManager.service bluetooth.service \
+    || warn "No pude activar NetworkManager/Bluetooth ahora; actívalos antes de iniciar Hyprland."
 }
 
 install_packages
@@ -98,9 +112,9 @@ info "Dotfiles en su lugar (rama $BRANCH)."
 LINK="$HOME/GiGiOS/bin/link.sh"
 if [ -x "$LINK" ]; then
   info "Creando symlinks de GiGiOS ..."
-  LINK_BACKUP="$BACKUP" bash "$LINK" --force || warn "link.sh reportó incidencias (ver arriba)."
+  LINK_BACKUP="$BACKUP" bash "$LINK" --force || die "No se pudieron crear todos los enlaces. Revisa los mensajes anteriores."
 else
-  warn "No encontré $LINK. ¿El checkout trajo GiGiOS/bin/link.sh?"
+  die "No encontré $LINK. El checkout no contiene GiGiOS/bin/link.sh."
 fi
 
 # --- 4. Generar el CSS que importa app.ts ---
@@ -108,7 +122,7 @@ if command -v sass >/dev/null && [ -f "$HOME/GiGiOS/ags/style.scss" ]; then
   info "Compilando el CSS de AGS ..."
   sass --no-source-map "$HOME/GiGiOS/ags/style.scss" "$HOME/GiGiOS/ags/out.css"
 else
-  warn "No pude compilar AGS/out.css (falta sass o style.scss)."
+  die "No pude compilar AGS/out.css (falta sass o style.scss)."
 fi
 
 # --- 5. Reconstruir la caché de aplicaciones de KDE/Dolphin ---
@@ -126,7 +140,7 @@ fi
 if [ -x "$HOME/GiGiOS/bin/preflight.sh" ]; then
   info "Validando la instalación ..."
   HOME="$HOME" GIGIOS="$HOME/GiGiOS" "$HOME/GiGiOS/bin/preflight.sh" --installed \
-    || warn "La validación encontró tareas pendientes (ver arriba)."
+    || die "La validación final falló. La instalación no está completa."
 fi
 echo
 info "Instalación base completa."

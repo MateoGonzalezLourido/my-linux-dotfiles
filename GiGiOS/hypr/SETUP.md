@@ -19,6 +19,12 @@ El instalador se encarga de:
 - reconstruir la caché de aplicaciones de Dolphin;
 - ejecutar la validación final.
 
+**AGS sí es obligatorio.** GiGiOS no usa una barra o centro de notificaciones externo:
+`ags` ejecuta el shell completo y `AstalNotifd` proporciona el daemon y la interfaz de
+notificaciones. El instalador añade `aylurs-gtk-shell-git`, `libastal-meta` y `libnotify`;
+el preflight comprueba explícitamente que `ags`, `notify-send` y todos los typelibs Astal
+estén disponibles.
+
 ### Después del instalador
 
 Solo quedan estas decisiones personales:
@@ -39,6 +45,14 @@ Finalmente, cierra y vuelve a abrir la sesión. Puedes comprobar el resultado co
 ~/GiGiOS/bin/preflight.sh --installed
 ags run ~/.config/ags/app.ts
 ```
+
+Para iniciar Hyprland desde una TTY puedes usar:
+
+```sh
+uwsm start hyprland.desktop
+```
+
+Si utilizas un display manager, selecciona la sesión **Hyprland (uwsm)**.
 
 La foto personal, las fuentes propietarias del lock screen y la configuración de Spotify
 son opcionales; su ausencia no impide arrancar GiGiOS.
@@ -62,7 +76,8 @@ bloque de `pacman` después de haber usado el instalador recomendado.
 ## 1. Base: Hyprland + utilidades de sesión
 
 ```sh
-sudo pacman -S hyprland hyprlock hypridle hyprpolkitagent hyprsunset
+sudo pacman -S hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm \
+  xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland
 ```
 
 - `hypridle` gestiona apagar pantalla / bloquear / suspender (`hypridle.conf`).
@@ -75,6 +90,9 @@ sudo pacman -S hyprland hyprlock hypridle hyprpolkitagent hyprsunset
   `~/.config/gigios/display.json`). **Nota de `hyprland.conf`**: `render { cm_enabled = false }`
   está así a propósito porque el CTM de color management de Hyprland pisa el de
   `hyprsunset` y se ve lavado — no lo actives sin desactivar uno de los dos.
+- `uwsm` gestiona la sesión de Hyprland mediante systemd de usuario.
+- Los portales de Hyprland y GTK son necesarios para compartir pantalla y abrir
+  selectores de archivos en aplicaciones Wayland.
 
 ## 2. AGS (el shell en sí)
 
@@ -86,6 +104,8 @@ paru -S aylurs-gtk-shell-git libastal-meta
 
 `libastal-meta` trae todas las libs de Astal que usa el shell (`AstalWp`, `AstalHyprland`,
 `AstalNetwork`, `AstalBluetooth`, `AstalMpris`, `AstalNotifd`, `AstalBattery`, `AstalTray`).
+`AstalNotifd` es el servidor de notificaciones de la sesión: no instales otro daemon como
+`dunst` o `mako` a la vez, porque competirían por el mismo nombre de D-Bus.
 Dependencias que arrastra `aylurs-gtk-shell-git` (para que compile/corra el bundler):
 `gjs`, `gtk4-layer-shell`, `gobject-introspection`, `npm`, y opcionalmente `dart-sass`
 (compilar `style.scss`) y `blueprint-compiler` (no se usa aquí, pero es dependencia
@@ -138,7 +158,8 @@ Cópialas y corre `fc-cache -f` en el PC destino.
 
 ```sh
 sudo pacman -S rofi wofi cliphist wl-clipboard brightnessctl playerctl qalculate-gtk \
-  wf-recorder grim slurp jq bc hyprshot nm-connection-editor blueman fish git curl
+  wf-recorder grim slurp jq bc hyprshot nm-connection-editor blueman fish git curl \
+  btop upower libgudev cups geoclue mesa-utils lshw fd github-cli
 ```
 
 Qué usa cada cosa:
@@ -157,7 +178,8 @@ Qué usa cada cosa:
   `libpulse`) y **`pw-metadata`** (paquete `pipewire`) para listar/cambiar sink-inputs y el
   dispositivo por defecto:
   ```sh
-  sudo pacman -S libpulse pipewire
+  sudo pacman -S libpulse pipewire pipewire-audio pipewire-pulse pipewire-alsa \
+    wireplumber gst-plugin-pipewire
   ```
 - **`wf-recorder`** — grabación de una región con `SUPER+SHIFT+P` vía `slurp`.
 - **`qalculate-gtk`** — calculadora (`XF86Calculator`).
@@ -243,6 +265,10 @@ ya cubierto por `hyprshot`/`grim` arriba, pero decláralo explícito):
 sudo pacman -S libnotify smartmontools lm_sensors pciutils usbutils alsa-utils \
   util-linux inotify-tools dbus networkmanager bluez bluez-utils xdg-user-dirs
 ```
+
+El instalador habilita `NetworkManager.service` y `bluetooth.service`. CUPS se instala
+pero queda bajo control del interruptor **Ajustes → Dispositivos → Impresoras**, para no
+mantener el servicio activo en equipos que no imprimen.
 
 Detalle por script:
 
@@ -349,7 +375,9 @@ sobremesa.
 
 ```sh
 # solo si hay NVIDIA
-sudo pacman -S nvidia-utils
+sudo pacman -S nvidia-utils nvidia-prime
+# si NVIDIA es la GPU principal y quieres VA-API
+sudo pacman -S libva-nvidia-driver
 ```
 
 ## 10. Cosas específicas de ESTA máquina que hay que revisar al migrar
@@ -360,10 +388,10 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
   (`monitor = , preferred, auto, 1`), adecuado para el monitor 2560×1440 de 27 pulgadas.
   Después puedes ajustar resolución, frecuencia, posición o escala desde AGS; usa
   `hyprctl monitors` para comprobar el descriptor y los valores aplicados.
-- **Foto de perfil**: el master versionado es `assets/face.png`; `bin/link.sh` la copia a
+- **Foto de perfil**: el archivo local opcional es `assets/face.png`; `bin/link.sh` lo copia a
   `~/.cache/gigios/face.png`, la única copia de runtime que leen tanto `hyprlock` como el
-  avatar de AGS. Para cambiarla, reemplaza `assets/face.png` y vuelve a correr `bin/link.sh`
-  (viaja versionada con el repo, así que en el PC nuevo no hace falta copiar nada aparte).
+  avatar de AGS. Está ignorado por Git para no publicar una foto personal: cópialo por
+  separado o configura el avatar desde AGS. Sin foto, AGS muestra las iniciales.
 - **`~/.config/jarvis/git-repos.json`** (Orion → sección Git) tiene rutas de repos locales
   de esta máquina (ej. `~/Documentos/Github/Ravage`); si esas rutas no existen en el PC
   nuevo, la sección Git de Orion simplemente no los mostrará — no es un error, solo revisa
@@ -379,6 +407,10 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
 
 ### Antes de migrar: preflight del repositorio
 
+El instalador remoto solo puede descargar archivos que estén **versionados, incluidos en
+un commit y publicados en `origin/laptop`**. Que AGS funcione en la máquina de desarrollo
+no demuestra que esos archivos estén en Git.
+
 Ejecuta esto en la máquina origen antes del push:
 
 ```sh
@@ -389,6 +421,20 @@ GIGIOS="$PWD/GiGiOS" GiGiOS/bin/link.sh --check
 bash -n GiGiOS/install.sh GiGiOS/inicializador/init.sh GiGiOS/hypr/scripts/*.sh
 bin/verify-files.sh
 ```
+
+En este repositorio bare usa también:
+
+```sh
+dotfiles status --short --untracked-files=all -- GiGiOS .github
+dotfiles ls-files GiGiOS/ags/widget/settings/SecuritySection.tsx \
+  GiGiOS/hypr/scripts/scan-file.sh GiGiOS/bin/preflight.sh
+```
+
+La primera orden no debe mostrar cambios pendientes antes de probar la URL pública; la
+segunda debe imprimir los tres archivos. El workflow debe vivir en
+`.github/workflows/gigios-validate.yml` en la **raíz del repositorio**, no dentro de
+`GiGiOS/.github/`. Después de hacer commit y push, verifica que la acción de GitHub pase
+en la rama `laptop`.
 
 Comprueba además que no falte ningún archivo referenciado por la configuración:
 
@@ -463,10 +509,10 @@ Los fondos están dentro de GiGiOS, por lo que viajan con un clon completo del r
 
 ## 13. Cómo poner tu foto de perfil
 
-La foto de perfil está **estandarizada en un solo archivo**. El master versionado es
-`assets/face.png` (viaja con el repo); `bin/link.sh` lo copia a `~/.cache/gigios/face.png`,
-que es la **única copia de runtime**. La leen los dos sitios que muestran tu foto,
-así que siempre coinciden:
+La foto de perfil es opcional y privada. Puedes colocarla primero en
+`assets/face.png` y dejar que `bin/link.sh` la copie a `~/.cache/gigios/face.png`, o
+seleccionarla desde Ajustes de AGS, que escribe directamente la copia de runtime.
+`assets/face.png` está ignorado por Git y no viaja a otro PC.
 
 1. **Pantalla de bloqueo (`hyprlock`)** — `hyprlock.conf`, bloque `image` con
    `path = ~/.cache/gigios/face.png`.
@@ -476,7 +522,7 @@ así que siempre coinciden:
 
 Para cambiar la foto:
 ```sh
-cp /ruta/a/tu/foto.png ~/GiGiOS/assets/face.png   # actualiza el master versionado
+cp /ruta/a/tu/foto.png ~/GiGiOS/assets/face.png   # copia privada local
 bin/link.sh                                        # refresca ~/.cache/gigios/face.png
 ```
 Alternativa rápida (temporal): copiar tu imagen directamente sobre
@@ -509,7 +555,7 @@ migrar y qué se regenera solo.
 | `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
 | `~/.local/share/orion/profiles/*.json` | sesiones guardadas de Orion (`ProfileManager.ts`) |
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `widget/power/powerState.ts`) |
-| `~/GiGiOS/assets/face.png` | foto de perfil (master versionado); `link.sh` la copia a `~/.cache/gigios/face.png` (§13) |
+| `~/GiGiOS/assets/face.png` | foto privada opcional, ignorada por Git; `link.sh` la copia al caché (§13) |
 | `~/GiGiOS/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
 | `~/.config/gigios/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
 
@@ -543,13 +589,4 @@ Las fuentes manuales son las únicas entradas de esta tabla que hay que copiar p
 | `/tmp/ags-ws-preview-*.png` | capturas de `grim` para el preview de workspace al clic-derecho |
 | `$XDG_RUNTIME_DIR/gigios-gaps-disabled` | marca si el toggle está en modo "sin gaps" |
 | `~/.cache/ags/media` | carátulas de álbum cacheadas por el reproductor multimedia |
-| `~/.config/hypr/logs/boot-healthcheck.log`, `~/.config/hypr/logs/watchdog.log` | logs propios, rotan solos, no son necesarios para funcionar |
-
-### 14.5 Referenciadas pero que ya no existen en esta máquina (vestigios)
-
-`hyprlock.conf` referencia `~/.config/hypr/hypr.png` (fondo) y
-`~/.config/hypr/foreground.png` (imagen decorativa) — **ninguna de las dos existe hoy** en
-este sistema. Probablemente son restos de una plantilla de hyprlock genérica; sin el
-fichero, esos bloques `background`/`image` simplemente no dibujan nada (no rompen el lock
-screen). Si quieres esos elementos, pon una imagen en esas rutas; si no, puedes borrar esos
-bloques de `hyprlock.conf`.
+| `~/.config/hypr/logs/boot-healthcheck.log` | log propio; rota solo y no es necesario para funcionar |

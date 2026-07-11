@@ -1,0 +1,54 @@
+// Lógica pura de edición de hypridle.conf — SIN imports GTK/GLib (corre bajo
+// node --test). El efecto (leer/escribir/reiniciar) vive en DisplaySection.tsx.
+
+export type ListenerKind = "dpms" | "lock" | "suspend"
+
+export interface ListenerState { timeout: number; enabled: boolean }
+export interface HypridleConfig {
+  dpms: ListenerState
+  lock: ListenerState
+  suspend: ListenerState
+}
+
+// on-timeout → tipo de listener
+function kindOf(onTimeout: string): ListenerKind | null {
+  if (/dpms\s+off/.test(onTimeout)) return "dpms"
+  if (/hyprlock/.test(onTimeout)) return "lock"
+  if (/systemctl\s+suspend/.test(onTimeout)) return "suspend"
+  return null
+}
+
+const DEFAULT: ListenerState = { timeout: 0, enabled: false }
+
+export function parseHypridle(text: string): HypridleConfig {
+  const cfg: HypridleConfig = { dpms: { ...DEFAULT }, lock: { ...DEFAULT }, suspend: { ...DEFAULT } }
+  // Partir en bloques listener { ... }
+  const blocks = text.match(/listener\s*\{[^}]*\}/g) || []
+  for (const block of blocks) {
+    const on = block.match(/on-timeout\s*=\s*(.+)/)
+    if (!on) continue
+    const kind = kindOf(on[1])
+    if (!kind) continue
+    // timeout, incluso si está comentado con el sentinel
+    const active = block.match(/^\s*timeout\s*=\s*(\d+)/m)
+    const disabled = block.match(/^\s*#\s*timeout\s*=\s*(\d+)\s*#\s*GIGIOS-OFF/m)
+    if (active) cfg[kind] = { timeout: Number(active[1]), enabled: true }
+    else if (disabled) cfg[kind] = { timeout: Number(disabled[1]), enabled: false }
+  }
+  return cfg
+}
+
+export function writeHypridle(text: string, values: Partial<Record<ListenerKind, ListenerState>>): string {
+  return text.replace(/listener\s*\{[^}]*\}/g, (block) => {
+    const on = block.match(/on-timeout\s*=\s*(.+)/)
+    if (!on) return block
+    const kind = on[1] ? kindOf(on[1]) : null
+    if (!kind || !values[kind]) return block
+    const v = values[kind]!
+    const line = v.enabled
+      ? `timeout = ${v.timeout}`
+      : `# timeout = ${v.timeout}   # GIGIOS-OFF`
+    // Reemplaza la línea timeout activa o la comentada, preservando indentación.
+    return block.replace(/^(\s*)(#\s*)?timeout\s*=\s*\d+(\s*#\s*GIGIOS-OFF)?/m, `$1${line}`)
+  })
+}

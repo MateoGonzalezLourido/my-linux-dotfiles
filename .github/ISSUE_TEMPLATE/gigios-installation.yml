@@ -1,0 +1,34 @@
+name: Error de instalación
+description: Reporta un fallo al instalar o arrancar GiGiOS
+title: "[Instalación] "
+labels: [bug]
+body:
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware y GPU
+      placeholder: Portátil Intel + NVIDIA, sobremesa AMD…
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versiones
+      description: Salida de `uname -r`, `hyprctl version` y `ags --version`.
+    validations:
+      required: true
+  - type: textarea
+    id: preflight
+    attributes:
+      label: Validación
+      description: Salida completa de `~/GiGiOS/bin/preflight.sh --installed`.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Qué ocurrió
+      description: Pasos para reproducirlo y el resultado esperado.
+    validations:
+      required: true

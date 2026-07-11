@@ -1,0 +1,21 @@
+name: Validar GiGiOS
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validar archivos y scripts
+        run: GiGiOS/bin/preflight.sh
+      - name: Ejecutar tests TypeScript puros
+        run: find GiGiOS/ags/widget -name '*.test.ts' -print0 | xargs -0 node --test
