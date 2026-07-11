@@ -40,7 +40,7 @@ apply_nightlight() {
         [ -n "$raw_temp" ] && temp=$raw_temp
     fi
     
-    pkill hyprsunset
+    pkill -HUP -x hyprsunset
     if [ "$active" = "true" ]; then
         hyprsunset -t "$temp" &
     fi
