@@ -61,7 +61,7 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
         heightRequest={700}
         propagateNaturalHeight={false}
         hscrollbarPolicy={Gtk.PolicyType.NEVER}
-        vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+        vscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
       >
         <box orientation={Gtk.Orientation.VERTICAL} hexpand>
           <With value={section}>
