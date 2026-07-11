@@ -2,15 +2,14 @@ import AstalTray from "gi://AstalTray"
 import { Gtk } from "ags/gtk4"
 import { createBinding, createComputed, For, With, type Accessor } from "ags"
 import { openBarMenu, closeBarMenu, panelAutoClose } from "../state"
-import { hiddenTrayApps } from "../settings/trayApps"
+import { hiddenTrayApps, trayOverflowAt } from "../settings/trayApps"
 
 // Prefijos de action group que exponen los menús StatusNotifierItem (dbusmenu.* …).
 const ACTION_GROUP_NAMES = ["dbusmenu", "tray", "indicator", "item", "app", "unity"]
 
-// Nº máximo de iconos que se muestran sueltos en el bar. Con más que esto (>4,
-// es decir 5+), todos se recogen en un menú desplegable (flecha) al estilo del
-// overflow del system tray de Windows.
-const MAX_INLINE = 4
+// El umbral de agrupación (nº de apps a partir del cual todos los iconos se
+// recogen en el menú desplegable de la flecha, al estilo del overflow del system
+// tray de Windows) es configurable en Ajustes › Apps → `trayOverflowAt`.
 
 // Un icono del tray = un Gtk.MenuButton cuyo popover se construye desde el
 // menuModel del item. Clave: GTK lee y renderiza el GMenuModel remoto (D-Bus)
@@ -219,9 +218,10 @@ export default function SystemTray() {
     rawItems().filter((i: AstalTray.TrayItem) => !hiddenTrayApps().includes(i.id))
   )
 
-  // Solo cambia de rama al cruzar el umbral (4↔5): dentro del modo overflow el
-  // popover se reconstruye al abrirse, así que basta con no rebuildar el árbol.
-  const overflow = items((a: AstalTray.TrayItem[]) => a.length > MAX_INLINE)
+  // Reactivo sobre items + umbral: con `trayOverflowAt` apps o más, se agrupan.
+  // Dentro del modo overflow el popover se reconstruye al abrirse, así que basta
+  // con conmutar la rama sin rebuildar el árbol inline.
+  const overflow = createComputed(() => items().length >= trayOverflowAt())
 
   return (
     <box spacing={2}>
