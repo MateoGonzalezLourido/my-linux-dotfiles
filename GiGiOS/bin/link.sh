@@ -9,11 +9,12 @@
 #   bin/link.sh --force    respalda lo que estorbe (a $LINK_BACKUP) y enlaza
 #
 # Variables:
-#   GIGIOS       raíz (por defecto ~/GiGiOS)
+#   GIGIOS       raíz (por defecto, el directorio padre de este script)
 #   LINK_BACKUP  destino de respaldos en --force (por defecto ~/.dotfiles-backup-<fecha>)
 set -euo pipefail
 
-GIGIOS="${GIGIOS:-$HOME/GiGiOS}"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+GIGIOS="${GIGIOS:-$(cd -- "$script_dir/.." && pwd)}"
 LINK_BACKUP="${LINK_BACKUP:-$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)}"
 
 # "ruta_relativa_en_GiGiOS::ruta_canonica_absoluta"
