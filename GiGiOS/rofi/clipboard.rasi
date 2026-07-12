@@ -1,0 +1,64 @@
+/* HyDE mini dropdown para el historial propio de GiGiOS. */
+configuration { show-icons: true; font: "JetBrainsMono Nerd Font 10"; }
+
+@theme "theme.rasi"
+
+window {
+    width: 23em;
+    height: 30em;
+    transparency: "real";
+    border: 2px;
+    border-radius: 15px;
+    border-color: @main-br;
+    background-color: @main-bg;
+}
+mainbox {
+    padding: 0.5em;
+    children: [ wallbox, listview ];
+    background-color: transparent;
+}
+wallbox {
+    orientation: horizontal;
+    children: [ wallframe, inputbar ];
+    border-radius: 10px;
+    background-image: url("~/.cache/gigios/rofi-wallpaper", width);
+}
+wallframe {
+    width: 5em;
+    expand: false;
+    background-color: @main-bg;
+    background-image: url("~/.cache/gigios/rofi-wallpaper", width);
+}
+inputbar { children: [ entry ]; background-color: @main-bg; }
+entry { padding: 1.8em; text-color: @main-fg; background-color: transparent; }
+listview {
+    padding: 0.5em;
+    columns: 1;
+    lines: 4;
+    cycle: true;
+    fixed-height: true;
+    background-color: transparent;
+    text-color: @main-fg;
+}
+element {
+    orientation: horizontal;
+    children: [ element-icon, element-text ];
+    spacing: 0.6em;
+    padding: 0.5em;
+    height: 5.2em;
+    border-radius: 10px;
+    background-color: transparent;
+    text-color: @main-fg;
+}
+element selected.normal { background-color: @select-bg; text-color: @select-fg; }
+element-icon {
+    size: 4.5em;
+    border-radius: 7px;
+    background-color: transparent;
+}
+element-text {
+    width: 15em;
+    vertical-align: 0.5;
+    background-color: transparent;
+    text-color: inherit;
+}

@@ -1,0 +1,64 @@
+/* HyDE Sideview, conservando el modo drun de GiGiOS. */
+configuration {
+    modi: "drun";
+    show-icons: true;
+    drun-display-format: "{name}";
+    font: "JetBrainsMono Nerd Font 10";
+}
+
+@theme "theme.rasi"
+
+window {
+    width: 63em;
+    height: 33em;
+    transparency: "real";
+    border: 2px;
+    border-radius: 30px;
+    border-color: @main-br;
+    background-color: @main-bg;
+}
+mainbox {
+    orientation: horizontal;
+    children: [ wallpaper, listbox ];
+    background-color: transparent;
+}
+wallpaper {
+    width: 37em;
+    expand: false;
+    background-color: @main-bg;
+    background-image: url("~/.cache/gigios/rofi-wallpaper", height);
+}
+listbox {
+    padding: 2em;
+    children: [ inputbar, listview ];
+    background-color: transparent;
+}
+inputbar {
+    margin: 0em 0em 1em 0em;
+    padding: 0.8em 1.2em;
+    border-radius: 20px;
+    background-color: @main-ex;
+    children: [ prompt, entry ];
+}
+prompt { text-color: @select-fg; background-color: transparent; }
+entry { text-color: @select-fg; background-color: transparent; }
+listview {
+    columns: 1;
+    lines: 8;
+    cycle: true;
+    dynamic: true;
+    scrollbar: false;
+    fixed-height: true;
+    background-color: transparent;
+    text-color: @main-fg;
+}
+element {
+    spacing: 0.8em;
+    padding: 0.4em 0.4em 0.4em 1.5em;
+    border-radius: 20px;
+    background-color: transparent;
+    text-color: @main-fg;
+}
+element selected.normal { background-color: @select-bg; text-color: @select-fg; }
+element-icon { size: 2.8em; background-color: transparent; }
+element-text { vertical-align: 0.5; background-color: transparent; text-color: inherit; }

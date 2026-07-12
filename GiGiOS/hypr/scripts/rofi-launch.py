@@ -67,7 +67,8 @@ def main():
     target_ws = hypr_j("activeworkspace")["id"]
 
     # --- Lanzar rofi (bloquea hasta selección o cancelación) ---
-    subprocess.run(["rofi", "-show", "drun"])
+    theme = os.path.expanduser("~/.config/rofi/launcher.rasi")
+    subprocess.run(["rofi", "-show", "drun", "-theme", theme])
 
     # --- Observación vía socket de eventos ---
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
