@@ -1,39 +1,39 @@
-/* Paleta original de HyDE; no altera tamaños, posición ni estructura. */
+/* Misma paleta que ~/.config/rofi/launcher-familiar.rasi. */
 window {
-    background-color: #f5e0dc;
-    color: #11111b;
+    background-color: #313244;
+    color: #ffffff;
 }
 
 #outer-box,
 #inner-box,
 #scroll {
-    background-color: #f5e0dc;
-    color: #11111b;
+    background-color: #313244;
+    color: #ffffff;
 }
 
 #input {
-    background-color: #f5e0dc;
-    color: #11111b;
-    border-color: #cba6f7;
-    caret-color: #11111b;
+    background-color: #313244;
+    color: #ffffff;
+    border-color: #89b4fa;
+    caret-color: #ffffff;
 }
 
 #entry {
-    background-color: #f5e0dc;
-    color: #11111b;
+    background-color: #313244;
+    color: #ffffff;
 }
 
 #text {
-    background-color: #f5e0dc;
-    color: #11111b;
+    background-color: #313244;
+    color: #ffffff;
 }
 
 #entry:selected {
-    background-color: #b4befe;
-    color: #11111b;
+    background-color: #89b4fa;
+    color: #1e1e2e;
 }
 
 #entry:selected #text {
-    background-color: #b4befe;
-    color: #11111b;
+    background-color: #89b4fa;
+    color: #1e1e2e;
 }
