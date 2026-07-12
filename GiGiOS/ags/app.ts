@@ -44,6 +44,11 @@ app.start({
     app.get_monitors().map(PowerOptions)
     app.get_monitors().map(OSD)
     app.get_monitors().map(MicOSD)
+    // Resumen inicial escalonado: el volumen se omite si arranca silenciado o a
+    // cero, y el brillo si ya está al máximo. Estas condiciones son exclusivas
+    // de este primer lanzamiento; los atajos siempre muestran sus OSD.
+    setTimeout(() => showOSD(true), 1200)
+    setTimeout(() => showBrightnessOSD(true), 3400)
     app.get_monitors().map(QuickSettings)
     app.get_monitors().map(NotificationPopup)
     app.get_monitors().map(NotificationPanel)

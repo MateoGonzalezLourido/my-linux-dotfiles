@@ -187,13 +187,34 @@ try {
 // ── Brightness OSD ────────────────────────────────────────────────────────────
 export const [brightnessOsdVisible, setBrightnessOsdVisible] = createState(false)
 let _brightOsdTimer: number | null = null
+
+const BACKLIGHT_PATH = "/sys/class/backlight/intel_backlight"
+function readBacklightRatio(): number | null {
+  try {
+    const [brightnessOk, brightnessBytes] = GLib.file_get_contents(`${BACKLIGHT_PATH}/brightness`)
+    const [maxOk, maxBytes] = GLib.file_get_contents(`${BACKLIGHT_PATH}/max_brightness`)
+    if (!brightnessOk || !maxOk) return null
+    const current = Number(new TextDecoder().decode(brightnessBytes).trim())
+    const maximum = Number(new TextDecoder().decode(maxBytes).trim())
+    if (!Number.isFinite(current) || !Number.isFinite(maximum) || maximum <= 0) return null
+    return Math.max(0, Math.min(1, current / maximum))
+  } catch {
+    return null
+  }
+}
+
 function hideBrightnessOSD() {
   setBrightnessOsdVisible(false)
   if (_brightOsdTimer) clearTimeout(_brightOsdTimer)
   _brightOsdTimer = null
 }
-export function showBrightnessOSD() {
-  if (!brightnessOsdEnabled.get() || !Number.isFinite(brightness.get()) || brightness.get() >= 0.999) {
+export function showBrightnessOSD(startup = false) {
+  // brightnessctl ya ha terminado cuando llega esta petición IPC: leer sysfs aquí
+  // garantiza que cada repetición del atajo refresque el valor aunque udev tarde.
+  const current = readBacklightRatio()
+  if (current !== null) setBrightness(current)
+  const value = current ?? brightness.get()
+  if (!brightnessOsdEnabled.get() || !Number.isFinite(value) || (startup && value >= 0.999)) {
     hideBrightnessOSD()
     return
   }
@@ -214,7 +235,7 @@ brightnessOsdEnabled.subscribe(() => {
 
 try {
   const _backlightClient = new GUdev.Client({ subsystems: ["backlight"] })
-  const _dev = _backlightClient.query_by_sysfs_path("/sys/class/backlight/intel_backlight")
+  const _dev = _backlightClient.query_by_sysfs_path(BACKLIGHT_PATH)
   const _maxBright = Number(_dev?.get_sysfs_attr_as_int("max_brightness") ?? 0)
   const readBrightness = (device: GUdev.Device) => {
     const raw = Number(device.get_sysfs_attr_as_int_uncached("brightness"))
@@ -231,7 +252,6 @@ try {
       const value = readBrightness(device)
       if (value !== null) {
         setBrightness(value)
-        if (value >= 0.999) hideBrightnessOSD()
       }
     })
   }

@@ -16,13 +16,13 @@ function hideOSD() {
     osdTimeout = null
 }
 
-export function showOSD() {
+export function showOSD(startup = false) {
     if (!volumeOsdEnabled.get()) {
         hideOSD()
         return
     }
     const speaker = AstalWp.get_default()?.audio?.defaultSpeaker
-    if (!speaker || speaker.mute || speaker.volume <= 0) {
+    if (!speaker || (startup && (speaker.mute || speaker.volume <= 0))) {
         hideOSD()
         return
     }
@@ -101,11 +101,9 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
         if (speaker) {
             volumeId = speaker.connect("notify::volume", () => {
                 updateVolumeVars()
-                if (speaker && speaker.volume <= 0) hideOSD()
             })
             muteId = speaker.connect("notify::mute", () => {
                 updateVolumeVars()
-                if (speaker?.mute) hideOSD()
             })
         }
         updateVolumeVars()
@@ -114,16 +112,16 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
     audio?.connect("notify::default-speaker", () => bindSpeaker(audio.defaultSpeaker ?? null))
 
     // Switch to brightness mode when brightness OSD activates
-    brightnessOsdVisible.subscribe((visible) => {
-        if (visible) updateBrightnessVars(brightness.get())
+    brightnessOsdVisible.subscribe(() => {
+        if (brightnessOsdVisible.get()) updateBrightnessVars(brightness.get())
     })
     // Keep brightness value fresh while OSD is visible
     brightness.subscribe(() => {
         if (brightnessOsdVisible.get()) updateBrightnessVars(brightness.get())
     })
     // Switch back to volume mode when volume OSD activates
-    osdVisible.subscribe((visible) => {
-        if (visible) updateVolumeVars()
+    osdVisible.subscribe(() => {
+        if (osdVisible.get()) updateVolumeVars()
     })
 
     return (
