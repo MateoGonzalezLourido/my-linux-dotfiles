@@ -9,6 +9,7 @@ import { createState } from "ags"
 import GLib from "gi://GLib"
 import type { NotifMeta } from "./rules/types.ts"
 import { notifProcessingSuspended } from "../power/powerState.ts"
+import { saveJsonAsync } from "./persist.ts"
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,9 @@ export interface AppSettings {
 
 const NOTIF_STORE_PATH = `${GLib.get_user_config_dir()}/gigios/notifications.json`
 
+/** Tope de la lista activa. Se aplica en memoria (ver `ingest.ts`), no solo al guardar. */
+export const NOTIF_CAP = 200
+
 const DEFAULT_META: NotifMeta = {
   lifetime: "persistent", clearOnBoot: false, noHistory: false,
   muteAudio: false, dontShow: false, dedupKey: "", conditions: [], matchedRules: [],
@@ -64,18 +68,10 @@ let saveTimer: number | null = null
 export function scheduleStoreSave() {
   if (saveTimer !== null) GLib.source_remove(saveTimer)
   saveTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
-    try {
-      const dir = GLib.path_get_dirname(NOTIF_STORE_PATH)
-      if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) {
-        GLib.mkdir_with_parents(dir, 0o755)
-      }
-      GLib.file_set_contents(NOTIF_STORE_PATH, JSON.stringify({
-        notifications: notifications.get().slice(-200), // Máx 200 notificaciones
-        appSettings: appSettings.get(),
-      }))
-    } catch (e) {
-      console.error("Failed to save notification store:", e)
-    }
+    saveJsonAsync(NOTIF_STORE_PATH, {
+      notifications: notifications.get().slice(-NOTIF_CAP),
+      appSettings: appSettings.get(),
+    }, "store")
     saveTimer = null
     return GLib.SOURCE_REMOVE
   })

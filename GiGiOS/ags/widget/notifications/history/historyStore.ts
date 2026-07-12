@@ -5,6 +5,7 @@ import { createState } from "ags"
 import GLib from "gi://GLib"
 import type { StoredNotification } from "../store.ts"
 import { notifSettingsVisible } from "../store.ts"
+import { saveJsonAsync } from "../persist.ts"
 import { ruleIndex } from "../rules/rulesStore.ts"
 import { evaluate } from "../rules/engine.ts"
 import { computeDedupKey } from "../rules/dedup.ts"
@@ -30,11 +31,7 @@ let saveTimer: number | null = null
 function scheduleSave(): void {
   if (saveTimer !== null) GLib.source_remove(saveTimer)
   saveTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
-    try {
-      const dir = GLib.path_get_dirname(HISTORY_PATH)
-      if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) GLib.mkdir_with_parents(dir, 0o755)
-      GLib.file_set_contents(HISTORY_PATH, JSON.stringify({ entries: historyEntries.get() }))
-    } catch (e) { console.error("[notif] save history failed:", e) }
+    saveJsonAsync(HISTORY_PATH, { entries: historyEntries.get() }, "history")
     saveTimer = null
     return GLib.SOURCE_REMOVE
   })

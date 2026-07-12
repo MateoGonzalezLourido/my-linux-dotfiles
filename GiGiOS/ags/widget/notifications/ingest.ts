@@ -2,7 +2,7 @@
 // Single entry point for incoming notifications: classify via rules → apply on-receive cleanup
 // (suppress, dedup) → store → schedule dynamic conditions. The popup/daemon calls only this.
 import AstalNotifd from "gi://AstalNotifd"
-import { notifications, setNotifications, removeNotification, scheduleStoreSave, appSettings, type StoredNotification } from "./store.ts"
+import { notifications, setNotifications, removeNotification, scheduleStoreSave, appSettings, NOTIF_CAP, type StoredNotification } from "./store.ts"
 import { ruleIndex } from "./rules/rulesStore.ts"
 import { evaluate } from "./rules/engine.ts"
 import { applyTemplate } from "./rules/template.ts"
@@ -99,7 +99,13 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
     ? [...deduped.slice(0, idx), stored, ...deduped.slice(idx + 1)]
     : [...deduped, stored]
 
-  setNotifications(next)
+  // El tope se aplica aquí, en memoria, y no solo al serializar: guardar `slice(-NOTIF_CAP)`
+  // acotaba el fichero pero dejaba crecer el array (y todo map/filter sobre él) durante la sesión.
+  const overflow = next.length - NOTIF_CAP
+  const capped = overflow > 0 ? next.slice(overflow) : next
+  if (overflow > 0) for (const x of next.slice(0, overflow)) disposeConditions(x.id)
+
+  setNotifications(capped)
   scheduleStoreSave()
   recordNotification(stored)
   scheduleConditions(stored)
