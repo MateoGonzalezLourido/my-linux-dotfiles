@@ -1158,21 +1158,25 @@ window.qs-window scrolledwindow > overshoot,
 
 .bar-spotify {
   min-height: 34px;
-  padding: 0 7px 0 3px;
+  padding: 0 7px 0 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
+  background: transparent;
   color: #e2e2e2;
+  transition: background-color 180ms ease;
+}
+.bar-spotify:hover {
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .bar-spotify-art {
-  min-width: 30px;
+  min-width: 40px;
   min-height: 30px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.07);
 }
 
 .bar-spotify-placeholder {
-  min-width: 30px;
+  min-width: 40px;
   min-height: 30px;
   font-family: "MesloLGS Nerd Font";
   font-size: 16px;
@@ -5426,3 +5430,5 @@ button.dl-city-result:hover {
   border-radius: 6px;
   padding: 6px 8px;
 }
+
+/*# sourceMappingURL=out.css.map */

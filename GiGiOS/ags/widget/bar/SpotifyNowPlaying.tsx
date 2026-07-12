@@ -6,7 +6,8 @@ import GdkPixbuf from "gi://GdkPixbuf"
 import GLib from "gi://GLib"
 import cairo from "gi://cairo"
 
-const ART_SIZE = 30
+const ART_WIDTH = 40
+const ART_HEIGHT = 30
 
 function coverCacheName(url: string): string {
   let hash = 0
@@ -39,22 +40,22 @@ export default function SpotifyNowPlaying() {
     vexpand: true,
   })
 
-  // La carátula se carga con resolución HiDPI, pero este contenedor limita su
-  // tamaño lógico a 30×30 para que la textura grande no ensanche la barra.
+  // El contenedor fija el tamaño lógico a 40×30. La textura conserva la
+  // resolución original para que GTK pueda reducirla con nitidez en HiDPI.
   const artCap = new Gtk.ScrolledWindow()
   artCap.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
   artCap.set_propagate_natural_width(false)
   artCap.set_propagate_natural_height(false)
-  artCap.set_min_content_width(ART_SIZE)
-  artCap.set_max_content_width(ART_SIZE)
-  artCap.set_min_content_height(ART_SIZE)
-  artCap.set_max_content_height(ART_SIZE)
+  artCap.set_min_content_width(ART_WIDTH)
+  artCap.set_max_content_width(ART_WIDTH)
+  artCap.set_min_content_height(ART_HEIGHT)
+  artCap.set_max_content_height(ART_HEIGHT)
   artCap.set_child(artPicture)
 
   const setArtworkFile = (path: string) => {
     if (destroyed) return
     try {
-      const pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, ART_SIZE * 3, ART_SIZE * 3, true)
+      const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
       artPicture.set_paintable(Gdk.Texture.new_for_pixbuf(pixbuf))
     } catch (_) {
       artPicture.set_paintable(null)
