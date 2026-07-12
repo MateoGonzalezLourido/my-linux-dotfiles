@@ -1,6 +1,6 @@
 import { Gtk } from "ags/gtk4"
 
-const R = 20
+const R = 24
 
 export default function CornerCurve({ left }: { left: boolean }): Gtk.DrawingArea {
   const area = new Gtk.DrawingArea()
@@ -8,8 +8,8 @@ export default function CornerCurve({ left }: { left: boolean }): Gtk.DrawingAre
   area.valign = Gtk.Align.END
 
   area.set_draw_func((_w, cr, _width, _height) => {
-    // Paint desktop color — rgba(8,11,16,1) matches the window background
-    cr.setSourceRGBA(8 / 255, 11 / 255, 16 / 255, 1)
+    // Paint the same near-black used by the Orion shell.
+    cr.setSourceRGBA(8 / 255, 8 / 255, 12 / 255, 0.985)
 
     if (left) {
       // LEFT corner (placed to the left of the panel): fill upper-right quadrant

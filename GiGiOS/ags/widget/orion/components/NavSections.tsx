@@ -6,6 +6,11 @@ export default function NavSections() {
   const widgets: Record<string, Gtk.Widget> = {}
 
   const outer = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["section-content"] })
+  const scroll = new Gtk.ScrolledWindow({ cssClasses: ["orion-content-scroll"], vexpand: true })
+  // EXTERNAL mantiene rueda/touchpad pero no crea una barra visible o pulsable.
+  scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.EXTERNAL)
+  scroll.height_request = 428
+  scroll.set_child(outer)
 
   for (const [id, Component] of Object.entries(SECTION_COMPONENTS)) {
     const w = Component() as unknown as Gtk.Widget
@@ -16,10 +21,11 @@ export default function NavSections() {
 
   function show(id: string) {
     for (const [wid, w] of Object.entries(widgets)) w.visible = wid === id
+    scroll.get_vadjustment().set_value(0)
   }
 
   show(activeSection.get())
   onSectionChange(show)
 
-  return outer
+  return scroll
 }

@@ -13,6 +13,7 @@ export function focusSearchAndType(char: string) {
 export default function SearchBar() {
   const entry = new Gtk.Entry()
   entry.set_css_classes(["search-input"])
+  entry.placeholder_text = "Buscador inteligente"
   entry.hexpand = true
   entry.connect("changed", () => setQuery(entry.text))
   _entry = entry

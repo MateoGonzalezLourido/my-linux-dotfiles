@@ -92,6 +92,11 @@ export { clipboardHistoryEnabled }
 const [orionEnabled, _setOrionEnabled] = createState(true)
 export { orionEnabled }
 
+// Página inicial de Orion. Desactivado conserva Inicio; activado abre directamente
+// el catálogo de aplicaciones. Se aplica en caliente en la siguiente apertura.
+const [orionAppsDefault, _setOrionAppsDefault] = createState(false)
+export { orionAppsDefault }
+
 // Monitor de actualizaciones (scripts/updates-monitor.sh) + icono de la barra.
 // El toggle MAESTRO se aplica en caliente (su setter lanza/mata el script y el
 // icono se monta/desmonta con este estado). Default: activado.
@@ -175,6 +180,7 @@ function load() {
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
     if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
+    if (typeof saved.orionAppsDefault === "boolean") _setOrionAppsDefault(saved.orionAppsDefault)
     if (typeof saved.updatesMonitor === "boolean") _setUpdatesMonitorEnabled(saved.updatesMonitor)
     if (typeof saved.updatesPeriodic === "boolean") _setUpdatesPeriodicEnabled(saved.updatesPeriodic)
     if (typeof saved.updatesIntervalHours === "number" && saved.updatesIntervalHours >= 1) {
@@ -209,6 +215,7 @@ function save() {
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
       orion: orionEnabled.get(),
+      orionAppsDefault: orionAppsDefault.get(),
       updatesMonitor: updatesMonitorEnabled.get(),
       updatesPeriodic: updatesPeriodicEnabled.get(),
       updatesIntervalHours: updatesIntervalHours.get(),
@@ -289,6 +296,10 @@ export function setClipboardHistoryEnabled(on: boolean) {
 }
 export function setOrionEnabled(on: boolean) {
   _setOrionEnabled(on)
+  save()
+}
+export function setOrionAppsDefault(on: boolean) {
+  _setOrionAppsDefault(on)
   save()
 }
 // Maestro del monitor de actualizaciones: se aplica en caliente. Al activar lanza

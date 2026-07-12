@@ -19,6 +19,7 @@ import {
   tempMonitorEnabled, setTempMonitorEnabled,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
   orionEnabled, setOrionEnabled,
+  orionAppsDefault, setOrionAppsDefault,
 } from "./preferences"
 import AutoDndSetting from "./AutoDndSetting"
 
@@ -343,6 +344,33 @@ export default function PersonalizationSection() {
           >
             <box cssClasses={["qs-toggle-track"]}>
               <box cssClasses={orionEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* página inicial del menú Orion */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Abrir Orion en Aplicaciones" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Muestra directamente el mosaico de aplicaciones al abrir Orion.\nAl desactivarlo, Orion vuelve a abrirse en Inicio."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={orionAppsDefault((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setOrionAppsDefault(!orionAppsDefault.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={orionAppsDefault((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
             </box>
           </button>
         </box>

@@ -1,9 +1,10 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { orionVisible, setOrionVisible, taskPanelVisible, rightPanelVisible, hidePanel } from "./state"
-import TabsBar from "./components/TabsBar"
+import { orionVisible, setOrionVisible, taskPanelVisible, rightPanelVisible, hidePanel, preparePanelOpen } from "./state"
+import SectionIndex from "./components/SectionIndex"
 import SearchBar, { focusSearchAndType } from "./components/SearchBar"
 import NavSections from "./components/NavSections"
+import { SystemStats } from "./components/sections/HomeSection"
 import CornerCurve from "./components/CornerCurve"
 import TaskPanel from "./components/TaskPanel"
 import RightPanel from "./components/RightPanel"
@@ -26,14 +27,12 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
       <TaskPanel />
       <box cssClasses={["tp-sep"]} visible={taskPanelVisible(v => v)} />
       <box cssClasses={["orion-main"]} orientation={Gtk.Orientation.VERTICAL}>
-        <box cssClasses={["orion-handle"]} halign={Gtk.Align.CENTER}>
-          <box cssClasses={["handle-bar"]} />
-        </box>
-        <box cssClasses={["tabs-bar-container"]}>
-          <TabsBar />
+        <box cssClasses={["section-index-container"]}>
+          <SectionIndex />
         </box>
         <SearchBar />
         <NavSections />
+        <SystemStats />
       </box>
       <box cssClasses={["tp-sep"]} visible={rightPanelVisible(v => v)} />
       <RightPanel />
@@ -99,7 +98,11 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
   // GTK sin pasar por el estado. Sincronizamos el estado con la visibilidad real
   // para que orionVisible siga siendo la fuente de verdad (poll de stats,
   // anyPanelVisible del bar, foco de búsqueda, etc.).
-  ;(win as any).connect("notify::visible", () => setOrionVisible((win as any).visible))
+  ;(win as any).connect("notify::visible", () => {
+    const visible = (win as any).visible
+    if (visible && !orionVisible.get()) preparePanelOpen()
+    setOrionVisible(visible)
+  })
 
   return win
 }

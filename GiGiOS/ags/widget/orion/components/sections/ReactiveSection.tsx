@@ -1,5 +1,6 @@
 import { Gtk } from "ags/gtk4"
-import { searchResults, setSection, hidePanel, showAppContext } from "../../state"
+import GLib from "gi://GLib"
+import { searchResults, setSection, hidePanel, showAppContext, addTask, removeTask } from "../../state"
 import type { SearchResult } from "../../search"
 
 function buildRow(result: SearchResult): Gtk.Box {
@@ -13,10 +14,10 @@ function buildRow(result: SearchResult): Gtk.Box {
   const iconBox = new Gtk.Box({ cssClasses: ["rx-icon-wrap"], valign: Gtk.Align.CENTER })
   if (result.icon) {
     const img = Gtk.Image.new_from_gicon(result.icon)
-    img.pixel_size = 28
+    img.pixel_size = 26
     iconBox.append(img)
   } else {
-    iconBox.append(new Gtk.Image({ iconName: result.iconName ?? "application-x-executable", pixelSize: 28 }))
+    iconBox.append(new Gtk.Image({ iconName: result.iconName ?? "application-x-executable", pixelSize: 26 }))
   }
   row.append(iconBox)
 
@@ -29,7 +30,9 @@ function buildRow(result: SearchResult): Gtk.Box {
   row.append(textCol)
   btn.set_child(row)
 
+  let suppressClick = false
   btn.connect("clicked", () => {
+    if (suppressClick) { suppressClick = false; return }
     if (result.navigateTo) {
       setSection(result.navigateTo)
     } else if (!isApp) {
@@ -49,6 +52,30 @@ function buildRow(result: SearchResult): Gtk.Box {
       })
     }
   })
+
+  if (isApp) {
+    const gesture = new Gtk.GestureClick()
+    gesture.set_button(1)
+    gesture.propagation_phase = Gtk.PropagationPhase.CAPTURE
+    gesture.connect("pressed", (_gesture, presses) => {
+      if (presses !== 2) return
+      suppressClick = true
+      // The window hides on launch, so GTK may omit the final "clicked" signal.
+      // Clear the guard independently to preserve the next normal click.
+      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
+        suppressClick = false
+        return GLib.SOURCE_REMOVE
+      })
+      const taskId = addTask(`Abriendo ${result.title}`, result.iconName ?? "application-x-executable")
+      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2500, () => {
+        removeTask(taskId)
+        return GLib.SOURCE_REMOVE
+      })
+      result.action()
+      hidePanel()
+    })
+    btn.add_controller(gesture)
+  }
 
   outer.append(btn)
   return outer
@@ -76,10 +103,5 @@ export function ReactiveSection() {
   searchResults.subscribe(() => rebuild(searchResults.get()))
   rebuild(searchResults.get())
 
-  const scroll = new Gtk.ScrolledWindow()
-  scroll.set_css_classes(["rx-scroll"])
-  scroll.vexpand = true
-  scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-  scroll.set_child(content)
-  return scroll
+  return content
 }

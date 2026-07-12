@@ -40,6 +40,8 @@ export default function RightPanel() {
 
     // ── Header ───────────────────────────────────────────────────────────────
     const header = new Gtk.Box({ cssClasses: ["rp-header"], spacing: 8 })
+    const eyebrow = new Gtk.Label({ label: "APLICACIÓN", cssClasses: ["rp-eyebrow"], halign: Gtk.Align.START })
+    inner.append(eyebrow)
     const headerIcon = app.gicon
       ? (() => { const i = Gtk.Image.new_from_gicon(app.gicon); i.pixel_size = 22; return i })()
       : new Gtk.Image({ iconName: app.iconName, pixelSize: 22 })

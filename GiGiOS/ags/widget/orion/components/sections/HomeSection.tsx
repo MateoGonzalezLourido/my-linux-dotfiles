@@ -6,7 +6,10 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import Gdk from "gi://Gdk"
 import GObject from "gi://GObject"
-import { setSection, SectionId, showAppContext, orionVisible, activeSection } from "../../state"
+import {
+  setSection, showAppContext, orionVisible, activeSection,
+  addTask, removeTask, hidePanel,
+} from "../../state"
 import { favorites, setFavorites, saveFavorites, type FavoriteApp } from "../../data/favorites"
 import { checkExecExists } from "../../data/appResolver"
 
@@ -46,21 +49,6 @@ function _commitOrder() {
   setFavorites(next)
   saveFavorites(next)
 }
-
-interface QuickAction {
-  id: string; label: string; icon: string; color: string; targetSection: SectionId
-}
-
-const QUICK_ACTIONS: QuickAction[] = [
-  { id: "workflows", label: "workflows", icon: "view-grid-symbolic",                   color: "c-pink",   targetSection: "workflows" },
-  { id: "temas",     label: "temas",     icon: "preferences-desktop-theme-symbolic",   color: "c-blue",   targetSection: "rice"      },
-  { id: "ssh",       label: "ssh",       icon: "network-server-symbolic",              color: "c-purple", targetSection: "workflows" },
-  { id: "env",       label: "env",       icon: "preferences-system-symbolic",          color: "c-amber",  targetSection: "env"       },
-  { id: "watcher",   label: "watcher",   icon: "camera-photo-symbolic",                color: "c-red",    targetSection: "watcher"   },
-  { id: "keybinds",  label: "keybinds",  icon: "input-keyboard-symbolic",              color: "c-muted",  targetSection: "keybinds"  },
-  { id: "ai",        label: "ai hub",    icon: "applications-science-symbolic",        color: "c-teal",   targetSection: "ai"        },
-  { id: "git",       label: "git",       icon: "vcs-branch-symbolic",                  color: "c-pink",   targetSection: "git"        },
-]
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -202,30 +190,84 @@ function syncPolling() {
 orionVisible.subscribe(syncPolling)
 activeSection.subscribe(syncPolling)
 
+// Pie de métricas fijo: Orion lo monta fuera del viewport desplazable y sólo
+// aparece en Inicio, donde también vive el polling que alimenta estos datos.
+export function SystemStats() {
+  return (
+    <box
+      cssClasses={["sys-strip", "sys-strip-fixed"]}
+      spacing={5}
+      visible={activeSection(section => section === "inicio")}
+    >
+      <box cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
+        <label label="CPU" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
+        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={cpuPct(v => `${v}%`)} />
+        <box cssClasses={["sys-bar"]}>
+          <box cssClasses={["sys-fill", "sf-blue"]} widthRequest={cpuPct(v => Math.round((v / 100) * 90))} />
+        </box>
+      </box>
+
+      <box cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
+        <label label="iGPU" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
+        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={iGpu(v => `${v.pct}%·${v.freq}M`)} />
+        <box cssClasses={["sys-bar"]}>
+          <box cssClasses={["sys-fill", "sf-pink"]} widthRequest={iGpu(v => Math.round((v.pct / 100) * 90))} />
+        </box>
+      </box>
+
+      <box cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
+        <label label="RAM" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
+        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={ramUsed(v => `${v}G`)} />
+        <box cssClasses={["sys-bar"]}>
+          <box cssClasses={["sys-fill", "sf-teal"]} widthRequest={ramPct(v => Math.round((v / 100) * 90))} />
+        </box>
+      </box>
+
+      <box visible={nGpuActive(v => v)} cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
+        <label label="GPU·NV" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
+        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={nGpuPct(v => `${v}%`)} />
+        <box cssClasses={["sys-bar"]}>
+          <box cssClasses={["sys-fill", "sf-pink"]} widthRequest={nGpuPct(v => Math.round((v / 100) * 90))} />
+        </box>
+      </box>
+
+      <box visible={nGpuActive(v => v)} cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
+        <label label="VRAM·NV" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
+        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={nVramUsed(v => `${v}`)} />
+        <box cssClasses={["sys-bar"]}>
+          <box cssClasses={["sys-fill", "sf-amber"]} widthRequest={nVramPct(v => Math.round((v / 100) * 90))} />
+        </box>
+      </box>
+    </box>
+  )
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
   const btn = new Gtk.Button({ cssClasses: ["app-item"] })
   btn.tooltip_text = app.name
+  let suppressClick = false
 
   const execName = app.exec.split(" ")[0].split("/").pop() ?? app.exec
   const gicon = lookupGioIcon(app.id, execName)
 
-  const inner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 6, halign: Gtk.Align.CENTER })
+  const inner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 4, halign: Gtk.Align.CENTER })
   if (gicon) {
     const img = Gtk.Image.new_from_gicon(gicon)
-    img.pixel_size = 35
+    img.pixel_size = 28
     img.set_css_classes(["app-item-img"])
     inner.append(img)
   } else {
     const img = new Gtk.Image({ iconName: app.iconName, cssClasses: ["app-item-img"] })
-    img.pixel_size = 35
+    img.pixel_size = 28
     inner.append(img)
   }
   inner.append(new Gtk.Label({ label: app.name, cssClasses: ["app-label"], maxWidthChars: 8, ellipsize: 3 }))
   btn.set_child(inner)
 
   btn.connect("clicked", () => {
+    if (suppressClick) { suppressClick = false; return }
     if (_draggedId) return  // ignore clicks that are actually drag-starts
     try {
       showAppContext({
@@ -235,6 +277,26 @@ function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
       })
     } catch (_) {}
   })
+
+  const clickGesture = new Gtk.GestureClick()
+  clickGesture.set_button(1)
+  clickGesture.propagation_phase = Gtk.PropagationPhase.CAPTURE
+  clickGesture.connect("pressed", (_gesture, presses) => {
+    if (presses !== 2 || _draggedId) return
+    suppressClick = true
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
+      suppressClick = false
+      return GLib.SOURCE_REMOVE
+    })
+    const taskId = addTask(`Abriendo ${app.name}`, app.iconName)
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2500, () => {
+      removeTask(taskId)
+      return GLib.SOURCE_REMOVE
+    })
+    execAsync(["sh", "-c", app.exec]).catch(() => {})
+    hidePanel()
+  })
+  btn.add_controller(clickGesture)
 
   // ── Drag source ───────────────────────────────────────────────────────────
   const src = new Gtk.DragSource({ actions: Gdk.DragAction.MOVE })
@@ -320,11 +382,10 @@ export function HomeSection() {
 
     // "todas" always first (not registered in _btnApp → sort places it first)
     const todasBtn = new Gtk.Button({ cssClasses: ["app-item"] })
-    const todasInner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 6, halign: Gtk.Align.CENTER })
+    const todasInner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 4, halign: Gtk.Align.CENTER })
     const todasImg = new Gtk.Image({ iconName: "view-app-grid-symbolic", cssClasses: ["app-item-img"] })
-    todasImg.pixel_size = 35
+    todasImg.pixel_size = 28
     todasInner.append(todasImg)
-    todasInner.append(new Gtk.Label({ label: "todas", cssClasses: ["app-label"] }))
     todasBtn.set_child(todasInner)
     todasBtn.connect("clicked", () => setSection("apps"))
     appsFlow.append(todasBtn)
@@ -344,98 +405,11 @@ export function HomeSection() {
   favorites.subscribe(() => rebuildApps())
   rebuildApps()
 
-  const appsScroll = new Gtk.ScrolledWindow()
-  appsScroll.set_css_classes(["home-apps-scroll"])
-  appsScroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-  appsScroll.set_child(appsFlow)
-
-  // ── Sections FlowBox ──────────────────────────────────────────────────────
-  const sectionsFlow = new Gtk.FlowBox()
-  sectionsFlow.set_css_classes(["qa-flow"])
-  sectionsFlow.selection_mode = Gtk.SelectionMode.NONE
-  sectionsFlow.column_spacing = 4
-  sectionsFlow.row_spacing = 4
-  sectionsFlow.max_children_per_line = 99
-
-  for (const action of QUICK_ACTIONS) {
-    const btn = new Gtk.Button({ cssClasses: ["quick-action-btn"] })
-    const inner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 5, halign: Gtk.Align.CENTER })
-    const img = new Gtk.Image({ iconName: action.icon, cssClasses: ["qa-icon-img", action.color] })
-    img.pixel_size = 21
-    inner.append(img)
-    inner.append(new Gtk.Label({ label: action.label, cssClasses: ["qa-label"] }))
-    btn.set_child(inner)
-    btn.connect("clicked", () => setSection(action.targetSection))
-    sectionsFlow.append(btn)
-  }
-
-  const sectionsScroll = new Gtk.ScrolledWindow()
-  sectionsScroll.set_css_classes(["home-sections-scroll"])
-  sectionsScroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-  sectionsScroll.set_child(sectionsFlow)
-
   return (
     <box cssClasses={["section-home"]} orientation={Gtk.Orientation.VERTICAL}>
 
       <label label="Aplicaciones" cssClasses={["section-title"]} halign={Gtk.Align.START} />
-      {appsScroll as unknown as any}
-
-      <box cssClasses={["j-hdiv"]} />
-
-      <label label="Secciones" cssClasses={["section-title"]} halign={Gtk.Align.START} />
-      {sectionsScroll as unknown as any}
-
-      <box cssClasses={["j-hdiv"]} />
-
-      {/* ── Sys strip ── */}
-      <box cssClasses={["sys-strip"]} spacing={5}>
-
-        {/* CPU */}
-        <box cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-          <label label="CPU" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-          <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={cpuPct(v => `${v}%`)} />
-          <box cssClasses={["sys-bar"]}>
-            <box cssClasses={["sys-fill", "sf-blue"]} widthRequest={cpuPct(v => Math.round((v / 100) * 90))} />
-          </box>
-        </box>
-
-        {/* iGPU Intel — always visible, single state so both pct+freq update together */}
-        <box cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-          <label label="iGPU" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-          <label cssClasses={["sys-val"]} halign={Gtk.Align.START}
-            label={iGpu(v => `${v.pct}%·${v.freq}M`)} />
-          <box cssClasses={["sys-bar"]}>
-            <box cssClasses={["sys-fill", "sf-pink"]} widthRequest={iGpu(v => Math.round((v.pct / 100) * 90))} />
-          </box>
-        </box>
-
-        {/* RAM */}
-        <box cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-          <label label="RAM" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-          <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={ramUsed(v => `${v}G`)} />
-          <box cssClasses={["sys-bar"]}>
-            <box cssClasses={["sys-fill", "sf-teal"]} widthRequest={ramPct(v => Math.round((v / 100) * 90))} />
-          </box>
-        </box>
-
-        {/* NVIDIA dGPU — only when PRIME is active */}
-        <box visible={nGpuActive(v => v)} cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-          <label label="GPU·NV" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-          <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={nGpuPct(v => `${v}%`)} />
-          <box cssClasses={["sys-bar"]}>
-            <box cssClasses={["sys-fill", "sf-pink"]} widthRequest={nGpuPct(v => Math.round((v / 100) * 90))} />
-          </box>
-        </box>
-
-        <box visible={nGpuActive(v => v)} cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-          <label label="VRAM·NV" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-          <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={nVramUsed(v => `${v}`)} />
-          <box cssClasses={["sys-bar"]}>
-            <box cssClasses={["sys-fill", "sf-amber"]} widthRequest={nVramPct(v => Math.round((v / 100) * 90))} />
-          </box>
-        </box>
-
-      </box>
+      {appsFlow as unknown as any}
 
     </box>
   )

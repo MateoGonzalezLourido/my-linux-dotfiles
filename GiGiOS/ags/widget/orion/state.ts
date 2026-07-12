@@ -2,32 +2,30 @@ import { createState } from "ags"
 import GLib from "gi://GLib"
 import { searchEngine } from "./search"
 import type { SearchResult } from "./search"
+import { orionAppsDefault } from "../settings/preferences"
 
 export type SectionId =
   | "inicio" | "apps" | "sistema" | "git" | "watcher"
   | "env" | "workflows" | "rice" | "ai"
   | "mascotas" | "keybinds" | "reactivo"
 
-export type TabType = "home" | "image" | "command" | "calc" | "url" | "file"
-
-export interface PinnedTab {
-  id: string
-  type: TabType
-  label: string
-  content: string
-  timestamp: number
-}
-
 export const [orionVisible,  setOrionVisible]  = createState(false)
 export const [activeSection,  setActiveSection]  = createState<SectionId>("inicio")
 export const [searchQuery,    setSearchQuery]    = createState("")
 export const [searchResults,  setSearchResults]  = createState<SearchResult[]>([])
-export const [pinnedTabs,     setPinnedTabs]     = createState<PinnedTab[]>([])
-export const [activeTabId,    setActiveTabId]    = createState("home")
 
-export function showPanel()   { setOrionVisible(true) }
+export function preparePanelOpen() {
+  const section = orionAppsDefault.get() ? "apps" : "inicio"
+  originSection = section
+  setSection(section)
+}
+
+export function showPanel()   { preparePanelOpen(); setOrionVisible(true) }
 export function hidePanel()   { setOrionVisible(false); setSection("inicio"); originSection = "inicio" }
-export function togglePanel() { setOrionVisible(!orionVisible.get()) }
+export function togglePanel() {
+  if (orionVisible.get()) hidePanel()
+  else showPanel()
+}
 
 type SectionListener = (id: SectionId) => void
 const sectionListeners: SectionListener[] = []
@@ -83,18 +81,6 @@ export function setQuery(query: string) {
     hideRightPanel()
   }
 }
-
-export function pinTab(tab: Omit<PinnedTab, "id" | "timestamp">) {
-  const newTab: PinnedTab = { ...tab, id: GLib.uuid_string_random(), timestamp: Date.now() }
-  setPinnedTabs([...pinnedTabs.get(), newTab])
-}
-
-export function closeTab(id: string) {
-  setPinnedTabs(pinnedTabs.get().filter(t => t.id !== id))
-  if (activeTabId.get() === id) setActiveTabId("home")
-}
-
-export function setActiveTab(id: string) { setActiveTabId(id) }
 
 // ── Task panel ────────────────────────────────────────────────────────────────
 

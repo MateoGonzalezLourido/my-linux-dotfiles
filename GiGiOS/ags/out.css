@@ -1,4 +1,3 @@
-@charset "UTF-8";
 .Orion {
   background: transparent;
 }
@@ -9,29 +8,19 @@
 }
 
 .orion-panel {
-  background: rgba(9, 12, 20, 0.97);
-  border: 1px solid rgba(122, 162, 247, 0.11);
+  background: rgba(8, 8, 12, 0.985);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-bottom: none;
-  border-radius: 20px 20px 0 0;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.48), 0 -1px 0 rgba(203, 166, 247, 0.08);
 }
 
 .orion-main {
-  min-width: 580px;
+  min-width: 660px;
 }
 
 .orion-balance {
   min-width: 221px;
-}
-
-.orion-handle {
-  padding: 10px 0 5px;
-}
-
-.handle-bar {
-  min-width: 40px;
-  min-height: 3px;
-  border-radius: 2px;
-  background: rgba(122, 162, 247, 0.18);
 }
 
 .Orion button,
@@ -44,268 +33,187 @@
   margin: 0;
 }
 
-.tabs-bar {
-  background: rgba(6, 8, 15, 0.95);
-  border-bottom: 1px solid rgba(122, 162, 247, 0.15);
-  min-height: 32px;
+.section-index-container {
+  padding: 8px 18px 6px;
 }
 
-.j-tab {
-  padding: 0 11px;
-  font-size: 10px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #565f89;
-  border-right: 1px solid rgba(122, 162, 247, 0.07);
-  border-bottom: 2px solid transparent;
-  transition: all 100ms ease;
+.section-index {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 10px;
+  min-height: 27px;
+  padding: 2px;
 }
-.j-tab image {
-  color: #565f89;
-}
-.j-tab:hover {
-  background: rgba(122, 162, 247, 0.07);
-  color: #c0caf5;
-}
-.j-tab:hover image {
-  color: #c0caf5;
+.section-index image {
+  -gtk-icon-size: 14px;
 }
 
-.tabs-bar .j-tab {
-  padding: 0 11px;
+.section-index-scroll scrollbar,
+.section-index-scroll scrollbar slider,
+.section-index-scroll scrollbar button {
+  opacity: 0;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
-.tabs-bar .j-tab-home {
-  padding: 0 13px;
+.section-index-row {
+  padding-right: 2px;
 }
 
-.j-tab.active {
-  color: #c0caf5;
-  border-bottom-color: #7aa2f7;
-}
-.j-tab.active image {
-  color: #c0caf5;
-}
-
-.j-tab-home {
-  padding: 0 13px;
-}
-
-.tab-x {
-  padding: 0 2px;
-  color: #565f89;
-}
-.tab-x:hover {
-  color: #f7768e;
-}
-
-.profile-btn {
-  padding: 0 10px;
-  color: #565f89;
-  border-left: 1px solid rgba(122, 162, 247, 0.07);
-}
-.profile-btn image {
-  color: #565f89;
-}
-.profile-btn:hover {
-  background: rgba(122, 162, 247, 0.07);
-  color: #7aa2f7;
-}
-.profile-btn:hover image {
-  color: #7aa2f7;
-}
-
-.profile-dropdown {
-  background: rgba(9, 12, 20, 0.97);
-  border: 1px solid rgba(122, 162, 247, 0.11);
-  border-radius: 11px;
-  padding: 8px 0;
-  min-width: 220px;
-}
-
-.pd-header {
+.section-index-btn {
   font-size: 9px;
-  color: #2a3050;
-  padding: 0 12px 6px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-
-.pd-save-input {
-  padding: 0 8px 6px;
-}
-
-.pd-input {
-  background: rgba(122, 162, 247, 0.025);
-  border: 1px solid rgba(122, 162, 247, 0.07);
+  color: rgba(226, 226, 226, 0.62);
+  border: 1px solid transparent;
   border-radius: 7px;
-  color: #c0caf5;
-  font-size: 11px;
-  padding: 4px 8px;
+  transition: all 140ms ease;
+}
+.section-index-btn image {
+  color: rgba(226, 226, 226, 0.62);
+}
+.section-index-btn:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: #e2e2e2;
+}
+.section-index-btn:hover image {
+  color: #e2e2e2;
+}
+.section-index-btn.active {
+  color: #e2e2e2;
+  background: rgba(203, 166, 247, 0.11);
+  border-color: rgba(203, 166, 247, 0.16);
+}
+.section-index-btn.active image {
+  color: #cba6f7;
 }
 
-.pd-confirm {
-  color: #7aa2f7;
-}
-
-.pd-action {
-  padding: 7px 12px;
-}
-.pd-action:hover {
-  background: rgba(122, 162, 247, 0.07);
-}
-
-.pd-action-danger {
-  color: #f7768e;
-}
-
-.pd-action-ico {
-  min-width: 24px;
-  min-height: 24px;
-  border-radius: 6px;
-}
-
-.pdai-save {
-  background: rgba(122, 162, 247, 0.1);
-  color: #7aa2f7;
-}
-
-.pdai-clear {
-  background: rgba(247, 118, 142, 0.1);
-  color: #f7768e;
-}
-
-.pd-action-name {
-  font-size: 11px;
-  color: #c0caf5;
-}
-
-.pd-action-sub {
-  font-size: 9px;
-  color: #2a3050;
-}
-
-.pd-profiles-label {
-  font-size: 9px;
-  color: #2a3050;
-  padding: 4px 12px 2px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-
-.pd-profile-item {
-  padding: 5px 12px;
-}
-.pd-profile-item:hover {
-  background: rgba(122, 162, 247, 0.07);
-}
-
-.pd-profile-dot {
-  min-width: 5px;
-  min-height: 5px;
-  border-radius: 50%;
-  background: #7aa2f7;
-}
-
-.pd-profile-name {
-  font-size: 11px;
-  color: #c0caf5;
-}
-
-.pd-profile-meta {
-  font-size: 9px;
-  color: #2a3050;
-}
-
-.pd-pa {
-  color: #2a3050;
-}
-.pd-pa:hover {
-  color: #7aa2f7;
-}
-
-.pd-pa-del:hover {
-  color: #f7768e;
+.Orion .section-index-btn {
+  padding: 3px 8px;
 }
 
 .search-zone {
-  padding: 7px 13px 6px;
+  padding: 0 18px 5px;
 }
 
 .search-bar {
-  background: rgba(122, 162, 247, 0.025);
-  border: 1px solid rgba(122, 162, 247, 0.1);
-  border-radius: 11px;
-  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.105);
+  border-radius: 14px;
+  padding: 2px 8px;
+  min-height: 19px;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 8px 22px rgba(0, 0, 0, 0.16);
 }
 .search-bar image {
-  color: #2a3050;
+  color: #cba6f7;
+  -gtk-icon-size: 14px;
 }
 .search-bar text {
   background: transparent;
-  color: #7aa2f7;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  font-size: 13px;
+  color: #e2e2e2;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 12px;
 }
 .search-bar entry {
   background: transparent;
   border: none;
   box-shadow: none;
   outline: none;
-  color: #7aa2f7;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  font-size: 13px;
+  color: #e2e2e2;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 12px;
 }
 .search-bar entry:focus {
   box-shadow: none;
   outline: none;
 }
 
+.search-input placeholder {
+  color: rgba(226, 226, 226, 0.32);
+}
+
 .ns {
-  padding: 4px 8px;
-  border-radius: 7px;
+  padding: 5px 9px;
+  border-radius: 8px;
   font-size: 10px;
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
   border: 1px solid transparent;
 }
 .ns:hover {
-  color: #565f89;
-  background: rgba(122, 162, 247, 0.07);
-  border-color: rgba(122, 162, 247, 0.07);
+  color: rgba(226, 226, 226, 0.62);
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.055);
 }
 .ns.active {
-  color: #7aa2f7;
-  background: rgba(122, 162, 247, 0.08);
-  border-color: rgba(122, 162, 247, 0.25);
+  color: #89b4fa;
+  background: rgba(203, 166, 247, 0.11);
+  border-color: rgba(203, 166, 247, 0.42);
 }
 
 .section-content {
   min-height: 10px;
-  padding-bottom: 15px;
+  padding: 0 8px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.025);
+}
+
+.orion-content-scroll {
+  min-height: 428px;
+}
+.orion-content-scroll scrollbar,
+.orion-content-scroll scrollbar slider,
+.orion-content-scroll scrollbar button {
+  opacity: 0;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .section-home {
-  padding-bottom: 4px;
-}
-
-.home-apps-scroll {
-  min-height: 80px;
+  padding: 5px 5px 2px;
 }
 
 .apps-grid {
-  padding: 4px 9px 6px;
+  padding: 4px 8px 7px;
 }
 
-.app-item {
-  padding: 2px;
-  border-radius: 9px;
-  border: 1px solid transparent;
-  min-width: 60px;
+.apps-grid flowboxchild {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  border-radius: 10px;
 }
-.app-item:hover {
-  background: rgba(122, 162, 247, 0.07);
-  border-color: rgba(122, 162, 247, 0.07);
+
+.apps-grid flowboxchild:hover,
+.apps-grid flowboxchild:selected {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.Orion .app-item {
+  padding: 6px 4px 5px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.018);
+  min-width: 56px;
+  background: rgba(255, 255, 255, 0.024);
+}
+.Orion .app-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
 }
 
 .app-item-img {
-  color: #565f89;
+  color: #e2e2e2;
 }
 
 .app-dragging {
@@ -314,133 +222,93 @@
 
 .app-label {
   font-size: 9px;
-  color: #2a3050;
+  font-weight: 600;
+  color: rgba(226, 226, 226, 0.62);
 }
 
 .j-hdiv {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.055);
   min-height: 1px;
-  margin: 5px 11px;
-}
-
-.home-sections-scroll {
-  min-height: 60px;
-}
-
-.qa-flow {
-  padding: 6px 9px 6px;
-}
-
-.quick-action-btn {
-  padding: 2px;
-  border-radius: 9px;
-  border: 1px solid transparent;
-  min-width: 60px;
-}
-.quick-action-btn:hover {
-  background: rgba(122, 162, 247, 0.07);
-  border-color: rgba(122, 162, 247, 0.07);
-}
-
-.qa-icon-img.c-blue {
-  color: #7aa2f7;
-}
-.qa-icon-img.c-red {
-  color: #f7768e;
-}
-.qa-icon-img.c-purple {
-  color: #bb9af7;
-}
-.qa-icon-img.c-teal {
-  color: #73daca;
-}
-.qa-icon-img.c-amber {
-  color: #e0af68;
-}
-.qa-icon-img.c-pink {
-  color: #ff79c6;
-}
-.qa-icon-img.c-muted {
-  color: #2a3050;
-}
-
-.qa-label {
-  font-size: 10px;
-  color: #565f89;
-  font-weight: 500;
+  margin: 3px 10px;
 }
 
 .sys-strip {
-  padding: 8px 9px 10px;
+  padding: 5px 8px 7px;
+}
+
+.sys-strip-fixed {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(8, 8, 12, 0.72);
 }
 
 .sys-card {
-  background: rgba(122, 162, 247, 0.025);
-  border: 1px solid rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: 8px;
-  padding: 7px 9px;
+  padding: 4px 7px 5px;
 }
 
 .sys-label {
-  font-size: 9px;
-  color: #2a3050;
+  font-size: 7px;
+  color: rgba(226, 226, 226, 0.32);
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  letter-spacing: 0.3px;
 }
 
 .sys-val {
-  font-size: 12px;
-  font-weight: 500;
-  color: #7aa2f7;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(226, 226, 226, 0.62);
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  padding: 0 0 2px;
 }
 
 .sys-bar {
-  background: rgba(122, 162, 247, 0.07);
-  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 99px;
   min-height: 2px;
 }
 
 .sys-fill {
-  border-radius: 2px;
+  border-radius: 99px;
   min-height: 2px;
 }
 
 .sf-blue {
-  background: rgba(122, 162, 247, 0.55);
+  background: rgba(137, 180, 250, 0.55);
 }
 
 .sf-pink {
-  background: rgba(247, 118, 142, 0.55);
+  background: rgba(243, 139, 168, 0.55);
 }
 
 .sf-teal {
-  background: rgba(115, 218, 202, 0.55);
+  background: rgba(148, 226, 213, 0.55);
 }
 
 .sf-amber {
-  background: rgba(224, 175, 104, 0.55);
+  background: rgba(250, 179, 135, 0.55);
 }
 
 .section-title {
-  font-size: 9px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #2a3050;
-  padding: 5px 11px 0;
-}
-
-.kb-scroll {
-  min-height: 180px;
+  font-size: 10px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 700;
+  color: rgba(226, 226, 226, 0.62);
+  padding: 7px 10px 1px;
 }
 
 .kb-content {
-  padding: 4px 11px 10px;
+  padding: 5px 12px 11px;
 }
 
 .kb-group-title {
-  font-size: 8px;
+  font-size: 10px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #2a3050;
-  padding: 10px 0 3px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  color: rgba(203, 166, 247, 0.78);
+  padding: 10px 2px 4px;
 }
 
 .kb-group-title:first-child {
@@ -448,93 +316,98 @@
 }
 
 .kb-row {
-  padding: 2px 0;
-  border-bottom: 1px solid rgba(122, 162, 247, 0.04);
+  min-height: 25px;
+  padding: 3px 5px;
+  border-radius: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+}
+.kb-row:hover {
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .kb-key {
-  font-size: 10px;
+  font-size: 11px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #7aa2f7;
-  min-width: 150px;
-  padding-right: 10px;
+  font-weight: 600;
+  color: rgba(137, 180, 250, 0.92);
+  min-width: 158px;
+  padding-right: 12px;
 }
 
 .kb-desc {
-  font-size: 10px;
-  color: #565f89;
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.76);
 }
 
 .kb-empty {
-  font-size: 11px;
-  color: #2a3050;
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.32);
   padding: 20px 0;
 }
 
-.rx-scroll {
-  min-height: 180px;
-}
-
 .rx-content {
-  padding: 6px 10px 10px;
+  padding: 8px 12px 14px;
 }
 
 .rx-item {
-  background: transparent;
-  border: none;
-  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  border-radius: 11px;
   padding: 0;
 }
 .rx-item:hover {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.105);
 }
 .rx-item:active {
-  background: rgba(122, 162, 247, 0.08);
+  background: rgba(203, 166, 247, 0.11);
 }
 
 .rx-row {
-  padding: 7px 10px;
+  padding: 6px 8px;
 }
 
 .rx-icon-wrap {
-  min-width: 36px;
-  min-height: 36px;
-  background: rgba(122, 162, 247, 0.025);
-  border-radius: 7px;
-  padding: 4px;
+  min-width: 30px;
+  min-height: 30px;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 .rx-icon-wrap image {
-  color: #7aa2f7;
+  min-width: 26px;
+  min-height: 26px;
+  -gtk-icon-size: 26px;
+  color: #89b4fa;
 }
 
 .rx-title {
   font-size: 12px;
-  color: #c0caf5;
+  font-weight: 600;
+  color: #e2e2e2;
   font-family: "Inter", system-ui, sans-serif;
 }
 
 .rx-subtitle {
   font-size: 10px;
-  color: #565f89;
+  color: rgba(226, 226, 226, 0.62);
 }
 
 .rx-empty {
   font-size: 11px;
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
   padding: 24px 0;
 }
 
 .rx-result-row {
-  border-radius: 9px;
-}
-.rx-result-row:hover {
-  background: rgba(122, 162, 247, 0.07);
+  border-radius: 11px;
+  margin-bottom: 4px;
 }
 
 popover.background {
   background: rgba(12, 16, 28, 0.97);
-  border: 1px solid rgba(122, 162, 247, 0.11);
-  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.105);
+  border-radius: 11px;
   padding: 4px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
@@ -545,92 +418,82 @@ popover.background {
 
 .right-panel {
   min-width: 220px;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.rp-eyebrow {
+  padding: 17px 14px 0;
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: rgba(226, 226, 226, 0.32);
 }
 
 .rp-header {
-  padding: 10px 12px 8px;
-  border-bottom: 1px solid rgba(122, 162, 247, 0.07);
+  padding: 8px 14px 12px;
 }
 
 .rp-app-name {
-  font-size: 11px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  font-weight: 600;
-  color: #c0caf5;
+  font-size: 12px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 700;
+  color: #e2e2e2;
 }
 
 .rp-actions {
-  padding: 3px 0 15px;
+  padding: 5px 8px 15px;
 }
 
 .rp-action {
-  padding: 8px 12px;
-  border-radius: 0;
+  padding: 9px 10px;
+  border-radius: 9px;
 }
 .rp-action:hover {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.075);
 }
 .rp-action:disabled {
   opacity: 0.35;
 }
 
 .rp-action-ico {
-  color: #565f89;
+  color: rgba(226, 226, 226, 0.62);
 }
 
 .rp-action-label {
   font-size: 11px;
-  color: #c0caf5;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-
-.j-tasks-btn {
-  border-right: 1px solid rgba(122, 162, 247, 0.07);
-}
-.j-tasks-btn image {
-  color: #2a3050;
-}
-.j-tasks-btn:hover {
-  background: rgba(122, 162, 247, 0.07);
-}
-.j-tasks-btn:hover image {
-  color: #c0caf5;
-}
-.j-tasks-btn.has-tasks image {
-  color: #bb9af7;
-}
-.j-tasks-btn.active {
-  border-bottom-color: #bb9af7;
-}
-.j-tasks-btn.active image {
-  color: #bb9af7;
+  color: #e2e2e2;
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 600;
 }
 
 .task-panel {
   min-width: 220px;
+  background: rgba(255, 255, 255, 0.012);
 }
 
 .tp-sep {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.055);
   min-width: 1px;
 }
 
 .tp-header {
-  padding: 10px 12px 8px;
-  border-bottom: 1px solid rgba(122, 162, 247, 0.07);
+  padding: 18px 14px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
 }
 
 .tp-title {
-  font-size: 9px;
+  font-size: 8px;
+  font-weight: 700;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
   letter-spacing: 0.3px;
 }
 
 .tp-count {
   font-size: 9px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #bb9af7;
+  color: #cba6f7;
   background: rgba(187, 154, 247, 0.12);
   border-radius: 8px;
   padding: 1px 7px;
@@ -638,18 +501,21 @@ popover.background {
 }
 
 .tp-list {
-  padding: 3px 0 15px;
+  padding: 6px 7px 15px;
 }
 
 .tp-item {
-  padding: 6px 12px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.022);
+  margin-bottom: 3px;
 }
 
 .tp-spinner {
   min-width: 6px;
   min-height: 6px;
   border-radius: 50%;
-  background: #bb9af7;
+  background: #cba6f7;
   animation: tp-pulse 1.3s ease-in-out infinite;
 }
 
@@ -662,12 +528,12 @@ popover.background {
   }
 }
 .tp-icon {
-  color: #565f89;
+  color: rgba(226, 226, 226, 0.62);
 }
 
 .tp-msg {
   font-size: 11px;
-  color: #c0caf5;
+  color: #e2e2e2;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
 }
 
@@ -675,7 +541,7 @@ popover.background {
   font-size: 9px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
   font-weight: bold;
-  color: #bb9af7;
+  color: #cba6f7;
   background: rgba(187, 154, 247, 0.15);
   border-radius: 8px;
   padding: 1px 5px;
@@ -684,63 +550,160 @@ popover.background {
 
 .apps-section {
   min-height: 180px;
+  padding-bottom: 12px;
 }
 
 .apps-cats-scroll {
-  padding: 8px 10px 6px;
+  padding: 9px 12px 7px;
   min-height: 36px;
 }
 
-.apps-cat-btn {
-  background: rgba(122, 162, 247, 0.025);
-  border: 1px solid rgba(122, 162, 247, 0.07);
-  border-radius: 7px;
-  color: #565f89;
-  font-size: 10px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  padding: 3px 10px;
-}
-.apps-cat-btn:hover {
-  background: rgba(122, 162, 247, 0.07);
-  border-color: rgba(122, 162, 247, 0.11);
-  color: #c0caf5;
-}
-.apps-cat-btn.active {
-  background: rgba(122, 162, 247, 0.1);
-  border-color: rgba(122, 162, 247, 0.25);
-  color: #7aa2f7;
+.apps-cats {
+  padding-right: 4px;
 }
 
-.apps-list-scroll {
-  min-height: 160px;
+.apps-cat-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(226, 226, 226, 0.58);
+  font-size: 10px;
+  font-weight: 400;
+  padding: 3px 10px;
+  transition: background 100ms ease;
+}
+.apps-cat-btn.active {
+  background: rgba(203, 166, 247, 0.12);
+  color: #cba6f7;
+}
+.apps-cat-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(226, 226, 226, 0.58);
+}
+
+.Orion .apps-cat-btn {
+  padding: 3px 10px;
+}
+
+.apps-meta {
+  padding: 2px 15px 8px;
+  color: rgba(226, 226, 226, 0.32);
+}
+.apps-meta image {
+  color: rgba(226, 226, 226, 0.32);
+}
+
+.apps-count,
+.apps-mode-label {
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+  font-size: 9px;
+  color: rgba(226, 226, 226, 0.32);
+}
+
+.apps-mode-toggle {
+  border-radius: 6px;
+}
+.apps-mode-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.apps-mode-toggle:hover image {
+  color: rgba(226, 226, 226, 0.62);
+}
+.apps-mode-toggle:hover .apps-mode-label {
+  color: rgba(226, 226, 226, 0.62);
+}
+
+.Orion .apps-mode-toggle {
+  padding: 2px 5px;
+}
+
+.apps-all-grid {
+  padding: 0 11px 4px;
+}
+
+.apps-all-grid flowboxchild {
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+}
+
+.apps-all-grid flowboxchild:hover,
+.apps-all-grid flowboxchild:selected {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.apps-tile {
+  min-height: 82px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+}
+.apps-tile:hover {
+  background: rgba(255, 255, 255, 0.065);
+  border-color: rgba(203, 166, 247, 0.18);
+}
+.apps-tile:active {
+  background: rgba(203, 166, 247, 0.1);
+}
+
+.apps-tile-inner {
+  padding: 9px 5px 8px;
+}
+
+.apps-tile-icon {
+  min-width: 38px;
+  min-height: 38px;
+  background: transparent;
+  border: none;
+}
+
+.apps-tile-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #e2e2e2;
 }
 
 .apps-list {
-  padding: 2px 8px 15px;
+  padding: 0 12px 3px;
 }
 
 .apps-row {
-  background: transparent;
-  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.022);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.035);
   padding: 0;
+  margin-bottom: 4px;
 }
 .apps-row:hover {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.105);
 }
 
 .apps-row-icon {
-  min-width: 32px;
-  min-height: 32px;
-  padding: 4px;
+  min-width: 30px;
+  min-height: 30px;
+  margin: 3px 6px 3px 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 .apps-row-icon image {
-  color: #7aa2f7;
+  min-width: 26px;
+  min-height: 26px;
+  -gtk-icon-size: 26px;
+  color: #89b4fa;
 }
 
 .apps-row-label {
   font-size: 12px;
-  color: #c0caf5;
-  padding: 4px 0;
+  font-weight: 600;
+  color: #e2e2e2;
+  padding: 3px 0;
 }
 
 .git-section {
@@ -750,23 +713,23 @@ popover.background {
   padding: 2px 0;
 }
 .git-section .git-chip {
-  background: rgba(122, 162, 247, 0.025);
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.035);
+  border: 0.5px solid rgba(255, 255, 255, 0.055);
   border-radius: 20px;
   padding: 3px 10px;
 }
 .git-section .git-chip:hover {
-  background: rgba(122, 162, 247, 0.07);
-  border-color: rgba(122, 162, 247, 0.11);
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.105);
 }
 .git-section .git-chip.git-chip-active {
-  background: rgba(122, 162, 247, 0.1);
-  border-color: rgba(122, 162, 247, 0.25);
+  background: rgba(137, 180, 250, 0.1);
+  border-color: rgba(203, 166, 247, 0.42);
 }
 .git-section .git-chip-name {
   font-size: 11px;
   font-weight: 500;
-  color: #c0caf5;
+  color: #e2e2e2;
 }
 .git-section .git-chip-dot {
   min-width: 6px;
@@ -774,58 +737,58 @@ popover.background {
   border-radius: 50%;
 }
 .git-section .git-chip-dot.pill-ok {
-  background: #73daca;
+  background: #94e2d5;
 }
 .git-section .git-chip-dot.pill-warn {
-  background: #e0af68;
+  background: #fab387;
 }
 .git-section .git-chip-dot.pill-err {
-  background: #f7768e;
+  background: #f38ba8;
 }
 .git-section .git-icon-btn {
   min-width: 26px;
   min-height: 26px;
   border-radius: 7px;
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  color: #2a3050;
+  border: 0.5px solid rgba(255, 255, 255, 0.055);
+  color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-icon-btn:hover {
-  background: rgba(122, 162, 247, 0.07);
-  color: #c0caf5;
+  background: rgba(255, 255, 255, 0.075);
+  color: #e2e2e2;
 }
 .git-section .git-icon-btn.git-icon-spin {
-  color: #73daca;
+  color: #94e2d5;
 }
 .git-section .git-icon-btn-sm {
   min-width: 20px;
   min-height: 20px;
   border-radius: 5px;
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-icon-btn-sm:hover {
-  background: rgba(122, 162, 247, 0.07);
-  color: #c0caf5;
+  background: rgba(255, 255, 255, 0.075);
+  color: #e2e2e2;
 }
 .git-section .git-status-bar {
-  background: rgba(122, 162, 247, 0.025);
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 0.5px solid rgba(255, 255, 255, 0.055);
+  border-radius: 11px;
   padding: 5px 10px;
 }
 .git-section .git-branch-chip {
-  background: rgba(122, 162, 247, 0.08);
+  background: rgba(137, 180, 250, 0.08);
   border-radius: 5px;
   padding: 1px 7px;
 }
 .git-section .git-branch-ico {
-  color: #7aa2f7;
+  color: #89b4fa;
   min-width: 12px;
   min-height: 12px;
 }
 .git-section .git-branch-lbl {
   font-size: 11px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #7aa2f7;
+  color: #89b4fa;
   font-weight: 500;
 }
 .git-section .git-stat-pill {
@@ -836,41 +799,41 @@ popover.background {
   border-radius: 10px;
 }
 .git-section .git-stat-pill.gsp-ahead {
-  background: rgba(115, 218, 202, 0.1);
-  color: #73daca;
+  background: rgba(148, 226, 213, 0.1);
+  color: #94e2d5;
 }
 .git-section .git-stat-pill.gsp-behind {
-  background: rgba(224, 175, 104, 0.1);
-  color: #e0af68;
+  background: rgba(250, 179, 135, 0.1);
+  color: #fab387;
 }
 .git-section .git-stat-pill.gsp-mod {
-  background: rgba(122, 162, 247, 0.1);
-  color: #7aa2f7;
+  background: rgba(137, 180, 250, 0.1);
+  color: #89b4fa;
 }
 .git-section .git-stat-pill.gsp-err {
-  background: rgba(247, 118, 142, 0.1);
-  color: #f7768e;
+  background: rgba(243, 139, 168, 0.1);
+  color: #f38ba8;
 }
 .git-section .git-col-card {
-  background: rgba(122, 162, 247, 0.025);
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 0.5px solid rgba(255, 255, 255, 0.055);
+  border-radius: 11px;
 }
 .git-section .git-col-hdr {
   padding: 6px 10px;
   background: rgba(86, 95, 137, 0.06);
-  border-bottom: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.055);
 }
 .git-section .git-col-title {
   font-size: 10px;
   font-weight: 500;
-  color: #565f89;
+  color: rgba(226, 226, 226, 0.62);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .git-section .git-empty-lbl {
   font-size: 11px;
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
   padding: 8px 10px;
   font-style: italic;
 }
@@ -879,14 +842,14 @@ popover.background {
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
 }
 .git-section .git-ab-a {
-  color: #73daca;
+  color: #94e2d5;
 }
 .git-section .git-ab-b {
-  color: #e0af68;
+  color: #fab387;
 }
 .git-section .git-commit-row {
   padding: 5px 10px;
-  border-bottom: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.055);
 }
 .git-section .git-commit-row:last-child {
   border-bottom: none;
@@ -894,34 +857,34 @@ popover.background {
 .git-section .git-commit-hash {
   font-size: 10px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #7aa2f7;
+  color: #89b4fa;
   min-width: 42px;
 }
 .git-section .git-commit-msg {
   font-size: 11px;
-  color: #c0caf5;
+  color: #e2e2e2;
 }
 .git-section .git-commit-date {
   font-size: 10px;
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-files-count {
   font-size: 10px;
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
 }
 .git-section .git-file-row {
   padding: 4px 8px;
-  border-bottom: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.055);
 }
 .git-section .git-file-row:last-child {
   border-bottom: none;
 }
 .git-section .git-file-row:hover {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.075);
 }
 .git-section .git-file-row.git-file-active {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(137, 180, 250, 0.07);
 }
 .git-section .git-file-stat {
   font-size: 10px;
@@ -931,43 +894,43 @@ popover.background {
   border-radius: 3px;
 }
 .git-section .git-file-stat.fs-m {
-  background: rgba(224, 175, 104, 0.15);
-  color: #e0af68;
+  background: rgba(250, 179, 135, 0.15);
+  color: #fab387;
 }
 .git-section .git-file-stat.fs-a {
-  background: rgba(115, 218, 202, 0.15);
-  color: #73daca;
+  background: rgba(148, 226, 213, 0.15);
+  color: #94e2d5;
 }
 .git-section .git-file-stat.fs-d {
-  background: rgba(247, 118, 142, 0.15);
-  color: #f7768e;
+  background: rgba(243, 139, 168, 0.15);
+  color: #f38ba8;
 }
 .git-section .git-file-stat.fs-u {
   background: rgba(86, 95, 137, 0.15);
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-file-name {
   font-size: 11px;
-  color: #c0caf5;
+  color: #e2e2e2;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
 }
 .git-section .git-mini-sep {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.055);
   min-height: 0.5px;
   margin: 0 8px;
 }
 .git-section .git-commit-entry {
   margin: 5px 8px 4px;
   background: rgba(0, 0, 0, 0.2);
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
+  border: 0.5px solid rgba(255, 255, 255, 0.055);
   border-radius: 6px;
   font-size: 11px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #c0caf5;
+  color: #e2e2e2;
   padding: 3px 8px;
 }
 .git-section .git-commit-entry:focus {
-  border-color: rgba(122, 162, 247, 0.25);
+  border-color: rgba(203, 166, 247, 0.42);
 }
 .git-section .git-act-row {
   padding: 4px 6px;
@@ -976,16 +939,16 @@ popover.background {
   min-width: 28px;
   min-height: 28px;
   border-radius: 7px;
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  color: #565f89;
+  border: 0.5px solid rgba(255, 255, 255, 0.055);
+  color: rgba(226, 226, 226, 0.62);
 }
 .git-section .git-act-btn:hover {
-  background: rgba(122, 162, 247, 0.07);
-  color: #c0caf5;
-  border-color: rgba(122, 162, 247, 0.11);
+  background: rgba(255, 255, 255, 0.075);
+  color: #e2e2e2;
+  border-color: rgba(255, 255, 255, 0.105);
 }
 .git-section .git-act-btn:disabled {
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
   opacity: 0.5;
 }
 .git-section .git-branch-popover {
@@ -997,36 +960,36 @@ popover.background {
   padding: 4px 8px;
 }
 .git-section .git-branch-item-btn:hover {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.075);
 }
 .git-section .git-branch-item-lbl {
   font-size: 11px;
-  color: #c0caf5;
+  color: #e2e2e2;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
 }
 .git-section .git-branch-active {
-  color: #7aa2f7;
+  color: #89b4fa;
 }
 .git-section .git-diff-panel {
-  background: rgba(122, 162, 247, 0.025);
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 0.5px solid rgba(255, 255, 255, 0.055);
+  border-radius: 11px;
   margin-top: 2px;
 }
 .git-section .git-diff-file {
   font-size: 11px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #565f89;
+  color: rgba(226, 226, 226, 0.62);
 }
 .git-section .git-ds-a {
   font-size: 10px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #73daca;
+  color: #94e2d5;
 }
 .git-section .git-ds-r {
   font-size: 10px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #f7768e;
+  color: #f38ba8;
 }
 .git-section .git-diff-body {
   padding: 2px 0;
@@ -1038,72 +1001,72 @@ popover.background {
   line-height: 1.6;
 }
 .git-section .git-diff-line.dl-add {
-  background: rgba(115, 218, 202, 0.08);
-  color: #73daca;
+  background: rgba(148, 226, 213, 0.08);
+  color: #94e2d5;
 }
 .git-section .git-diff-line.dl-rem {
-  background: rgba(247, 118, 142, 0.08);
-  color: #f7768e;
+  background: rgba(243, 139, 168, 0.08);
+  color: #f38ba8;
 }
 .git-section .git-diff-line.dl-ctx {
-  color: #565f89;
+  color: rgba(226, 226, 226, 0.62);
 }
 .git-section .git-scan-lbl {
   font-size: 11px;
-  color: #565f89;
+  color: rgba(226, 226, 226, 0.62);
 }
 .git-section .git-scan-empty {
   font-size: 11px;
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
   font-style: italic;
 }
 .git-section .git-disc-item {
   padding: 5px 6px;
   border-radius: 7px;
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  background: rgba(122, 162, 247, 0.02);
+  border: 0.5px solid rgba(255, 255, 255, 0.055);
+  background: rgba(137, 180, 250, 0.02);
 }
 .git-section .git-disc-item:hover {
-  background: rgba(122, 162, 247, 0.07);
+  background: rgba(255, 255, 255, 0.075);
 }
 .git-section .git-disc-icon {
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-disc-name {
   font-size: 11px;
   font-weight: 500;
-  color: #c0caf5;
+  color: #e2e2e2;
 }
 .git-section .git-disc-path {
   font-size: 10px;
-  color: #2a3050;
+  color: rgba(226, 226, 226, 0.32);
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
 }
 .git-section .git-disc-btn {
   min-width: 20px;
   min-height: 20px;
   border-radius: 5px;
-  border: 0.5px solid rgba(122, 162, 247, 0.07);
-  color: #2a3050;
+  border: 0.5px solid rgba(255, 255, 255, 0.055);
+  color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-disc-btn.git-disc-pin:hover {
-  background: rgba(122, 162, 247, 0.12);
-  border-color: rgba(122, 162, 247, 0.25);
-  color: #7aa2f7;
+  background: rgba(137, 180, 250, 0.12);
+  border-color: rgba(203, 166, 247, 0.42);
+  color: #89b4fa;
 }
 .git-section .git-disc-btn.git-disc-ignore:hover {
-  background: rgba(247, 118, 142, 0.1);
-  border-color: rgba(247, 118, 142, 0.25);
-  color: #f7768e;
+  background: rgba(243, 139, 168, 0.1);
+  border-color: rgba(243, 139, 168, 0.25);
+  color: #f38ba8;
 }
 .git-section .git-action-bar {
   font-size: 10px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #73daca;
+  color: #94e2d5;
   padding: 3px 8px;
-  background: rgba(115, 218, 202, 0.07);
-  border-radius: 7px;
-  border: 0.5px solid rgba(115, 218, 202, 0.15);
+  background: rgba(148, 226, 213, 0.07);
+  border-radius: 8px;
+  border: 0.5px solid rgba(148, 226, 213, 0.15);
 }
 
 .rice-content {
@@ -1115,38 +1078,66 @@ popover.background {
 }
 
 .rice-random-btn {
-  padding: 5px 12px;
-  border-radius: 9px;
-  border: 0.5px solid rgba(122, 162, 247, 0.2);
-  background: rgba(122, 162, 247, 0.08);
-  color: #7aa2f7;
+  min-width: 27px;
+  min-height: 27px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(226, 226, 226, 0.62);
 }
 .rice-random-btn:hover {
-  background: rgba(122, 162, 247, 0.16);
-  border-color: rgba(122, 162, 247, 0.25);
+  background: rgba(255, 255, 255, 0.055);
+  color: #e2e2e2;
+}
+.rice-random-btn:active {
+  background: rgba(203, 166, 247, 0.11);
+  border-color: rgba(203, 166, 247, 0.16);
+}
+
+.rice-random-icon {
+  color: #cba6f7;
+  -gtk-icon-size: 14px;
+}
+
+.Orion .rice-random-btn {
+  padding: 0;
 }
 
 .rice-toggle-row {
   padding: 6px 2px 12px;
-  border-bottom: 0.5px solid rgba(122, 162, 247, 0.07);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.055);
   margin-bottom: 10px;
 }
 
 .rice-thumb {
   padding: 0;
-  border-radius: 11px;
-  border: 2px solid transparent;
+  border-radius: 14px;
+  border: 0;
   background: transparent;
+  min-width: 168px;
+  min-height: 96px;
+  box-shadow: none;
 }
-.rice-thumb:hover {
-  border-color: rgba(187, 154, 247, 0.5);
+.rice-thumb:hover, .rice-thumb:active {
+  background: transparent;
+  box-shadow: none;
 }
 .rice-thumb.wp-current {
-  border-color: #bb9af7;
+  box-shadow: 0 0 0 2px #cba6f7;
 }
 
-.rice-thumb-img {
-  border-radius: 9px;
+.rice-grid flowboxchild,
+.rice-grid flowboxchild:hover,
+.rice-grid flowboxchild:selected {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.rice-thumb-img,
+.rice-thumb-placeholder {
+  border-radius: 14px;
 }
 
 .np-panel button, .qs-wifi-list-scroll scrollbar,
@@ -5317,5 +5308,3 @@ button.dl-city-result:hover {
   border-radius: 6px;
   padding: 6px 8px;
 }
-
-/*# sourceMappingURL=out.css.map */

@@ -401,11 +401,7 @@ function buildDiffPanel(): Gtk.Box {
   box.append(hdr)
 
   const diffBody = new Gtk.Box({ cssClasses: ["git-diff-body"], orientation: Gtk.Orientation.VERTICAL })
-  const scroll = new Gtk.ScrolledWindow()
-  scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-  scroll.height_request = 130
-  scroll.set_child(diffBody)
-  box.append(scroll)
+  box.append(diffBody)
 
   function refresh() {
     const file = selectedFile.get()
@@ -646,11 +642,6 @@ function buildDiscoveryPanel(): Gtk.Box {
 // ── Full manage view ──────────────────────────────────────────────────────────
 
 function buildManageView(): Gtk.Box {
-  const scroll = new Gtk.ScrolledWindow()
-  scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-  scroll.vexpand = true
-  scroll.height_request = 320
-
   const inner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 8 })
   inner.append(buildAddForm())
   inner.append(new Gtk.Box({ cssClasses: ["j-hdiv"] }))
@@ -658,12 +649,7 @@ function buildManageView(): Gtk.Box {
   inner.append(new Gtk.Box({ cssClasses: ["j-hdiv"] }))
   inner.append(buildDiscoveryPanel())
 
-  scroll.set_child(inner)
-
-  // Wrap in a box so we can return Gtk.Box
-  const view = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
-  view.append(scroll as unknown as Gtk.Widget)
-  return view
+  return inner
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

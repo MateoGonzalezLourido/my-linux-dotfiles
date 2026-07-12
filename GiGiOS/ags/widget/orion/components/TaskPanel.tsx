@@ -12,7 +12,7 @@ export default function TaskPanel() {
       <box cssClasses={["tp-header"]} spacing={6}>
         <label
           cssClasses={["tp-title"]}
-          label="tareas"
+          label="ACTIVIDAD"
           hexpand
           halign={Gtk.Align.START}
         />

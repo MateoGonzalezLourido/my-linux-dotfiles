@@ -78,10 +78,5 @@ export function KeybindsSection() {
   keybinds.subscribe(build)
   searchQuery.subscribe(() => applyFilter(searchQuery.get()))
 
-  const scroll = new Gtk.ScrolledWindow()
-  scroll.set_css_classes(["kb-scroll"])
-  scroll.vexpand = true
-  scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-  scroll.set_child(content)
-  return scroll
+  return content
 }

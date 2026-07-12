@@ -1,14 +1,15 @@
 import { Gtk } from "ags/gtk4"
 
 export default function CornerCurve({ left = true }: { left?: boolean }) {
-  const radius = 20
+  const radius = 24
 
   const da = new Gtk.DrawingArea()
   da.set_size_request(radius, radius)
   da.set_valign(Gtk.Align.END)
   
   da.set_draw_func((_area, cr, width, height) => {
-    cr.setSourceRGBA(8 / 255, 11 / 255, 16 / 255, 1)
+    // Keep the outward foot visually continuous with the Orion shell.
+    cr.setSourceRGBA(8 / 255, 8 / 255, 12 / 255, 0.985)
 
     if (left) {
       cr.moveTo(width, height)
