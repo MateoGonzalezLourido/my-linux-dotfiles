@@ -49,10 +49,89 @@ backup() {  # respalda $1 preservando su ruta relativa a $HOME
   echo "BACKUP $dst -> $LINK_BACKUP/$rel"
 }
 
+gigios_phys="$(readlink -f "$GIGIOS")"
+
+# git que versiona GiGiOS: el repo bare de dotfiles (lo normal, ver install.sh)
+# o, si el árbol fuera un clon corriente, el repo del propio directorio.
+GIT=()
+if git --git-dir="$HOME/.dotfiles" --work-tree="$HOME" rev-parse --git-dir >/dev/null 2>&1; then
+  GIT=(git --git-dir="$HOME/.dotfiles" --work-tree="$HOME")
+elif git -C "$GIGIOS" rev-parse --show-toplevel >/dev/null 2>&1; then
+  GIT=(git -C "$GIGIOS")
+fi
+
+# ¿El destino cae FÍSICAMENTE dentro del repo? Eso sólo pasa si algún ancestro
+# suyo es un symlink que apunta a GiGiOS, y es fatal: el kernel resuelve el
+# destino a través de ese symlink, así que `ln -sfn` (y peor, el backup() de
+# --force) escriben sobre el archivo de ORIGEN.
+dst_lands_in_repo() {
+  local phys
+  phys="$(readlink -f "$(dirname "$1")" 2>/dev/null || true)"
+  [[ -n "$phys" && ( "$phys" == "$gigios_phys" || "$phys" == "$gigios_phys"/* ) ]]
+}
+
+# Symlinks heredados de un mapeo viejo. Cuando una entrada enlazaba un
+# directorio entero ("rofi::$HOME/.config/rofi") y después se afinó a un archivo
+# suelto ("rofi/config.rasi::$HOME/.config/rofi/config.rasi"), el symlink de
+# directorio se quedó en el sistema y convirtió el destino nuevo en una ruta
+# dentro del repo: link.sh se comía su propio origen (lo movía al backup y lo
+# dejaba como un symlink a sí mismo). Se borran; no se pierde nada, el
+# directorio real vive en el repo. Presupone que ninguna entrada de LINKS está
+# anidada dentro de otra.
+prune_legacy_dirlinks() {
+  local dst="$1" p phys
+  p="$(dirname "$dst")"
+  while [[ "$p" == "$HOME"/* ]]; do
+    if [[ -L "$p" ]]; then
+      phys="$(readlink -f "$p" 2>/dev/null || true)"
+      if [[ -n "$phys" && ( "$phys" == "$gigios_phys" || "$phys" == "$gigios_phys"/* ) ]]; then
+        if [[ "$mode" == check ]]; then
+          echo "HEREDADO $p -> $phys (symlink viejo al repo; $dst caería dentro de GiGiOS)"
+          return 1
+        fi
+        rm -f "$p"
+        echo "LIMPIO $p (symlink heredado al repo; impedía enlazar $dst)"
+      fi
+    fi
+    p="$(dirname "$p")"
+  done
+  return 0
+}
+
+# Secuela del bug anterior: el origen quedó machacado por un symlink a sí mismo.
+# Los orígenes son siempre archivos/dirs reales, así que un symlink acá es daño,
+# no una configuración válida. Se restaura desde git.
+repair_clobbered_src() {
+  local src="$1"
+  [[ -L "$src" ]] || return 0
+  if [[ "$mode" == check ]]; then
+    echo "DAÑADO $src es un symlink; debería ser un archivo real del repo"; return 1
+  fi
+  rm -f "$src"
+  if (( ${#GIT[@]} )) && "${GIT[@]}" checkout -- "$src" 2>/dev/null && [[ -e "$src" ]]; then
+    echo "REPARO $src (restaurado desde git)"
+    return 0
+  fi
+  echo "DAÑADO $src era un symlink corrupto: lo borré, pero no pude restaurarlo desde git."
+  echo "      Recuperá el archivo (buscá en $HOME/.dotfiles-backup-*/) y repetí."
+  return 1
+}
+
 status=0
 for entry in "${LINKS[@]}"; do
   src="$GIGIOS/${entry%%::*}"
   dst="${entry##*::}"
+
+  if ! prune_legacy_dirlinks "$dst" || ! repair_clobbered_src "$src"; then
+    status=1; continue
+  fi
+
+  # Red de seguridad: si tras la limpieza el destino sigue cayendo dentro del
+  # repo, es un mapeo mal puesto en LINKS. Enlazarlo destruiría el origen.
+  if dst_lands_in_repo "$dst"; then
+    echo "ABORTO $dst resuelve dentro de $GIGIOS; no lo enlazo (destruiría el origen)."
+    status=1; continue
+  fi
 
   if [[ ! -e "$src" ]]; then
     if [[ " ${CREATABLE[*]} " == *" ${entry%%::*} "* ]]; then
