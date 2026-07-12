@@ -5,14 +5,27 @@ import { barVisible, widgetsRefresh } from "../state"
 
 const HEADSET_ICON = "󰋋"   // nf-md-headphones
 
-// ¿La salida por defecto son auriculares/cascos (BT o cable)? En el perfil UCM
-// "HiFi" cada salida es un sink propio, así que el node.name trae "Headphones"
-// al enchufar por cable; para BT, WirePlumber marca el icono "audio-headset"/
-// "audio-headphones". Miramos icon + name + description para cubrir ambos casos.
+// ¿La salida por defecto son auriculares/cascos (BT o cable)?
+//
+// Por cable NO basta con mirar el sink. Esto asumía el perfil UCM "HiFi" (cada
+// salida es un sink propio, con "Headphones" en el node.name), pero con el perfil
+// ALSA clásico —el de esta máquina— altavoces y auriculares COMPARTEN un único
+// sink cuyos campos son siempre genéricos (`name` null, `icon`
+// "audio-card-analog-pci", `description` "Audio Interno Estéreo analógico"): al
+// enchufar el jack no cambia ninguno de los tres, cambia el *puerto activo* del
+// dispositivo, que Astal expone como `route` ("analog-output-headphones" /
+// "Auriculares"). Sin mirar la ruta activa, el cable no se detectaba nunca.
+//
+// Por BT sí lo delata el endpoint (WirePlumber marca el icono "audio-headset"/
+// "audio-headphones"), así que la búsqueda une icon + name + description + ruta
+// activa para cubrir ambos casos. Ojo: la ruta ACTIVA (`route`), no la lista
+// `routes` — ahí los auriculares siguen figurando aunque suene por los altavoces.
 function isHeadset(s: AstalWp.Endpoint | null): boolean {
   if (!s) return false
-  const hay = `${s.icon ?? ""} ${s.name ?? ""} ${s.description ?? ""}`.toLowerCase()
-  return /head(set|phone)|auric|earbud|earphone|hands[-_ ]?free/.test(hay)
+  const route = s.route
+  const hay = `${s.icon ?? ""} ${s.name ?? ""} ${s.description ?? ""} ` +
+              `${route?.name ?? ""} ${route?.description ?? ""}`
+  return /head(set|phone)|auric|earbud|earphone|hands[-_ ]?free/.test(hay.toLowerCase())
 }
 
 const isMutedVol = (s: AstalWp.Endpoint) => s.mute || s.volume === 0
@@ -94,21 +107,27 @@ export default function Volume() {
   // `speaker`: si no, el icono quedaría del dispositivo viejo y —peor— el clic/scroll
   // controlaría el volumen del dispositivo equivocado. La referencia se actualiza
   // siempre (para las interacciones); el render respeta barVisible vía update().
-  let volId = 0, muteId = 0, iconId = 0, descId = 0
+  let volId = 0, muteId = 0, iconId = 0, descId = 0, routeId = 0
   const bindSpeaker = (s: AstalWp.Endpoint | null) => {
     if (speaker && volId) {
       speaker.disconnect(volId); speaker.disconnect(muteId)
       speaker.disconnect(iconId); speaker.disconnect(descId)
+      speaker.disconnect(routeId)
     }
     speaker = s
-    volId = muteId = iconId = descId = 0
+    volId = muteId = iconId = descId = routeId = 0
     if (speaker) {
       volId  = speaker.connect("notify::volume", update)
       muteId = speaker.connect("notify::mute",   update)
-      // notify::icon / ::description delatan cascos y cubren el cambio de puerto
-      // (cascos↔altavoz) sin cambio de sink, y su poblado tardío en el arranque.
+      // notify::icon / ::description delatan los cascos BT y su poblado tardío en
+      // el arranque, pero NO el jack: ahí el sink no cambia (ver isHeadset).
       iconId = speaker.connect("notify::icon",        update)
       descId = speaker.connect("notify::description", update)
+      // notify::route es EL evento del cable — el único que se emite al enchufar o
+      // desenchufar el jack cuando el puerto cambia sin cambiar de sink. Sin esto,
+      // isHeadset ya vería la ruta correcta pero nadie la volvería a leer: el icono
+      // se quedaría congelado hasta el siguiente cambio de volumen.
+      routeId = speaker.connect("notify::route", update)
     }
     update()
   }
