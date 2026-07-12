@@ -17,6 +17,8 @@ import {
   volumeOsdEnabled, setVolumeOsdEnabled,
   micOsdEnabled, setMicOsdEnabled,
   brightnessOsdEnabled, setBrightnessOsdEnabled,
+  startupVolumeMuted, setStartupVolumeMuted,
+  startupMicMuted, setStartupMicMuted,
   trayBarEnabled, setTrayBarEnabled,
   notificationBarEnabled, setNotificationBarEnabled,
   workspacesBarEnabled, setWorkspacesBarEnabled,
@@ -123,6 +125,57 @@ export default function PersonalizationSection() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
       <label cssClasses={["sp-section-title"]} label="✦ Personalización" halign={Gtk.Align.START} />
+
+      {/* estado inicial del audio */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Iniciar el volumen silenciado" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label="Al iniciar el sistema, silencia la salida de audio predeterminada."
+              halign={Gtk.Align.START}
+              wrap={true}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={startupVolumeMuted((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setStartupVolumeMuted(!startupVolumeMuted.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={startupVolumeMuted((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Iniciar el micrófono silenciado" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label="Al iniciar el sistema, silencia el micrófono predeterminado."
+              halign={Gtk.Align.START}
+              wrap={true}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={startupMicMuted((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setStartupMicMuted(!startupMicMuted.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={startupMicMuted((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
 
       {/* auto-ocultado de la barra */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>

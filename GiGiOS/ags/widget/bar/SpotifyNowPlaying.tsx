@@ -72,10 +72,16 @@ export default function SpotifyNowPlaying() {
   let destroyed = false
   let coverInput = "\0"
   let pollTimer: number | null = null
-  let waveTimer: number | null = null
-  let wavePhase = 0
   let currentSpotify: any = null
   let spotifyPlaying = false
+
+  const bands = makeBands()
+  let energy = 0            // 0 parado, 1 sonando: las barras suben y caen en vez de saltar
+  let clockT = 0
+  let lastFrameUs = 0
+  let carry = 0
+  let tickId: number | null = null
+  let barShown = barVisible.get()
 
   const artPicture = new Gtk.Picture({
     contentFit: Gtk.ContentFit.COVER,
@@ -139,38 +145,92 @@ export default function SpotifyNowPlaying() {
   })
   waveform.set_can_target(false)
   waveform.set_draw_func((_area, cr, width, height) => {
-    const base = [2, 3, 6, 11, 18, 23, 15, 20, 16, 12, 8, 5, 3, 2, 2]
-    const gap = width / (base.length + 1)
-    cr.setSourceRGBA(0.88, 0.88, 0.86, 0.92)
-    cr.setLineWidth(2)
+    const gap = width / (WAVE_BARS + 1)
+    const span = height - WAVE_LINE  // los extremos redondeados sobresalen media línea
+    cr.setLineWidth(WAVE_LINE)
     cr.setLineCap(cairo.LineCap.ROUND)
 
-    base.forEach((naturalHeight, index) => {
-      const pulse = naturalHeight <= 2
-        ? 1
-        : 0.80 + 0.20 * Math.sin(wavePhase + index * 0.38)
-      const barHeight = spotifyPlaying ? Math.max(2, naturalHeight * pulse) : 2
+    bands.forEach((band, index) => {
+      const level = band.level * energy
+      const barHeight = WAVE_MIN + (span - WAVE_MIN) * level
       const x = gap * (index + 1)
+      cr.setSourceRGBA(0.88, 0.88, 0.86, 0.5 + 0.45 * level)
       cr.moveTo(x, (height - barHeight) / 2)
       cr.lineTo(x, (height + barHeight) / 2)
       cr.stroke()
     })
   })
 
-  const startWave = () => {
-    if (waveTimer !== null) return
-    waveTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
-      wavePhase += 0.16
-      waveform.queue_draw()
-      return GLib.SOURCE_CONTINUE
-    })
+  const restWave = () => {
+    energy = 0
+    carry = 0
+    bands.forEach((band) => { band.level = 0 })
   }
 
-  const stopWave = () => {
-    if (waveTimer === null) return
-    GLib.source_remove(waveTimer)
-    waveTimer = null
+  const frame = (_widget: any, frameClock: any): boolean => {
+    const nowUs = frameClock.get_frame_time()
+    const raw = lastFrameUs ? (nowUs - lastFrameUs) / 1e6 : 1 / 60
+    lastFrameUs = nowUs
+    // Un salto largo (bar oculto, suspensión) no debe teletransportar las barras.
+    carry += Math.min(0.1, raw)
+    if (carry < (powerSaveActive.get() ? 1 / WAVE_FPS_SAVE : 0)) return true
+    const dt = carry
+    carry = 0
+    clockT += dt
+
+    const target = spotifyPlaying ? 1 : 0
+    energy += (target - energy) * (1 - Math.exp(-dt / (spotifyPlaying ? 0.20 : 0.28)))
+
+    // Bombo con acento cada cuatro tiempos: pulso musical, no deriva uniforme.
+    const beat = (clockT / (60 / WAVE_BPM)) % 4
+    const kick = Math.exp(-(beat % 1) * 7) * (beat < 1 ? 1 : 0.55)
+
+    bands.forEach((band) => {
+      // Tres senos inconmensurables: no se repiten en bucle como una senoide sola.
+      // El /0.72 y la S de smoothstep son lo que da recorrido: sin ellos la suma se
+      // apelotona en torno a 0.5 y las barras solo respiran a media altura.
+      const wobble = (
+        0.55 * Math.sin(clockT * band.speed + band.ph[0]) +
+        0.30 * Math.sin(clockT * band.speed * 1.73 + band.ph[1]) +
+        0.15 * Math.sin(clockT * band.speed * 2.61 + band.ph[2])
+      ) / 0.72
+      const n = Math.min(1, Math.max(0, 0.5 + 0.5 * wobble))
+      const shaped = n * n * (3 - 2 * n)
+      const peak = Math.min(1, band.gain * (0.06 + 0.94 * shaped) + 0.5 * kick * band.bass)
+      const tau = peak > band.level ? ATTACK_TAU : RELEASE_TAU
+      band.level += (peak - band.level) * (1 - Math.exp(-dt / tau))
+    })
+
+    waveform.queue_draw()
+
+    // Ya está todo caído: soltar el reloj de frames hasta que vuelva a sonar.
+    if (!spotifyPlaying && energy < 0.004) {
+      restWave()
+      waveform.queue_draw()
+      tickId = null
+      return false
+    }
+    return true
   }
+
+  /** Anima solo si hay algo que animar y el bar está a la vista. */
+  const syncWave = () => {
+    const needed = barShown && (spotifyPlaying || energy > 0)
+    if (needed && tickId === null) {
+      lastFrameUs = 0
+      tickId = waveform.add_tick_callback(frame)
+    } else if (!needed && tickId !== null) {
+      waveform.remove_tick_callback(tickId)
+      tickId = null
+    }
+  }
+
+  const unsubBar = barVisible.subscribe(() => {
+    barShown = barVisible.get()
+    // Oculto y en pausa: no hay que reanudar ninguna caída al reaparecer.
+    if (!barShown && !spotifyPlaying) restWave()
+    syncWave()
+  })
 
   const update = () => {
     const spotify = mpris.players.find((player: any) =>
@@ -178,19 +238,19 @@ export default function SpotifyNowPlaying() {
     const isPlaying = spotify?.playback_status === AstalMpris.PlaybackStatus.PLAYING
     currentSpotify = spotify || null
     spotifyPlaying = isPlaying
-    waveform.queue_draw()
     setVisible(Boolean(spotify && (spotify.title || spotify.artist)))
 
     if (!spotify) {
-      stopWave()
+      restWave()
+      syncWave()
+      waveform.queue_draw()
       return
     }
 
     setTitle(spotify.title || "Sin título")
     setArtist(spotify.artist || "Artista desconocido")
     resolveArtwork(spotify.cover_art || spotify.art_url || "")
-    if (isPlaying) startWave()
-    else stopWave()
+    syncWave()
   }
 
   const focusSpotify = () => {
@@ -219,7 +279,8 @@ export default function SpotifyNowPlaying() {
       $={(self: Gtk.Box) => self.connect("destroy", () => {
         destroyed = true
         if (pollTimer !== null) GLib.source_remove(pollTimer)
-        stopWave()
+        if (tickId !== null) { waveform.remove_tick_callback(tickId); tickId = null }
+        unsubBar()
       })}
     >
       <box spacing={7}>
@@ -256,9 +317,7 @@ export default function SpotifyNowPlaying() {
         onReleased={() => {
           if (!currentSpotify) return
           spotifyPlaying = !spotifyPlaying
-          waveform.queue_draw()
-          if (spotifyPlaying) startWave()
-          else stopWave()
+          syncWave()
           currentSpotify.play_pause()
         }}
       />

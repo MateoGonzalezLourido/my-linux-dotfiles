@@ -60,6 +60,13 @@ const [micOsdEnabled, _setMicOsdEnabled] = createState(true)
 const [brightnessOsdEnabled, _setBrightnessOsdEnabled] = createState(true)
 export { volumeOsdEnabled, micOsdEnabled, brightnessOsdEnabled }
 
+// Estado de mute que aplicará inicializador/init.sh al comenzar la sesión.
+// Se guardan aquí porque son elecciones de Personalización, aunque las consume
+// un script externo antes de que AGS termine de arrancar.
+const [startupVolumeMuted, _setStartupVolumeMuted] = createState(false)
+const [startupMicMuted, _setStartupMicMuted] = createState(false)
+export { startupVolumeMuted, startupMicMuted }
+
 // Apps en segundo plano (SystemTray) de la barra. Desactivada, no se monta el
 // contenedor ni se renderizan sus iconos, bindings, menús o popovers.
 const [trayBarEnabled, _setTrayBarEnabled] = createState(true)
@@ -197,6 +204,8 @@ function load() {
     if (typeof saved.volumeOsd === "boolean") _setVolumeOsdEnabled(saved.volumeOsd)
     if (typeof saved.micOsd === "boolean") _setMicOsdEnabled(saved.micOsd)
     if (typeof saved.brightnessOsd === "boolean") _setBrightnessOsdEnabled(saved.brightnessOsd)
+    if (typeof saved.startupVolumeMuted === "boolean") _setStartupVolumeMuted(saved.startupVolumeMuted)
+    if (typeof saved.startupMicMuted === "boolean") _setStartupMicMuted(saved.startupMicMuted)
     if (typeof saved.trayBar === "boolean") _setTrayBarEnabled(saved.trayBar)
     if (typeof saved.notificationBar === "boolean") _setNotificationBarEnabled(saved.notificationBar)
     if (typeof saved.workspacesBar === "boolean") _setWorkspacesBarEnabled(saved.workspacesBar)
@@ -234,6 +243,8 @@ function save() {
       volumeOsd: volumeOsdEnabled.get(),
       micOsd: micOsdEnabled.get(),
       brightnessOsd: brightnessOsdEnabled.get(),
+      startupVolumeMuted: startupVolumeMuted.get(),
+      startupMicMuted: startupMicMuted.get(),
       trayBar: trayBarEnabled.get(),
       notificationBar: notificationBarEnabled.get(),
       workspacesBar: workspacesBarEnabled.get(),
@@ -306,6 +317,14 @@ export function setMicOsdEnabled(on: boolean) {
 }
 export function setBrightnessOsdEnabled(on: boolean) {
   _setBrightnessOsdEnabled(on)
+  save()
+}
+export function setStartupVolumeMuted(on: boolean) {
+  _setStartupVolumeMuted(on)
+  save()
+}
+export function setStartupMicMuted(on: boolean) {
+  _setStartupMicMuted(on)
   save()
 }
 export function setTrayBarEnabled(on: boolean) {
