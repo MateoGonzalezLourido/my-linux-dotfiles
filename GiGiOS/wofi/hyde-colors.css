@@ -33,19 +33,27 @@ window {
     color: #586e75;
 }
 
+#entry:nth-child(even) {
+    background-color: #eee8d5;
+}
+
+#entry:nth-child(odd) {
+    background-color: #fdf6e3;
+}
+
 #text {
     background-color: transparent;
     color: #586e75;
 }
 
 #entry:selected {
-    background-color: #eee8d5;
-    color: #073642;
+    background-color: #89b4fa;
+    color: #1e1e2e;
 }
 
 #entry:selected #text {
     background-color: transparent;
-    color: #073642;
+    color: #1e1e2e;
 }
 
 scrollbar,
@@ -57,4 +65,9 @@ scrollbar slider {
     min-width: 5px;
     min-height: 16px;
     background-color: #93a1a1;
+}
+
+scrollbar.horizontal {
+    min-height: 0;
+    opacity: 0;
 }
