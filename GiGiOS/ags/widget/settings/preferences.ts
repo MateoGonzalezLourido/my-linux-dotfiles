@@ -47,6 +47,13 @@ export { networkBarEnabled }
 const [micIndicatorEnabled, _setMicIndicatorEnabled] = createState(true)
 export { micIndicatorEnabled }
 
+// OSD flotantes activados por los atajos multimedia. Se controlan por separado
+// para poder conservar solo los indicadores que resulten útiles.
+const [volumeOsdEnabled, _setVolumeOsdEnabled] = createState(true)
+const [micOsdEnabled, _setMicOsdEnabled] = createState(true)
+const [brightnessOsdEnabled, _setBrightnessOsdEnabled] = createState(true)
+export { volumeOsdEnabled, micOsdEnabled, brightnessOsdEnabled }
+
 // Apps en segundo plano (SystemTray) de la barra. Desactivada, no se monta el
 // contenedor ni se renderizan sus iconos, bindings, menús o popovers.
 const [trayBarEnabled, _setTrayBarEnabled] = createState(true)
@@ -84,6 +91,24 @@ export { clipboardHistoryEnabled }
 // Orion. El cambio se aplica en el siguiente arranque o recarga de AGS.
 const [orionEnabled, _setOrionEnabled] = createState(true)
 export { orionEnabled }
+
+// Monitor de actualizaciones (scripts/updates-monitor.sh) + icono de la barra.
+// El toggle MAESTRO se aplica en caliente (su setter lanza/mata el script y el
+// icono se monta/desmonta con este estado). Default: activado.
+const [updatesMonitorEnabled, _setUpdatesMonitorEnabled] = createState(true)
+export { updatesMonitorEnabled }
+
+// Recomprobación periódica del monitor de actualizaciones. Lo lee el script bash
+// UNA sola vez al arrancar (como batteryMonitor): al desactivarlo comprueba una
+// vez y sale. Un cambio solo surte efecto reiniciando el script (reactivar el
+// maestro lo relanza). Default: activado.
+const [updatesPeriodicEnabled, _setUpdatesPeriodicEnabled] = createState(true)
+export { updatesPeriodicEnabled }
+
+// Horas entre comprobaciones periódicas. También leído UNA vez al arrancar por el
+// script. Default: 3.
+const [updatesIntervalHours, _setUpdatesIntervalHours] = createState(3)
+export { updatesIntervalHours }
 
 // No molestar automático: cuando está activo, un watcher en el shell
 // (widget/notifications/autoDnd) enciende notifd.dontDisturb mientras haya un
@@ -140,6 +165,9 @@ function load() {
     if (typeof saved.batteryBar === "boolean") _setBatteryBarEnabled(saved.batteryBar)
     if (typeof saved.networkBar === "boolean") _setNetworkBarEnabled(saved.networkBar)
     if (typeof saved.micIndicator === "boolean") _setMicIndicatorEnabled(saved.micIndicator)
+    if (typeof saved.volumeOsd === "boolean") _setVolumeOsdEnabled(saved.volumeOsd)
+    if (typeof saved.micOsd === "boolean") _setMicOsdEnabled(saved.micOsd)
+    if (typeof saved.brightnessOsd === "boolean") _setBrightnessOsdEnabled(saved.brightnessOsd)
     if (typeof saved.trayBar === "boolean") _setTrayBarEnabled(saved.trayBar)
     if (typeof saved.notificationBar === "boolean") _setNotificationBarEnabled(saved.notificationBar)
     if (typeof saved.workspacesBar === "boolean") _setWorkspacesBarEnabled(saved.workspacesBar)
@@ -147,6 +175,11 @@ function load() {
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
     if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
+    if (typeof saved.updatesMonitor === "boolean") _setUpdatesMonitorEnabled(saved.updatesMonitor)
+    if (typeof saved.updatesPeriodic === "boolean") _setUpdatesPeriodicEnabled(saved.updatesPeriodic)
+    if (typeof saved.updatesIntervalHours === "number" && saved.updatesIntervalHours >= 1) {
+      _setUpdatesIntervalHours(Math.floor(saved.updatesIntervalHours))
+    }
     if (typeof saved.autoDnd === "boolean") _setAutoDndEnabled(saved.autoDnd)
     if (Array.isArray(saved.autoDndFullscreenApps)) {
       _setAutoDndFullscreenApps(sanitizeApps(saved.autoDndFullscreenApps))
@@ -166,6 +199,9 @@ function save() {
       batteryBar: batteryBarEnabled.get(),
       networkBar: networkBarEnabled.get(),
       micIndicator: micIndicatorEnabled.get(),
+      volumeOsd: volumeOsdEnabled.get(),
+      micOsd: micOsdEnabled.get(),
+      brightnessOsd: brightnessOsdEnabled.get(),
       trayBar: trayBarEnabled.get(),
       notificationBar: notificationBarEnabled.get(),
       workspacesBar: workspacesBarEnabled.get(),
@@ -173,6 +209,9 @@ function save() {
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
       orion: orionEnabled.get(),
+      updatesMonitor: updatesMonitorEnabled.get(),
+      updatesPeriodic: updatesPeriodicEnabled.get(),
+      updatesIntervalHours: updatesIntervalHours.get(),
       autoDnd: autoDndEnabled.get(),
       autoDndFullscreenApps: autoDndFullscreenApps.get(),
       timeFormat: timeFormat.get(),
@@ -210,6 +249,18 @@ export function setMicIndicatorEnabled(on: boolean) {
   _setMicIndicatorEnabled(on)
   save()
 }
+export function setVolumeOsdEnabled(on: boolean) {
+  _setVolumeOsdEnabled(on)
+  save()
+}
+export function setMicOsdEnabled(on: boolean) {
+  _setMicOsdEnabled(on)
+  save()
+}
+export function setBrightnessOsdEnabled(on: boolean) {
+  _setBrightnessOsdEnabled(on)
+  save()
+}
 export function setTrayBarEnabled(on: boolean) {
   _setTrayBarEnabled(on)
   save()
@@ -238,6 +289,29 @@ export function setClipboardHistoryEnabled(on: boolean) {
 }
 export function setOrionEnabled(on: boolean) {
   _setOrionEnabled(on)
+  save()
+}
+// Maestro del monitor de actualizaciones: se aplica en caliente. Al activar lanza
+// el script (que relee prefs y arranca); al desactivar lo mata y borra updates.json
+// para que el icono desaparezca al instante.
+export function setUpdatesMonitorEnabled(on: boolean) {
+  _setUpdatesMonitorEnabled(on)
+  save()
+  if (on) {
+    execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/updates-monitor.sh`]).catch(() => {})
+  } else {
+    execAsync(["pkill", "-f", "updates-monitor.sh"]).catch(() => {})
+    try { Gio.File.new_for_path(`${GLib.get_user_config_dir()}/gigios/updates.json`).delete(null) } catch (_) {}
+  }
+}
+export function setUpdatesPeriodicEnabled(on: boolean) {
+  _setUpdatesPeriodicEnabled(on)
+  save()
+}
+export function setUpdatesIntervalHours(h: number) {
+  const n = Math.floor(h)
+  if (!Number.isFinite(n) || n < 1) return
+  _setUpdatesIntervalHours(n)
   save()
 }
 export function setTimeFormat(fmt: TimeFormat) {

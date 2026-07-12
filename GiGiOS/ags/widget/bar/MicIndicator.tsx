@@ -1,7 +1,6 @@
 import { Gtk, Gdk } from "ags/gtk4"
 import { createComputed, createState } from "ags"
 import AstalWp from "gi://AstalWp"
-import { showPixelMicOSD } from "../state"
 
 export default function MicIndicator() {
     const [isRecording, setIsRecording] = createState(false)
@@ -26,7 +25,6 @@ export default function MicIndicator() {
         const next = !mic.mute
         mic.mute = next
         setIsMuted(next)
-        showPixelMicOSD()
     }
 
     if (audio) {

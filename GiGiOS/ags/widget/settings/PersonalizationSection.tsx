@@ -9,6 +9,9 @@ import {
   batteryBarEnabled, setBatteryBarEnabled,
   networkBarEnabled, setNetworkBarEnabled,
   micIndicatorEnabled, setMicIndicatorEnabled,
+  volumeOsdEnabled, setVolumeOsdEnabled,
+  micOsdEnabled, setMicOsdEnabled,
+  brightnessOsdEnabled, setBrightnessOsdEnabled,
   trayBarEnabled, setTrayBarEnabled,
   notificationBarEnabled, setNotificationBarEnabled,
   workspacesBarEnabled, setWorkspacesBarEnabled,
@@ -154,6 +157,84 @@ export default function PersonalizationSection() {
           >
             <box cssClasses={["qs-toggle-track"]}>
               <box cssClasses={micIndicatorEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* OSD de volumen */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Widget flotante de volumen" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label="Muestra el nivel de volumen al usar los atajos multimedia."
+              halign={Gtk.Align.START}
+              wrap={true}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={volumeOsdEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setVolumeOsdEnabled(!volumeOsdEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={volumeOsdEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* OSD de micrófono */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Widget flotante de micrófono" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label="Muestra el estado del micrófono al usar su atajo multimedia."
+              halign={Gtk.Align.START}
+              wrap={true}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={micOsdEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setMicOsdEnabled(!micOsdEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={micOsdEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* OSD de brillo */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Widget flotante de brillo" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label="Muestra el nivel de brillo al usar los atajos multimedia."
+              halign={Gtk.Align.START}
+              wrap={true}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={brightnessOsdEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setBrightnessOsdEnabled(!brightnessOsdEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={brightnessOsdEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
             </box>
           </button>
         </box>

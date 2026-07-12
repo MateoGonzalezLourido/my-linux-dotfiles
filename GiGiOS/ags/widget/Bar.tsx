@@ -16,9 +16,10 @@ import CpuRam from "./bar/CpuRam"
 import Recording from "./bar/Recording"
 import MicIndicator from "./bar/MicIndicator"
 import NotificationButton from "./bar/NotificationButton"
+import UpdatesButton from "./bar/UpdatesButton"
 import PowerButton from "./bar/PowerButton"
 import SpotifyNowPlaying from "./bar/SpotifyNowPlaying"
-import { batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled } from "./settings/preferences"
+import { batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "./settings/preferences"
 import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging, barPinnedByKey, setBarPinnedByKey, barKeyboardActive } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
@@ -178,6 +179,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       <box $type="end" halign={Gtk.Align.END} spacing={2} cssClasses={["bar-end-box"]}>
         <With value={trayBarEnabled}>{(on: boolean) => on && <SystemTray />}</With>
         <box cssClasses={["bar-status-pair"]} spacing={0}>
+          <With value={updatesMonitorEnabled}>{(on: boolean) => on && <UpdatesButton />}</With>
           <With value={notificationBarEnabled}>{(on: boolean) => on && <NotificationButton />}</With>
           <button
             cssClasses={["bar-pill-btn"]}

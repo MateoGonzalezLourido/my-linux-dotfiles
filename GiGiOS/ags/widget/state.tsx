@@ -3,6 +3,7 @@ import { notifPanelVisible, closeNotifPanel } from "./notifications/store"
 import GLib from "gi://GLib"
 import GUdev from "gi://GUdev"
 import Gio from "gi://Gio"
+import { brightnessOsdEnabled } from "./settings/preferences"
 
 export const [calendarVisible, setCalendarVisible] = createState(false)
 export function toggleCalendar() { setCalendarVisible(!calendarVisible.get()) }
@@ -18,29 +19,6 @@ export const [isWsPreview, setIsWsPreview] = createState(false)
 
 export const [osdVisible, setOsdVisible] = createState(false)
 export const [micOsdVisible, setMicOsdVisible] = createState(false)
-export const [pixelVolOsdVisible, setPixelVolOsdVisible] = createState(false)
-
-let _pvOsdTimer: number | null = null
-export function showPixelVolOSD() {
-  setPixelVolOsdVisible(true)
-  if (_pvOsdTimer) clearTimeout(_pvOsdTimer)
-  _pvOsdTimer = setTimeout(() => {
-    setPixelVolOsdVisible(false)
-    _pvOsdTimer = null
-  }, 2500)
-}
-
-export const [pixelMicOsdVisible, setPixelMicOsdVisible] = createState(false)
-
-let _pmOsdTimer: number | null = null
-export function showPixelMicOSD() {
-  setPixelMicOsdVisible(true)
-  if (_pmOsdTimer) clearTimeout(_pmOsdTimer)
-  _pmOsdTimer = setTimeout(() => {
-    setPixelMicOsdVisible(false)
-    _pmOsdTimer = null
-  }, 2500)
-}
 
 // ── Panel visibility ─────────────────────────────────────────────────────────
 // Cada panel tiene su propio estado. anyPanelVisible se deriva de ellos.
@@ -209,7 +187,16 @@ try {
 // ── Brightness OSD ────────────────────────────────────────────────────────────
 export const [brightnessOsdVisible, setBrightnessOsdVisible] = createState(false)
 let _brightOsdTimer: number | null = null
+function hideBrightnessOSD() {
+  setBrightnessOsdVisible(false)
+  if (_brightOsdTimer) clearTimeout(_brightOsdTimer)
+  _brightOsdTimer = null
+}
 export function showBrightnessOSD() {
+  if (!brightnessOsdEnabled.get() || !Number.isFinite(brightness.get()) || brightness.get() >= 0.999) {
+    hideBrightnessOSD()
+    return
+  }
   setBrightnessOsdVisible(true)
   if (_brightOsdTimer) clearTimeout(_brightOsdTimer)
   _brightOsdTimer = setTimeout(() => {
@@ -217,25 +204,35 @@ export function showBrightnessOSD() {
     _brightOsdTimer = null
   }, 2000)
 }
+brightnessOsdEnabled.subscribe(() => {
+  if (!brightnessOsdEnabled.get()) hideBrightnessOSD()
+})
 
 // ── Brightness watcher via udev (event-driven, zero polling) ─────────────────
-// El kernel envía un uevent "change" en el subsistema "backlight" cada vez que
-// algo modifica el brillo, así que no necesitamos ningún timer.
-let _startupSuppressed = true
-setTimeout(() => { _startupSuppressed = false }, 5000)
+// El kernel mantiene el valor sincronizado para el OSD. Mostrarlo es una acción
+// separada que solo solicitan los atajos de Hyprland mediante `ags request`.
 
 try {
   const _backlightClient = new GUdev.Client({ subsystems: ["backlight"] })
   const _dev = _backlightClient.query_by_sysfs_path("/sys/class/backlight/intel_backlight")
-  const _maxBright = _dev?.get_sysfs_attr_as_int("max_brightness") ?? 0
+  const _maxBright = Number(_dev?.get_sysfs_attr_as_int("max_brightness") ?? 0)
+  const readBrightness = (device: GUdev.Device) => {
+    const raw = Number(device.get_sysfs_attr_as_int_uncached("brightness"))
+    if (!Number.isFinite(raw) || !Number.isFinite(_maxBright) || _maxBright <= 0) return null
+    return Math.max(0, Math.min(1, raw / _maxBright))
+  }
 
   if (_dev && _maxBright > 0) {
-    setBrightness(_dev.get_sysfs_attr_as_int("brightness") / _maxBright)
+    const initial = readBrightness(_dev)
+    if (initial !== null) setBrightness(initial)
 
     _backlightClient.connect("uevent", (_c: GUdev.Client, action: string, device: GUdev.Device) => {
       if (action !== "change") return
-      setBrightness(device.get_sysfs_attr_as_int_uncached("brightness") / _maxBright)
-      if (!_startupSuppressed) showBrightnessOSD()
+      const value = readBrightness(device)
+      if (value !== null) {
+        setBrightness(value)
+        if (value >= 0.999) hideBrightnessOSD()
+      }
     })
   }
 } catch {}

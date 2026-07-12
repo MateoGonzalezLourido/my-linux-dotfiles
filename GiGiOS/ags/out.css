@@ -2054,54 +2054,103 @@ popover.tray-overflow-popover > contents {
   border-bottom-right-radius: 16px;
 }
 
+@keyframes osd-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 .osd-window {
   background-color: transparent;
 }
 
 .osd-container {
-  background-color: rgba(24, 24, 37, 0.95);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(137, 180, 250, 0.2);
-  border-radius: 999px;
-  padding: 6px 16px;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
-  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 210px;
+  min-height: 30px;
+  padding: 4px 10px;
+  background-color: rgb(8, 8, 12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.42);
+  animation: osd-enter 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.osd-container.osd-volume {
+  border-color: rgba(137, 180, 250, 0.28);
+}
+.osd-container.osd-brightness {
+  border-color: rgba(250, 179, 135, 0.3);
+}
+.osd-container.osd-brightness .osd-icon {
+  color: #fab387;
+}
+.osd-container.osd-brightness progressbar.osd-progress progress {
+  background: linear-gradient(90deg, #fab387, #f38ba8);
+  box-shadow: none;
+}
+.osd-container.osd-muted {
+  border-color: rgba(245, 50, 105, 0.3);
+}
+.osd-container.osd-muted .osd-icon {
+  color: #f38ba8;
+}
+.osd-container.osd-muted .osd-percentage {
+  color: rgba(243, 139, 168, 0.86);
+}
+.osd-container.osd-muted progressbar.osd-progress progress {
+  background: rgb(245, 50, 105);
+  box-shadow: none;
+}
+.osd-container.osd-microphone.osd-active {
+  border-color: rgba(203, 166, 247, 0.3);
+}
+.osd-container.osd-microphone.osd-active .osd-icon {
+  color: #cba6f7;
+}
+.osd-container.osd-microphone.osd-active progressbar.osd-progress progress {
+  background: linear-gradient(90deg, #cba6f7, #89b4fa);
+  box-shadow: none;
 }
 
 .osd-icon {
+  min-width: 20px;
   font-family: "MesloLGS Nerd Font";
-  font-size: 16px;
+  font-size: 15px;
   color: #89b4fa;
 }
 
 .osd-progress-container {
-  min-width: 120px;
+  min-width: 100px;
 }
 
 progressbar.osd-progress {
-  min-height: 6px;
+  min-height: 5px;
 }
 progressbar.osd-progress trough {
-  min-height: 6px;
-  border-radius: 10px;
-  background-color: rgba(255, 255, 255, 0.1);
+  min-height: 5px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.09);
 }
 progressbar.osd-progress progress {
-  min-height: 6px;
-  border-radius: 10px;
+  min-height: 5px;
+  border-radius: 999px;
   background: linear-gradient(90deg, #89b4fa, #cba6f7);
-  box-shadow: 0 0 10px rgba(137, 180, 250, 0.5);
+  box-shadow: none;
 }
 
 .osd-percentage {
+  min-width: 38px;
   font-family: "MesloLGS Nerd Font";
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 700;
   color: #e2e2e2;
 }
 
 .osd-mic-spacer {
-  min-width: 220px;
+  min-width: 242px;
 }
 
 .Bar .bar-pill-btn {
@@ -4044,128 +4093,6 @@ window.np-window.csd decoration {
   font-size: 12px;
   color: rgba(226, 226, 226, 0.3);
   margin: 0;
-}
-
-@keyframes pv-rainbow {
-  0% {
-    color: #00c8ff;
-  }
-  15% {
-    color: #20f080;
-  }
-  30% {
-    color: #d4f020;
-  }
-  45% {
-    color: #ffa000;
-  }
-  60% {
-    color: #ff5000;
-  }
-  75% {
-    color: #ff0080;
-  }
-  90% {
-    color: #9f00e0;
-  }
-  100% {
-    color: #00c8ff;
-  }
-}
-@keyframes pv-mute-blink {
-  0%, 49% {
-    background-color: #cc0000;
-    color: #000000;
-    border-color: #ff0000;
-  }
-  50%, 100% {
-    background-color: #400000;
-    color: #ff4444;
-    border-color: #660000;
-  }
-}
-@keyframes pv-slide-in {
-  from {
-    opacity: 0;
-    margin-top: -10px;
-  }
-  to {
-    opacity: 1;
-    margin-top: 0;
-  }
-}
-window.pv-osd-window {
-  background-color: transparent;
-}
-
-.pv-container {
-  background-color: #080808;
-  border: 2px solid #ff8800;
-  border-radius: 0;
-  padding: 8px 10px;
-  background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.2) 2px, rgba(0, 0, 0, 0.2) 3px);
-  box-shadow: 0 0 0 1px rgba(255, 136, 0, 0.22), 0 0 14px rgba(255, 136, 0, 0.15), inset 0 0 20px rgba(0, 0, 0, 0.55);
-  animation: pv-slide-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.pv-title {
-  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
-  font-size: 7px;
-  letter-spacing: 0.5px;
-  margin: 0;
-  animation: pv-rainbow 3s linear infinite;
-}
-
-.pv-percent {
-  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
-  font-size: 9px;
-  font-weight: 900;
-  margin: 0 2px 0 0;
-}
-
-.pv-percent-sym {
-  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
-  font-size: 6px;
-  margin: 0;
-  opacity: 0.65;
-}
-
-.pv-mute-btn {
-  background-color: #161616;
-  border: 1px solid #484848;
-  border-radius: 0;
-  padding: 1px 4px;
-  min-width: 0;
-  min-height: 0;
-  box-shadow: 1px 1px 0 #000000;
-  transition: none;
-}
-.pv-mute-btn .pv-mute-label {
-  font-family: "Press Start 2P", "MesloLGS Nerd Font", monospace;
-  font-size: 7px;
-  color: #999999;
-  margin: 0;
-  min-width: 0;
-  min-height: 0;
-}
-.pv-mute-btn:hover {
-  background-color: #242424;
-  border-color: #777777;
-  box-shadow: 1px 1px 0 #000000;
-}
-.pv-mute-btn:hover .pv-mute-label {
-  color: #dddddd;
-}
-.pv-mute-btn:active {
-  box-shadow: none;
-  transform: translate(1px, 1px);
-}
-
-.pv-muting {
-  animation: pv-mute-blink 380ms steps(1) infinite;
-}
-.pv-muting .pv-mute-label {
-  color: #ff4444;
 }
 
 window.cal-panel,

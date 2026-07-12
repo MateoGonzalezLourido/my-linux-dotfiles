@@ -2,9 +2,8 @@ import app from "ags/gtk4/app"
 import style from "./out.css"
 import Bar from "./widget/Bar"
 import PowerOptions from "./widget/bar/PowerOptions"
-import MicOSD from "./widget/MicOSD"
-import PixelVolumeOSD from "./widget/PixelVolumeOSD"
-import PixelMicOSD from "./widget/PixelMicOSD"
+import OSD, { showOSD } from "./widget/OSD"
+import MicOSD, { showMicOSD } from "./widget/MicOSD"
 import QuickSettings from "./widget/QuickSettings"
 import NotificationPopup from "./widget/notifications/NotificationPopup"
 import NotificationPanel from "./widget/notifications/NotificationPanel"
@@ -18,15 +17,33 @@ import { runAppSettingsMigration } from "./widget/notifications/settings/runMigr
 import { initAutoDnd } from "./widget/notifications/autoDnd/watcher"
 import { initTrayApps } from "./widget/settings/trayApps"
 import { initGamingState } from "./widget/power/gamingState"
+import { showBrightnessOSD } from "./widget/state"
 
 app.start({
   css: style,
+  requestHandler(argv, response) {
+    if (argv.includes("volume-osd")) {
+      showOSD()
+      response("ok")
+      return
+    }
+    if (argv.includes("mic-osd")) {
+      showMicOSD()
+      response("ok")
+      return
+    }
+    if (argv.includes("brightness-osd")) {
+      showBrightnessOSD()
+      response("ok")
+      return
+    }
+    response("unknown request")
+  },
   main() {
     app.get_monitors().flatMap(Bar)
     app.get_monitors().map(PowerOptions)
+    app.get_monitors().map(OSD)
     app.get_monitors().map(MicOSD)
-    app.get_monitors().map(PixelVolumeOSD)
-    app.get_monitors().map(PixelMicOSD)
     app.get_monitors().map(QuickSettings)
     app.get_monitors().map(NotificationPopup)
     app.get_monitors().map(NotificationPanel)

@@ -1,7 +1,7 @@
 import AstalWp from "gi://AstalWp"
 import { createState } from "ags"
 import { Gtk, Gdk } from "ags/gtk4"
-import { showPixelVolOSD, barVisible, widgetsRefresh } from "../state"
+import { barVisible, widgetsRefresh } from "../state"
 
 const HEADSET_ICON = "󰋋"   // nf-md-headphones
 
@@ -129,7 +129,7 @@ export default function Volume() {
   // gnim invoca el callback sin argumentos → hay que leer .get().
   widgetsRefresh.subscribe(() => { if (widgetsRefresh.get()) sync() })
 
-  const toggleMute = () => { if (speaker) { speaker.mute = !speaker.mute; showPixelVolOSD() } }
+  const toggleMute = () => { if (speaker) speaker.mute = !speaker.mute }
 
   return (
     <button
@@ -154,7 +154,6 @@ export default function Volume() {
         onScroll={(_self, _dx, dy) => {
           if (!speaker) return
           speaker.volume = Math.max(0, Math.min(1.5, speaker.volume - dy * 0.05))
-          showPixelVolOSD()
         }}
       />
     </button>

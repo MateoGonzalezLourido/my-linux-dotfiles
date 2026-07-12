@@ -1,12 +1,31 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState } from "ags"
+import { createComputed, createState } from "ags"
 import AstalWp from "gi://AstalWp"
-import { barVisible, osdVisible, setOsdVisible, micOsdVisible, brightness, brightnessOsdVisible } from "./state"
+import {
+    barVisible, osdVisible, setOsdVisible, micOsdVisible,
+    brightness, brightnessOsdVisible,
+} from "./state"
+import { volumeOsdEnabled } from "./settings/preferences"
 
 let osdTimeout: number | null = null
 
+function hideOSD() {
+    setOsdVisible(false)
+    if (osdTimeout) clearTimeout(osdTimeout)
+    osdTimeout = null
+}
+
 export function showOSD() {
+    if (!volumeOsdEnabled.get()) {
+        hideOSD()
+        return
+    }
+    const speaker = AstalWp.get_default()?.audio?.defaultSpeaker
+    if (!speaker || speaker.mute || speaker.volume <= 0) {
+        hideOSD()
+        return
+    }
     setOsdVisible(true)
     if (osdTimeout) {
         clearTimeout(osdTimeout)
@@ -17,13 +36,16 @@ export function showOSD() {
     }, 2000)
 }
 
+volumeOsdEnabled.subscribe(() => {
+    if (!volumeOsdEnabled.get()) hideOSD()
+})
+
 function getOsdIcon(v: number, muted: boolean) {
     if (muted || v === 0) return "󰝟"
     if (v < 0.20) return "󰕿"
     if (v < 0.40) return "󰖀"
     if (v < 0.60) return "󰕾"
-    if (v < 0.80) return ""
-    return ""
+    return "󰕾"
 }
 
 function getBrightnessIcon(v: number) {
@@ -35,51 +57,69 @@ function getBrightnessIcon(v: number) {
 
 export default function OSD(gdkmonitor: Gdk.Monitor) {
     const wp = AstalWp.get_default()
-    const speaker = wp?.audio?.defaultSpeaker
-    if (!speaker) return <window visible={false} />
+    const audio = wp?.audio
+    let speaker: AstalWp.Endpoint | null = audio?.defaultSpeaker ?? null
 
-    // Combined visibility: show for both volume and brightness changes
-    const anyOsdVisible = {
-        get: () => osdVisible.get() || brightnessOsdVisible.get(),
-        subscribe: (cb: (v: boolean) => void) => {
-            const notify = () => cb(osdVisible.get() || brightnessOsdVisible.get())
-            osdVisible.subscribe(notify)
-            brightnessOsdVisible.subscribe(notify)
-        }
-    }
+    const anyOsdVisible = createComputed(() => osdVisible() || brightnessOsdVisible())
 
-    const [icon, setIcon] = createState(getOsdIcon(speaker.volume, speaker.mute))
-    const [vol, setVol] = createState(speaker.volume)
-    const [percent, setPercent] = createState(`${Math.round(speaker.volume * 100)}`)
+    const [icon, setIcon] = createState(speaker ? getOsdIcon(speaker.volume, speaker.mute) : "󰝟")
+    const [vol, setVol] = createState(speaker?.volume ?? 0)
+    const [percent, setPercent] = createState(speaker ? `${Math.round(speaker.volume * 100)}` : "—")
+    const [appearance, setAppearance] = createState<"volume" | "muted" | "brightness">(
+        speaker?.mute ? "muted" : "volume",
+    )
 
     const updateVolumeVars = () => {
+        if (!speaker) {
+            setIcon("󰝟")
+            setVol(0)
+            setPercent("—")
+            setAppearance("muted")
+            return
+        }
         setIcon(getOsdIcon(speaker.volume, speaker.mute))
         setVol(speaker.volume)
         setPercent(`${Math.round(speaker.volume * 100)}`)
+        setAppearance(speaker.mute || speaker.volume === 0 ? "muted" : "volume")
     }
 
     const updateBrightnessVars = (v: number) => {
-        setIcon(getBrightnessIcon(v))
-        setVol(v)
-        setPercent(`${Math.round(v * 100)}`)
+        const value = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0
+        setIcon(getBrightnessIcon(value))
+        setVol(value)
+        setPercent(`${Math.round(value * 100)}`)
+        setAppearance("brightness")
     }
 
-    speaker.connect("notify::volume", () => {
+    let volumeId = 0
+    let muteId = 0
+    const bindSpeaker = (next: AstalWp.Endpoint | null) => {
+        if (speaker && volumeId) speaker.disconnect(volumeId)
+        if (speaker && muteId) speaker.disconnect(muteId)
+        speaker = next
+        volumeId = muteId = 0
+        if (speaker) {
+            volumeId = speaker.connect("notify::volume", () => {
+                updateVolumeVars()
+                if (speaker && speaker.volume <= 0) hideOSD()
+            })
+            muteId = speaker.connect("notify::mute", () => {
+                updateVolumeVars()
+                if (speaker?.mute) hideOSD()
+            })
+        }
         updateVolumeVars()
-        showOSD()
-    })
-    speaker.connect("notify::mute", () => {
-        updateVolumeVars()
-        showOSD()
-    })
+    }
+    bindSpeaker(speaker)
+    audio?.connect("notify::default-speaker", () => bindSpeaker(audio.defaultSpeaker ?? null))
 
     // Switch to brightness mode when brightness OSD activates
     brightnessOsdVisible.subscribe((visible) => {
         if (visible) updateBrightnessVars(brightness.get())
     })
     // Keep brightness value fresh while OSD is visible
-    brightness.subscribe((v) => {
-        if (brightnessOsdVisible.get()) updateBrightnessVars(v)
+    brightness.subscribe(() => {
+        if (brightnessOsdVisible.get()) updateBrightnessVars(brightness.get())
     })
     // Switch back to volume mode when volume OSD activates
     osdVisible.subscribe((visible) => {
@@ -95,11 +135,11 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
             anchor={Astal.WindowAnchor.TOP}
             application={app}
             cssClasses={["osd-window"]}
-            marginTop={barVisible((v) => v ? 60 : 15)}
+            marginTop={barVisible((v) => v ? 46 : 8)}
         >
             <box orientation={Gtk.Orientation.HORIZONTAL} halign={Gtk.Align.CENTER}>
                 <box
-                    cssClasses={["osd-container"]}
+                    cssClasses={appearance((kind) => ["osd-container", `osd-${kind}`])}
                 orientation={Gtk.Orientation.HORIZONTAL}
                 halign={Gtk.Align.CENTER}
                 valign={Gtk.Align.START}
@@ -125,7 +165,7 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
                 <revealer
                     revealChild={micOsdVisible}
                     transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
-                    transitionDuration={300}
+                    transitionDuration={180}
                 >
                     <box cssClasses={["osd-mic-spacer"]} />
                 </revealer>
