@@ -23,6 +23,22 @@ $radius-pill: 999px;
   box-shadow: none;
 }
 
+// GTK dibuja un degradado/sombra al alcanzar cada extremo de un
+// GtkScrolledWindow. Se desactiva en los tres paneles principales, incluidos
+// sus scrolls anidados; la rueda y el touchpad siguen funcionando igual.
+window.qs-window scrolledwindow > undershoot,
+window.qs-window scrolledwindow > overshoot,
+.Orion scrolledwindow > undershoot,
+.Orion scrolledwindow > overshoot,
+.sp-window scrolledwindow > undershoot,
+.sp-window scrolledwindow > overshoot {
+  background: none;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  opacity: 0;
+}
+
 // Patrón "icono + texto" de los paneles con lista vacía (notificaciones,
 // reglas, agenda...): mismo layout, cada uno con su propio tamaño/color.
 @mixin empty-icon($size, $color: null, $font: null) {
