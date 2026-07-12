@@ -101,30 +101,88 @@ function handleSearchSectionKey(controller: Gtk.EventControllerKey, entry: Gtk.E
 }
 
 // ── Auto-Switch Audio (Switch-on-Connect) ───────────────────────────────────
+// Al conectar un dispositivo de audio pasa a ser la salida/entrada por defecto.
+// `speaker-added` NO significa "alguien acaba de enchufar algo", y creerlo costó
+// dos bugs distintos — los dos dejaban el sonido en el HDMI de la GPU, que aquí no
+// tiene NADA conectado (es una salida interna), y el default así fijado se persiste
+// (`default.configured.audio.sink`), así que el estropicio sobrevivía al reinicio:
+//
+// 1. AstalWp lo emite también por cada endpoint que YA existía al arrancar el shell
+//    (medido: HDMI y analógico, ~8 ms entre medias). Esa ráfaga de enumeración hacía
+//    que se pusiera por defecto CADA sink, en execAsync concurrentes donde ganaba el
+//    último en *terminar* — moneda al aire en cada arranque. → gate de asentamiento.
+//
+// 2. Y lo emite otra vez cada vez que un nodo se RECREA. El HDMI/DP no es un
+//    dispositivo que se enchufe: su nodo se destruye y se recrea al reconfigurar los
+//    monitores (`hyprctl reload`, DPMS, apagar la pantalla), y esa recreación llega
+//    aquí indistinguible de unos cascos recién puestos. → nunca es destino.
+//
+// El gate de (1) no cubre (2) —la recreación llega mucho después de arrancar— ni al
+// revés, así que hacen falta los dos.
+const AUDIO_SETTLE_MS = 1500
+
+// El nombre de nodo es la única señal fiable para reconocer una salida de pantalla:
+// `Endpoint.name` viene a null, y el `icon` es el mismo ("audio-card-analog-pci") en
+// el HDMI que en el analógico. Las claves de `wpctl inspect` no se traducen; la
+// `description` sí, así que buscar "(HDMI)" ahí dependería del locale.
+const nodeNameOf = async (id: number): Promise<string> => {
+  const out = await execAsync(["wpctl", "inspect", String(id)]).catch(() => "")
+  return /node\.name\s*=\s*"([^"]+)"/.exec(out)?.[1] ?? ""
+}
+const isDisplayOutput = (nodeName: string) => /hdmi|displayport|iec958/i.test(nodeName)
+
 try {
   const wp = AstalWp.get_default()
-  if (wp?.audio) {
-    wp.audio.connect("speaker-added", (_, speaker) => {
-      setTimeout(async () => {
-        const id = String(speaker.id)
-        const nodeName = await execAsync(["bash", "-c",
-          `pactl list sinks | awk '/^Sink/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
-        ]).catch(() => "")
-        const name = nodeName.trim()
-        if (name) execAsync(["pw-metadata", "-n", "default", "0", "default.audio.sink", `{"name":"${name}"}`]).catch(() => {})
-        else execAsync(["wpctl", "set-default", id]).catch(() => {})
-      }, 500)
+  const audio = wp?.audio
+  if (audio) {
+    let settled = false
+    let settleTimer: number | null = null
+
+    const armSettle = () => {
+      if (settleTimer !== null) GLib.source_remove(settleTimer)
+      settleTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, AUDIO_SETTLE_MS, () => {
+        settleTimer = null
+        // Sin endpoints todavía, WirePlumber no ha enumerado nada: seguir esperando,
+        // o la ráfaga que está por llegar se tomaría por conexiones reales.
+        if (audio.get_speakers().length === 0) armSettle()
+        else settled = true
+        return GLib.SOURCE_REMOVE
+      })
+    }
+    armSettle()
+
+    // Un solo `set-default` por ráfaga: si entran dos endpoints casi a la vez, dos
+    // execAsync concurrentes pueden resolverse en cualquier orden. Esto los colapsa
+    // y deja ganar al último *pedido*, no al último en terminar.
+    const switchOnConnect = (skipDisplayOutputs: boolean) => {
+      let pending: number | null = null
+      let timer: number | null = null
+      return (id: number) => {
+        pending = id
+        if (timer !== null) GLib.source_remove(timer)
+        timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+          timer = null
+          const target = pending
+          pending = null
+          if (target === null) return GLib.SOURCE_REMOVE
+          void (async () => {
+            if (skipDisplayOutputs && isDisplayOutput(await nodeNameOf(target))) return
+            await execAsync(["wpctl", "set-default", String(target)])
+          })().catch(() => {})
+          return GLib.SOURCE_REMOVE
+        })
+      }
+    }
+    const switchSpeaker = switchOnConnect(true)
+    const switchMic = switchOnConnect(false)
+
+    audio.connect("speaker-added", (_, speaker) => {
+      if (!settled) { armSettle(); return }
+      switchSpeaker(speaker.id)
     })
-    wp.audio.connect("microphone-added", (_, mic) => {
-      setTimeout(async () => {
-        const id = String(mic.id)
-        const nodeName = await execAsync(["bash", "-c",
-          `pactl list sources | awk '/^Source/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
-        ]).catch(() => "")
-        const name = nodeName.trim()
-        if (name) execAsync(["pw-metadata", "-n", "default", "0", "default.audio.source", `{"name":"${name}"}`]).catch(() => {})
-        else execAsync(["wpctl", "set-default", id]).catch(() => {})
-      }, 500)
+    audio.connect("microphone-added", (_, mic) => {
+      if (!settled) { armSettle(); return }
+      switchMic(mic.id)
     })
   }
 } catch (e) {

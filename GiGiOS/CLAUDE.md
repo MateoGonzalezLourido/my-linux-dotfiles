@@ -251,3 +251,9 @@ across engines, and both surface a clear "run `sudo freshclam`" hint when the si
 brightness (`brightnessctl`), night light (`hyprsunset`), wifi (`nmcli`), bluetooth
 (`bluetoothctl`), and volume/mute (`wpctl`), falling back to hardcoded defaults when a key is
 absent. It's the counterpart to the AGS UI that *writes* those JSON files.
+
+El volumen espera antes (`wait_for_sink`, techo 10 s): init.sh sale de un `exec-once` de Hyprland
+y puede ganarle la carrera al arranque de PipeWire/WirePlumber en la sesión de usuario. Hasta que
+WirePlumber no publica un sink por defecto, `@DEFAULT_AUDIO_SINK@` no resuelve y los `wpctl`
+fallan **en silencio** — el volumen/mute guardado simplemente no se aplicaba en los arranques que
+perdían la carrera.

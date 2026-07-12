@@ -1,6 +1,7 @@
 import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { Gdk, Gtk } from "ags/gtk4"
+import AstalHyprland from "gi://AstalHyprland"
 import AstalMpris from "gi://AstalMpris"
 import GdkPixbuf from "gi://GdkPixbuf"
 import GLib from "gi://GLib"
@@ -18,6 +19,7 @@ function coverCacheName(url: string): string {
 
 /** Reproductor mínimo de Spotify para el centro de la barra. */
 export default function SpotifyNowPlaying() {
+  const hypr = AstalHyprland.get_default()
   const mpris = AstalMpris.get_default()
   if (!mpris) return <box />
 
@@ -149,6 +151,17 @@ export default function SpotifyNowPlaying() {
     else stopWave()
   }
 
+  const focusSpotify = () => {
+    const client = (hypr.get_clients?.() ?? []).find((candidate: any) =>
+      [candidate.class, candidate.initialClass, candidate.initial_class]
+        .some((value) => String(value || "").toLowerCase().includes("spotify")))
+    if (!client?.address) return
+
+    const address = String(client.address)
+    const normalized = address.startsWith("0x") ? address : `0x${address}`
+    execAsync(["hyprctl", "dispatch", "focuswindow", `address:${normalized}`]).catch(() => {})
+  }
+
   update()
   pollTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
     update()
@@ -206,6 +219,10 @@ export default function SpotifyNowPlaying() {
           else stopWave()
           currentSpotify.play_pause()
         }}
+      />
+      <Gtk.GestureClick
+        button={Gdk.BUTTON_SECONDARY}
+        onReleased={focusSpotify}
       />
     </box>
   )

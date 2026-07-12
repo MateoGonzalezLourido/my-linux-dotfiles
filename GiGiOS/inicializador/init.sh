@@ -74,9 +74,24 @@ apply_bluetooth() {
     fi
 }
 
+# init.sh corre desde exec-once de Hyprland, que puede ganarle la carrera al
+# arranque de PipeWire/WirePlumber en la sesión de usuario. Hasta que WirePlumber
+# no publica un sink por defecto, @DEFAULT_AUDIO_SINK@ no resuelve y los wpctl de
+# abajo fallan en silencio: el volumen/mute guardado simplemente no se aplicaba.
+wait_for_sink() {
+    local i=0
+    while ! wpctl get-volume @DEFAULT_AUDIO_SINK@ &>/dev/null; do
+        i=$((i + 1))
+        [ "$i" -ge 50 ] && return 1   # techo de 10 s
+        sleep 0.2
+    done
+}
+
 apply_volume() {
     local vol=$DEFAULT_VOLUME
     local mute=$DEFAULT_MUTE
+
+    wait_for_sink || return
 
     if [ -f "$STATE_CONFIG" ]; then
         local raw_vol=$(jq -r '.volume // empty' "$STATE_CONFIG")

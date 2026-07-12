@@ -235,8 +235,6 @@ export default function GamesIndicator() {
       valign={Gtk.Align.CENTER}
       spacing={4}
     >
-      {/* Mini-icono fijo: identifica la pastilla como "juegos en marcha". */}
-      <label cssClasses={["game-tray-badge"]} label={GAME_GLYPH} valign={Gtk.Align.CENTER} />
       <box cssClasses={["game-tray-items"]} valign={Gtk.Align.CENTER} spacing={2}>
         <For each={list}>{(entry: GameEntry) => GameButton(entry)}</For>
       </box>
