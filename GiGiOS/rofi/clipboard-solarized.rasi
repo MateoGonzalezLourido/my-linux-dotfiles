@@ -1,0 +1,84 @@
+/**
+ * Solarized Light — historial del portapapeles (SUPER+V).
+ * Los fondos principales son base3 (#fdf6e3) y base2 (#eee8d5).
+ */
+
+* {
+    background:         #fdf6e3;
+    background-alt:     #eee8d5;
+    foreground:         #586e75;
+    foreground-strong:  #073642;
+    border-color:       #93a1a1;
+    accent:             #268bd2;
+}
+
+window {
+    width:              40%;
+    padding:            10px;
+    border:             2px;
+    border-radius:      14px;
+    border-color:       @border-color;
+    background-color:   @background;
+}
+
+mainbox {
+    spacing:            10px;
+    background-color:   transparent;
+}
+
+inputbar {
+    padding:            10px 12px;
+    border:             1px;
+    border-radius:      9px;
+    border-color:       @border-color;
+    background-color:   @background-alt;
+    text-color:         @foreground-strong;
+    children:           [ prompt, entry ];
+}
+
+prompt {
+    padding:            0 8px 0 0;
+    background-color:   transparent;
+    text-color:         @accent;
+}
+
+entry {
+    placeholder:        "Buscar en el portapapeles";
+    placeholder-color:  @foreground;
+    background-color:   transparent;
+    text-color:         @foreground-strong;
+}
+
+listview {
+    lines:              10;
+    columns:            1;
+    spacing:            3px;
+    scrollbar:          true;
+    cycle:              true;
+    background-color:   transparent;
+}
+
+scrollbar {
+    width:              7px;
+    handle-width:       7px;
+    border-radius:      7px;
+    handle-color:       @border-color;
+    background-color:   @background-alt;
+}
+
+element {
+    padding:            9px 10px;
+    border-radius:      8px;
+    background-color:   transparent;
+    text-color:         @foreground;
+}
+
+element selected.normal {
+    background-color:   @background-alt;
+    text-color:         @foreground-strong;
+}
+
+element-text {
+    background-color:   transparent;
+    text-color:         inherit;
+}
