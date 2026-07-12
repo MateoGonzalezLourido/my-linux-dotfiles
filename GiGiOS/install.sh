@@ -25,6 +25,12 @@ info() { printf '\033[1;36m::\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
 
+run_interactive() {
+  [[ -r /dev/tty ]] \
+    || die "Esta operación necesita una terminal interactiva. Descarga install.sh y ejecútalo con bash en vez de usar un pipe."
+  "$@" </dev/tty
+}
+
 case "$INSTALL_PACKAGES" in
   0|1) ;;
   *) die "INSTALL_PACKAGES debe valer 0 (omitir paquetes) o 1 (instalarlos); recibido: '$INSTALL_PACKAGES'." ;;
@@ -54,7 +60,7 @@ install_packages() {
   command -v pacman >/dev/null || die "La instalación automática solo admite Arch/CachyOS (falta pacman). Usá INSTALL_PACKAGES=0 y seguí hypr/SETUP.md."
   command -v sudo >/dev/null || die "Falta sudo. Instálalo y concede permisos al usuario antes de continuar."
   info "Instalando dependencias de repos oficiales ..."
-  sudo pacman -S --needed "${official[@]}"
+  run_interactive sudo pacman -S --needed "${official[@]}"
 
   local astal_ready=1 namespace
   command -v ags >/dev/null || astal_ready=0
@@ -65,10 +71,10 @@ install_packages() {
   if [[ "$astal_ready" != 1 ]]; then
     if command -v paru >/dev/null; then
       info "Instalando AGS y las bibliotecas Astal desde AUR ..."
-      paru -S --needed aylurs-gtk-shell-git libastal-meta
+      run_interactive paru -S --needed aylurs-gtk-shell-git libastal-meta
     elif command -v yay >/dev/null; then
       info "Instalando AGS y las bibliotecas Astal desde AUR ..."
-      yay -S --needed aylurs-gtk-shell-git libastal-meta
+      run_interactive yay -S --needed aylurs-gtk-shell-git libastal-meta
     else
       die "AGS/Astal requieren AUR. Instalá paru o yay y repetí el instalador; también podés usar INSTALL_PACKAGES=0."
     fi
