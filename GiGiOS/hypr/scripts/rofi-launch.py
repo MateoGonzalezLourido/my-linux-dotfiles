@@ -70,14 +70,14 @@ def main():
     # Solo se sustituyen las variables de color: el layout/config del usuario
     # sigue siendo exactamente el que Rofi ya cargaba antes.
     colors = (
-        "* { main-bg: #24283be6; main-fg: #c0caf5ff; "
-        "main-br: #bb9af7ff; main-ex: #7dcfffcc; "
-        "select-bg: #7aa2f7ff; select-fg: #24283bff; } "
-        "window { background-color: #24283be6; border-color: #bb9af7ff; } "
+        "* { main-bg: #11111be6; main-fg: #cdd6f4ff; "
+        "main-br: #cba6f7ff; main-ex: #f5e0dcff; "
+        "select-bg: #b4befeff; select-fg: #11111bff; } "
+        "window { background-color: #11111be6; border-color: #cba6f7ff; } "
         "mainbox, inputbar, listview { background-color: transparent; } "
-        "entry, prompt { background-color: transparent; text-color: #c0caf5ff; } "
-        "element { background-color: transparent; text-color: #c0caf5ff; } "
-        "element selected { background-color: #7aa2f7ff; text-color: #24283bff; }"
+        "entry, prompt { background-color: transparent; text-color: #f5e0dcff; } "
+        "element { background-color: transparent; text-color: #cdd6f4ff; } "
+        "element selected { background-color: #b4befeff; text-color: #11111bff; }"
     )
     subprocess.run(["rofi", "-show", "drun", "-theme-str", colors])
 
