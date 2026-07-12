@@ -1929,32 +1929,39 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
     <box cssClasses={["qs-display-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={5} hexpand>
       <QsMenuHeader title="Pantalla" onBack={onBack} />
 
-      {/* Selector de monitor */}
-      <label
-        cssClasses={["qs-dropdown-header", "qs-display-detected-title"]}
-        label="PANTALLAS DETECTADAS"
-        halign={Gtk.Align.START}
-        marginStart={10}
-        marginEnd={10}
-      />
-      <box cssClasses={["qs-display-monitor-tabs"]} spacing={6} marginStart={10} marginEnd={10}>
-        <For each={monitors}>
-          {(m: any) => (
-            <button
-              cssClasses={selectedName((n) => n === m.name ? ["qs-display-monitor-pill", "active"] : ["qs-display-monitor-pill"])}
-              onClicked={() => setSelectedName(m.name)}
-            >
-              <box spacing={5} valign={Gtk.Align.CENTER}>
-                <label cssClasses={["qs-display-monitor-dot"]} label="●" visible={m.focused} />
-                <label label={m.name} ellipsize={3} maxWidthChars={14} />
-              </box>
-            </button>
-          )}
-        </For>
-      </box>
+      {/* Selector de monitor — innecesario si solo hay una pantalla. */}
+      <With value={createComputed(() => monitors().length > 1)}>
+        {(hasMultipleMonitors: boolean) => hasMultipleMonitors && (
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={5}>
+            <label
+              cssClasses={["qs-dropdown-header", "qs-display-detected-title"]}
+              label="PANTALLAS DETECTADAS"
+              halign={Gtk.Align.START}
+              marginStart={10}
+              marginEnd={10}
+            />
+            <box cssClasses={["qs-display-monitor-tabs"]} spacing={6} marginStart={10} marginEnd={10}>
+              <For each={monitors}>
+                {(m: any) => (
+                  <button
+                    cssClasses={selectedName((n) => n === m.name ? ["qs-display-monitor-pill", "active"] : ["qs-display-monitor-pill"])}
+                    onClicked={() => setSelectedName(m.name)}
+                  >
+                    <box spacing={5} valign={Gtk.Align.CENTER}>
+                      <label cssClasses={["qs-display-monitor-dot"]} label="●" visible={m.focused} />
+                      <label label={m.name} ellipsize={3} maxWidthChars={14} />
+                    </box>
+                  </button>
+                )}
+              </For>
+            </box>
+          </box>
+        )}
+      </With>
 
       {/* Gestión del monitor seleccionado */}
-      <box cssClasses={["qs-section", "qs-display-panel"]} orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+      <box cssClasses={["qs-section", "qs-display-panel"]} orientation={Gtk.Orientation.VERTICAL} spacing={6}
+        visible={createComputed(() => monitors().length > 1)}>
         {/* Encendido */}
         <box spacing={6} visible={createComputed(() => monitors().length > 1)}>
           <label cssClasses={["qs-section-icon"]} label="󰍹" />
@@ -1975,64 +1982,71 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
         <box orientation={Gtk.Orientation.VERTICAL} spacing={3}
           visible={createComputed(() => { const s = selected(); return !!s && !s.disabled })}>
 
-          {/* Resolución (lista general — Hyprland acepta modos no nativos) */}
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}>
-            <label cssClasses={["qs-dropdown-header"]} label="RESOLUCIÓN" halign={Gtk.Align.START} />
-            <DisplaySelect
-              compact
-              current={createComputed(() => { const s = selected(); return s ? `${s.width}×${s.height}` : "—" })}
-              options={createComputed(() => {
-                const s = selected()
-                if (!s || s.disabled) return []
-                return resolutionOptions(s.availableModes).map(o => ({
-                  label: o.label, value: o.key, active: s.width === o.w && s.height === o.h,
-                }))
-              })}
-              onSelect={(value) => {
-                const s = selected(); if (!s) return
-                applyPatch(s, { mode: `${value}@${s.refreshRate.toFixed(2)}Hz` })
-              }}
-            />
-          </box>
+          {/* Los ajustes de modo solo son útiles al gestionar varias pantallas. */}
+          <With value={createComputed(() => monitors().length > 1)}>
+            {(hasMultipleMonitors: boolean) => hasMultipleMonitors && (
+              <box orientation={Gtk.Orientation.VERTICAL} spacing={3}>
+                {/* Resolución (lista general — Hyprland acepta modos no nativos) */}
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}>
+                  <label cssClasses={["qs-dropdown-header"]} label="RESOLUCIÓN" halign={Gtk.Align.START} />
+                  <DisplaySelect
+                    compact
+                    current={createComputed(() => { const s = selected(); return s ? `${s.width}×${s.height}` : "—" })}
+                    options={createComputed(() => {
+                      const s = selected()
+                      if (!s || s.disabled) return []
+                      return resolutionOptions(s.availableModes).map(o => ({
+                        label: o.label, value: o.key, active: s.width === o.w && s.height === o.h,
+                      }))
+                    })}
+                    onSelect={(value) => {
+                      const s = selected(); if (!s) return
+                      applyPatch(s, { mode: `${value}@${s.refreshRate.toFixed(2)}Hz` })
+                    }}
+                  />
+                </box>
 
-          {/* Frecuencia */}
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}>
-            <label cssClasses={["qs-dropdown-header"]} label="FRECUENCIA" halign={Gtk.Align.START} />
-            <DisplaySelect
-              compact
-              current={createComputed(() => { const s = selected(); return s ? `${Math.round(s.refreshRate)} Hz` : "—" })}
-              options={createComputed(() => {
-                const s = selected()
-                if (!s || s.disabled) return []
-                return refreshOptions(s.availableModes).map(o => ({
-                  label: `${o.hz} Hz`, value: o.raw, active: Math.round(s.refreshRate) === o.hz,
-                }))
-              })}
-              onSelect={(value) => {
-                const s = selected(); if (!s) return
-                applyPatch(s, { mode: `${s.width}x${s.height}@${value}Hz` })
-              }}
-            />
-          </box>
+                {/* Frecuencia */}
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}>
+                  <label cssClasses={["qs-dropdown-header"]} label="FRECUENCIA" halign={Gtk.Align.START} />
+                  <DisplaySelect
+                    compact
+                    current={createComputed(() => { const s = selected(); return s ? `${Math.round(s.refreshRate)} Hz` : "—" })}
+                    options={createComputed(() => {
+                      const s = selected()
+                      if (!s || s.disabled) return []
+                      return refreshOptions(s.availableModes).map(o => ({
+                        label: `${o.hz} Hz`, value: o.raw, active: Math.round(s.refreshRate) === o.hz,
+                      }))
+                    })}
+                    onSelect={(value) => {
+                      const s = selected(); if (!s) return
+                      applyPatch(s, { mode: `${s.width}x${s.height}@${value}Hz` })
+                    }}
+                  />
+                </box>
 
-          {/* Escala */}
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}>
-            <label cssClasses={["qs-dropdown-header"]} label="ESCALA" halign={Gtk.Align.START} />
-            <DisplaySelect
-              compact
-              current={createComputed(() => { const s = selected(); return s ? matchScalePreset(s.scale).toFixed(2) : "—" })}
-              options={createComputed(() => {
-                const s = selected()
-                if (!s || s.disabled) return []
-                const cur = matchScalePreset(s.scale)
-                return SCALE_PRESETS.map(sc => ({ label: sc.toFixed(2), value: String(sc), active: sc === cur }))
-              })}
-              onSelect={(value) => {
-                const s = selected(); if (!s) return
-                applyPatch(s, { scale: Number(value) })
-              }}
-            />
-          </box>
+                {/* Escala */}
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}>
+                  <label cssClasses={["qs-dropdown-header"]} label="ESCALA" halign={Gtk.Align.START} />
+                  <DisplaySelect
+                    compact
+                    current={createComputed(() => { const s = selected(); return s ? matchScalePreset(s.scale).toFixed(2) : "—" })}
+                    options={createComputed(() => {
+                      const s = selected()
+                      if (!s || s.disabled) return []
+                      const cur = matchScalePreset(s.scale)
+                      return SCALE_PRESETS.map(sc => ({ label: sc.toFixed(2), value: String(sc), active: sc === cur }))
+                    })}
+                    onSelect={(value) => {
+                      const s = selected(); if (!s) return
+                      applyPatch(s, { scale: Number(value) })
+                    }}
+                  />
+                </box>
+              </box>
+            )}
+          </With>
 
           {/* Duplicar (mirror) — solo con 2+ monitores */}
           <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-display-compact-field"]}

@@ -6,9 +6,51 @@ import AstalMpris from "gi://AstalMpris"
 import GdkPixbuf from "gi://GdkPixbuf"
 import GLib from "gi://GLib"
 import cairo from "gi://cairo"
+import { barVisible } from "../state"
+import { powerSaveActive } from "../power/powerState"
 
 const ART_WIDTH = 40
 const ART_HEIGHT = 30
+
+const WAVE_BARS = 13
+const WAVE_LINE = 2.4
+const WAVE_MIN = 2        // altura en reposo: un punto
+const ATTACK_TAU = 0.045  // sube de golpe…
+const RELEASE_TAU = 0.19  // …y cae despacio, como un vúmetro
+const WAVE_BPM = 112
+const WAVE_FPS_SAVE = 24  // en ahorro de energía se dibuja a menos frames
+
+/** Ruido determinista: da a cada banda su propia fase y ganancia. */
+function hash01(n: number): number {
+  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453
+  return s - Math.floor(s)
+}
+
+type Band = {
+  gain: number   // techo de la banda: los graves pegan más fuerte
+  speed: number  // los agudos tiemblan, los graves ondulan
+  bass: number   // cuánto le llega el golpe de bombo
+  ph: [number, number, number]
+  level: number
+}
+
+/**
+ * Una banda por barra, cada una con su fase y su velocidad. Que cada barra
+ * evolucione por su cuenta es justo lo que las despega de la senoide única que
+ * las hacía desfilar en formación.
+ */
+function makeBands(): Band[] {
+  return Array.from({ length: WAVE_BARS }, (_, i) => {
+    const t = i / (WAVE_BARS - 1)
+    return {
+      gain: (0.44 + 0.56 * Math.pow(1 - t, 0.8)) * (0.82 + 0.32 * hash01(i + 1)),
+      speed: 1.15 + 2.7 * t,
+      bass: Math.pow(1 - t, 1.7),
+      ph: [hash01(i + 7) * 6.283, hash01(i + 31) * 6.283, hash01(i + 91) * 6.283],
+      level: 0,
+    }
+  })
+}
 
 function coverCacheName(url: string): string {
   let hash = 0

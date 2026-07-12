@@ -62,33 +62,27 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
 
     const anyOsdVisible = createComputed(() => osdVisible() || brightnessOsdVisible())
 
-    const [icon, setIcon] = createState(speaker ? getOsdIcon(speaker.volume, speaker.mute) : "󰝟")
-    const [vol, setVol] = createState(speaker?.volume ?? 0)
-    const [percent, setPercent] = createState(speaker ? `${Math.round(speaker.volume * 100)}` : "—")
-    const [appearance, setAppearance] = createState<"volume" | "muted" | "brightness">(
+    const [volumeIcon, setVolumeIcon] = createState(speaker ? getOsdIcon(speaker.volume, speaker.mute) : "󰝟")
+    const [volumeLevel, setVolumeLevel] = createState(speaker?.volume ?? 0)
+    const [volumePercent, setVolumePercent] = createState(speaker ? `${Math.round(speaker.volume * 100)}` : "—")
+    const [volumeAppearance, setVolumeAppearance] = createState<"volume" | "muted">(
         speaker?.mute ? "muted" : "volume",
     )
+    const brightnessIcon = createComputed(() => getBrightnessIcon(brightness()))
+    const brightnessPercent = createComputed(() => `${Math.round(brightness() * 100)}`)
 
     const updateVolumeVars = () => {
         if (!speaker) {
-            setIcon("󰝟")
-            setVol(0)
-            setPercent("—")
-            setAppearance("muted")
+            setVolumeIcon("󰝟")
+            setVolumeLevel(0)
+            setVolumePercent("—")
+            setVolumeAppearance("muted")
             return
         }
-        setIcon(getOsdIcon(speaker.volume, speaker.mute))
-        setVol(speaker.volume)
-        setPercent(`${Math.round(speaker.volume * 100)}`)
-        setAppearance(speaker.mute || speaker.volume === 0 ? "muted" : "volume")
-    }
-
-    const updateBrightnessVars = (v: number) => {
-        const value = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0
-        setIcon(getBrightnessIcon(value))
-        setVol(value)
-        setPercent(`${Math.round(value * 100)}`)
-        setAppearance("brightness")
+        setVolumeIcon(getOsdIcon(speaker.volume, speaker.mute))
+        setVolumeLevel(speaker.volume)
+        setVolumePercent(`${Math.round(speaker.volume * 100)}`)
+        setVolumeAppearance(speaker.mute || speaker.volume === 0 ? "muted" : "volume")
     }
 
     let volumeId = 0
@@ -111,19 +105,6 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
     bindSpeaker(speaker)
     audio?.connect("notify::default-speaker", () => bindSpeaker(audio.defaultSpeaker ?? null))
 
-    // Switch to brightness mode when brightness OSD activates
-    brightnessOsdVisible.subscribe(() => {
-        if (brightnessOsdVisible.get()) updateBrightnessVars(brightness.get())
-    })
-    // Keep brightness value fresh while OSD is visible
-    brightness.subscribe(() => {
-        if (brightnessOsdVisible.get()) updateBrightnessVars(brightness.get())
-    })
-    // Switch back to volume mode when volume OSD activates
-    osdVisible.subscribe(() => {
-        if (osdVisible.get()) updateVolumeVars()
-    })
-
     return (
         <window
             name="osd"
@@ -138,29 +119,47 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
             marginTop={createComputed(() => barAutoHideEnabled() && barVisible() ? 46 : 8)}
         >
             <box orientation={Gtk.Orientation.HORIZONTAL} halign={Gtk.Align.CENTER}>
-                <box
-                    cssClasses={appearance((kind) => ["osd-container", `osd-${kind}`])}
-                orientation={Gtk.Orientation.HORIZONTAL}
-                halign={Gtk.Align.CENTER}
-                valign={Gtk.Align.START}
-                spacing={15}
-            >
-                <label
-                    cssClasses={["osd-icon"]}
-                    label={icon}
-                />
-                <box cssClasses={["osd-progress-container"]} valign={Gtk.Align.CENTER} hexpand>
-                    <Gtk.ProgressBar
-                        cssClasses={["osd-progress"]}
-                        fraction={vol}
-                        valign={Gtk.Align.CENTER}
-                        hexpand
-                    />
-                </box>
-                <label
-                    cssClasses={["osd-percentage"]}
-                    label={percent}
-                />
+                {/* Al ser homogéneo, las dos tarjetas ocupan el mismo ancho. El
+                    centro del grupo coincide así con el hueco que queda entre ellas. */}
+                <box orientation={Gtk.Orientation.HORIZONTAL} homogeneous spacing={12}>
+                    <box
+                        visible={osdVisible}
+                        cssClasses={volumeAppearance((kind) => ["osd-container", `osd-${kind}`])}
+                        orientation={Gtk.Orientation.HORIZONTAL}
+                        halign={Gtk.Align.CENTER}
+                        valign={Gtk.Align.START}
+                        spacing={15}
+                    >
+                        <label cssClasses={["osd-icon"]} label={volumeIcon} />
+                        <box cssClasses={["osd-progress-container"]} valign={Gtk.Align.CENTER} hexpand>
+                            <Gtk.ProgressBar
+                                cssClasses={["osd-progress"]}
+                                fraction={volumeLevel}
+                                valign={Gtk.Align.CENTER}
+                                hexpand
+                            />
+                        </box>
+                        <label cssClasses={["osd-percentage"]} label={volumePercent} />
+                    </box>
+                    <box
+                        visible={brightnessOsdVisible}
+                        cssClasses={["osd-container", "osd-brightness"]}
+                        orientation={Gtk.Orientation.HORIZONTAL}
+                        halign={Gtk.Align.CENTER}
+                        valign={Gtk.Align.START}
+                        spacing={15}
+                    >
+                        <label cssClasses={["osd-icon"]} label={brightnessIcon} />
+                        <box cssClasses={["osd-progress-container"]} valign={Gtk.Align.CENTER} hexpand>
+                            <Gtk.ProgressBar
+                                cssClasses={["osd-progress"]}
+                                fraction={brightness}
+                                valign={Gtk.Align.CENTER}
+                                hexpand
+                            />
+                        </box>
+                        <label cssClasses={["osd-percentage"]} label={brightnessPercent} />
+                    </box>
                 </box>
                 <revealer
                     revealChild={micOsdVisible}
