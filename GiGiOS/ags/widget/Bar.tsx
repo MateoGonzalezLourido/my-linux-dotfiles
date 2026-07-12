@@ -31,6 +31,15 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   let shownAt = 0
   let lastY = 0
   const BAR_HEIGHT = 38
+
+  // El bar arranca visible (se auto-oculta a los 2s, más abajo), pero barVisible/
+  // widgetsRefresh nacían en false y solo pasan a true dentro de handleShow/showNow,
+  // que únicamente corren desde los .subscribe() —que no disparan en el arranque—.
+  // Los widgets que congelan su render con barVisible pintaban entonces su caché, y
+  // la del reloj está vacía hasta el primer ocultado: salía en blanco. Sincronizamos
+  // el estado global con la realidad desde el primer instante.
+  setWidgetsRefresh(true)
+  setBarVisible(true)
   // Cubre la animación CSS (300ms) para que lastY no tenga valores del bar oculto
   const SHOW_LOCK_MS = 320
   const CLOSE_GUARD_Y = 8
