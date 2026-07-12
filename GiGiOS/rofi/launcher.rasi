@@ -1,7 +1,10 @@
-/* HyDE Sideview, conservando el modo drun de GiGiOS. */
+/**
+ * HyDE Sideview (style_1), adaptado únicamente a las rutas de GiGiOS.
+ */
 configuration {
     modi: "drun";
     show-icons: true;
+    display-drun: " ";
     drun-display-format: "{name}";
     font: "JetBrainsMono Nerd Font 10";
 }
@@ -9,56 +12,117 @@ configuration {
 @theme "theme.rasi"
 
 window {
-    width: 63em;
     height: 33em;
+    width: 63em;
     transparency: "real";
-    border: 2px;
-    border-radius: 30px;
+    fullscreen: false;
+    enabled: true;
+    cursor: "default";
+    spacing: 0em;
+    padding: 0em;
     border-color: @main-br;
     background-color: @main-bg;
 }
 mainbox {
+    enabled: true;
+    spacing: 0em;
+    padding: 0em;
     orientation: horizontal;
-    children: [ wallpaper, listbox ];
+    children: [ "dummywall", "listbox" ];
     background-color: transparent;
 }
-wallpaper {
+dummywall {
+    spacing: 0em;
+    padding: 0em;
     width: 37em;
     expand: false;
-    background-color: @main-bg;
+    orientation: horizontal;
+    children: [ "mode-switcher", "inputbar" ];
+    background-color: transparent;
     background-image: url("~/.cache/gigios/rofi-wallpaper", height);
 }
-listbox {
-    padding: 2em;
-    children: [ inputbar, listview ];
+
+mode-switcher {
+    orientation: vertical;
+    enabled: true;
+    width: 3.8em;
+    padding: 9.2em 0.5em 9.2em 0.5em;
+    spacing: 1.2em;
+    background-color: transparent;
+    background-image: url("~/.cache/gigios/rofi-wallpaper", height);
+}
+button {
+    cursor: pointer;
+    border-radius: 2em;
+    background-color: @main-bg;
+    text-color: @main-fg;
+}
+button selected { background-color: @main-fg; text-color: @main-bg; }
+
+inputbar {
+    enabled: true;
+    children: [ "entry" ];
     background-color: transparent;
 }
-inputbar {
-    margin: 0em 0em 1em 0em;
-    padding: 0.8em 1.2em;
-    border-radius: 20px;
-    background-color: @main-ex;
-    children: [ prompt, entry ];
+entry { enabled: false; }
+
+listbox {
+    spacing: 0em;
+    padding: 2em;
+    children: [ "dummy", "listview", "dummy" ];
+    background-color: transparent;
 }
-prompt { text-color: @select-fg; background-color: transparent; }
-entry { text-color: @select-fg; background-color: transparent; }
 listview {
+    enabled: true;
+    spacing: 0em;
+    padding: 0em;
     columns: 1;
     lines: 8;
     cycle: true;
     dynamic: true;
     scrollbar: false;
+    layout: vertical;
+    reverse: false;
+    expand: false;
     fixed-height: true;
+    fixed-columns: true;
+    cursor: "default";
     background-color: transparent;
     text-color: @main-fg;
 }
+dummy { background-color: transparent; }
+
 element {
+    enabled: true;
     spacing: 0.8em;
     padding: 0.4em 0.4em 0.4em 1.5em;
-    border-radius: 20px;
+    cursor: pointer;
     background-color: transparent;
     text-color: @main-fg;
 }
 element selected.normal { background-color: @select-bg; text-color: @select-fg; }
-element-icon { size: 2.8em; background-color: transparent; }
-element-text { vertical-align: 0.5; background-color: transparent; text-color: inherit; }
+element-icon {
+    size: 2.8em;
+    cursor: inherit;
+    background-color: transparent;
+    text-color: inherit;
+}
+element-text {
+    vertical-align: 0.5;
+    horizontal-align: 0.0;
+    cursor: inherit;
+    background-color: transparent;
+    text-color: inherit;
+}
+error-message {
+    text-color: @main-fg;
+    background-color: @main-bg;
+    text-transform: capitalize;
+    children: [ "textbox" ];
+}
+textbox {
+    text-color: inherit;
+    background-color: inherit;
+    vertical-align: 0.5;
+    horizontal-align: 0.5;
+}

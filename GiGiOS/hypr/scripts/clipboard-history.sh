@@ -17,6 +17,7 @@ prefs="$HOME/.config/gigios/preferences.json"
 max_items=750
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 rofi_theme_dir="$(cd -- "$script_dir/../.." && pwd)/rofi"
+gigios_root="$(cd -- "$script_dir/../.." && pwd)"
 # Patrón del watcher, compartido por start/stop. (^|/) tolera ruta absoluta.
 watch_re='(^|/)wl-paste --watch cliphist store([[:space:]]|$)'
 
@@ -39,6 +40,14 @@ clipboard_picker() {
     runtime_dir="${XDG_RUNTIME_DIR:-/tmp}/gigios-cliphist"
     thumb_dir="${XDG_CACHE_HOME:-$HOME/.cache}/gigios/cliphist-thumbnails"
     mkdir -p "$runtime_dir" "$thumb_dir"
+    local rofi_wall="${XDG_CACHE_HOME:-$HOME/.cache}/gigios/rofi-wallpaper"
+    if [[ ! -e "$rofi_wall" ]]; then
+        local current=""
+        command -v jq >/dev/null 2>&1 && \
+            current="$(jq -r '.current // ""' "$HOME/.config/gigios/wallpaper.json" 2>/dev/null)"
+        [[ -f "$current" ]] || current="$(find "$gigios_root/Wallpapers" -maxdepth 1 -type f | sort | head -n 1)"
+        [[ -f "$current" ]] && ln -sfn "$current" "$rofi_wall"
+    fi
     list_file="$(mktemp "$runtime_dir/list.XXXXXX")"
     display_file="$(mktemp "$runtime_dir/display.XXXXXX")"
     trap 'rm -f "$list_file" "$display_file" "$runtime_dir"/raw.*' RETURN
