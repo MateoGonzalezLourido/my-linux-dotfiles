@@ -172,6 +172,9 @@ Qué usa cada cosa:
 - **`rofi`** — lanzador de apps (`SUPER+SPACE` → `hypr/scripts/rofi-launch.py`, requiere
   además `python3`, ya lo trae el sistema base).
 - **`wofi`** — selector del portapapeles (`SUPER+V`, con `cliphist` + `wl-clipboard`).
+  `hypr/scripts/clipboard-history.sh` carga automáticamente el tema Solarized Light
+  versionado en `GiGiOS/wofi/hyde-colors.css`; no hay que copiarlo a `~/.config/wofi`
+  ni realizar ningún paso adicional después de instalar.
 - **`playerctl`** / **`brightnessctl`** — teclas multimedia y brillo.
 - **`wpctl`** (paquete `wireplumber`) — volumen/mute por teclado y en `inicializador/init.sh`.
   El panel de audio de AGS (`QuickSettings.tsx`) además llama a **`pactl`** (paquete
@@ -247,7 +250,11 @@ sudo pacman -S wl-clipboard cliphist
 ```
 
 `autostart.conf` lanza `wl-paste --watch cliphist store` para poblar el historial que usa
-`SUPER+V`.
+`SUPER+V`. El selector utiliza `#fdf6e3` como fondo principal, `#eee8d5` como fondo
+secundario y los tonos de texto/acento de Solarized Light. Como `install.sh` descarga
+todo `~/GiGiOS`, `bin/link.sh` enlaza `~/.config/hypr` y el script resuelve el CSS desde
+la ruta física del repositorio, el tema se aplica también en instalaciones nuevas sin
+configuración manual.
 
 ## 7. Secretos (Spotify, credenciales)
 
@@ -454,6 +461,7 @@ Comprueba además que no falte ningún archivo referenciado por la configuració
 ```sh
 for f in \
   GiGiOS/hypr/scripts/clipboard-history.sh \
+  GiGiOS/wofi/hyde-colors.css \
   GiGiOS/hypr/scripts/scan-file.sh \
   GiGiOS/hypr/scripts/run-untrusted.sh \
   GiGiOS/ags/widget/settings/AccountSection.tsx \

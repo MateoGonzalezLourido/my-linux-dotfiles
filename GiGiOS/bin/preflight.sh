@@ -20,6 +20,7 @@ required=(
   hypr/scripts/clipboard-history.sh hypr/scripts/scan-file.sh
   hypr/scripts/run-untrusted.sh hypr/scripts/compact-workspaces.sh
   hypr/scripts/toggle-gaps-borders.sh
+  wofi/hyde-colors.css
 )
 for path in "${required[@]}"; do
   [[ -f "$GIGIOS/$path" ]] || fail "falta $path"
