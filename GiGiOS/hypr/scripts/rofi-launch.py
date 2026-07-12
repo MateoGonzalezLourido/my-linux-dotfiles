@@ -70,10 +70,10 @@ def main():
     # Solo se sustituyen las variables de color: el layout/config del usuario
     # sigue siendo exactamente el que Rofi ya cargaba antes.
     colors = (
-        "* { main-bg: #11111be6; main-fg: #cdd6f4ff; "
+        "* { main-bg: #313244e6; main-fg: #cdd6f4ff; "
         "main-br: #cba6f7ff; main-ex: #f5e0dcff; "
         "select-bg: #b4befeff; select-fg: #11111bff; } "
-        "window { background-color: #11111be6; border-color: #cba6f7ff; } "
+        "window { background-color: #313244e6; border-color: #cba6f7ff; } "
         "mainbox, inputbar, listview { background-color: transparent; } "
         "entry, prompt { background-color: transparent; text-color: #f5e0dcff; } "
         "element { background-color: transparent; text-color: #cdd6f4ff; } "
