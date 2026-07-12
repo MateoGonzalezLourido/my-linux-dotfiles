@@ -39,6 +39,10 @@ Para instalar solo los archivos y gestionar paquetes por tu cuenta:
 curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | INSTALL_PACKAGES=0 bash
 ```
 
+Este modo omite únicamente la instalación de paquetes: las dependencias siguen siendo
+necesarias para completar la validación. En Arch/CachyOS, `dart-sass` proporciona el
+comando `sass` que compila `ags/style.scss`.
+
 ## Reparar o validar
 
 ```sh

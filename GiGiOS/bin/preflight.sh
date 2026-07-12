@@ -58,15 +58,31 @@ else
 fi
 
 if [[ "$mode" == "--installed" ]]; then
+  # Formato comando:paquete oficial de Arch. Además de detectar la ausencia, deja un
+  # comando de reparación directamente utilizable en Arch/CachyOS.
   commands=(
-    hyprctl ags sass jq rofi cliphist wl-copy wl-paste brightnessctl
-    playerctl wpctl pactl pw-metadata wf-recorder grim slurp hyprshot awww
-    notify-send nmcli nm-connection-editor bluetoothctl blueman-manager
-    btop kitty dolphin xdg-open clamscan firejail bwrap xdg-user-dir
+    hyprctl:hyprland hyprlock:hyprlock hypridle:hypridle hyprsunset:hyprsunset
+    uwsm:uwsm sass:dart-sass jq:jq rofi:rofi
+    cliphist:cliphist wl-copy:wl-clipboard wl-paste:wl-clipboard
+    brightnessctl:brightnessctl playerctl:playerctl wpctl:wireplumber
+    pactl:libpulse pw-metadata:pipewire wf-recorder:wf-recorder grim:grim
+    slurp:slurp hyprshot:hyprshot awww:awww awww-daemon:awww
+    notify-send:libnotify nmcli:networkmanager
+    nm-connection-editor:nm-connection-editor bluetoothctl:bluez-utils
+    blueman-manager:blueman bc:bc inotifywait:inotify-tools
+    dbus-monitor:dbus rfkill:util-linux pkexec:polkit btop:btop kitty:kitty
+    dolphin:dolphin kbuildsycoca6:kservice xdg-open:xdg-utils
+    clamscan:clamav firejail:firejail bwrap:bubblewrap
+    xdg-user-dir:xdg-user-dirs
   )
-  for command in "${commands[@]}"; do
-    command -v "$command" >/dev/null 2>&1 || fail "comando obligatorio no disponible: $command"
+  for entry in "${commands[@]}"; do
+    command="${entry%%:*}"
+    package="${entry#*:}"
+    command -v "$command" >/dev/null 2>&1 \
+      || fail "falta '$command' (Arch/CachyOS: sudo pacman -S --needed $package)"
   done
+  command -v ags >/dev/null 2>&1 \
+    || fail "falta 'ags' (AUR: paru -S --needed aylurs-gtk-shell-git libastal-meta; también sirve yay)"
   optional_commands=(nvidia-smi gh fd lshw glxinfo sensors smartctl magick)
   for command in "${optional_commands[@]}"; do
     command -v "$command" >/dev/null 2>&1 || warn "comando opcional no disponible: $command"
@@ -79,15 +95,17 @@ if [[ "$mode" == "--installed" ]]; then
     || fail "falta el typelib GUdev (libgudev)"
   for namespace in Battery Bluetooth Hyprland Mpris Network Notifd Tray Wp; do
     compgen -G "/usr/lib/girepository-1.0/Astal${namespace}-*.typelib" >/dev/null \
-      || fail "falta Astal${namespace} (instala libastal-meta)"
+      || fail "falta Astal${namespace} (AUR: paru -S --needed libastal-meta; también sirve yay)"
   done
-  bundle="$(mktemp "${TMPDIR:-/tmp}/gigios-ags.XXXXXX")"
-  if ags bundle "$GIGIOS/ags/app.ts" "$bundle" >/dev/null 2>&1; then
-    ok "AGS resuelve todos los imports"
-  else
-    fail "AGS no puede empaquetar app.ts; revisa imports y bibliotecas Astal"
+  if command -v ags >/dev/null 2>&1; then
+    bundle="$(mktemp "${TMPDIR:-/tmp}/gigios-ags.XXXXXX")"
+    if ags bundle "$GIGIOS/ags/app.ts" "$bundle" >/dev/null 2>&1; then
+      ok "AGS resuelve todos los imports"
+    else
+      fail "AGS no puede empaquetar app.ts; revisa imports y bibliotecas Astal"
+    fi
+    rm -f "$bundle"
   fi
-  rm -f "$bundle"
   "$GIGIOS/bin/link.sh" --check || fail "symlinks incompletos"
 fi
 

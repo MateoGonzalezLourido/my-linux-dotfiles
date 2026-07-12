@@ -81,7 +81,7 @@ bloque de `pacman` después de haber usado el instalador recomendado.
 ## 1. Base: Hyprland + utilidades de sesión
 
 ```sh
-sudo pacman -S hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm \
+sudo pacman -S util-linux polkit hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm \
   xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland
 ```
 
@@ -91,6 +91,8 @@ sudo pacman -S hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm \
 - `hyprpolkitagent` se lanza en `autostart.conf` desde la ruta fija
   `/usr/lib/hyprpolkitagent/hyprpolkitagent`; si el paquete instala el binario en otro
   sitio en la otra distro, ajusta esa línea.
+- `polkit` proporciona `pkexec`, que usan los ajustes de fecha, idioma e impresoras;
+  `util-linux` proporciona `rfkill`, usado por el chequeo de hardware.
 - `hyprsunset` es la luz nocturna (la activa `~/.config/inicializador/init.sh` leyendo
   `~/.config/gigios/display.json`). **Nota de `hyprland.conf`**: `render { cm_enabled = false }`
   está así a propósito porque el CTM de color management de Hyprland pisa el de
@@ -131,6 +133,8 @@ cd ~/.config/ags && sass style.scss out.css
 ```
 
 No hace falta hacerlo manualmente durante la primera instalación.
+En Arch/CachyOS, si aparece `sass: command not found`, instálalo con
+`sudo pacman -S --needed dart-sass` y vuelve a ejecutar el instalador.
 
 **Tests de Node** (opcionales, solo para desarrollo, no para que el shell funcione):
 
@@ -209,11 +213,12 @@ $fileManager = dolphin
 ```
 
 ```sh
-sudo pacman -S --needed kitty dolphin kde-cli-tools
+sudo pacman -S --needed kitty dolphin kservice
 ```
 
-`kde-cli-tools` permite que Dolphin descubra las aplicaciones instaladas para el menú
-**Abrir con…**. La configuración incluye `~/.config/menus/applications.menu`; después de
+`kservice` proporciona `kbuildsycoca6`, que permite que Dolphin descubra las
+aplicaciones instaladas para el menú **Abrir con…**. La configuración incluye
+`~/.config/menus/applications.menu`; después de
 instalarla, se puede reconstruir manualmente la caché con:
 
 ```sh

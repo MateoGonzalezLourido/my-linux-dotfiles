@@ -25,14 +25,20 @@ info() { printf '\033[1;36m::\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
 
+case "$INSTALL_PACKAGES" in
+  0|1) ;;
+  *) die "INSTALL_PACKAGES debe valer 0 (omitir paquetes) o 1 (instalarlos); recibido: '$INSTALL_PACKAGES'." ;;
+esac
+
 install_packages() {
   local official=(
-    git curl python xdg-utils base-devel hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
+    git curl python xdg-utils base-devel util-linux polkit
+    hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
     ttf-meslo-nerd rofi cliphist wl-clipboard brightnessctl playerctl
     qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
-    network-manager-applet blueman fish kitty dolphin kde-cli-tools
+    nm-connection-editor blueman fish kitty dolphin kservice
     libpulse pipewire pipewire-audio pipewire-pulse pipewire-alsa wireplumber
     gst-plugin-pipewire libnotify awww upower libgudev
     smartmontools lm_sensors pciutils usbutils alsa-utils inotify-tools dbus
@@ -41,7 +47,10 @@ install_packages() {
     mesa-utils lshw fd github-cli imagemagick
   )
 
-  [[ "$INSTALL_PACKAGES" == 1 ]] || { warn "Dependencias omitidas (INSTALL_PACKAGES=$INSTALL_PACKAGES)."; return; }
+  [[ "$INSTALL_PACKAGES" == 1 ]] || {
+    warn "Dependencias omitidas (INSTALL_PACKAGES=0); se validarán antes de finalizar."
+    return
+  }
   command -v pacman >/dev/null || die "La instalación automática solo admite Arch/CachyOS (falta pacman). Usá INSTALL_PACKAGES=0 y seguí hypr/SETUP.md."
   command -v sudo >/dev/null || die "Falta sudo. Instálalo y concede permisos al usuario antes de continuar."
   info "Instalando dependencias de repos oficiales ..."
@@ -124,11 +133,18 @@ else
 fi
 
 # --- 4. Generar el CSS que importa app.ts ---
-if command -v sass >/dev/null && [ -f "$HOME/GiGiOS/ags/style.scss" ]; then
-  info "Compilando el CSS de AGS ..."
-  sass --no-source-map "$HOME/GiGiOS/ags/style.scss" "$HOME/GiGiOS/ags/out.css"
-else
-  die "No pude compilar AGS/out.css (falta sass o style.scss)."
+SCSS="$HOME/GiGiOS/ags/style.scss"
+CSS="$HOME/GiGiOS/ags/out.css"
+
+[[ -f "$SCSS" ]] || die "Falta $SCSS. El checkout de GiGiOS está incompleto; vuelve a ejecutar el instalador o comprueba la rama '$BRANCH'."
+if ! command -v sass >/dev/null 2>&1; then
+  die "Falta el comando 'sass'. En Arch/CachyOS instálalo con: sudo pacman -S --needed dart-sass"
+fi
+
+info "Compilando el CSS de AGS ..."
+if ! sass_error="$(sass --no-source-map "$SCSS" "$CSS" 2>&1)"; then
+  printf '\033[1;31m-- Error de Sass --\033[0m\n%s\n' "$sass_error" >&2
+  die "Sass no pudo compilar $SCSS. Reprodúcelo con: sass --no-source-map '$SCSS' '$CSS'"
 fi
 
 # --- 5. Reconstruir la caché de aplicaciones de KDE/Dolphin ---
