@@ -20,7 +20,6 @@ LINK_BACKUP="${LINK_BACKUP:-$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)}"
 LINKS=(
   "ags::$HOME/.config/ags"
   "hypr::$HOME/.config/hypr"
-  "rofi::$HOME/.config/rofi"
   "inicializador::$HOME/.config/inicializador"
   "cache/power-save::$HOME/.config/power-save"
   "state/orion::$HOME/.local/share/orion"

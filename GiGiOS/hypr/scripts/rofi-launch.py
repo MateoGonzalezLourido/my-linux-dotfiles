@@ -23,7 +23,6 @@ Ver diseño: docs/superpowers/specs/2026-06-13-rofi-single-instance-move-design.
 
 import json
 import os
-from pathlib import Path
 import socket
 import subprocess
 import time
@@ -56,29 +55,6 @@ def workspace_of(addr):
     return None
 
 
-def ensure_rofi_wallpaper(repo_root):
-    """Crea la referencia visual aunque bin/link.sh no se haya ejecutado."""
-    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "gigios"
-    target = cache / "rofi-wallpaper"
-    if target.exists():
-        return
-    candidates = []
-    config = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "gigios/wallpaper.json"
-    try:
-        current = Path(json.loads(config.read_text()).get("current", "")).expanduser()
-        if current.is_file():
-            candidates.append(current)
-    except (OSError, ValueError):
-        pass
-    candidates.extend(sorted((repo_root / "Wallpapers").glob("*")))
-    wallpaper = next((path for path in candidates if path.is_file()), None)
-    if wallpaper:
-        cache.mkdir(parents=True, exist_ok=True)
-        if target.is_symlink():
-            target.unlink()
-        target.symlink_to(wallpaper)
-
-
 def main():
     # --- Toggle: si rofi ya está abierto, cerrarlo y salir ---
     if subprocess.run(["pgrep", "-x", "rofi"],
@@ -91,12 +67,19 @@ def main():
     target_ws = hypr_j("activeworkspace")["id"]
 
     # --- Lanzar rofi (bloquea hasta selección o cancelación) ---
-    # Resolver desde este script hace que un simple `git pull` sea suficiente:
-    # no depende de que bin/link.sh haya creado ~/.config/rofi.
-    repo_root = Path(__file__).resolve().parents[2]
-    theme = repo_root / "rofi" / "launcher.rasi"
-    ensure_rofi_wallpaper(repo_root)
-    subprocess.run(["rofi", "-show", "drun", "-theme", theme])
+    # Solo se sustituyen las variables de color: el layout/config del usuario
+    # sigue siendo exactamente el que Rofi ya cargaba antes.
+    colors = (
+        "* { main-bg: #24283be6; main-fg: #c0caf5ff; "
+        "main-br: #bb9af7ff; main-ex: #7dcfffcc; "
+        "select-bg: #7aa2f7ff; select-fg: #24283bff; } "
+        "window { background-color: #24283be6; border-color: #bb9af7ff; } "
+        "mainbox, inputbar, listview { background-color: transparent; } "
+        "entry, prompt { background-color: transparent; text-color: #c0caf5ff; } "
+        "element { background-color: transparent; text-color: #c0caf5ff; } "
+        "element selected { background-color: #7aa2f7ff; text-color: #24283bff; }"
+    )
+    subprocess.run(["rofi", "-show", "drun", "-theme-str", colors])
 
     # --- Observación vía socket de eventos ---
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

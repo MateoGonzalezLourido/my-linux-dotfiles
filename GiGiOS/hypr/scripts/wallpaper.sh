@@ -43,9 +43,6 @@ apply() {
         --transition-duration 1 \
         --transition-fps 60 \
         --transition-step 90
-    # Rofi usa el mismo fondo que el escritorio, sin duplicar el archivo.
-    mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/gigios"
-    ln -sfn "$wp" "${XDG_CACHE_HOME:-$HOME/.cache}/gigios/rofi-wallpaper"
     save_current "$wp"
 }
 

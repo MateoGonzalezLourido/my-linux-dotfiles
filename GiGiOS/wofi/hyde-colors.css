@@ -1,0 +1,21 @@
+/* Solo paleta HyDE/Tokyo Night; no altera tamaños, posición ni estructura. */
+window,
+#outer-box,
+#scroll {
+    background-color: rgba(36, 40, 59, 0.90);
+    color: #c0caf5;
+}
+
+#input {
+    background-color: rgba(36, 40, 59, 0.90);
+    color: #c0caf5;
+    border-color: #bb9af7;
+}
+
+#entry:selected {
+    background-color: #7aa2f7;
+}
+
+#entry:selected #text {
+    color: #24283b;
+}
