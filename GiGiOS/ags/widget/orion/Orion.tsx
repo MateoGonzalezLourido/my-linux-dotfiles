@@ -1,12 +1,11 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { orionVisible, setOrionVisible, taskPanelVisible, rightPanelVisible, hidePanel, preparePanelOpen } from "./state"
+import { orionVisible, setOrionVisible, rightPanelVisible, hidePanel, preparePanelOpen } from "./state"
 import SectionIndex from "./components/SectionIndex"
 import SearchBar, { focusSearchAndType } from "./components/SearchBar"
 import NavSections from "./components/NavSections"
 import { SystemStats } from "./components/sections/HomeSection"
 import CornerCurve from "./components/CornerCurve"
-import TaskPanel from "./components/TaskPanel"
 import RightPanel from "./components/RightPanel"
 
 export default function Orion(gdkmonitor: Gdk.Monitor) {
@@ -19,13 +18,12 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
     valign: Gtk.Align.END,
   })
 
-  // Three-panel shell: [task?][sep?][orion-main][sep?][right?]
+  // Panel shell: [orion-main][separator?][right?]
   // overflow:hidden clips all columns to shared border-radius.
-  // Symmetric balance spacers outside the CornerCurves keep orion-main centred.
+  // A balance spacer outside the left curve keeps orion-main centred while the
+  // contextual panel is visible on the right.
   const panelInner = (
     <box cssClasses={["orion-panel"]}>
-      <TaskPanel />
-      <box cssClasses={["tp-sep"]} visible={taskPanelVisible(v => v)} />
       <box cssClasses={["orion-main"]} orientation={Gtk.Orientation.VERTICAL}>
         <box cssClasses={["section-index-container"]}>
           <SectionIndex />
@@ -34,21 +32,18 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
         <NavSections />
         <SystemStats />
       </box>
-      <box cssClasses={["tp-sep"]} visible={rightPanelVisible(v => v)} />
+      <box cssClasses={["orion-panel-sep"]} visible={rightPanelVisible(v => v)} />
       <RightPanel />
     </box>
   ) as unknown as Gtk.Widget
 
-  // balanceL: mirrors right panel (goes on LEFT of CornerCurveL)
-  // balanceR: mirrors task panel (goes on RIGHT of CornerCurveR)
+  // Mirrors the contextual panel on the opposite side of the main content.
   const balanceL = (<box cssClasses={["orion-balance"]} visible={rightPanelVisible(v => v)} />) as unknown as Gtk.Widget
-  const balanceR = (<box cssClasses={["orion-balance"]} visible={taskPanelVisible(v => v)}  />) as unknown as Gtk.Widget
 
   panelContainer.append(balanceL)
   panelContainer.append(CornerCurve({ left: true }) as unknown as Gtk.Widget)
   panelContainer.append(panelInner)
   panelContainer.append(CornerCurve({ left: false }) as unknown as Gtk.Widget)
-  panelContainer.append(balanceR)
 
   const win = (
     <window

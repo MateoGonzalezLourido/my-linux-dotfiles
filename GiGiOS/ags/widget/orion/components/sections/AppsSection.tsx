@@ -2,7 +2,7 @@ import { Gtk } from "ags/gtk4"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
-import { addTask, hidePanel, removeTask, showAppContext } from "../../state"
+import { hidePanel, showAppContext } from "../../state"
 
 interface AppEntry {
   name: string
@@ -78,11 +78,6 @@ function openAppContext(app: AppEntry) {
 }
 
 function launchAppDirect(app: AppEntry) {
-  const taskId = addTask(`Abriendo ${app.name}`, app.iconName)
-  GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2500, () => {
-    removeTask(taskId)
-    return GLib.SOURCE_REMOVE
-  })
   execAsync(["sh", "-c", app.exec]).catch(() => {})
   hidePanel()
 }

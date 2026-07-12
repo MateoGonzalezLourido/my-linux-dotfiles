@@ -8,7 +8,7 @@ import Gdk from "gi://Gdk"
 import GObject from "gi://GObject"
 import {
   setSection, showAppContext, orionVisible, activeSection,
-  addTask, removeTask, hidePanel,
+  hidePanel,
 } from "../../state"
 import { favorites, setFavorites, saveFavorites, type FavoriteApp } from "../../data/favorites"
 import { checkExecExists } from "../../data/appResolver"
@@ -286,11 +286,6 @@ function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
     suppressClick = true
     GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
       suppressClick = false
-      return GLib.SOURCE_REMOVE
-    })
-    const taskId = addTask(`Abriendo ${app.name}`, app.iconName)
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2500, () => {
-      removeTask(taskId)
       return GLib.SOURCE_REMOVE
     })
     execAsync(["sh", "-c", app.exec]).catch(() => {})

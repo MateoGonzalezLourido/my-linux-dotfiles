@@ -1,5 +1,4 @@
 import { createState } from "ags"
-import GLib from "gi://GLib"
 import { searchEngine } from "./search"
 import type { SearchResult } from "./search"
 import { orionAppsDefault } from "../settings/preferences"
@@ -80,58 +79,6 @@ export function setQuery(query: string) {
   } else {
     hideRightPanel()
   }
-}
-
-// ── Task panel ────────────────────────────────────────────────────────────────
-
-export interface OrionTask {
-  id: string
-  message: string
-  icon: string
-}
-
-export const [orionTasks,          setOrionTasks]          = createState<OrionTask[]>([])
-export const [taskPanelUserEnabled, setTaskPanelUserEnabled] = createState(false)
-export const [taskPanelVisible,     setTaskPanelVisible]     = createState(false)
-
-function syncTaskPanel() {
-  setTaskPanelVisible(taskPanelUserEnabled.get() && orionTasks.get().length > 0)
-}
-orionTasks.subscribe(syncTaskPanel)
-taskPanelUserEnabled.subscribe(syncTaskPanel)
-
-export interface GroupedTask {
-  message: string
-  icon: string
-  count: number
-}
-
-export const [groupedTasks, setGroupedTasks] = createState<GroupedTask[]>([])
-
-function syncGrouped() {
-  const map = new Map<string, GroupedTask>()
-  for (const t of orionTasks.get()) {
-    const key = `${t.icon}::${t.message}`
-    const g = map.get(key)
-    if (g) g.count++
-    else map.set(key, { message: t.message, icon: t.icon, count: 1 })
-  }
-  setGroupedTasks(Array.from(map.values()))
-}
-orionTasks.subscribe(syncGrouped)
-
-export function addTask(message: string, icon: string): string {
-  const id = GLib.uuid_string_random()
-  setOrionTasks([...orionTasks.get(), { id, message, icon }])
-  return id
-}
-
-export function removeTask(id: string) {
-  setOrionTasks(orionTasks.get().filter(t => t.id !== id))
-}
-
-export function toggleTaskPanel() {
-  setTaskPanelUserEnabled(!taskPanelUserEnabled.get())
 }
 
 // ── App context / right panel ─────────────────────────────────────────────────

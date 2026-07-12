@@ -1,6 +1,6 @@
 import { Gtk } from "ags/gtk4"
 import GLib from "gi://GLib"
-import { searchResults, setSection, hidePanel, showAppContext, addTask, removeTask } from "../../state"
+import { searchResults, setSection, hidePanel, showAppContext } from "../../state"
 import type { SearchResult } from "../../search"
 
 function buildRow(result: SearchResult): Gtk.Box {
@@ -64,11 +64,6 @@ function buildRow(result: SearchResult): Gtk.Box {
       // Clear the guard independently to preserve the next normal click.
       GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
         suppressClick = false
-        return GLib.SOURCE_REMOVE
-      })
-      const taskId = addTask(`Abriendo ${result.title}`, result.iconName ?? "application-x-executable")
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2500, () => {
-        removeTask(taskId)
         return GLib.SOURCE_REMOVE
       })
       result.action()

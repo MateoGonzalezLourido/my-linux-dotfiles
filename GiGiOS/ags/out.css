@@ -467,85 +467,9 @@ popover.background {
   font-weight: 600;
 }
 
-.task-panel {
-  min-width: 220px;
-  background: rgba(255, 255, 255, 0.012);
-}
-
-.tp-sep {
+.orion-panel-sep {
   background: rgba(255, 255, 255, 0.055);
   min-width: 1px;
-}
-
-.tp-header {
-  padding: 18px 14px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-}
-
-.tp-title {
-  font-size: 8px;
-  font-weight: 700;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: rgba(226, 226, 226, 0.32);
-  letter-spacing: 0.3px;
-}
-
-.tp-count {
-  font-size: 9px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #cba6f7;
-  background: rgba(187, 154, 247, 0.12);
-  border-radius: 8px;
-  padding: 1px 7px;
-  min-width: 14px;
-}
-
-.tp-list {
-  padding: 6px 7px 15px;
-}
-
-.tp-item {
-  padding: 8px 9px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.022);
-  margin-bottom: 3px;
-}
-
-.tp-spinner {
-  min-width: 6px;
-  min-height: 6px;
-  border-radius: 50%;
-  background: #cba6f7;
-  animation: tp-pulse 1.3s ease-in-out infinite;
-}
-
-@keyframes tp-pulse {
-  0%, 100% {
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-.tp-icon {
-  color: rgba(226, 226, 226, 0.62);
-}
-
-.tp-msg {
-  font-size: 11px;
-  color: #e2e2e2;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-
-.tp-badge {
-  font-size: 9px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  font-weight: bold;
-  color: #cba6f7;
-  background: rgba(187, 154, 247, 0.15);
-  border-radius: 8px;
-  padding: 1px 5px;
-  min-width: 14px;
 }
 
 .apps-section {

@@ -3,7 +3,7 @@ import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import {
   rightPanelApp, rightPanelVisible, hidePanel,
-  addTask, removeTask, type AppContextItem,
+  type AppContextItem,
 } from "../state"
 import { addFavorite, removeFavorite, isFavorite, favorites } from "../data/favorites"
 
@@ -57,8 +57,6 @@ export default function RightPanel() {
     const acts = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["rp-actions"] })
 
     acts.append(action("media-playback-start-symbolic", "Abrir", () => {
-      const id = addTask(`Abriendo ${app.name}`, app.iconName)
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2500, () => { removeTask(id); return false })
       app.launch()
       hidePanel()
     }))

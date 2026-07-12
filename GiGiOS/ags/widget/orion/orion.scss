@@ -38,8 +38,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 }
 
 // ── Panel shell ─────────────────────────────────────────────
-// Unified shell — task panel + main content live inside; overflow:hidden
-// clips both children cleanly to the shared rounded corners.
+// Unified shell for the main content and its contextual panel.
 .orion-panel {
   background: $j-bg-shell;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -51,8 +50,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 // Main content column — inherits border/bg/radius from .orion-panel
 .orion-main { min-width: 660px; }
 
-// Balance spacer on the right mirrors task-panel + separator (221px total)
-// keeping orion-main centred when the task panel is shown.
+// Mirrors the contextual panel plus separator to keep orion-main centred.
 .orion-balance {
   min-width: 221px;
 }
@@ -403,81 +401,10 @@ popover.background {
   font-weight: 600;
 }
 
-// ── Task panel ────────────────────────────────────────────────────────────────
-// Inside .orion-panel shell — no own border/radius (shell provides them).
-.task-panel {
-  min-width: 220px;
-  background: rgba(255, 255, 255, 0.012);
-}
-
-// 1px separator between task panel and main content (accounts for balance width)
-.tp-sep {
+// Separator for the contextual panel on the right.
+.orion-panel-sep {
   background: $j-border-subtle;
   min-width: 1px;
-}
-
-.tp-header {
-  padding: 18px 14px 12px;
-  border-bottom: 1px solid $j-border-subtle;
-}
-
-.tp-title {
-  font-size: 8px;
-  font-weight: 700;
-  font-family: $j-font-mono;
-  color: $j-text-muted;
-  letter-spacing: 0.3px;
-}
-
-.tp-count {
-  font-size: 9px;
-  font-family: $j-font-mono;
-  color: $j-accent-purple;
-  background: rgba(187, 154, 247, 0.12);
-  border-radius: 8px;
-  padding: 1px 7px;
-  min-width: 14px;
-}
-
-.tp-list { padding: 6px 7px 15px; }
-
-.tp-item {
-  padding: 8px 9px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.022);
-  margin-bottom: 3px;
-}
-
-.tp-spinner {
-  min-width: 6px;
-  min-height: 6px;
-  border-radius: 50%;
-  background: $j-accent-purple;
-  animation: tp-pulse 1.3s ease-in-out infinite;
-}
-
-@keyframes tp-pulse {
-  0%, 100% { opacity: 0.2; }
-  50%       { opacity: 1;   }
-}
-
-.tp-icon { color: $j-text-secondary; }
-
-.tp-msg {
-  font-size: 11px;
-  color: $j-text-primary;
-  font-family: $j-font-mono;
-}
-
-.tp-badge {
-  font-size: 9px;
-  font-family: $j-font-mono;
-  font-weight: bold;
-  color: $j-accent-purple;
-  background: rgba(187, 154, 247, 0.15);
-  border-radius: 8px;
-  padding: 1px 5px;
-  min-width: 14px;
 }
 
 // ── Apps section ──────────────────────────────────────────────────────────────
