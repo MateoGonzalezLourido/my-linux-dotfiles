@@ -13,7 +13,10 @@
 #   picker  abre el selector wofi (SUPER+V). Toggle: si ya está abierto, lo cierra.
 
 prefs="$HOME/.config/gigios/preferences.json"
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# BASH_SOURCE puede llegar como ~/.config/hypr/... (symlink). Hay que resolverlo
+# físicamente para encontrar el CSS dentro de GiGiOS y no en ~/.config/wofi.
+script_path="$(readlink -f -- "${BASH_SOURCE[0]}")"
+script_dir="$(dirname -- "$script_path")"
 wofi_style="$(cd -- "$script_dir/../.." && pwd)/wofi/hyde-colors.css"
 # Patrón del watcher, compartido por start/stop. (^|/) tolera ruta absoluta.
 watch_re='(^|/)wl-paste --watch cliphist store$'
