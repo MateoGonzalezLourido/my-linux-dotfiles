@@ -73,7 +73,7 @@ def main():
         "* { main-bg: #313244e6; main-fg: #cdd6f4ff; "
         "main-br: #cba6f7ff; main-ex: #f5e0dcff; "
         "select-bg: #b4befeff; select-fg: #11111bff; } "
-        "window { background-color: #313244e6; border-color: #cba6f7ff; } "
+        "window { background-color: @main-bg; border-color: #cba6f7ff; } "
         "mainbox, inputbar, listview { background-color: transparent; } "
         "entry, prompt { background-color: transparent; text-color: #f5e0dcff; } "
         "element { background-color: transparent; text-color: #cdd6f4ff; } "
