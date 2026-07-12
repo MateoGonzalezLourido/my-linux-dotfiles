@@ -1656,24 +1656,25 @@ popover.cpuram-popover > arrow {
 
 .tray-item {
   border-radius: 7px;
-  padding: 0 3px;
-  margin: 4px 1px;
+  padding: 0;
+  margin: 4px 0;
   min-height: 28px;
-  transition: background-color 140ms ease;
-}
-.tray-item:hover {
-  background-color: rgba(0, 0, 0, 0.36);
 }
 .tray-item > button {
-  background: none;
+  background-color: transparent;
   border: none;
   box-shadow: none;
   outline: none;
+  border-radius: 7px;
   min-height: 28px;
-  padding: 0;
+  padding: 0 4px;
+  transition: background-color 140ms ease;
 }
-.tray-item > button:hover, .tray-item > button:active, .tray-item > button:checked {
-  background: none;
+.tray-item > button:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+.tray-item > button:active, .tray-item > button:checked {
+  background-color: rgba(255, 255, 255, 0.07);
 }
 
 popover.tray-popover {
@@ -1751,16 +1752,31 @@ popover.tray-popover separator {
 .tray-overflow {
   min-width: 20px;
 }
-.tray-overflow label {
+.tray-overflow .tray-overflow-chevron {
   font-family: "MesloLGS Nerd Font";
   color: #89b4fa;
   font-size: 14px;
-  margin: 0 3px;
+  margin: 2px 3px -2px;
+  transform: rotate(90deg);
 }
 
 popover.tray-overflow-popover > contents {
   min-width: unset;
   padding: 5px;
+}
+
+@keyframes tray-overflow-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+}
+popover.tray-overflow-popover.closing > contents {
+  animation: tray-overflow-out 160ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .tray-overflow-grid > box {

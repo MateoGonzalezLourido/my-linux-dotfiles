@@ -128,7 +128,6 @@ function TrayItemButton({
     <menubutton
       cssClasses={["icon-bare", "tray-item"]}
       focusable={false}
-      tooltipMarkup={createBinding(item, "tooltipMarkup")}
       menuModel={createBinding(item, "menuModel")}
       $={(self: Gtk.MenuButton) => {
         button = self
@@ -200,6 +199,7 @@ function chunk<T>(list: T[], size: number): T[][] {
 function OverflowTray({ items }: { items: Accessor<AstalTray.TrayItem[]> }) {
   let mbutton: Gtk.MenuButton | null = null
   let opened = false
+  let closeAnimationSource = 0
 
   // Cuántos submenús hijo hay abiertos y si el ratón está dentro de la zona del
   // overflow. Juntos evitan el problema de menús anidados: al mover el ratón del
@@ -208,13 +208,32 @@ function OverflowTray({ items }: { items: Accessor<AstalTray.TrayItem[]> }) {
   let openChildren = 0
   let insideOverflow = false
 
-  const rawAutoClose = panelAutoClose(() => {
+  const cancelAnimatedClose = () => {
+    if (closeAnimationSource) {
+      GLib.source_remove(closeAnimationSource)
+      closeAnimationSource = 0
+    }
+    mbutton?.get_popover()?.remove_css_class("closing")
+  }
+
+  const closeAnimated = () => {
     if (openChildren > 0) return
-    mbutton?.get_popover()?.popdown()
-  }, 250)
+    const pop = mbutton?.get_popover()
+    if (!pop || !pop.get_visible() || closeAnimationSource) return
+    pop.add_css_class("closing")
+    closeAnimationSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 160, () => {
+      closeAnimationSource = 0
+      pop.remove_css_class("closing")
+      pop.popdown()
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  const rawAutoClose = panelAutoClose(closeAnimated, 250)
 
   const onEnter = () => {
     insideOverflow = true
+    cancelAnimatedClose()
     rawAutoClose.onEnter()
   }
   const onLeave = () => {
@@ -252,7 +271,6 @@ function OverflowTray({ items }: { items: Accessor<AstalTray.TrayItem[]> }) {
     <menubutton
       cssClasses={["icon-bare", "tray-item", "tray-overflow"]}
       focusable={false}
-      tooltipText="Aplicaciones en segundo plano"
       $={(self: Gtk.MenuButton) => {
         mbutton = self
 
@@ -263,6 +281,7 @@ function OverflowTray({ items }: { items: Accessor<AstalTray.TrayItem[]> }) {
         pop.set_autohide(false)
         pop.set_child(grid)
         pop.connect("closed", () => {
+          cancelAnimatedClose()
           if (opened) {
             opened = false
             closeBarMenu()
@@ -284,8 +303,19 @@ function OverflowTray({ items }: { items: Accessor<AstalTray.TrayItem[]> }) {
       }}
     >
       <Gtk.EventControllerMotion onEnter={onEnter} onLeave={onLeave} />
+      <Gtk.GestureClick
+        $={(gesture: Gtk.GestureClick) => gesture.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)}
+        onPressed={(gesture: Gtk.GestureClick) => {
+          if (opened && openChildren === 0) {
+            closeAnimated()
+            gesture.set_state(Gtk.EventSequenceState.CLAIMED)
+          } else {
+            gesture.set_state(Gtk.EventSequenceState.DENIED)
+          }
+        }}
+      />
       {/* Chevron-right (FontAwesome, U+F054) vía escape para que no se pierda al guardar. */}
-      <label label={"\uf054"} />
+      <label cssClasses={["tray-overflow-chevron"]} label={"\uf054"} />
     </menubutton>
   )
 }
@@ -314,7 +344,7 @@ export default function SystemTray() {
           isOverflow ? (
             <OverflowTray items={items} />
           ) : (
-            <box spacing={2}>
+            <box spacing={0}>
               <For each={items}>{(item) => <TrayItemButton item={item} />}</For>
             </box>
           )

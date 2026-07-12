@@ -201,7 +201,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         <With value={spotifyBarEnabled}>{(on: boolean) => on && <SpotifyNowPlaying />}</With>
       </box>
 
-      <box $type="end" halign={Gtk.Align.END} spacing={2} cssClasses={["bar-end-box"]}>
+      <box $type="end" halign={Gtk.Align.END} spacing={10} cssClasses={["bar-end-box"]}>
         <With value={trayBarEnabled}>{(on: boolean) => on && <SystemTray />}</With>
         <box cssClasses={["bar-status-pair"]} spacing={0}>
           <With value={updatesMonitorEnabled}>{(on: boolean) => on && <UpdatesButton />}</With>

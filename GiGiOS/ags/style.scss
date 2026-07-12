@@ -681,29 +681,29 @@ popover.cpuram-popover {
 // ── Tray: botón de icono + menú propio tipo funciones ──────────────────────
 .tray-item {
   border-radius: 7px;
-  padding: 0 3px;
-  margin: 4px 1px;
+  padding: 0;
+  margin: 4px 0;
   min-height: 28px;
-  transition: background-color 140ms ease;
-
-  &:hover {
-    background-color: $bg-pill-hover;
-  }
 
   // Menú nativo de GTK: el Gtk.MenuButton envuelve el icono en un <button>
   // interno con estilo de tema; lo aplanamos para que solo se vea el icono.
   > button {
-    background: none;
+    background-color: transparent;
     border: none;
     box-shadow: none;
     outline: none;
+    border-radius: 7px;
     min-height: 28px;
-    padding: 0;
+    padding: 0 4px;
+    transition: background-color 140ms ease;
 
-    &:hover,
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.07);
+    }
+
     &:active,
     &:checked {
-      background: none;
+      background-color: rgba(255, 255, 255, 0.07);
     }
   }
 }
@@ -798,11 +798,12 @@ popover.tray-popover {
 .tray-overflow {
   min-width: 20px;
 
-  label {
+  .tray-overflow-chevron {
     font-family: $font-icon;
     color: $blue;
     font-size: 14px;
-    margin: 0 3px;
+    margin: 2px 3px -2px;
+    transform: rotate(90deg);
   }
 }
 
@@ -811,6 +812,22 @@ popover.tray-popover {
 popover.tray-overflow-popover > contents {
   min-width: unset;
   padding: 5px;
+}
+
+@keyframes tray-overflow-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+}
+
+popover.tray-overflow-popover.closing > contents {
+  animation: tray-overflow-out 160ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .tray-overflow-grid {
