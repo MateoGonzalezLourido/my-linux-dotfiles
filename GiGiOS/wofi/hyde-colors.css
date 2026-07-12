@@ -1,6 +1,11 @@
 /* Solo paleta HyDE/Tokyo Night; no altera tamaños, posición ni estructura. */
-window,
+window {
+    background-color: rgba(36, 40, 59, 0.90);
+    color: #c0caf5;
+}
+
 #outer-box,
+#inner-box,
 #scroll {
     background-color: rgba(36, 40, 59, 0.90);
     color: #c0caf5;
@@ -10,12 +15,25 @@ window,
     background-color: rgba(36, 40, 59, 0.90);
     color: #c0caf5;
     border-color: #bb9af7;
+    caret-color: #7dcfff;
+}
+
+#entry {
+    background-color: transparent;
+    color: #c0caf5;
+}
+
+#text {
+    background-color: transparent;
+    color: #c0caf5;
 }
 
 #entry:selected {
     background-color: #7aa2f7;
+    color: #24283b;
 }
 
 #entry:selected #text {
+    background-color: #7aa2f7;
     color: #24283b;
 }
