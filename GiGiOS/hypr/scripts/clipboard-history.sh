@@ -15,6 +15,8 @@
 
 prefs="$HOME/.config/gigios/preferences.json"
 max_items=750
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+rofi_theme_dir="$(cd -- "$script_dir/../.." && pwd)/rofi"
 # Patrón del watcher, compartido por start/stop. (^|/) tolera ruta absoluta.
 watch_re='(^|/)wl-paste --watch cliphist store([[:space:]]|$)'
 
@@ -82,7 +84,7 @@ clipboard_picker() {
         tail -n +$((max_items * 2 + 1)) | cut -d' ' -f2- | xargs -r rm -f
 
     sel="$(rofi -dmenu -i -show-icons -display-columns 1,2 \
-        -theme "$HOME/.config/rofi/clipboard.rasi" \
+        -theme "$rofi_theme_dir/clipboard.rasi" \
         -theme-str 'entry { placeholder: " 📜 Historial..."; }' \
         < "$display_file")" || return 1
     [[ -z "$sel" ]] && return 1

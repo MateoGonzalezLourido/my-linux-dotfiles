@@ -23,6 +23,7 @@ Ver diseño: docs/superpowers/specs/2026-06-13-rofi-single-instance-move-design.
 
 import json
 import os
+from pathlib import Path
 import socket
 import subprocess
 import time
@@ -67,7 +68,9 @@ def main():
     target_ws = hypr_j("activeworkspace")["id"]
 
     # --- Lanzar rofi (bloquea hasta selección o cancelación) ---
-    theme = os.path.expanduser("~/.config/rofi/launcher.rasi")
+    # Resolver desde este script hace que un simple `git pull` sea suficiente:
+    # no depende de que bin/link.sh haya creado ~/.config/rofi.
+    theme = Path(__file__).resolve().parents[2] / "rofi" / "launcher.rasi"
     subprocess.run(["rofi", "-show", "drun", "-theme", theme])
 
     # --- Observación vía socket de eventos ---
