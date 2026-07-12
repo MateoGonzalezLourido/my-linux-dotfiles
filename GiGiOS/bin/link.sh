@@ -21,6 +21,7 @@ LINKS=(
   "ags::$HOME/.config/ags"
   "hypr::$HOME/.config/hypr"
   "inicializador::$HOME/.config/inicializador"
+  "rofi/config.rasi::$HOME/.config/rofi/config.rasi"
   "cache/power-save::$HOME/.config/power-save"
   "state/orion::$HOME/.local/share/orion"
 )
