@@ -57,7 +57,7 @@ const EXEC_PATTERNS: [RegExp, string][] = [
   [/\bcode\b/, "Abrir VS Code"],
   [/obsidian/, "Abrir Obsidian"],
   [/discord/, "Abrir Discord"],
-  [/clipboard-history|cliphist.*wl-copy|wofi.*dmenu/, "Abrir portapapeles"],
+  [/clipboard-history|cliphist.*wl-copy|rofi.*dmenu/, "Abrir portapapeles"],
   [/rofi-launch|rofi.*drun|hyprlauncher|pkill.*rofi/, "Abrir lanzador de apps"],
   [/hyprshot.*region/, "Captura de región"],
   [/hyprshot.*output/, "Captura de pantalla"],

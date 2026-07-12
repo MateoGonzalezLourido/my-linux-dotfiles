@@ -20,7 +20,7 @@ required=(
   hypr/scripts/clipboard-history.sh hypr/scripts/scan-file.sh
   hypr/scripts/run-untrusted.sh hypr/scripts/compact-workspaces.sh
   hypr/scripts/toggle-gaps-borders.sh
-  wofi/hyde-colors.css
+  rofi/clipboard-solarized.rasi
 )
 for path in "${required[@]}"; do
   [[ -f "$GIGIOS/$path" ]] || fail "falta $path"
@@ -59,7 +59,7 @@ fi
 
 if [[ "$mode" == "--installed" ]]; then
   commands=(
-    hyprctl ags sass jq rofi wofi cliphist wl-copy wl-paste brightnessctl
+    hyprctl ags sass jq rofi cliphist wl-copy wl-paste brightnessctl
     playerctl wpctl pactl pw-metadata wf-recorder grim slurp hyprshot awww
     notify-send nmcli nm-connection-editor bluetoothctl blueman-manager
     btop kitty dolphin xdg-open clamscan firejail bwrap xdg-user-dir

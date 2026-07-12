@@ -30,7 +30,7 @@ install_packages() {
     git curl python xdg-utils base-devel hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
-    ttf-meslo-nerd rofi wofi cliphist wl-clipboard brightnessctl playerctl
+    ttf-meslo-nerd rofi cliphist wl-clipboard brightnessctl playerctl
     qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
     network-manager-applet blueman fish kitty dolphin kde-cli-tools
     libpulse pipewire pipewire-audio pipewire-pulse pipewire-alsa wireplumber

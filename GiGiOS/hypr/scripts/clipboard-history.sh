@@ -10,14 +10,15 @@
 #           (autostart.conf) como AGS (execAsync) lo llaman, y antes el watcher
 #           moría con AGS al usar `exec`.
 #   stop    mata el watcher, cierra el selector y borra el historial guardado.
-#   picker  abre el selector wofi (SUPER+V). Toggle: si ya está abierto, lo cierra.
+#   picker  abre el selector Rofi (SUPER+V). Toggle: si ya está abierto, lo cierra.
 
 prefs="$HOME/.config/gigios/preferences.json"
 # BASH_SOURCE puede llegar como ~/.config/hypr/... (symlink). Hay que resolverlo
-# físicamente para encontrar el CSS dentro de GiGiOS y no en ~/.config/wofi.
+# físicamente para encontrar el tema dentro de GiGiOS sin modificar la
+# configuración Rofi global del usuario.
 script_path="$(readlink -f -- "${BASH_SOURCE[0]}")"
 script_dir="$(dirname -- "$script_path")"
-wofi_style="$(cd -- "$script_dir/../.." && pwd)/wofi/hyde-colors.css"
+rofi_style="$(cd -- "$script_dir/../.." && pwd)/rofi/clipboard-solarized.rasi"
 # Patrón del watcher, compartido por start/stop. (^|/) tolera ruta absoluta.
 watch_re='(^|/)wl-paste --watch cliphist store$'
 
@@ -44,23 +45,23 @@ case "${1:-}" in
         ;;
     stop)
         pkill -f "$watch_re" 2>/dev/null || true
-        pkill -x wofi 2>/dev/null || true
+        pkill -x rofi 2>/dev/null || true
         command -v cliphist >/dev/null 2>&1 && cliphist wipe
         ;;
     picker)
         # Toggle primero: si el selector ya está abierto, ciérralo (aunque el
         # historial esté desactivado, para no dejar una ventana colgada).
-        if pgrep -x wofi >/dev/null; then
-            pkill -x wofi
+        if pgrep -x rofi >/dev/null; then
+            pkill -x rofi
             exit 0
         fi
         # Con el historial apagado no hay nada que mostrar (stop hace wipe):
         # salimos en silencio, sin abrir el selector ni notificar.
         history_enabled || exit 0
-        # Selección. Si el usuario cancela (Esc) wofi sale != 0 y `sel` queda
+        # Selección. Si el usuario cancela (Esc) Rofi sale != 0 y `sel` queda
         # vacío: NO tocamos el portapapeles, evitando que un wl-copy vacío borre
         # lo que el usuario tenía copiado.
-        sel="$(cliphist list | wofi --dmenu --width 46% --height 45% --style "$wofi_style")" || exit 0
+        sel="$(cliphist list | rofi -dmenu -i -display-columns 2 -p "Portapapeles" -theme "$rofi_style")" || exit 0
         [[ -z "$sel" ]] && exit 0
         printf '%s\n' "$sel" | cliphist decode | wl-copy
         ;;
