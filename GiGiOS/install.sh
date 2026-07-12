@@ -90,20 +90,26 @@ dotfiles fetch --prune origin
 dotfiles rev-parse --verify --quiet "refs/remotes/origin/$BRANCH" >/dev/null \
   || die "La rama '$BRANCH' no existe en origin. Probá DOTFILES_BRANCH=<rama>."
 
-# --- 2. Checkout con backup de conflictos ---
-info "Checkout de la rama '$BRANCH' ..."
-if ! dotfiles checkout "$BRANCH" 2>/dev/null; then
+# --- 2. Checkout/actualización con backup de conflictos ---
+# -B es importante al reutilizar ~/.dotfiles: un checkout normal de una rama
+# local existente no la avanza después del fetch y dejaría instalada una versión
+# antigua. La copia desplegada debe seguir exactamente origin/$BRANCH.
+info "Actualizando el checkout a origin/$BRANCH ..."
+if ! dotfiles checkout -B "$BRANCH" "origin/$BRANCH" 2>/dev/null; then
   warn "Hay archivos existentes que chocan; los respaldo en $BACKUP"
-  dotfiles checkout "$BRANCH" 2>&1 \
-    | grep -E '^[[:space:]]+[^[:space:]]' \
-    | sed 's/^[[:space:]]*//' \
-    | while IFS= read -r f; do
-        [ -e "$HOME/$f" ] || continue
-        mkdir -p "$BACKUP/$(dirname "$f")"
-        mv "$HOME/$f" "$BACKUP/$f"
-        echo "  backup: $f"
-      done
-  dotfiles checkout "$BRANCH" || die "El checkout siguió fallando; revisá $BACKUP."
+  checkout_error="$(dotfiles checkout -B "$BRANCH" "origin/$BRANCH" 2>&1 || true)"
+  while IFS= read -r f; do
+    [ -e "$HOME/$f" ] || continue
+    mkdir -p "$BACKUP/$(dirname "$f")"
+    mv "$HOME/$f" "$BACKUP/$f"
+    echo "  backup: $f"
+  done < <(
+    printf '%s\n' "$checkout_error" \
+      | grep -E '^[[:space:]]+[^[:space:]]' \
+      | sed 's/^[[:space:]]*//'
+  )
+  dotfiles checkout -B "$BRANCH" "origin/$BRANCH" \
+    || die "El checkout siguió fallando; revisá $BACKUP."
 fi
 dotfiles branch --set-upstream-to="origin/$BRANCH" "$BRANCH" >/dev/null 2>&1 || true
 info "Dotfiles en su lugar (rama $BRANCH)."

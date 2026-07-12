@@ -19,6 +19,11 @@ El instalador se encarga de:
 - reconstruir la caché de aplicaciones de Dolphin;
 - ejecutar la validación final.
 
+El mismo comando sirve para actualizar un equipo que ya tenga GiGiOS instalado: hace
+`fetch` en `~/.dotfiles`, avanza el checkout local hasta `origin/laptop` y vuelve a
+comprobar los enlaces. Un `git pull` realizado en otro clon independiente no actualiza
+por sí solo la copia desplegada por `~/.dotfiles`.
+
 **AGS sí es obligatorio.** GiGiOS no usa una barra o centro de notificaciones externo:
 `ags` ejecuta el shell completo y `AstalNotifd` proporciona el daemon y la interfaz de
 notificaciones. El instalador añade `aylurs-gtk-shell-git`, `libastal-meta` y `libnotify`;
