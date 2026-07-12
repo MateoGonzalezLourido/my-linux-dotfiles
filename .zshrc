@@ -56,3 +56,5 @@ _lc_precmd() {
 autoload -Uz add-zsh-hook
 add-zsh-hook preexec _lc_preexec
 add-zsh-hook precmd  _lc_precmd
+
+alias dotfiles='git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
