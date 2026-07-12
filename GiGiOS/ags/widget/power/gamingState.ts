@@ -1,8 +1,9 @@
 // widget/power/gamingState.ts
 //
 // Puente del estado "jugando" hacia DISCO, para que scripts de shell (bash)
-// puedan leerlo. La detección de juego (isGame, widget/bar/games/detect.ts) ya
-// la usan el indicador de la barra (GamesIndicator) y el auto-DND, pero cada uno
+// puedan leerlo. La detección de juego (isGameClient, widget/bar/games/evidence.ts,
+// que es isGame + evidencia del .desktop y de /proc) ya la usan el indicador de la
+// barra (GamesIndicator) y el auto-DND, pero cada uno
 // la calcula en su propia memoria de AGS y NADA la persiste. Bash no puede leer
 // la memoria de AGS, así que este watcher único la REUTILIZA (no la reimplementa)
 // y escribe ~/.config/gigios/runtime-state.json = { "gaming": bool } cuando
@@ -16,7 +17,7 @@
 import AstalHyprland from "gi://AstalHyprland"
 import GLib from "gi://GLib"
 import { createState } from "ags"
-import { isGame } from "../bar/games/detect"
+import { isGameClient } from "../bar/games/evidence"
 
 const STATE_PATH = `${GLib.get_user_config_dir()}/gigios/runtime-state.json`
 
@@ -55,7 +56,7 @@ export function initGamingState(): void {
 
   const addIfGame = (c: any) => {
     if (!c || !c.address || games.has(c.address)) return
-    if (!isGame(c)) return
+    if (!isGameClient(c)) return
     games.add(c.address)
     recompute()
   }

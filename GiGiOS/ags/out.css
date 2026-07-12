@@ -1096,7 +1096,7 @@ popover.background {
 
 .np-panel button, popover.upd-popover-container > contents, .qs-wifi-list-scroll scrollbar,
 .qs-wifi-list-scroll scrollbar slider,
-.qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, .game-tray .game-tray-icon, popover.ws-preview-popover > contents {
+.qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, popover.game-popover-container > contents, .game-tray .game-tray-icon, popover.ws-preview-popover > contents {
   background: transparent;
   border: none;
   box-shadow: none;
@@ -1341,25 +1341,46 @@ popover.ws-preview-popover > contents {
   font-size: 16px;
 }
 
-/* Games tray — purple container to the right of the workspaces, one icon per
-   running game. Hidden entirely (via `visible`) when no game is detected. */
+/* Games tray — purple container to the right of the workspaces. Mini-icono de mando
+   fijo a la izquierda y, a su derecha, un icono POR JUEGO: el icono real de la app
+   (entrada .desktop / tema / steam_icon_<appid>), con el glifo de mando solo como
+   último recurso. Se oculta entera (via `visible`) cuando no hay ningún juego. */
 .game-tray {
   background: linear-gradient(135deg, rgba(203, 166, 247, 0.22), rgba(137, 180, 250, 0.18));
   border: 1px solid rgba(203, 166, 247, 0.4);
   border-radius: 999px;
-  padding: 2px 6px;
+  padding: 2px 8px;
   margin: 4px 2px;
   min-height: 26px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  /* Mini-icono identificador de la pastilla: no es un botón, no reacciona al ratón.
+     El margen vertical NO es decorativo: el borde derecho hace de separador y sin él
+     la línea sube y baja hasta el borde de la pastilla. */
+}
+.game-tray .game-tray-badge {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 13px;
+  color: rgba(203, 166, 247, 0.85);
+  text-shadow: 0 0 6px rgba(203, 166, 247, 0.45);
+  padding-right: 5px;
+  border-right: 1px solid rgba(203, 166, 247, 0.22);
+  margin: 5px 4px 5px 0;
 }
 .game-tray .game-tray-icon {
-  min-width: 22px;
-  min-height: 22px;
-  padding: 0 3px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 2px;
   border-radius: 8px;
   transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Icono real de la app: se deja a su color, solo se le da un poco de sombra. */
 }
-.game-tray .game-tray-icon label {
+.game-tray .game-tray-icon image.game-tray-img {
+  -gtk-icon-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+}
+.game-tray .game-tray-icon {
+  /* Último recurso: la app no tiene icono resoluble. */
+}
+.game-tray .game-tray-icon label.game-tray-glyph {
   font-family: "MesloLGS Nerd Font";
   font-size: 16px;
   color: #cba6f7;
@@ -1368,6 +1389,55 @@ popover.ws-preview-popover > contents {
 .game-tray .game-tray-icon:hover {
   background: rgba(203, 166, 247, 0.25);
   transform: scale(1.08);
+}
+
+/* Menú de acciones de un juego (clic derecho en su icono). */
+popover.game-popover-container > contents {
+  padding: 0;
+}
+popover.game-popover-container > arrow {
+  background: #0e0e1a;
+  border: none;
+}
+
+.game-popover {
+  background: #0e0e1a;
+  border: 1px solid rgba(203, 166, 247, 0.22);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 180px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.game-popover-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: #cba6f7;
+  margin-bottom: 6px;
+}
+
+.game-popover-btn {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  color: #e2e2e2;
+  background: rgba(203, 166, 247, 0.14);
+  border: 1px solid rgba(203, 166, 247, 0.24);
+  border-radius: 8px;
+}
+.game-popover-btn:hover {
+  background: rgba(203, 166, 247, 0.26);
+}
+.game-popover-btn.danger {
+  color: rgb(245, 50, 105);
+  background: rgba(245, 50, 105, 0.12);
+  border-color: rgba(245, 50, 105, 0.28);
+}
+.game-popover-btn.danger:hover {
+  background: rgba(245, 50, 105, 0.22);
 }
 
 .battery {
@@ -5343,3 +5413,5 @@ button.dl-city-result:hover {
   border-radius: 6px;
   padding: 6px 8px;
 }
+
+/*# sourceMappingURL=out.css.map */

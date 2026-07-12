@@ -20,6 +20,7 @@ import AstalHyprland from "gi://AstalHyprland"
 import AstalNotifd from "gi://AstalNotifd"
 import GLib from "gi://GLib"
 import { shouldSilence } from "./detect.ts"
+import { isGameClient } from "../../bar/games/evidence.ts"
 import { autoDndEnabled, autoDndFullscreenApps } from "../../settings/preferences.ts"
 
 let started = false
@@ -40,8 +41,15 @@ function setDnd(notifd: AstalNotifd.Notifd, value: boolean): void {
 function conditionActive(hypr: AstalHyprland.Hyprland): boolean {
   // Sólo cuenta lo que hay en el workspace que estás mirando: un juego en
   // fullscreen en otro workspace no debe silenciar hasta que te muevas a él.
+  // isGameClient (no isGame) para que una ventana MAXIMIZADA que no es un juego
+  // — Discord era el caso — no silencie las notificaciones.
   const activeWs = hypr.focusedWorkspace?.id ?? null
-  return shouldSilence(hypr.get_clients?.() ?? [], autoDndFullscreenApps.get(), activeWs)
+  return shouldSilence(
+    hypr.get_clients?.() ?? [],
+    autoDndFullscreenApps.get(),
+    activeWs,
+    isGameClient,
+  )
 }
 
 function evaluate(): void {

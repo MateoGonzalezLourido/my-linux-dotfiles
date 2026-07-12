@@ -209,7 +209,8 @@ OOM killer is just one of ~16 scanned event types. Five sub-monitors run in para
   the *whole* sweep when an enabled pause gate is active *now* — `dlPauseOnBattery` / `dlPauseInPowerSave`
   (battery read from `/sys/class/power_supply`, threshold from `~/.config/power-save/config.json`) /
   `dlPauseWhileGaming` (reads `~/.config/gigios/runtime-state.json` `{gaming}`, written by AGS
-  `widget/power/gamingState.ts`, which reuses the `isGame` heuristic). Deferred work marks nothing, so
+  `widget/power/gamingState.ts`, which reuses the `isGameClient` heuristic — `ags/widget/bar/games/`,
+  ver `ags/CLAUDE.md`). Deferred work marks nothing, so
   it's picked up when the gate clears. The size cap is `dlMaxScanGB` (default 1 GB), also live.
   **Interruptible scan**: `clamscan` reloads its ~200 MB signature DB on *every* invocation (~13 s
   here), so the batch is **not** chunked — one `clamscan --file-list` over the whole batch runs in the

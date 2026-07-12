@@ -16,7 +16,7 @@
 // are actually looking at, so shouldSilence() filters clients to the focused
 // workspace (see the `activeWorkspaceId` argument).
 
-import { isGame, type GameClientLike } from "../../bar/games/detect.ts"
+import { isGame, FULLSCREEN_REAL, type GameClientLike } from "../../bar/games/detect.ts"
 
 export interface WorkspaceRef {
   id?: number | null
@@ -42,13 +42,17 @@ function onActiveWorkspace(
   return wsId === activeWorkspaceId
 }
 
-/** True if `c` is fullscreen and its class matches any entry in `apps`. */
+/** True if `c` is fullscreen and its class matches any entry in `apps`.
+ *
+ * `fullscreen` es un MODO (0 nada, 1 maximizado, 2 pantalla completa), no un bool:
+ * con `!== 0` una ventana simplemente maximizada de la lista silenciaba las
+ * notificaciones. La función se llama "fullscreen apps", así que exige el 2. */
 export function matchesFullscreenApp(
   c: DndClientLike | null | undefined,
   apps: readonly string[],
 ): boolean {
   if (!c) return false
-  const isFullscreen = !!(c.fullscreen && c.fullscreen !== 0)
+  const isFullscreen = (c.fullscreen ?? 0) >= FULLSCREEN_REAL
   if (!isFullscreen) return false
 
   const cls = (c.class ?? "").toLowerCase()
@@ -65,16 +69,21 @@ export function matchesFullscreenApp(
  * True if any client on the focused workspace warrants auto-DND (a game, or a
  * configured fullscreen app). Pass `activeWorkspaceId` to restrict evaluation to
  * that workspace; omit it (or pass null) to consider every client.
+ *
+ * `isGameFn` existe para que el watcher pueda pasar `isGameClient` (la versión que
+ * consulta la entrada .desktop y /proc, y que por eso no puede vivir en un módulo
+ * puro). Por defecto cae en `isGame` a secas, que es lo que usan los tests.
  */
 export function shouldSilence(
   clients: readonly (DndClientLike | null | undefined)[] | null | undefined,
   apps: readonly string[],
   activeWorkspaceId?: number | null,
+  isGameFn: (c: DndClientLike | null | undefined) => boolean = isGame,
 ): boolean {
   if (!clients) return false
   for (const c of clients) {
     if (!onActiveWorkspace(c, activeWorkspaceId)) continue
-    if (isGame(c)) return true
+    if (isGameFn(c)) return true
     if (matchesFullscreenApp(c, apps)) return true
   }
   return false

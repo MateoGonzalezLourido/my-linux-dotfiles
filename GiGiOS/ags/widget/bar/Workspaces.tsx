@@ -12,6 +12,8 @@ import { barVisible, setIsWsDragging, setIsWsPreview, panelAutoClose, beginBarKe
 import { wsPreviewEnabled } from "../settings/preferences"
 import { wsPreviewSuspended } from "../power/powerState"
 import { getIcon } from "./appIcons"
+import { appIconName, describeGame, genericIconName, GAME_GLYPH } from "./games/icon"
+import { isGameClient } from "./games/evidence"
 
 // La preview de workspace se captura/muestra solo si el usuario la tiene activada
 // Y no está suspendida por el modo ahorro de energía.
@@ -121,9 +123,12 @@ const cssSafeAppClass = (cls: string): string =>
 const formatAppName = (cls: string): string =>
   cls.split(/[-_\s]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
 
-const buildTooltip = (cls: string, title: string): string => {
-  const appName = formatAppName(cls)
-  const winTitle = (title ?? "").trim()
+const buildTooltip = (c: any): string => {
+  const cls = c.class ?? ""
+  // El nombre real de la app (entrada .desktop) en vez de la clase: un juego de Steam
+  // decía "Steam_app_730" en vez de "Counter-Strike 2".
+  const appName = describeGame(c).name || formatAppName(cls)
+  const winTitle = (c.title ?? "").trim()
   if (!winTitle || winTitle.toLowerCase() === cls.toLowerCase()) return appName
   return `${appName}\n${winTitle}`
 }
@@ -132,10 +137,23 @@ const getClientIcons = (clients: any[]): ClientIcon[] => {
   return [...(clients || [])]
     .filter(c => c.class)
     .map(c => {
+      const tooltip = buildTooltip(c)
+      const common = { address: c.address, appClass: c.class, tooltip }
+
+      // 1. Glifo definido a mano en app_icons.json (override del usuario; el fichero
+      //    no existe por defecto, así que normalmente esto no dispara).
       const glyph = getIcon(c.class)
-      const tooltip = buildTooltip(c.class, c.title)
-      if (glyph) return { icon: glyph, address: c.address, appClass: c.class, isGlyph: true, tooltip }
-      return { icon: c.class, address: c.address, appClass: c.class, isGlyph: false, tooltip }
+      if (glyph) return { ...common, icon: glyph, isGlyph: true }
+
+      // 2. Icono real del tema. appIconName SOLO devuelve nombres que el tema tiene:
+      //    antes se le pasaba la clase cruda a iconName y, cuando no existía tal icono
+      //    (p. ej. "steam_app_730"), GTK pintaba el icono roto en vez de nada.
+      const name = appIconName(c)
+      if (name) return { ...common, icon: name, isGlyph: false }
+
+      // 3. Sin icono resoluble: mando para los juegos, genérico para lo demás.
+      if (isGameClient(c)) return { ...common, icon: GAME_GLYPH, isGlyph: true }
+      return { ...common, icon: genericIconName(c), isGlyph: false }
     })
 }
 
