@@ -68,7 +68,51 @@ committed or copied into the repo. Set it up once via `ags/scripts/spotify-auth.
 
 `hypr/autostart.conf` launches the shell (`ags run ~/.config/ags/`), `hypridle`, `init.sh`,
 `wallpaper.sh`, and a set of `hypr/scripts/*-monitor.sh` background daemons (battery, temp,
-ram, disk, oom, wifi, usb, bt). Apply config changes with `hyprctl reload` and relaunch AGS.
+ram, disk, oom, wifi, usb, bt, updates). Apply config changes with `hyprctl reload` and relaunch AGS.
+
+### Update monitor (`updates-monitor.sh`)
+
+Checks for pending updates and surfaces the **important** ones as bar icons (AGS
+`widget/bar/UpdatesButton.tsx`): **two separate icons, one for the kernel (orange Tux) and one
+for GPU drivers (green)**, each shown only when its own category has something pending.
+Ordinary package/dependency updates deliberately show **no icon at all** — they were pure noise;
+they are only listed as context ("Otros: N paquetes") inside the popover. Launched from
+`autostart.conf` as `sleep 3 && …/updates-monitor.sh` — the 3 s delay lets the rest of the
+session finish loading before the first (network-touching) query.
+
+**A package-DB watch is what makes the icon go away after you update.** Periodic re-checks alone
+left the icon stuck: `updates.json` kept advertising what you had just installed until the next
+interval elapsed. So the loop blocks on `inotifywait` over the distro's local package DB
+(`/var/lib/pacman/local`, `/var/lib/dpkg`, `/usr/lib/sysimage/rpm`→`/var/lib/rpm`) *or* the
+periodic timeout, whichever comes first. An install touches the DB hundreds of times, so an
+event is followed by a **debounce** (re-check only after 5 s of quiet). This fires whether you
+updated from the popover's button or from your own terminal. Without `inotify-tools` it degrades
+to the plain interval sleep (and, if `updatesPeriodic` is off, simply exits after one pass).
+
+Every blocking wait (`inotifywait`, `sleep`) goes through the `blocking()` helper — child in the
+background + `wait` + a `TERM` trap — **not** a plain foreground call. Bash defers signals while
+waiting on a foreground child, so a foreground `inotifywait` (which can block indefinitely) would
+make the master toggle's `pkill` a no-op: the script would survive, later notice a DB change, and
+rewrite `updates.json`, resurrecting the icons with the feature switched off.
+
+All polling is **read-only and sudo-free**, one branch per distro family detected from
+`/etc/os-release`: Arch/CachyOS → `checkupdates` (pacman-contrib; syncs a *temp* DB in the
+user cache, never the system one; falls back to `pacman -Qu`), Fedora → `dnf -q check-update`
+(rc 100 = updates), Debian/Ubuntu → `apt list --upgradable` **against the existing cache, no
+`apt update`**. Each pending package lands in one of three buckets: *GPU driver* (name matches a vendor actually
+present per `lspci` — `*nvidia*`, or `*mesa*`/`*radeon*`/`*amdgpu*`/`*amdvlk*` for AMD), *kernel*
+(`linux`, `linux-*`, `kernel`, `kernel-*` — so `util-linux` does **not** match), or *system*
+(everything else, counted only). Results are written **atomically** (tmp+`mv`, built with `jq` so
+names/versions are escaped) to `~/.config/gigios/updates.json`:
+`{checkedAt, distro, updateCmd, system: <count>, kernel: [{name, from, to}], gpu: [{…}], systemSample: [<=20 names]}`.
+The widget watches that file with a `Gio.FileMonitor` — a missing/corrupt file simply means
+"no updates" (icons hidden). Requires `jq`; without it the script exits without writing.
+
+**Config** (`~/.config/gigios/preferences.json`, written by `PersonalizationSection.tsx`):
+`updatesMonitor` (master), `updatesPeriodic`, `updatesIntervalHours` (default 3). Like
+`batteryMonitor`/`tempMonitor`, the bash reads these **once at process start** — but the
+*master* toggle is applied hot by its AGS setter (`pkill` + delete the JSON on off, re-exec on
+on), so only the periodic/interval keys need a script restart.
 
 ### Security monitor (`oom-monitor.sh`) + sandboxed launcher (`run-untrusted.sh`)
 

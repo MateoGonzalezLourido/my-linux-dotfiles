@@ -1094,7 +1094,7 @@ popover.background {
   border-radius: 14px;
 }
 
-.np-panel button, .qs-wifi-list-scroll scrollbar,
+.np-panel button, popover.upd-popover-container > contents, .qs-wifi-list-scroll scrollbar,
 .qs-wifi-list-scroll scrollbar slider,
 .qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, .game-tray .game-tray-icon, popover.ws-preview-popover > contents {
   background: transparent;
@@ -3323,6 +3323,87 @@ button.qs-user-settings-btn label {
 .bar-pill.nb-pill.panel-open {
   background-color: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.075);
+}
+
+.bar-pill.upd-pill {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0 4px 0 2px;
+}
+.bar-pill.upd-pill .upd-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 15px;
+  color: #89b4fa;
+}
+.bar-pill.upd-pill.kernel .upd-icon {
+  color: #fab387;
+}
+.bar-pill.upd-pill.gpu .upd-icon {
+  color: #a6e3a1;
+}
+
+popover.upd-popover-container > contents {
+  padding: 0;
+}
+popover.upd-popover-container > arrow {
+  background: #0e0e1a;
+  border: none;
+}
+
+.upd-popover {
+  background: #0e0e1a;
+  border: 1px solid rgba(137, 180, 250, 0.18);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 240px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.upd-popover-header {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: rgba(226, 226, 226, 0.56);
+  margin-bottom: 6px;
+}
+
+.upd-row {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12px;
+  padding: 2px 0;
+}
+.upd-row.kernel {
+  color: #fab387;
+  font-weight: 700;
+}
+.upd-row.gpu {
+  color: #a6e3a1;
+}
+.upd-row.system {
+  color: rgba(226, 226, 226, 0.6);
+}
+
+.upd-sample {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.45);
+  padding-bottom: 4px;
+}
+
+.upd-update-btn {
+  margin-top: 8px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e2e2;
+  background: rgba(137, 180, 250, 0.16);
+  border: 1px solid rgba(137, 180, 250, 0.28);
+  border-radius: 8px;
+}
+.upd-update-btn:hover {
+  background: rgba(137, 180, 250, 0.26);
 }
 
 .notif-popup-window {

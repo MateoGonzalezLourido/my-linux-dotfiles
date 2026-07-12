@@ -4,6 +4,9 @@
 // (ver widget/settings/preferences.ts). Mismo estilo de toggle que EnergySection.
 import { Gtk } from "ags/gtk4"
 import {
+  updatesMonitorEnabled, setUpdatesMonitorEnabled,
+  updatesPeriodicEnabled, setUpdatesPeriodicEnabled,
+  updatesIntervalHours, setUpdatesIntervalHours,
   wsPreviewEnabled, setWsPreviewEnabled,
   spotifyBarEnabled, setSpotifyBarEnabled,
   batteryBarEnabled, setBatteryBarEnabled,
@@ -22,6 +25,97 @@ import {
   orionAppsDefault, setOrionAppsDefault,
 } from "./preferences"
 import AutoDndSetting from "./AutoDndSetting"
+
+// Monitor de actualizaciones del SO + drivers de GPU (hypr/scripts/updates-monitor.sh).
+// El maestro se aplica en caliente (su setter lanza/mata el script); la recomprobación
+// periódica y el intervalo los lee el script una sola vez al arrancar, así que el
+// cambio se aplica al reiniciarlo (o al reactivar el maestro).
+function UpdatesSetting() {
+  let hoursRef: Gtk.Entry
+  const applyHours = () => {
+    const n = parseInt((hoursRef?.get_text() ?? "").trim(), 10)
+    if (Number.isFinite(n) && n >= 1) setUpdatesIntervalHours(n)
+    hoursRef.set_text(String(updatesIntervalHours.get()))
+  }
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["sp-field"]} hexpand>
+      <box spacing={8} valign={Gtk.Align.CENTER}>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+          <label cssClasses={["sp-field-label"]} label="Actualizaciones del sistema" halign={Gtk.Align.START} />
+          <label
+            cssClasses={["sp-field-hint"]}
+            label={"Muestra un icono en la barra cuando hay actualizaciones del SO o de los drivers de la GPU.\nAl desactivarlo se detiene el sondeo y el icono desaparece al instante."}
+            halign={Gtk.Align.START}
+            wrap={true}
+            lines={2}
+            maxWidthChars={62}
+            xalign={0}
+          />
+        </box>
+        <button
+          cssClasses={updatesMonitorEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+          valign={Gtk.Align.CENTER}
+          onClicked={() => setUpdatesMonitorEnabled(!updatesMonitorEnabled.get())}
+        >
+          <box cssClasses={["qs-toggle-track"]}>
+            <box cssClasses={updatesMonitorEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+          </box>
+        </button>
+      </box>
+
+      {/* recomprobación periódica: solo tiene sentido con el maestro activo */}
+      <box
+        orientation={Gtk.Orientation.VERTICAL}
+        spacing={8}
+        visible={updatesMonitorEnabled((v: boolean) => v)}
+      >
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Recomprobar periódicamente" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Al desactivarlo solo se comprueba una vez al iniciar sesión.\nSe aplica al reiniciar el monitor o en el próximo login."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={updatesPeriodicEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setUpdatesPeriodicEnabled(!updatesPeriodicEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={updatesPeriodicEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+
+        <box
+          orientation={Gtk.Orientation.VERTICAL}
+          spacing={4}
+          visible={updatesPeriodicEnabled((v: boolean) => v)}
+        >
+          <label cssClasses={["sp-field-label"]} label="Comprobar cada (horas)" halign={Gtk.Align.START} />
+          <box spacing={6} valign={Gtk.Align.CENTER}>
+            <entry
+              cssClasses={["sp-num-input"]}
+              hexpand
+              placeholderText="3"
+              $={(self: Gtk.Entry) => { hoursRef = self; self.set_text(String(updatesIntervalHours.get())) }}
+              onActivate={applyHours}
+            />
+            <button cssClasses={["sp-add-rule"]} onClicked={applyHours} valign={Gtk.Align.CENTER}>
+              <label label="Guardar" />
+            </button>
+          </box>
+        </box>
+      </box>
+    </box>
+  )
+}
 
 export default function PersonalizationSection() {
   return (
@@ -456,6 +550,9 @@ export default function PersonalizationSection() {
           </button>
         </box>
       </box>
+
+      {/* monitor de actualizaciones del SO + drivers de GPU */}
+      <UpdatesSetting />
 
       {/* No molestar automático (juegos / apps en pantalla completa) */}
       <AutoDndSetting />

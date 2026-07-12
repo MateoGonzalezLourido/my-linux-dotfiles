@@ -2570,6 +2570,86 @@ button.qs-user-settings-btn {
   }
 }
 
+// ── Updates Button (actualizaciones SO + drivers GPU) ─────────────────────────
+.bar-pill.upd-pill {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0 4px 0 2px;
+
+  .upd-icon {
+    font-family: $font-icon;
+    font-size: 15px;
+    color: $blue;
+  }
+
+  // Iconos separados: kernel (naranja) y drivers de GPU (verde).
+  &.kernel .upd-icon { color: $orange; }
+  &.gpu    .upd-icon { color: #a6e3a1; }
+}
+
+popover.upd-popover-container {
+  > contents {
+    padding: 0;
+    @extend %chrome-reset;
+  }
+
+  > arrow {
+    background: #0e0e1a;
+    border: none;
+  }
+}
+
+.upd-popover {
+  background: #0e0e1a;
+  border: 1px solid rgba(137, 180, 250, 0.18);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 240px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.upd-popover-header {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: rgba($text, 0.56);
+  margin-bottom: 6px;
+}
+
+.upd-row {
+  font-family: $font-icon;
+  font-size: 12px;
+  padding: 2px 0;
+
+  &.kernel { color: $orange; font-weight: 700; }
+  &.gpu    { color: #a6e3a1; }
+  &.system { color: rgba($text, 0.6); }
+}
+
+.upd-sample {
+  font-size: 10px;
+  color: rgba($text, 0.45);
+  padding-bottom: 4px;
+}
+
+.upd-update-btn {
+  margin-top: 8px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $text;
+  background: rgba(137, 180, 250, 0.16);
+  border: 1px solid rgba(137, 180, 250, 0.28);
+  border-radius: 8px;
+
+  &:hover {
+    background: rgba(137, 180, 250, 0.26);
+  }
+}
+
 // ── Notification Popups ───────────────────────────────────────────────────────
 .notif-popup-window {
   background: transparent;
