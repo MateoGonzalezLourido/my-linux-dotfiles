@@ -2,8 +2,7 @@
 window {
     background-color: #fdf6e3;
     color: #586e75;
-    border: 2px solid #93a1a1;
-    border-radius: 14px;
+    border: 1px solid #93a1a1;
 }
 
 #outer-box,
@@ -14,26 +13,24 @@ window {
 }
 
 #outer-box {
-    margin: 10px;
+    margin: 4px;
 }
 
 #input {
-    margin-bottom: 10px;
-    padding: 10px 12px;
+    margin-bottom: 4px;
+    padding: 4px 6px;
     background-color: #eee8d5;
     color: #073642;
     border: 1px solid #93a1a1;
-    border-radius: 9px;
     caret-color: #268bd2;
     box-shadow: none;
 }
 
 #entry {
-    margin: 2px 0;
-    padding: 9px 10px;
+    margin: 1px 0;
+    padding: 4px 6px;
     background-color: transparent;
     color: #586e75;
-    border-radius: 8px;
 }
 
 #text {
@@ -54,12 +51,10 @@ window {
 scrollbar,
 scrollbar trough {
     background-color: #eee8d5;
-    border-radius: 8px;
 }
 
 scrollbar slider {
-    min-width: 7px;
-    min-height: 24px;
+    min-width: 5px;
+    min-height: 16px;
     background-color: #93a1a1;
-    border-radius: 8px;
 }

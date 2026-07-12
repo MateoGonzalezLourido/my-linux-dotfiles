@@ -60,7 +60,7 @@ case "${1:-}" in
         # Selección. Si el usuario cancela (Esc) wofi sale != 0 y `sel` queda
         # vacío: NO tocamos el portapapeles, evitando que un wl-copy vacío borre
         # lo que el usuario tenía copiado.
-        sel="$(cliphist list | wofi --dmenu --style "$wofi_style")" || exit 0
+        sel="$(cliphist list | wofi --dmenu --width 34% --height 45% --style "$wofi_style")" || exit 0
         [[ -z "$sel" ]] && exit 0
         printf '%s\n' "$sel" | cliphist decode | wl-copy
         ;;
