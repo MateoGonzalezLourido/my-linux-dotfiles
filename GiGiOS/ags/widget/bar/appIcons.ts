@@ -1,10 +1,10 @@
 import GLib from "gi://GLib"
 
-const ICONS_PATH = `${GLib.get_user_config_dir()}/gigios/app_icons.json`
-const CACHE_MAX = 50
+// Datos versionados del repo (ags/config/), no estado de usuario: se lee desde
+// el árbol de AGS (~/.config/ags -> symlink a ~/GiGiOS/ags), NO desde ~/.config/gigios.
+const ICONS_PATH = `${GLib.get_user_config_dir()}/ags/config/app_icons.json`
 
 let store: Record<string, string> | null = null
-const lru = new Map<string, string>()
 
 function load(): Record<string, string> {
   if (store !== null) return store
@@ -19,18 +19,5 @@ function load(): Record<string, string> {
 export function getIcon(appClass: string): string | null {
   const cls = appClass.toLowerCase()
   const key = cls.includes("firefox") ? "firefox" : cls
-
-  if (lru.has(key)) {
-    const val = lru.get(key)!
-    lru.delete(key)
-    lru.set(key, val)
-    return val
-  }
-
-  const icon = load()[key]
-  if (!icon) return null
-
-  if (lru.size >= CACHE_MAX) lru.delete(lru.keys().next().value!)
-  lru.set(key, icon)
-  return icon
+  return load()[key] ?? null
 }

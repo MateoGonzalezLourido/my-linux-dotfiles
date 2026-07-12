@@ -114,8 +114,14 @@ fi
 # del symlink al repo, así que caían versionados). Ahora la UI de AGS escribe en
 # ~/.config/gigios/, una carpeta real fuera del repo. Se mueve una sola vez lo que
 # quede en la ruta vieja; no se pisa lo ya migrado.
+#
+# ags/config/ NO desapareció: sigue siendo la carpeta de datos versionados del
+# shell (app_icons.json). Solo migran los JSON de usuario, así que KEEP_IN_REPO
+# se queda donde está — sin esta lista la migración se lo llevaba a
+# ~/.config/gigios/ y AGS dejaba de encontrarlo (workspaces sin iconos).
 old_cfg="$HOME/.config/ags/config"
 new_cfg="$HOME/.config/gigios"
+KEEP_IN_REPO=(app_icons.json)
 if [[ "$mode" != check ]]; then
   mkdir -p "$new_cfg"
 fi
@@ -123,7 +129,13 @@ if [[ -d "$old_cfg" ]]; then
   shopt -s nullglob
   for f in "$old_cfg"/*; do
     name="$(basename "$f")"
-    if [[ -e "$new_cfg/$name" ]]; then
+    keep=0
+    for k in "${KEEP_IN_REPO[@]}"; do
+      [[ "$name" == "$k" ]] && keep=1
+    done
+    if (( keep )); then
+      echo "KEEP  $f (dato versionado del repo)"
+    elif [[ -e "$new_cfg/$name" ]]; then
       echo "SKIP  $new_cfg/$name (ya migrado)"
     elif [[ "$mode" == check ]]; then
       echo "PENDIENTE migrar $f -> $new_cfg/$name"; status=1
