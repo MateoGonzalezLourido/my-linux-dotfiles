@@ -119,7 +119,10 @@ on), so only the periodic/interval keys need a script restart.
 Detecta que **algo está capturando la pantalla** y lo publica en
 `~/.config/gigios/screencast.json` (`{active, checkedAt, sources:[{kind:"share"|"record", app}]}`,
 escrito atómicamente con `jq` + tmp/`mv`, y **solo cuando el conjunto de fuentes cambia** — así
-compartir dos horas no reescribe el fichero ni despierta al widget). Lo consume
+compartir dos horas no reescribe el fichero ni despierta al widget; pero el memo que decide "ha
+cambiado" arranca con un **centinela**, no vacío: si arrancara vacío, el primer sondeo sin nada
+capturando se compararía consigo mismo y no escribiría, dejando en pie el JSON de la sesión
+anterior — un "Discord compartiendo" sobrevivía al reboot y el icono se quedaba encendido). Lo consume
 `ags/widget/bar/ScreencastIndicator.tsx` con un `Gio.FileMonitor`; fichero ausente = nada
 capturando = icono oculto.
 
