@@ -47,6 +47,38 @@ if command -v jq >/dev/null 2>&1 && [[ -f "$SEC_CONFIG" ]]; then
     done < <(jq -r 'to_entries[] | "\(.key)=\(.value)"' "$SEC_CONFIG" 2>/dev/null)
 fi
 
+# ── Escaladas de confianza (allowlist de privEsc) ─────────────────────────────
+# GameMode (Feral) escala por pkexec CADA VEZ que un juego arranca y otra vez
+# cuando termina: cambia el governor de la CPU (cpugovctl), el split_lock
+# (procsysctl) y los relojes de la GPU (gpuclockctl). Son escaladas esperadas y
+# frecuentísimas, así que jugar significaba una lluvia de avisos críticos "🔓
+# Escalada de privilegios" que enseñaban al usuario a ignorar la categoría
+# entera — justo lo contrario de lo que queremos de una alerta de seguridad.
+# Se comparan como GLOB (no regex) contra el COMMAND= que loguea pkexec, que
+# viene con argumentos: "/usr/lib/gamemode/cpugovctl set performance".
+#
+# NO se puede exponer esto en security.json: ags/widget/settings/securityPrefs.ts
+# reconstruye ese JSON desde cero al guardar, así que una clave añadida a mano
+# desaparecería al tocar cualquier switch de la UI. Para añadir excepciones,
+# amplía esta lista. Ojo: cada patrón es un agujero permanente en la vigilancia,
+# porque una ruta *escribible por el usuario* aquí es una escalada silenciosa.
+PRIVESC_ALLOW=(
+    '/usr/lib/gamemode/*'
+    '/usr/libexec/gamemode/*'
+    '/usr/lib/*/gamemode/*'   # multiarch (Debian/Ubuntu)
+)
+
+# ¿El comando de este pkexec es una escalada de confianza?
+privesc_trusted() {
+    local cmd="$1" pat
+    [[ -n "$cmd" ]] || return 1
+    for pat in "${PRIVESC_ALLOW[@]}"; do
+        # shellcheck disable=SC2053  # $pat sin comillas A PROPÓSITO: es un glob.
+        [[ "$cmd" == $pat ]] && return 0
+    done
+    return 1
+}
+
 # Lanzador aislado (contención + análisis) que dispara el botón de la notificación.
 RUN_UNTRUSTED="$HOME/.config/hypr/scripts/run-untrusted.sh"
 # Escaneo a demanda (para archivos grandes que el barrido se salta).
@@ -227,10 +259,27 @@ monitor_system() {
             notify-send -u critical "🔐 Fallo sudo" "Intento fallido de sudo" -t 15000
 
         # --- Escalada de privilegios (pkexec / su / polkit) ---
+        #     pkexec emite DOS líneas por escalada: la de PAM ("session opened",
+        #     que NO dice qué se ejecuta) y la de "Executing command [...]
+        #     [COMMAND=…]". Avisábamos en ambas: doble notificación, y la de PAM
+        #     era además imposible de filtrar por comando. Ahora solo notifica la
+        #     de COMMAND, que es la única informativa. No se pierde ninguna
+        #     escalada: un pkexec DENEGADO no abre sesión PAM pero sí loguea su
+        #     "Not authorized", que esta rama sigue captando.
         elif [[ "$sec_privEsc" != false ]] && \
              [[ "$lower" == *"pkexec"* || \
                 ( "$lower" == *"(su:auth)"* && "$lower" == *"authentication failure"* ) || \
                 ( "$lower" == *"polkit"* && "$lower" == *"failed to authenticate"* ) ]]; then
+
+            if [[ "$lower" == *"pkexec"* ]]; then
+                [[ "$lower" == *"pam_unix(polkit-1:session)"* ]] && continue
+                pat_pkexec='\[COMMAND=(.*)\]'
+                if [[ "$line" =~ $pat_pkexec ]]; then
+                    # Escalada esperada (GameMode al arrancar/cerrar un juego…) → callar.
+                    privesc_trusted "${BASH_REMATCH[1]}" && continue
+                fi
+            fi
+
             notify-send -u critical "🔓 Escalada de privilegios" "$line" -t 15000
 
         # --- SSH events ---

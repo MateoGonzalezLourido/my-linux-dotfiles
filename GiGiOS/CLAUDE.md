@@ -177,6 +177,21 @@ OOM killer is just one of ~16 scanned event types. Five sub-monitors run in para
   polkitd, systemd, systemd-coredump): failed-to-start services, sudo/su/polkit auth failures,
   SSH accepted/failed, coredumps, and a sliding-window "crash storm" detector (≥3 coredumps
   in <60s).
+  **Escaladas de privilegios (`privEsc`) — dos filtros contra el ruido de los juegos.** pkexec
+  emite **dos** líneas por escalada: la de PAM (`pam_unix(polkit-1:session): session opened`, que
+  no dice *qué* se ejecuta) y la de `Executing command … [COMMAND=…]`. Se avisaba en ambas → doble
+  notificación, y la de PAM era además infiltrable por comando. Ahora **solo** notifica la de
+  `COMMAND`; no se pierde nada, porque un pkexec **denegado** no abre sesión PAM pero sí loguea su
+  `Not authorized`, que la rama sigue captando. Sobre esa línea se aplica `PRIVESC_ALLOW`, una
+  allowlist de **globs** comparados contra el `COMMAND=` (que viene con argumentos). Contiene
+  **GameMode**: `gamemoded` escala por pkexec **cada vez que un juego arranca y otra vez al
+  cerrarse** (`/usr/lib/gamemode/cpugovctl set performance`, `procsysctl split_lock_mitigate`,
+  `gpuclockctl`), así que jugar era una lluvia de avisos críticos "🔓 Escalada de privilegios" —
+  la clase de ruido que enseña a ignorar la categoría entera. **No se puede exponer la allowlist
+  en `security.json`**: el `save()` de `securityPrefs.ts` reconstruye ese JSON desde cero, así que
+  una clave añadida a mano moriría al tocar cualquier switch de la UI. Se amplía editando el array
+  en el script — y cada patrón es un agujero permanente, porque una ruta *escribible por el
+  usuario* en esa lista es una escalada silenciosa.
 - `monitor_files` — `inotifywait` on the *parent directories* of critical paths (not the files
   themselves, so atomic write+rename replacements like `visudo`/`passwd` are still caught):
   `/etc/passwd`, `shadow`, `sudoers`, `ld.so.preload`, `sshd_config`, plus persistence
