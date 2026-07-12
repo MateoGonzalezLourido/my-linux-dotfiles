@@ -7,6 +7,7 @@ import {
   updatesMonitorEnabled, setUpdatesMonitorEnabled,
   updatesPeriodicEnabled, setUpdatesPeriodicEnabled,
   updatesIntervalHours, setUpdatesIntervalHours,
+  barAutoHideEnabled, setBarAutoHideEnabled,
   wsPreviewEnabled, setWsPreviewEnabled,
   spotifyBarEnabled, setSpotifyBarEnabled,
   batteryBarEnabled, setBatteryBarEnabled,
@@ -121,6 +122,33 @@ export default function PersonalizationSection() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
       <label cssClasses={["sp-section-title"]} label="✦ Personalización" halign={Gtk.Align.START} />
+
+      {/* auto-ocultado de la barra */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Ocultar la barra automáticamente" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"La barra se retrae y reaparece al llevar el ratón al borde superior.\nAl desactivarlo queda siempre visible y las ventanas dejan hueco para ella."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={barAutoHideEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setBarAutoHideEnabled(!barAutoHideEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={barAutoHideEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
 
       {/* preview de workspace */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>

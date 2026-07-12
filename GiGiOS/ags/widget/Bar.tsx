@@ -19,7 +19,7 @@ import NotificationButton from "./bar/NotificationButton"
 import UpdatesButton from "./bar/UpdatesButton"
 import PowerButton from "./bar/PowerButton"
 import SpotifyNowPlaying from "./bar/SpotifyNowPlaying"
-import { batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "./settings/preferences"
+import { barAutoHideEnabled, batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "./settings/preferences"
 import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging, barPinnedByKey, setBarPinnedByKey, barKeyboardActive } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
@@ -57,13 +57,26 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     }, 200)
   }
 
+  // Muestra el bar YA, sin el delay de handleShow ni los guards de handleHide.
+  // Para los casos en que el bar debe quedarse fijo: pin por teclado y
+  // auto-ocultado desactivado en Personalización.
+  function showNow() {
+    if (showTimer) { clearTimeout(showTimer); showTimer = null }
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+    setWidgetsRefresh(true)
+    shownAt = Date.now()
+    setBarVisible(true)
+    setVisible(true)
+  }
+
   function handleHide() {
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (!visible()) return
+    if (!barAutoHideEnabled.get()) return
     if (barPinnedByKey.get()) return
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
-      if (!isHovered() && !anyPanelVisible.get() && !isWsDragging() && !barPinnedByKey.get()) {
+      if (barAutoHideEnabled.get() && !isHovered() && !anyPanelVisible.get() && !isWsDragging() && !barPinnedByKey.get()) {
         if (Date.now() - shownAt < SHOW_LOCK_MS) return
         if (lastY <= CLOSE_GUARD_Y) return
         setVisible(false)
@@ -75,7 +88,9 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
 
   // Unified visibility logic
   const checkVisibility = () => {
-    if (isHovered() || anyPanelVisible.get()) {
+    if (!barAutoHideEnabled.get()) {
+      showNow()
+    } else if (isHovered() || anyPanelVisible.get()) {
       handleShow()
     } else {
       handleHide()
@@ -87,17 +102,14 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   isWsDragging.subscribe((dragging) => { if (!dragging) checkVisibility() })
 
   barPinnedByKey.subscribe((pinned) => {
-    if (pinned) {
-      if (showTimer) clearTimeout(showTimer)
-      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
-      setWidgetsRefresh(true)
-      shownAt = Date.now()
-      setBarVisible(true)
-      setVisible(true)
-    } else {
-      checkVisibility()
-    }
+    if (pinned) showNow()
+    else checkVisibility()
   })
+
+  // Auto-ocultado desactivado en Personalización → el bar baja al instante y ya
+  // no vuelve a ocultarse; al reactivarlo, checkVisibility decide (se retraerá si
+  // no hay hover ni paneles abiertos).
+  barAutoHideEnabled.subscribe(checkVisibility)
 
   // Auto-ocultado inicial: el bar arranca visible para que se vea al iniciar
   // sesión, pero checkVisibility() solo corre dentro de los .subscribe(), que no
@@ -106,7 +118,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   // (Hide directo: omite los guards de flicker —lastY/SHOW_LOCK— que no aplican
   // en el arranque, donde lastY=0 los bloquearía.)
   setTimeout(() => {
-    if (!isHovered() && !anyPanelVisible.get() && !isWsDragging() && !barPinnedByKey.get()) {
+    if (barAutoHideEnabled.get() && !isHovered() && !anyPanelVisible.get() && !isWsDragging() && !barPinnedByKey.get()) {
       setVisible(false)
       setWidgetsRefresh(false)
       setBarVisible(false)
@@ -137,7 +149,11 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     visible={true}
     gdkmonitor={gdkmonitor}
     layer={Astal.Layer.TOP}
-    exclusivity={Astal.Exclusivity.NORMAL}
+    // Con auto-ocultado el bar flota sobre las ventanas (NORMAL): reservar zona
+    // exclusiva para una superficie que se retrae dejaría un hueco muerto de 38px.
+    // Sin auto-ocultado es un bar fijo clásico, así que pasa a EXCLUSIVE y Hyprland
+    // le reserva su altura en vez de taparles el borde superior a las ventanas.
+    exclusivity={barAutoHideEnabled((on) => on ? Astal.Exclusivity.NORMAL : Astal.Exclusivity.EXCLUSIVE)}
     focusable={true}
     anchor={TOP | LEFT | RIGHT}
     application={app}

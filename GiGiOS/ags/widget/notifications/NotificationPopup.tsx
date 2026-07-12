@@ -24,6 +24,7 @@ import { ingest } from "./ingest.ts"
 import { canFitPopup } from "./popupLayout.ts"
 import { PopupBurstGuard } from "./popupBurst.ts"
 import { barVisible, anyPanelVisible } from "../state"
+import { barAutoHideEnabled } from "../settings/preferences"
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,12 @@ const BURST_QUIET_MS   = 1200
 const PANEL_MARGIN_TOP = 38   // marginTop común de todos los paneles
 const POPUP_GAP        = 10   // separación entre el borde inferior del panel y el popup
 
+// Offset real del bar para las superficies ancladas arriba. Sin auto-ocultado el bar
+// tiene zona exclusiva y el compositor ya desplaza tanto a los paneles como a este
+// popup por debajo de él, así que aquí (y en el marginTop de los paneles) el offset
+// propio pasa a 0; sumarlo dejaría el doble de hueco. Ver barTopMargin en preferences.
+const panelOffset = (): number => (barAutoHideEnabled.get() ? PANEL_MARGIN_TOP : 0)
+
 // ── Margen dinámico ───────────────────────────────────────────────────────────
 // Cuando un panel está abierto, leemos su altura real para posicionar los popups
 // justo debajo en lugar de usar un offset fijo.
@@ -51,7 +58,7 @@ function getOpenPanelBottom(): number {
       const win = app.get_window(name)
       if (!win || !win.visible) continue
       const h = win.get_height()
-      if (h > 0) return PANEL_MARGIN_TOP + h
+      if (h > 0) return panelOffset() + h
     } catch (_) {}
   }
   return 0
@@ -59,11 +66,11 @@ function getOpenPanelBottom(): number {
 
 const computeMargin = (): number => {
   if (!anyPanelVisible.get()) {
-    return barVisible.get() ? PANEL_MARGIN_TOP + 16 : 16
+    return barVisible.get() ? panelOffset() + 16 : 16
   }
   const bottom = getOpenPanelBottom()
   // Si la altura aún no está disponible (layout pendiente) usamos un fallback
-  return (bottom > 0 ? bottom : PANEL_MARGIN_TOP + 260) + POPUP_GAP
+  return (bottom > 0 ? bottom : panelOffset() + 260) + POPUP_GAP
 }
 
 const [popupMargin, setPopupMargin] = createState(computeMargin())
@@ -86,6 +93,7 @@ function scheduleMarginUpdate() {
 
 anyPanelVisible.subscribe(scheduleMarginUpdate)
 barVisible.subscribe(scheduleMarginUpdate)
+barAutoHideEnabled.subscribe(scheduleMarginUpdate)
 
 // ── Estado imperativo ─────────────────────────────────────────────────────────
 

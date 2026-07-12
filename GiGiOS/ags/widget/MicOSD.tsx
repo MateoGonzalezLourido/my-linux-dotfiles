@@ -1,9 +1,9 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState } from "ags"
+import { createComputed, createState } from "ags"
 import AstalWp from "gi://AstalWp"
 import { barVisible, osdVisible, micOsdVisible, setMicOsdVisible } from "./state"
-import { micOsdEnabled } from "./settings/preferences"
+import { barAutoHideEnabled, micOsdEnabled } from "./settings/preferences"
 
 let micOsdTimeout: number | null = null
 let micOsdReady = false
@@ -94,7 +94,8 @@ export default function MicOSD(gdkmonitor: Gdk.Monitor) {
             anchor={Astal.WindowAnchor.TOP}
             application={app}
             cssClasses={["osd-window"]}
-            marginTop={barVisible((v) => v ? 46 : 8)}
+            // Ver OSD.tsx: sin auto-ocultado la zona exclusiva del bar ya nos baja.
+            marginTop={createComputed(() => barAutoHideEnabled() && barVisible() ? 46 : 8)}
         >
             <box orientation={Gtk.Orientation.HORIZONTAL} halign={Gtk.Align.CENTER}>
                 <revealer

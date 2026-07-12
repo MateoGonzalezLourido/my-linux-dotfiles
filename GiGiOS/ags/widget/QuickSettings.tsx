@@ -5,6 +5,7 @@ import { createBinding } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import { AVATAR_PATH, avatarRevision } from "./settings/avatar"
+import { barTopMargin } from "./settings/preferences"
 import AstalWp from "gi://AstalWp"
 import AstalNetwork from "gi://AstalNetwork"
 import AstalBluetooth from "gi://AstalBluetooth"
@@ -2900,7 +2901,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     anchor={TOP | RIGHT}
     application={app}
     widthRequest={PANEL_TOTAL_WIDTH}
-    marginTop={PANEL_TOP}
+    marginTop={barTopMargin(PANEL_TOP)}
     marginRight={0}
     decorated={false}
     cssClasses={["qs-window"]}

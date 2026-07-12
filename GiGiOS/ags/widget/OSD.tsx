@@ -6,7 +6,7 @@ import {
     barVisible, osdVisible, setOsdVisible, micOsdVisible,
     brightness, brightnessOsdVisible,
 } from "./state"
-import { volumeOsdEnabled } from "./settings/preferences"
+import { barAutoHideEnabled, volumeOsdEnabled } from "./settings/preferences"
 
 let osdTimeout: number | null = null
 
@@ -133,7 +133,9 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
             anchor={Astal.WindowAnchor.TOP}
             application={app}
             cssClasses={["osd-window"]}
-            marginTop={barVisible((v) => v ? 46 : 8)}
+            // Sin auto-ocultado el bar ya tiene zona exclusiva: el compositor nos
+            // baja sus 38px, así que solo hace falta el hueco de 8.
+            marginTop={createComputed(() => barAutoHideEnabled() && barVisible() ? 46 : 8)}
         >
             <box orientation={Gtk.Orientation.HORIZONTAL} halign={Gtk.Align.CENTER}>
                 <box

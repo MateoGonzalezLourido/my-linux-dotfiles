@@ -8,6 +8,7 @@ import {
   setFunctionsMenuVisible,
 } from "../state"
 import { BAR_FUNCTIONS, type BarFunction } from "./functions/state"
+import { barTopMargin } from "../settings/preferences"
 
 function toggleFunctionsMenu() {
   if (functionsMenuVisible.get()) {
@@ -59,7 +60,7 @@ export function FunctionsMenu(gdkmonitor: Gdk.Monitor) {
       anchor={TOP | LEFT}
       application={app}
       widthRequest={150}
-      marginTop={37}
+      marginTop={barTopMargin(37)}
       marginLeft={47}
       decorated={false}
       cssClasses={["fn-menu-window"]}

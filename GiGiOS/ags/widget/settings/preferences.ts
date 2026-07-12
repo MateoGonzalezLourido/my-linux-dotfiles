@@ -12,7 +12,7 @@
 
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
-import { createState } from "ags"
+import { createComputed, createState } from "ags"
 import { execAsync } from "ags/process"
 
 const PREFS_PATH = `${GLib.get_user_config_dir()}/gigios/preferences.json`
@@ -68,6 +68,23 @@ export { notificationBarEnabled }
 // bar; no cambia la configuración ni los atajos de Hyprland.
 const [workspacesBarEnabled, _setWorkspacesBarEnabled] = createState(true)
 export { workspacesBarEnabled }
+
+// Auto-ocultado de la barra. Activado (default) = comportamiento actual: la barra
+// se retrae y vuelve al pasar el ratón por la hotzone superior. Desactivado, la
+// barra queda fija y además pasa a exclusivity EXCLUSIVE (Bar.tsx), de modo que
+// Hyprland le reserva su altura y no tapa las ventanas. Se aplica en caliente.
+const [barAutoHideEnabled, _setBarAutoHideEnabled] = createState(true)
+export { barAutoHideEnabled }
+
+// Margen superior efectivo de una superficie anclada arriba (paneles, popups, OSD).
+// Con auto-ocultado el bar vive en exclusivity NORMAL: no reserva nada, así que cada
+// panel tiene que separarse él mismo los ~38px del bar. Sin auto-ocultado el bar es
+// EXCLUSIVE y el compositor ya baja por debajo de él a toda superficie no exclusiva,
+// de modo que ese margen propio se sumaría al hueco reservado y dejaría el doble de
+// aire. Por eso ahí el margen pasa a 0 (o al mínimo que quiera el llamante).
+export function barTopMargin(px: number, offPx = 0) {
+  return createComputed(() => barAutoHideEnabled() ? px : offPx)
+}
 
 // Monitor de batería (scripts/battery-monitor.sh): el propio script bash lee
 // este valor UNA sola vez al arrancar (no hay polling desde bash), así que un
@@ -176,6 +193,7 @@ function load() {
     if (typeof saved.trayBar === "boolean") _setTrayBarEnabled(saved.trayBar)
     if (typeof saved.notificationBar === "boolean") _setNotificationBarEnabled(saved.notificationBar)
     if (typeof saved.workspacesBar === "boolean") _setWorkspacesBarEnabled(saved.workspacesBar)
+    if (typeof saved.barAutoHide === "boolean") _setBarAutoHideEnabled(saved.barAutoHide)
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
@@ -211,6 +229,7 @@ function save() {
       trayBar: trayBarEnabled.get(),
       notificationBar: notificationBarEnabled.get(),
       workspacesBar: workspacesBarEnabled.get(),
+      barAutoHide: barAutoHideEnabled.get(),
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
@@ -278,6 +297,10 @@ export function setNotificationBarEnabled(on: boolean) {
 }
 export function setWorkspacesBarEnabled(on: boolean) {
   _setWorkspacesBarEnabled(on)
+  save()
+}
+export function setBarAutoHideEnabled(on: boolean) {
+  _setBarAutoHideEnabled(on)
   save()
 }
 export function setBatteryMonitorEnabled(on: boolean) {

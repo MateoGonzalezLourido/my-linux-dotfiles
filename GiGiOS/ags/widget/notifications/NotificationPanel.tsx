@@ -3,6 +3,7 @@ import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { createState, For, With, onCleanup, type Accessor } from "ags"
 import GLib from "gi://GLib"
 import AstalNotifd from "gi://AstalNotifd"
+import { barTopMargin } from "../settings/preferences"
 import {
   notifications,
   notifPanelVisible,
@@ -490,7 +491,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
       anchor={TOP | RIGHT}
       application={app}
       widthRequest={PANEL_TOTAL_WIDTH}
-      marginTop={37}
+      marginTop={barTopMargin(37)}
       marginRight={0}
       decorated={false}
       cssClasses={["np-window"]}
