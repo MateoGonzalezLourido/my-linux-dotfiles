@@ -13,6 +13,7 @@ import {
   batteryBarEnabled, setBatteryBarEnabled,
   networkBarEnabled, setNetworkBarEnabled,
   micIndicatorEnabled, setMicIndicatorEnabled,
+  screencastIndicatorEnabled, setScreencastIndicatorEnabled,
   volumeOsdEnabled, setVolumeOsdEnabled,
   micOsdEnabled, setMicOsdEnabled,
   brightnessOsdEnabled, setBrightnessOsdEnabled,
@@ -280,6 +281,33 @@ export default function PersonalizationSection() {
           >
             <box cssClasses={["qs-toggle-track"]}>
               <box cssClasses={micIndicatorEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* indicador de captura de pantalla */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Indicador de compartir pantalla" halign={Gtk.Align.START} />
+            <label
+              cssClasses={["sp-field-hint"]}
+              label={"Avisa mientras compartes pantalla (Discord, OBS, navegador) o grabas en local.\nAl desactivarlo se detiene también el script que lo vigila."}
+              halign={Gtk.Align.START}
+              wrap={true}
+              lines={2}
+              maxWidthChars={62}
+              xalign={0}
+            />
+          </box>
+          <button
+            cssClasses={screencastIndicatorEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setScreencastIndicatorEnabled(!screencastIndicatorEnabled.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={screencastIndicatorEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
             </box>
           </button>
         </box>

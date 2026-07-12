@@ -220,13 +220,25 @@ kbuildsycoca6 --noincremental
 ## 5. Wallpaper
 
 ```sh
-sudo pacman -S awww
+sudo pacman -S awww imagemagick
 ```
 
 `awww` (**no confundir con `swww`**) se lanza como
 `awww-daemon` en `autostart.conf`, y `scripts/wallpaper.sh` hace `awww img "$WALLPAPER"`
 sobre un fichero elegido al azar de `~/GiGiOS/Wallpapers/*.{jpg,png}`. El repositorio ya
 incluye fondos iniciales; puedes sustituirlos por los tuyos.
+
+`imagemagick` (comando `magick`) lo usa la sección **Temas** de Orion para generar las
+miniaturas de la rejilla de fondos, que cachea en `~/.cache/gigios/wp-thumbs/` (un JPEG de
+336x192 por fondo, ~15 KB). Se genera en un proceso aparte precisamente para no bloquear el
+shell: los fondos originales son enormes (aquí hay PNG de 8192x6144) y decodificar uno
+entero en el hilo de AGS congelaba la UI varios segundos.
+
+Es **opcional**: sin `magick` se cae a GdkPixbuf, que hace lo mismo pero más lento y con más
+carga para el shell en la primera pasada. Instalarlo es la diferencia entre ~2 s con la UI
+fluida y ~4 s con la UI a tirones — solo la primera vez, porque después las miniaturas ya
+están cacheadas y la rejilla abre en ~30 ms. La caché se mantiene sola: solo genera lo que
+falta, rehace lo que esté corrupto y borra las miniaturas de fondos que ya no existen.
 
 ## 6. Portapapeles y utilidades base
 
@@ -504,6 +516,13 @@ awww img ~/GiGiOS/Wallpapers/mi-foto-favorita.png --transition-type grow --trans
 No hay atajo de teclado asignado para esto en `keybinds.conf` — si quieres uno, se añadiría
 algo como `bind = $mainMod, W, exec, ~/.config/hypr/scripts/wallpaper.sh` (no está puesto
 actualmente, solo como referencia si lo quieres tú mismo).
+
+**Desde Orion** (`SUPER+ALT+Space` → sección *Temas*) tienes la rejilla de fondos: clic para
+aplicar uno, botón de aleatorio, y el toggle de "fondo aleatorio al iniciar Hyprland". Copiar
+o borrar un fondo en `~/GiGiOS/Wallpapers` se refleja ahí **sin reiniciar AGS** (la carpeta se
+vigila con un `Gio.FileMonitor`), y su miniatura se genera y cachea sola. Ver la sección 5
+para la dependencia `imagemagick` y la caché de `~/.cache/gigios/wp-thumbs/`; borrarla entera
+no rompe nada, se regenera.
 
 Los fondos están dentro de GiGiOS, por lo que viajan con un clon completo del repositorio.
 

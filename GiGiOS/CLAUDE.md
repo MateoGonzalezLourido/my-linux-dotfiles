@@ -68,7 +68,7 @@ committed or copied into the repo. Set it up once via `ags/scripts/spotify-auth.
 
 `hypr/autostart.conf` launches the shell (`ags run ~/.config/ags/`), `hypridle`, `init.sh`,
 `wallpaper.sh`, and a set of `hypr/scripts/*-monitor.sh` background daemons (battery, temp,
-ram, disk, oom, wifi, usb, bt, updates). Apply config changes with `hyprctl reload` and relaunch AGS.
+ram, disk, oom, wifi, usb, bt, screencast, updates). Apply config changes with `hyprctl reload` and relaunch AGS.
 
 ### Update monitor (`updates-monitor.sh`)
 
@@ -113,6 +113,44 @@ The widget watches that file with a `Gio.FileMonitor` — a missing/corrupt file
 `batteryMonitor`/`tempMonitor`, the bash reads these **once at process start** — but the
 *master* toggle is applied hot by its AGS setter (`pkill` + delete the JSON on off, re-exec on
 on), so only the periodic/interval keys need a script restart.
+
+### Screencast monitor (`screencast-monitor.sh`)
+
+Detecta que **algo está capturando la pantalla** y lo publica en
+`~/.config/gigios/screencast.json` (`{active, checkedAt, sources:[{kind:"share"|"record", app}]}`,
+escrito atómicamente con `jq` + tmp/`mv`, y **solo cuando el conjunto de fuentes cambia** — así
+compartir dos horas no reescribe el fichero ni despierta al widget). Lo consume
+`ags/widget/bar/ScreencastIndicator.tsx` con un `Gio.FileMonitor`; fichero ausente = nada
+capturando = icono oculto.
+
+Dos sub-monitores en paralelo (`&` + `wait`, como `oom-monitor.sh`), porque las dos formas de
+capturar no comparten mecanismo: **compartir pantalla** (Discord, OBS, Zoom, navegadores) pasa
+por `xdg-desktop-portal-hyprland`, que crea un nodo PipeWire `Video/Source` → se detecta
+bloqueando en `pw-mon` (event-driven, con debounce), filtrando por nodo del portal y
+**excluyendo las cámaras** (`v4l2_*`/`libcamera*`) para que la webcam no encienda el icono;
+cuando PipeWire lo expone, se sigue el link hasta el nodo `Stream/Input/Video` para nombrar la
+app consumidora (si no, la etiqueta cae a "Pantalla"). **Grabar en local** (`wf-recorder`,
+`gpu-screen-recorder`, `wl-screenrec`, `obs`) usa wlr-screencopy y **no toca PipeWire**: no hay
+señal a la que suscribirse, así que ahí sí se sondea con `pgrep` cada 3 s.
+
+El trap `TERM` mata a los sub-monitores **y a sus nietos** (`pw-mon`, `sleep`) y borra el JSON:
+sin eso, el `pkill` del toggle maestro dejaría el icono encendido. Requiere `jq` y `pw-dump`;
+sin ellos sale sin escribir.
+
+**Filtro de PipeWire, medido en esta máquina (no supuesto):** el nodo del portal se identifica
+por `node.name == "xdg-desktop-portal-hyprland"` (**no** `xdpw-stream-*`, como se asumía antes de
+medir). La webcam es también `media.class=Video/Source` (`node.name=v4l2_input.*`), por eso
+excluirla con `v4l2_*`/`libcamera*` es obligatorio, no una precaución de más. La app consumidora
+**sí es resoluble**: siguiendo el link (`link.output.node` del nodo del portal →
+`link.input.node` de un nodo `Stream/Input/Video`, ambos números en los props) se llega a un nodo
+cuyo **`node.name`** trae el nombre ("Discord") — `application.name` viene **vacío** en ese nodo,
+así que el orden de preferencia es `application.name // node.name // application.process.binary
+// "Pantalla"`.
+
+**Config**: `screencastIndicator` en `~/.config/gigios/preferences.json` (ausente = activado),
+leído **una vez al arrancar** — pero el toggle es maestro y su setter de AGS lo aplica **en
+caliente** (`pkill` + borrar el JSON al apagar; re-exec al encender), así que no hace falta
+reiniciar nada.
 
 ### Security monitor (`oom-monitor.sh`) + sandboxed launcher (`run-untrusted.sh`)
 

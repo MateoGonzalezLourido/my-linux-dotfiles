@@ -13,13 +13,13 @@ import Network from "./bar/Network"
 import Volume from "./bar/Volume"
 import Battery from "./bar/Battery"
 import CpuRam from "./bar/CpuRam"
-import Recording from "./bar/Recording"
+import ScreencastIndicator from "./bar/ScreencastIndicator"
 import MicIndicator from "./bar/MicIndicator"
 import NotificationButton from "./bar/NotificationButton"
 import UpdatesButton from "./bar/UpdatesButton"
 import PowerButton from "./bar/PowerButton"
 import SpotifyNowPlaying from "./bar/SpotifyNowPlaying"
-import { barAutoHideEnabled, batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "./settings/preferences"
+import { barAutoHideEnabled, batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "./settings/preferences"
 import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging, barPinnedByKey, setBarPinnedByKey, barKeyboardActive } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
@@ -205,6 +205,13 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         <With value={trayBarEnabled}>{(on: boolean) => on && <SystemTray />}</With>
         <box cssClasses={["bar-status-pair"]} spacing={0}>
           <With value={updatesMonitorEnabled}>{(on: boolean) => on && <UpdatesButton />}</With>
+          {/* Mismo motivo que CPU/RAM más abajo: el toggle de Personalización monta
+              y desmonta este icono en caliente, y un <With> que se remonta se inserta
+              al FINAL de su box (aparecía junto a Power). Su propio contenedor fija el
+              hueco aquí, entre Actualizaciones y Notificaciones. */}
+          <box valign={Gtk.Align.CENTER}>
+            <With value={screencastIndicatorEnabled}>{(on: boolean) => on && <ScreencastIndicator />}</With>
+          </box>
           <With value={notificationBarEnabled}>{(on: boolean) => on && <NotificationButton />}</With>
           <button
             cssClasses={["bar-pill-btn"]}
@@ -220,7 +227,6 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           </button>
         </box>
         <box spacing={3}>
-          <Recording />
           {/* CPU/RAM es una "función" del menú del logo Arch: desactivada por
               defecto. Al montarse solo cuando cpuRamEnabled es true, su polling y
               procesos `ps` no existen mientras la función esté apagada. Va dentro

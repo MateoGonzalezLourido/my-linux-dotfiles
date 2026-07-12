@@ -66,7 +66,7 @@ if [[ "$mode" == "--installed" ]]; then
   for command in "${commands[@]}"; do
     command -v "$command" >/dev/null 2>&1 || fail "comando obligatorio no disponible: $command"
   done
-  optional_commands=(nvidia-smi gh fd lshw glxinfo sensors smartctl)
+  optional_commands=(nvidia-smi gh fd lshw glxinfo sensors smartctl magick)
   for command in "${optional_commands[@]}"; do
     command -v "$command" >/dev/null 2>&1 || warn "comando opcional no disponible: $command"
   done

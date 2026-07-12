@@ -47,6 +47,12 @@ export { networkBarEnabled }
 const [micIndicatorEnabled, _setMicIndicatorEnabled] = createState(true)
 export { micIndicatorEnabled }
 
+// Indicador de captura de pantalla en la barra (compartir por portal + grabadores
+// locales). El toggle es MAESTRO y se aplica en caliente: su setter lanza o mata
+// hypr/scripts/screencast-monitor.sh, así que apagado no queda ni proceso ni icono.
+const [screencastIndicatorEnabled, _setScreencastIndicatorEnabled] = createState(true)
+export { screencastIndicatorEnabled }
+
 // OSD flotantes activados por los atajos multimedia. Se controlan por separado
 // para poder conservar solo los indicadores que resulten útiles.
 const [volumeOsdEnabled, _setVolumeOsdEnabled] = createState(true)
@@ -187,6 +193,7 @@ function load() {
     if (typeof saved.batteryBar === "boolean") _setBatteryBarEnabled(saved.batteryBar)
     if (typeof saved.networkBar === "boolean") _setNetworkBarEnabled(saved.networkBar)
     if (typeof saved.micIndicator === "boolean") _setMicIndicatorEnabled(saved.micIndicator)
+    if (typeof saved.screencastIndicator === "boolean") _setScreencastIndicatorEnabled(saved.screencastIndicator)
     if (typeof saved.volumeOsd === "boolean") _setVolumeOsdEnabled(saved.volumeOsd)
     if (typeof saved.micOsd === "boolean") _setMicOsdEnabled(saved.micOsd)
     if (typeof saved.brightnessOsd === "boolean") _setBrightnessOsdEnabled(saved.brightnessOsd)
@@ -223,6 +230,7 @@ function save() {
       batteryBar: batteryBarEnabled.get(),
       networkBar: networkBarEnabled.get(),
       micIndicator: micIndicatorEnabled.get(),
+      screencastIndicator: screencastIndicatorEnabled.get(),
       volumeOsd: volumeOsdEnabled.get(),
       micOsd: micOsdEnabled.get(),
       brightnessOsd: brightnessOsdEnabled.get(),
@@ -274,6 +282,19 @@ export function setNetworkBarEnabled(on: boolean) {
 export function setMicIndicatorEnabled(on: boolean) {
   _setMicIndicatorEnabled(on)
   save()
+}
+// Maestro del indicador de captura: se aplica en caliente. Al activar lanza el
+// script; al desactivar lo mata y borra screencast.json para que el icono
+// desaparezca al instante y no quede proceso sondeando.
+export function setScreencastIndicatorEnabled(on: boolean) {
+  _setScreencastIndicatorEnabled(on)
+  save()
+  if (on) {
+    execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/screencast-monitor.sh`]).catch(() => {})
+  } else {
+    execAsync(["pkill", "-f", "screencast-monitor.sh"]).catch(() => {})
+    try { Gio.File.new_for_path(`${GLib.get_user_config_dir()}/gigios/screencast.json`).delete(null) } catch (_) {}
+  }
 }
 export function setVolumeOsdEnabled(on: boolean) {
   _setVolumeOsdEnabled(on)

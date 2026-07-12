@@ -38,7 +38,7 @@ install_packages() {
     smartmontools lm_sensors pciutils usbutils alsa-utils inotify-tools dbus
     networkmanager bluez bluez-utils xdg-user-dirs
     clamav firejail bubblewrap xxhash file cups geoclue
-    mesa-utils lshw fd github-cli
+    mesa-utils lshw fd github-cli imagemagick
   )
 
   [[ "$INSTALL_PACKAGES" == 1 ]] || { warn "Dependencias omitidas (INSTALL_PACKAGES=$INSTALL_PACKAGES)."; return; }
