@@ -1,31 +1,31 @@
 /* Paleta original de HyDE; no altera tamaños, posición ni estructura. */
 window {
-    background-color: rgba(17, 17, 27, 0.90);
-    color: #cdd6f4;
+    background-color: #f5e0dc;
+    color: #11111b;
 }
 
 #outer-box,
 #inner-box,
 #scroll {
-    background-color: rgba(17, 17, 27, 0.90);
-    color: #cdd6f4;
+    background-color: #f5e0dc;
+    color: #11111b;
 }
 
 #input {
-    background-color: rgba(17, 17, 27, 0.90);
-    color: #f5e0dc;
+    background-color: #f5e0dc;
+    color: #11111b;
     border-color: #cba6f7;
-    caret-color: #f5e0dc;
+    caret-color: #11111b;
 }
 
 #entry {
-    background-color: transparent;
-    color: #cdd6f4;
+    background-color: #f5e0dc;
+    color: #11111b;
 }
 
 #text {
-    background-color: transparent;
-    color: #cdd6f4;
+    background-color: #f5e0dc;
+    color: #11111b;
 }
 
 #entry:selected {
