@@ -421,17 +421,33 @@ popover.background {
   background: rgba(255, 255, 255, 0.012);
 }
 
+.rp-inner {
+  padding: 0;
+}
+
 .rp-eyebrow {
-  padding: 17px 14px 0;
+  padding: 14px 13px 0;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
   font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.55px;
   color: rgba(226, 226, 226, 0.32);
 }
 
 .rp-header {
-  padding: 8px 14px 12px;
+  padding: 6px 13px 9px;
+}
+
+.rp-app-icon-wrap {
+  min-width: 25px;
+  min-height: 25px;
+  background: transparent;
+  border: none;
+}
+
+.rp-app-icon {
+  color: #e2e2e2;
+  -gtk-icon-size: 21px;
 }
 
 .rp-app-name {
@@ -442,27 +458,40 @@ popover.background {
 }
 
 .rp-actions {
-  padding: 5px 8px 15px;
+  padding: 5px 7px 11px;
 }
 
-.rp-action {
-  padding: 9px 10px;
-  border-radius: 9px;
+.orion-panel .rp-action {
+  margin: 0;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
 }
-.rp-action:hover {
-  background: rgba(255, 255, 255, 0.075);
+.orion-panel .rp-action:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
-.rp-action:disabled {
-  opacity: 0.35;
+.orion-panel .rp-action:hover .rp-action-ico {
+  color: #e2e2e2;
+}
+.orion-panel .rp-action:active {
+  background: rgba(203, 166, 247, 0.08);
+}
+
+.rp-action-row {
+  padding: 6px 8px;
 }
 
 .rp-action-ico {
+  min-width: 16px;
+  min-height: 16px;
   color: rgba(226, 226, 226, 0.62);
+  background: transparent;
+  -gtk-icon-size: 14px;
 }
 
 .rp-action-label {
-  font-size: 11px;
-  color: #e2e2e2;
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.62);
   font-family: "Inter", system-ui, sans-serif;
   font-weight: 600;
 }

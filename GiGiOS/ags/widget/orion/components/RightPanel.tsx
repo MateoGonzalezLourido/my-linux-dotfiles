@@ -22,13 +22,13 @@ function guessConfigPath(execName: string, appId: string): string | null {
 export default function RightPanel() {
   const inner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["rp-inner"] })
 
-  function action(icon: string, label: string, cb: () => void, disabled = false): Gtk.Button {
-    const btn = new Gtk.Button({ cssClasses: ["rp-action"], sensitive: !disabled })
-    const row = new Gtk.Box({ spacing: 10 })
+  function action(icon: string, label: string, cb: () => void): Gtk.Button {
+    const btn = new Gtk.Button({ cssClasses: ["rp-action"] })
+    const row = new Gtk.Box({ spacing: 9, cssClasses: ["rp-action-row"] })
     row.append(new Gtk.Image({ iconName: icon, pixelSize: 14, cssClasses: ["rp-action-ico"] }))
     row.append(new Gtk.Label({ label, halign: Gtk.Align.START, hexpand: true, cssClasses: ["rp-action-label"] }))
     btn.set_child(row)
-    if (!disabled) btn.connect("clicked", cb)
+    btn.connect("clicked", cb)
     return btn
   }
 
@@ -39,13 +39,16 @@ export default function RightPanel() {
     if (!app) return
 
     // ── Header ───────────────────────────────────────────────────────────────
-    const header = new Gtk.Box({ cssClasses: ["rp-header"], spacing: 8 })
+    const header = new Gtk.Box({ cssClasses: ["rp-header"], spacing: 10 })
     const eyebrow = new Gtk.Label({ label: "APLICACIÓN", cssClasses: ["rp-eyebrow"], halign: Gtk.Align.START })
     inner.append(eyebrow)
     const headerIcon = app.gicon
       ? (() => { const i = Gtk.Image.new_from_gicon(app.gicon); i.pixel_size = 22; return i })()
       : new Gtk.Image({ iconName: app.iconName, pixelSize: 22 })
-    header.append(headerIcon)
+    headerIcon.set_css_classes(["rp-app-icon"])
+    const iconWrap = new Gtk.Box({ cssClasses: ["rp-app-icon-wrap"], halign: Gtk.Align.CENTER, valign: Gtk.Align.CENTER })
+    iconWrap.append(headerIcon)
+    header.append(iconWrap)
     header.append(new Gtk.Label({
       label: app.name, halign: Gtk.Align.START, hexpand: true,
       cssClasses: ["rp-app-name"], ellipsize: 3, maxWidthChars: 13,
@@ -80,8 +83,6 @@ export default function RightPanel() {
         rebuild()
       }
     ))
-
-    acts.append(action("input-keyboard-symbolic", "Añadir atajo", () => {}, true))
 
     inner.append(acts)
   }
