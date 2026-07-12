@@ -47,13 +47,13 @@ window {
 }
 
 #entry:selected {
-    background-color: #89b4fa;
-    color: #1e1e2e;
+    background-color: #b4befe;
+    color: #11111b;
 }
 
 #entry:selected #text {
     background-color: transparent;
-    color: #1e1e2e;
+    color: #11111b;
 }
 
 scrollbar,
