@@ -101,10 +101,43 @@ export function saveDisplayConfig() {
   })
 }
 
+// ── Volcado a la config de Hyprland ──────────────────────────────────────────
+// display.json es la fuente de verdad de AGS, pero Hyprland no la lee. Los ajustes
+// se aplicaban SOLO en vivo (`hyprctl keyword monitor`) y al arrancar AGS, y como
+// `monitors.conf` no lleva más que la regla comodín (`monitor = , preferred, auto, 1`),
+// cualquier `hyprctl reload` releía los configs y devolvía el monitor a modo preferido
+// y escala 1 — 240 Hz → 60 Hz, 1.25 → 1 — sin que AGS se enterara (no hay señal de
+// recarga a la que suscribirse, y su poller solo observa; no re-aplica).
+//
+// Así que las prefs se vuelcan también a un .conf generado que `hyprland.conf` sourcea
+// DESPUÉS de monitors.conf (mismo patrón que `input-settings.conf`). Las reglas van por
+// `desc:` — no por conector (DP-1), que baila entre reconexiones — y una regla concreta
+// gana a la comodín, que sigue cubriendo los monitores sin preferencia guardada. Efecto
+// extra: el compositor arranca ya en el modo bueno, sin el parpadeo de la re-aplicación.
+const MONITOR_CONF_PATH = `${GLib.get_home_dir()}/.config/hypr/monitor-settings.conf`
+
+function writeMonitorConf() {
+  try {
+    const lines = [
+      "# Generado por AGS · Ajustes > Pantalla. No editar a mano.",
+      "# Lo sourcea hyprland.conf después de monitors.conf: una regla `desc:` concreta",
+      "# gana a la comodín de ahí, que sigue cubriendo los monitores sin preferencia.",
+      "",
+    ]
+    for (const [description, pref] of Object.entries(monitorPrefs)) {
+      if (!description) continue
+      const position = pref.position && pref.position !== "auto" ? pref.position : "auto"
+      lines.push(`monitor = ${buildMonitorRule({ name: `desc:${description}`, position, pref })}`)
+    }
+    GLib.file_set_contents(MONITOR_CONF_PATH, lines.join("\n") + "\n")
+  } catch (e) { /* no-op: el ajuste ya está aplicado en vivo */ }
+}
+
 export function saveMonitorPref(description: string, pref: MonitorPref) {
   if (!description) return
   monitorPrefs[description] = pref
   saveDisplayConfig()
+  writeMonitorConf()
 }
 
 // ── Poller de monitores (ref-counted) ────────────────────────────────────────
@@ -193,6 +226,10 @@ export function applyPatch(mon: any, patch: Partial<MonitorPref>) {
   const position = resolved.position && resolved.position !== "auto"
     ? resolved.position
     : `${mon.x}x${mon.y}`
+  // Persistir la posición REAL, no la del patch: `hyprctl keyword` la resuelve sola,
+  // pero el .conf generado se lee sin nadie que la resuelva, y con "auto" un layout
+  // multi-monitor se recolocaría solo al recargar.
+  resolved.position = position
   const rule = buildMonitorRule({ name: mon.name, position, pref: resolved })
   saveMonitorPref(mon.description, resolved)
   execAsync(["hyprctl", "keyword", "monitor", rule]).catch(() => {})
@@ -325,18 +362,29 @@ export function initDisplayService() {
   brightness.subscribe(saveDisplayConfig)
 
   // Re-aplicar preferencias por monitor (solo lo que difiera, para no pelear con
-  // monitors.conf ni parpadear). idle_add = siguiente tick, sin delay fijo.
+  // monitors.conf ni parpadear). Con monitor-settings.conf en su sitio esto ya no
+  // debería tener nada que hacer — se queda como red por si el .conf falta (máquina
+  // recién clonada) o la regla `desc:` no casa. Y de paso regenera el .conf, para
+  // que las prefs guardadas antes de que existiera se vuelquen solas, sin que haya
+  // que tocar ningún ajuste. idle_add = siguiente tick, sin delay fijo.
   GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
     if (Object.keys(monitorPrefs).length > 0) {
       execAsync(["hyprctl", "monitors", "all", "-j"]).then(out => {
         let list: any[] = []
         try { list = JSON.parse(out) } catch { return }
+        let backfilled = false
         for (const mon of list) {
           const pref = monitorPrefs[mon.description]
-          if (!pref || !monitorNeedsUpdate(mon, pref)) continue
-          const position = pref.position && pref.position !== "auto" ? pref.position : `${mon.x}x${mon.y}`
-          execAsync(["hyprctl", "keyword", "monitor", buildMonitorRule({ name: mon.name, position, pref })]).catch(() => {})
+          if (!pref) continue
+          // Las prefs guardadas antes de existir el .conf no traen posición, y sin
+          // ella la regla saldría con "auto" (un layout multi-monitor se recolocaría
+          // solo al recargar). La tomamos de la real.
+          if (!pref.position) { pref.position = `${mon.x}x${mon.y}`; backfilled = true }
+          if (!monitorNeedsUpdate(mon, pref)) continue
+          execAsync(["hyprctl", "keyword", "monitor", buildMonitorRule({ name: mon.name, position: pref.position, pref })]).catch(() => {})
         }
+        if (backfilled) saveDisplayConfig()
+        writeMonitorConf()
       }).catch(() => {})
     }
     return GLib.SOURCE_REMOVE
