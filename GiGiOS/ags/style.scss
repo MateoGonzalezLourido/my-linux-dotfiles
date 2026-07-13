@@ -2588,6 +2588,28 @@ button.qs-user-settings-btn {
   margin-top: 20px;
 }
 
+.qs-bt-unsupported {
+  min-height: 180px;
+  padding: 18px;
+
+  .qs-bt-unsupported-icon {
+    font-family: $font-icon;
+    font-size: 28px;
+    color: rgba($text, 0.38);
+  }
+
+  .qs-bt-unsupported-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba($text, 0.82);
+  }
+
+  .qs-bt-unsupported-description {
+    font-size: 12px;
+    color: rgba($text, 0.5);
+  }
+}
+
 // ── Audio/Mic Items ───────────────────────────────────────────────────────────
 .qs-audio-item {
   background: rgba(255, 255, 255, 0.03);

@@ -1,3 +1,4 @@
+@charset "UTF-8";
 .Orion {
   background: transparent;
 }
@@ -3337,6 +3338,25 @@ button.qs-user-settings-btn label {
 .qs-bt-empty-label {
   opacity: 0.5;
   margin-top: 20px;
+}
+
+.qs-bt-unsupported {
+  min-height: 180px;
+  padding: 18px;
+}
+.qs-bt-unsupported .qs-bt-unsupported-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 28px;
+  color: rgba(226, 226, 226, 0.38);
+}
+.qs-bt-unsupported .qs-bt-unsupported-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(226, 226, 226, 0.82);
+}
+.qs-bt-unsupported .qs-bt-unsupported-description {
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.5);
 }
 
 .qs-audio-item {

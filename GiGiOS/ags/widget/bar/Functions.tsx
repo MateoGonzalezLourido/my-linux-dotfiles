@@ -1,6 +1,6 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { With } from "ags"
+import { createState, With } from "ags"
 import {
   closeAllPanels,
   functionsMenuVisible,
@@ -48,6 +48,16 @@ function FunctionRow({ item }: { item: BarFunction }) {
 export function FunctionsMenu(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT } = Astal.WindowAnchor
   const autoClose = panelAutoClose(() => setFunctionsMenuVisible(false), 300, functionsMenuVisible)
+  const [keyboardActive, setKeyboardActive] = createState(false)
+
+  // No pedir foco al mapear: con el puntero aún sobre el botón del bar,
+  // Hyprland no redirige el siguiente clic hasta recibir motion.
+  functionsMenuVisible.subscribe(() => setKeyboardActive(false))
+
+  const handleEnter = () => {
+    autoClose.onEnter()
+    setKeyboardActive(true)
+  }
 
   return (
     <window
@@ -56,7 +66,8 @@ export function FunctionsMenu(gdkmonitor: Gdk.Monitor) {
       gdkmonitor={gdkmonitor}
       layer={Astal.Layer.TOP}
       exclusivity={Astal.Exclusivity.NORMAL}
-      keymode={Astal.Keymode.ON_DEMAND}
+      keymode={keyboardActive((active) =>
+        active ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
       anchor={TOP | LEFT}
       application={app}
       widthRequest={150}
@@ -75,7 +86,7 @@ export function FunctionsMenu(gdkmonitor: Gdk.Monitor) {
         }}
       />
       <box cssClasses={["fn-menu"]} orientation={Gtk.Orientation.VERTICAL}>
-        <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
+        <Gtk.EventControllerMotion onEnter={handleEnter} onLeave={autoClose.onLeave} />
         {BAR_FUNCTIONS.map((item) => <FunctionRow item={item} />)}
       </box>
     </window>

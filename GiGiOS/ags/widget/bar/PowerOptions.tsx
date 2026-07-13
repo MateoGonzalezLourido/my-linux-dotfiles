@@ -1,11 +1,20 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
+import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { powerMenuVisible, closeAllPanels, panelAutoClose } from "../state"
 
 export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
     const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
     const autoClose = panelAutoClose(closeAllPanels, 300, powerMenuVisible)
+    const [keyboardActive, setKeyboardActive] = createState(false)
+
+    powerMenuVisible.subscribe(() => setKeyboardActive(false))
+
+    const handlePointerEnter = () => {
+        autoClose.onEnter()
+        setKeyboardActive(true)
+    }
 
     const handleAction = (command: string) => {
         execAsync(command)
@@ -68,7 +77,7 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
             valign={Gtk.Align.CENTER}
         >
             <Gtk.EventControllerMotion
-                onEnter={autoClose.onEnter}
+                onEnter={handlePointerEnter}
                 onLeave={autoClose.onLeave}
             />
             <box
@@ -94,7 +103,8 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
             layer={Astal.Layer.OVERLAY}
             anchor={TOP | BOTTOM | LEFT | RIGHT}
             exclusivity={Astal.Exclusivity.IGNORE}
-            keymode={Astal.Keymode.ON_DEMAND}
+            keymode={keyboardActive((active) =>
+                active ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
             application={app}
             cssClasses={["power-window"]}
         >

@@ -1,10 +1,12 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
+import { createState } from "ags"
 import { calendarVisible, setCalendarVisible, panelAutoClose } from "./state"
 import { MonthView } from "./calendar/MonthView"
 import { AgendaView } from "./calendar/AgendaView"
 import { EventDialog } from "./calendar/EventDialog"
 import { currentView, setCurrentView } from "./calendar/store"
+import { barTopMargin } from "./settings/preferences"
 
 export default function CalendarPanel(gdkmonitor: Gdk.Monitor) {
   const { LEFT, TOP, BOTTOM } = Astal.WindowAnchor
@@ -57,6 +59,14 @@ export default function CalendarPanel(gdkmonitor: Gdk.Monitor) {
 
   // Auto-cierre al salir el ratón (consistente con el resto de paneles del bar).
   const calAutoClose = panelAutoClose(() => setCalendarVisible(false), 300, calendarVisible)
+  const [keyboardActive, setKeyboardActive] = createState(false)
+
+  calendarVisible.subscribe(() => setKeyboardActive(false))
+
+  const handlePointerEnter = () => {
+    calAutoClose.onEnter()
+    setKeyboardActive(true)
+  }
 
   return <window
     name="calendar-panel"
@@ -66,12 +76,23 @@ export default function CalendarPanel(gdkmonitor: Gdk.Monitor) {
     anchor={LEFT | TOP | BOTTOM}
     layer={Astal.Layer.TOP}
     exclusivity={Astal.Exclusivity.IGNORE}
-    marginTop={0}
+    keymode={keyboardActive((active) =>
+      active ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
+    marginTop={barTopMargin(37)}
     widthRequest={720}
     cssClasses={["cal-panel"]}
   >
+    <Gtk.EventControllerKey
+      onKeyPressed={(_self, keyval) => {
+        if (keyval === Gdk.KEY_Escape) {
+          setCalendarVisible(false)
+          return true
+        }
+        return false
+      }}
+    />
     <box orientation={Gtk.Orientation.VERTICAL}>
-      <Gtk.EventControllerMotion onEnter={calAutoClose.onEnter} onLeave={calAutoClose.onLeave} />
+      <Gtk.EventControllerMotion onEnter={handlePointerEnter} onLeave={calAutoClose.onLeave} />
       {/* Titlebar */}
       <box cssClasses={["cal-titlebar"]}>
         <label

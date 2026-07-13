@@ -395,6 +395,11 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   const PANEL_PREPARE_MS = 32
   const PANEL_ENTER_MS = 280
   const [panelRendered, setPanelRendered] = createState(notifPanelVisible.get())
+  // Igual que Quick Settings: mapear la superficie directamente con ON_DEMAND
+  // deja el foco de puntero de Hyprland desactualizado hasta mover el ratón y se
+  // pierde el clic inmediato sobre el botón del bar. Se pide teclado solo cuando
+  // el usuario entra en el panel, manteniendo Escape sin romper el toggle.
+  const [panelKeyboardActive, setPanelKeyboardActive] = createState(false)
   let panelRef: any = null
   let animationRef: any = null
   let windowRef: any = null
@@ -426,6 +431,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
 
   function handlePointerEnter(): void {
     cancelHoverClose()
+    setPanelKeyboardActive(true)
   }
 
   function handlePointerLeave(): void {
@@ -469,6 +475,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   notifPanelVisible.subscribe(() => {
     cancelHoverClose()
     if (notifPanelVisible.get()) {
+      setPanelKeyboardActive(false)
       if (exitTimer !== null) {
         GLib.source_remove(exitTimer)
         exitTimer = null
@@ -477,6 +484,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
       return
     }
 
+    setPanelKeyboardActive(false)
     if (enterTimer !== null) {
       GLib.source_remove(enterTimer)
       enterTimer = null
@@ -504,7 +512,8 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
       gdkmonitor={gdkmonitor}
       layer={Astal.Layer.TOP}
       exclusivity={Astal.Exclusivity.NORMAL}
-      keymode={Astal.Keymode.ON_DEMAND}
+      keymode={panelKeyboardActive((active) =>
+        active ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
       anchor={TOP | RIGHT}
       application={app}
       widthRequest={PANEL_TOTAL_WIDTH}

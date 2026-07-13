@@ -45,6 +45,7 @@ import {
 import { DisplaySelect } from "./display/controls"
 import { InlineEditableValue } from "./InlineEditableValue"
 import { getIcon } from "./bar/appIcons"
+import { getBluetoothTileInfo } from "./bluetooth/tileState"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -401,6 +402,82 @@ function makeVolThrottle(apply: (v: number) => void) {
 // la luz nocturna de este panel.
 initDisplayService()
 
+// Algunos adaptadores USB aparecen en BlueZ pero quedan bloqueados por rfkill
+// (`PowerState: off-blocked`). En ese estado `bluetoothctl power on` falla con
+// org.bluez.Error.Blocked: primero hay que desbloquear la radio y dar tiempo a
+// BlueZ para actualizar/crear el controlador. Los portátiles sin bloqueo siguen
+// la misma ruta; si no tienen `rfkill`, bluetoothctl conserva el fallback normal.
+let bluetoothPowerChanging = false
+
+function bluetoothPowerDelay(ms: number) {
+  return new Promise<void>((resolve) => {
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+      resolve()
+      return GLib.SOURCE_REMOVE
+    })
+  })
+}
+
+function bluetoothPowerError(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+async function setBluetoothPower(powered: boolean, notifyOnError = true) {
+  if (bluetoothPowerChanging) return false
+  if (!AstalBluetooth.get_default()?.adapter) return false
+  bluetoothPowerChanging = true
+
+  try {
+    if (!powered) {
+      await execAsync(["bluetoothctl", "power", "off"])
+      return true
+    }
+
+    // Un dongle puede no estar sujeto a rfkill; no abortamos si el comando no
+    // existe o no encuentra radios porque BlueZ aún puede encender el adaptador.
+    try {
+      await execAsync(["rfkill", "unblock", "bluetooth"])
+    } catch (error) {
+      console.warn(`No se pudo desbloquear Bluetooth con rfkill: ${bluetoothPowerError(error)}`)
+    }
+
+    // Al desbloquear algunos dongles el kernel inicia por sí mismo una transición
+    // `off-enabling`; durante ese intervalo BlueZ responde Error.Busy. Otros USB
+    // desaparecen unos segundos de BlueZ mientras se reenumeran y vuelven ya
+    // encendidos. Dejamos que avance y comprobamos ambas vías en cada intento.
+    await bluetoothPowerDelay(250)
+    let lastError: unknown = new Error("BlueZ no encontró un controlador Bluetooth")
+    for (let attempt = 0; attempt < 16; attempt++) {
+      if (AstalBluetooth.get_default()?.isPowered) return true
+      try {
+        await execAsync(["bluetoothctl", "power", "on"])
+        return true
+      } catch (error) {
+        lastError = error
+        await bluetoothPowerDelay(350)
+      }
+    }
+    if (AstalBluetooth.get_default()?.isPowered) return true
+    throw lastError
+  } catch (error) {
+    console.error(`No se pudo ${powered ? "encender" : "apagar"} Bluetooth: ${bluetoothPowerError(error)}`)
+    if (notifyOnError) {
+      execAsync([
+        "notify-send",
+        "Bluetooth",
+        `No se pudo ${powered ? "encender" : "apagar"} el adaptador`,
+      ]).catch(() => {})
+    }
+    return false
+  } finally {
+    bluetoothPowerChanging = false
+  }
+}
+
+function toggleBluetoothPower(bt: any) {
+  return setBluetoothPower(!bt.isPowered)
+}
+
 // ── System State Persistence (Wifi, BT, Vol) ──────────────────────────────────
 const SYSTEM_STATE_PATH = `${GLib.get_user_config_dir()}/gigios/system_state.json`
 
@@ -419,7 +496,7 @@ function saveSystemState() {
       
       const config = {
         wifi: network?.wifi?.enabled ?? true,
-        bluetooth: bt?.isPowered ?? true,
+        bluetooth: bt?.adapter ? bt.isPowered : null,
         volume: speaker?.volume ?? 0.5,
         mute: speaker?.mute ?? false
       }
@@ -463,11 +540,11 @@ GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
       const saved = JSON.parse(new TextDecoder().decode(content))
       const bt      = AstalBluetooth.get_default()
       const network = AstalNetwork.get_default()
-      if (bt) {
+      if (bt?.adapter) {
         if (saved.bluetooth === false && bt.isPowered)
-          execAsync(["bluetoothctl", "power", "off"]).catch(() => {})
+          void setBluetoothPower(false, false)
         else if (saved.bluetooth === true && !bt.isPowered)
-          execAsync(["bluetoothctl", "power", "on"]).catch(() => {})
+          void setBluetoothPower(true, false)
       }
       if (network?.wifi) {
         if (saved.wifi === false && network.wifi.enabled)
@@ -753,19 +830,6 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   const bt = AstalBluetooth.get_default()
   const [monitor, setMonitor] = createState("Monitor")
 
-  // Bluetooth Icon logic
-  const getBtInfo = (powered: boolean, devs: any[]) => {
-    if (!powered) return { label: "Desactivado", icon: "󰂲" }
-    const conn = devs.find(d => d.connected)
-    if (!conn) return { label: "Desconectado", icon: "󰂯" }
-    let icon = "󰂱" // default connected
-    const name = (conn.name || conn.alias || "").toLowerCase()
-    if (name.includes("head") || name.includes("auric") || conn.icon_name?.includes("head")) icon = "󰋋"
-    else if (name.includes("speak") || name.includes("altav") || conn.icon_name?.includes("speak")) icon = "󰓃"
-    else if (name.includes("phone") || name.includes("móvil") || conn.icon_name?.includes("phone")) icon = "󰏲"
-    return { label: conn.alias || conn.name, icon }
-  }
-
   // Tile de red consciente de ethernet: si network.primary es WIRED y el cable
   // está activo, muestra el nombre del perfil de NetworkManager (p. ej. "Casa");
   // si no, mantiene el comportamiento WiFi de siempre.
@@ -805,11 +869,21 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
 
   const btPowered = createBinding(bt, "isPowered")
   const btDevices = createBinding(bt, "devices")
+  const [btSupported, setBtSupported] = createState(!!bt.adapter)
+  const btActive = createComputed(() => btSupported() && btPowered())
 
   // Bluetooth Info Unified State
-  const [btInfoState, setBtInfoState] = createState(getBtInfo(bt.isPowered, bt.get_devices()))
-  bt.connect("notify::is-powered", () => setBtInfoState(getBtInfo(bt.isPowered, bt.get_devices())))
-  bt.connect("notify::devices", () => setBtInfoState(getBtInfo(bt.isPowered, bt.get_devices())))
+  const [btInfoState, setBtInfoState] = createState(getBluetoothTileInfo(!!bt.adapter, bt.isPowered, bt.get_devices()))
+  const syncBtInfo = () => {
+    const supported = !!bt.adapter
+    setBtSupported(supported)
+    setBtInfoState(getBluetoothTileInfo(supported, bt.isPowered, bt.get_devices()))
+  }
+  bt.connect("notify::is-powered", syncBtInfo)
+  bt.connect("notify::devices", syncBtInfo)
+  bt.connect("notify::adapter", syncBtInfo)
+  bt.connect("adapter-added", syncBtInfo)
+  bt.connect("adapter-removed", syncBtInfo)
 
   // Update monitor info
   const updateMonitor = () => {
@@ -906,10 +980,10 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           icon={btInfoState((i) => i.icon)}
           label="Bluetooth"
           subtitle={btInfoState((i) => i.label)}
-          active={btPowered}
+          active={btActive}
           onToggle={onBluetoothClick}
           onSecondaryClick={onBluetoothClick}
-          onRightClick={() => execAsync(["bash", "-c", bt.isPowered ? "bluetoothctl power off" : "bluetoothctl power on"])}
+          onRightClick={() => { void toggleBluetoothPower(bt) }}
         />
         <QsTile
           icon={micMute ? micMute((m) => m ? "󰍭" : "󰍬") : "󰍬"}
@@ -2349,6 +2423,7 @@ function QsFooter() {
 function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   const bt = AstalBluetooth.get_default()
   const btPowered = createBinding(bt, "isPowered")
+  const [btSupported, setBtSupported] = createState(!!bt.adapter)
   const [devices, setDevices] = createState<any[]>(bt.get_devices())
   const [scanning, setScanning] = createState(false)
   const [showUnnamed, setShowUnnamed] = createState(false)
@@ -2383,16 +2458,20 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   }
 
   const scan = (duration: number = 15000) => {
-    if (scanning.get()) return
+    if (scanning.get() || !btSupported.get() || !bt.isPowered) return
     const adapter = bt.adapter
-    if (!adapter) {
-      execAsync(["notify-send", "Bluetooth Error", "Adapter is null"]).catch(() => {})
+    if (!adapter) return
+
+    try {
+      adapter.start_discovery()
+      setScanning(true)
+      setBuffering(true)
+    } catch (error) {
+      console.warn(`No se pudo iniciar el escaneo Bluetooth: ${bluetoothPowerError(error)}`)
+      setScanning(false)
+      setBuffering(false)
       return
     }
-
-    setScanning(true)
-    setBuffering(true)
-    adapter.start_discovery()
 
     scanStartTimer = setTimeout(() => {
       scanStartTimer = null
@@ -2423,7 +2502,7 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     if (powerOnTimer !== null) { clearTimeout(powerOnTimer); powerOnTimer = null }
   }
   const autoScan = () => {
-    if (!bt.isPowered || scanning.get()) return
+    if (!btSupported.get() || !bt.isPowered || scanning.get()) return
     if (bt.adapter) { scan(5000); return }
     // Adaptador aún no listo tras el power-on: reintenta una vez cuando aparezca.
     clearPowerOnTimer()
@@ -2441,9 +2520,24 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   // cerrado o en otra pestaña ignoramos las señales: antes cada notify::devices
   // reconstruía la lista aunque nadie la mirara (mismo patrón que el menú WiFi).
   const inBtView = () => qsView.get() === "bluetooth"
+  const syncAdapter = () => {
+    const supported = !!bt.adapter
+    setBtSupported(supported)
+    if (!supported) {
+      stopScan()
+      clearPowerOnTimer()
+      setDevices([])
+    } else if (inBtView()) {
+      update()
+      autoScan()
+    }
+  }
   // Al encender el BT dentro de la sección: refresco inmediato + escaneo activo.
   bt.connect("notify::is-powered", () => { if (inBtView()) { update(); autoScan() } })
   bt.connect("notify::devices", () => { if (inBtView()) update() })
+  bt.connect("notify::adapter", syncAdapter)
+  bt.connect("adapter-added", syncAdapter)
+  bt.connect("adapter-removed", syncAdapter)
   bt.connect("device-added", () => { if (inBtView()) update() })
   bt.connect("device-removed", () => { if (inBtView()) update() })
 
@@ -2561,23 +2655,29 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   return (
     <box cssClasses={["qs-bluetooth-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
       <Gtk.EventControllerKey
-        onKeyPressed={(self, keyval, _keycode, state) => handleSearchSectionKey(self, searchEntry, keyval, state)}
+        onKeyPressed={(self, keyval, _keycode, state) => btSupported.get()
+          ? handleSearchSectionKey(self, searchEntry, keyval, state)
+          : false}
       />
       <QsMenuHeader title="Bluetooth" onBack={onBack} titleHexpand={false}>
-        <box cssClasses={["qs-wifi-search"]} spacing={0} hexpand valign={Gtk.Align.CENTER}>
+        <box cssClasses={["qs-wifi-search"]} spacing={0} hexpand valign={Gtk.Align.CENTER} visible={btSupported}>
           {searchEntry}
         </box>
         <button
           cssClasses={["qs-icon-btn"]}
-          onClicked={() => execAsync("blueman-manager")}
+          visible={btSupported}
+          onClicked={() => execAsync("blueman-manager").catch(() => {})}
         ><label label="󰒓" /></button>
         <button
           cssClasses={scanning((s) => s ? ["qs-icon-btn", "scanning"] : ["qs-icon-btn"])}
+          visible={btSupported}
+          sensitive={createComputed(() => btSupported() && btPowered())}
           onClicked={() => scan()}
         ><label label="󰑐" /></button>
         <button
           cssClasses={btPowered((p) => p ? ["qs-toggle", "on"] : ["qs-toggle"])}
-          onClicked={() => execAsync(["bash", "-c", bt.isPowered ? "bluetoothctl power off" : "bluetoothctl power on"])}
+          visible={btSupported}
+          onClicked={() => { void toggleBluetoothPower(bt) }}
         >
           <ToggleSwitch active={btPowered} />
         </button>
@@ -2585,6 +2685,7 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
 
       <Gtk.ScrolledWindow
         cssClasses={["qs-wifi-list-scroll"]}
+        visible={btSupported}
         hscrollbarPolicy={Gtk.PolicyType.NEVER}
         vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
         vexpand
@@ -2632,6 +2733,24 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
           />
         </box>
       </Gtk.ScrolledWindow>
+
+      <box
+        cssClasses={["qs-bt-unsupported"]}
+        orientation={Gtk.Orientation.VERTICAL}
+        spacing={8}
+        visible={btSupported((supported) => !supported)}
+        valign={Gtk.Align.CENTER}
+        vexpand
+      >
+        <label cssClasses={["qs-bt-unsupported-icon"]} label="󰂲" />
+        <label cssClasses={["qs-bt-unsupported-title"]} label="Bluetooth no compatible" />
+        <label
+          cssClasses={["qs-bt-unsupported-description"]}
+          label="Este equipo no tiene ningún adaptador Bluetooth disponible."
+          justify={Gtk.Justification.CENTER}
+          wrap
+        />
+      </box>
     </box>
   )
 }
@@ -3007,6 +3126,12 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   let qsAnimationRef: any = null
   let qsWindowRef: any = null
   const [qsRendered, setQsRendered] = createState(quickSettingsVisible.get())
+  // Pedir foco ON_DEMAND al mapear el layer-surface hace que Hyprland deje el
+  // puntero asociado a la superficie nueva hasta el siguiente motion. Si el
+  // ratón sigue sobre el botón del bar, el clic para cerrar se pierde. El panel
+  // empieza sin foco y solo lo solicita cuando el puntero entra de verdad en él;
+  // así los Entry y Escape siguen funcionando al interactuar con su contenido.
+  const [qsKeyboardActive, setQsKeyboardActive] = createState(false)
   const [qsExitCss, setQsExitCss] = createState(".qs-wrapper {}")
   let enterTimer: number | null = null
   let entranceGuardTimer: number | null = null
@@ -3057,6 +3182,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
 
   function handlePointerEnter(): void {
     cancelHoverClose()
+    setQsKeyboardActive(true)
   }
 
   function handlePointerLeave(): void {
@@ -3100,11 +3226,13 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   quickSettingsVisible.subscribe(() => {
     cancelHoverClose()
     if (quickSettingsVisible.get()) {
+      setQsKeyboardActive(false)
       cancelExitWait()
       beginEntrance()
       return
     }
 
+    setQsKeyboardActive(false)
     if (enterTimer !== null) {
       GLib.source_remove(enterTimer)
       enterTimer = null
@@ -3155,7 +3283,8 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     gdkmonitor={gdkmonitor}
     layer={Astal.Layer.TOP}
     exclusivity={Astal.Exclusivity.NORMAL}
-    keymode={Astal.Keymode.ON_DEMAND}
+    keymode={qsKeyboardActive((active) =>
+      active ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
     anchor={TOP | RIGHT}
     application={app}
     widthRequest={PANEL_TOTAL_WIDTH}
