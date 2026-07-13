@@ -23,6 +23,9 @@ export interface StoredNotification {
   read: boolean
   urgency: number     // 0=low, 1=normal, 2=critical
   actions: { id: string; label: string }[]
+  /** `expire_timeout` del spec, en ms (0 = no expira). Lo usa NotificationPopup para
+   *  alargar el popup cuando hay acciones que pulsar. */
+  expireTimeout?: number
   image?: string      // artwork/image hint
   /** Hint `x-gigios-source`: los scripts de `hypr/scripts/` mandan "system"
    *  (`-h string:x-gigios-source:system`). Ausente en las notificaciones de apps normales.

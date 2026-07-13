@@ -1096,7 +1096,7 @@ popover.background {
 
 .np-panel button, popover.upd-popover-container > contents, .qs-wifi-list-scroll scrollbar,
 .qs-wifi-list-scroll scrollbar slider,
-.qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, popover.game-popover-container > contents, .game-tray .game-tray-icon, popover.ws-preview-popover > contents {
+.qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, .game-tray .game-tray-icon, popover.ws-preview-popover > contents {
   background: transparent;
   border: none;
   box-shadow: none;
@@ -1398,55 +1398,6 @@ popover.ws-preview-popover > contents {
   transform: scale(1.08);
 }
 
-/* Menú de acciones de un juego (clic derecho en su icono). */
-popover.game-popover-container > contents {
-  padding: 0;
-}
-popover.game-popover-container > arrow {
-  background: #0e0e1a;
-  border: none;
-}
-
-.game-popover {
-  background: #0e0e1a;
-  border: 1px solid rgba(203, 166, 247, 0.22);
-  border-radius: 10px;
-  padding: 10px 12px;
-  min-width: 180px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-  transform-origin: top center;
-  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
-}
-
-.game-popover-header {
-  font-size: 11px;
-  font-weight: 700;
-  color: #cba6f7;
-  margin-bottom: 6px;
-}
-
-.game-popover-btn {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  color: #e2e2e2;
-  background: rgba(203, 166, 247, 0.14);
-  border: 1px solid rgba(203, 166, 247, 0.24);
-  border-radius: 8px;
-}
-.game-popover-btn:hover {
-  background: rgba(203, 166, 247, 0.26);
-}
-.game-popover-btn.danger {
-  color: rgb(245, 50, 105);
-  background: rgba(245, 50, 105, 0.12);
-  border-color: rgba(245, 50, 105, 0.28);
-}
-.game-popover-btn.danger:hover {
-  background: rgba(245, 50, 105, 0.22);
-}
-
 .battery {
   font-family: "MesloLGS Nerd Font";
   margin: 0;
@@ -1654,13 +1605,13 @@ popover.cpuram-popover > arrow {
   color: rgba(137, 180, 250, 0.7);
 }
 
-.tray-item {
+.Bar .tray-item {
   border-radius: 7px;
   padding: 0;
   margin: 4px 0;
   min-height: 28px;
 }
-.tray-item > button {
+.Bar .tray-item > button {
   background-color: transparent;
   border: none;
   box-shadow: none;
@@ -1670,10 +1621,10 @@ popover.cpuram-popover > arrow {
   padding: 0 4px;
   transition: background-color 140ms ease;
 }
-.tray-item > button:hover {
+.Bar .tray-item > button:hover {
   background-color: rgba(255, 255, 255, 0.07);
 }
-.tray-item > button:active, .tray-item > button:checked {
+.Bar .tray-item > button:active, .Bar .tray-item > button:checked {
   background-color: rgba(255, 255, 255, 0.07);
 }
 
@@ -2496,11 +2447,29 @@ window.qs-window > box,
   color: #ffffff;
   -gtk-icon-size: 14px;
   -gtk-icon-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
-  margin-top: -2px;
 }
 .qs-media .qs-media-content {
   background-color: transparent;
   padding: 5px 14px 5px;
+  transition: opacity 110ms ease-out, transform 110ms ease-out;
+}
+.qs-media .qs-media-content.switch-out-next {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+.qs-media .qs-media-content.switch-out-prev {
+  opacity: 0;
+  transform: translateX(10px);
+}
+.qs-media .qs-media-content.switch-enter-next {
+  opacity: 0;
+  transform: translateX(10px);
+  transition: none;
+}
+.qs-media .qs-media-content.switch-enter-prev {
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: none;
 }
 .qs-media .qs-media-switcher-row {
   margin-bottom: 2px;
@@ -3547,6 +3516,13 @@ popover.upd-popover-container > arrow {
   font-family: "MesloLGS Nerd Font";
   margin: 0;
 }
+.notif-popup-item .notif-popup-action-hint {
+  font-size: 9px;
+  font-weight: 600;
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font";
+  margin: 2px 0 0 0;
+}
 
 @keyframes notif-slide-in {
   from {
@@ -3589,11 +3565,19 @@ popover.upd-popover-container > arrow {
   font-family: monospace;
   font-size: 11px;
 }
+.notif-popup-item.dunst .notif-popup-action-hint {
+  font-family: monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.85);
+}
 .notif-popup-item.dunst.u-low {
   background: #222222;
 }
 .notif-popup-item.dunst.u-low .notif-popup-summary, .notif-popup-item.dunst.u-low .notif-popup-body {
   color: #888888;
+}
+.notif-popup-item.dunst.u-low .notif-popup-action-hint {
+  color: #aaaaaa;
 }
 .notif-popup-item.dunst.u-normal {
   background: #285577;

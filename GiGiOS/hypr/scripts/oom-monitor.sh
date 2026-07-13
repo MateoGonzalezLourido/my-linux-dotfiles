@@ -140,6 +140,46 @@ _dl_paused() {
     return 1
 }
 
+# ── Disco: de dónde viene un error de E/S ─────────────────────────────────────
+# El kernel nombra el bloque de dos formas en las líneas de error de E/S:
+#   Buffer I/O error on dev sdb1, logical block 786432, lost async page write
+#   blk_update_request: I/O error, dev sdb, sector 6293504 op 0x1:(WRITE)
+# Saca "sdb1"/"sdb" (o nvme0n1p2, mmcblk0p1); vacío si la línea no nombra ninguno.
+_io_dev() {
+    local pat='(on dev|, dev) ([a-zA-Z0-9_-]+)'
+    [[ "$1" =~ $pat ]] && printf '%s' "${BASH_REMATCH[2]}"
+}
+
+# Partición → disco padre (sdb1→sdb, nvme0n1p2→nvme0n1). Si el nodo aún existe lo
+# resolvemos por sysfs; si el dispositivo YA desapareció (el caso que nos importa)
+# no queda symlink que seguir, así que caemos al recorte textual del sufijo.
+_disk_base() {
+    local d=$1 parent
+    [[ -e /sys/block/$d ]] && { printf '%s' "$d"; return; }
+    if [[ -e /sys/class/block/$d ]]; then
+        parent=$(basename "$(readlink -f "/sys/class/block/$d/..")")
+        [[ -e /sys/block/$parent ]] && { printf '%s' "$parent"; return; }
+    fi
+    case "$d" in
+        nvme*|mmcblk*|loop*) printf '%s' "${d%p[0-9]*}" ;;
+        *)                   printf '%s' "${d%%[0-9]*}" ;;
+    esac
+}
+
+# ¿Es un disco interno de verdad? Solo entonces un error de E/S significa "tu disco
+# está fallando". Dos negativas, ambas necesarias:
+#   - el nodo ya no existe → lo arrancaste en caliente; los errores son el rastro de
+#     la escritura pendiente que no llegó, no un disco enfermo.
+#   - removable=1 (pendrive, SD) → aunque siga enchufado, no es el disco del sistema.
+# El nodo puede sobrevivir unos ms al desconecte (udev aún no lo ha retirado), por eso
+# no basta con comprobar la existencia: el flag removable cubre esa carrera.
+_disk_is_internal() {
+    local base=$1
+    [[ -n "$base" && -e /sys/block/$base ]] || return 1
+    [[ "$(<"/sys/block/$base/removable" 2>/dev/null)" == 1 ]] && return 1
+    return 0
+}
+
 # ── Kernel monitor (SOLO kernel, anclado con -k) ──────────────────────────────
 monitor_kernel() {
     # Si TODAS las categorías de kernel están desactivadas, no arrancamos el pipe.
@@ -153,6 +193,9 @@ monitor_kernel() {
 
     # Cooldown por proceso para no spamear si el mismo binario crashea en bucle
     declare -A _crash_cooldown
+    # Íd. por dispositivo de bloque: un disco muriéndose (o un pendrive arrancado a
+    # medio escribir) suelta decenas de líneas por segundo, una notificación cada una.
+    declare -A _io_cooldown
 
     journalctl -kf -n 0 --no-pager 2>/dev/null | while IFS= read -r line; do
 
@@ -185,9 +228,34 @@ monitor_kernel() {
              [[ "$lower" == *"hung_task"* || "$lower" == *"blocked for more than"* ]]; then
             notify-send -h string:x-gigios-source:system -u critical "⚠️ Proceso colgado" "$line" -t 15000
 
-        # --- Disk I/O error ---
+        # --- Error de E/S de disco ---
+        #     OJO: no todo "i/o error" es un disco enfermo. Arrancar un pendrive sin
+        #     expulsarlo, con escrituras aún en la caché, hace que el kernel escupa un
+        #     "Buffer I/O error on dev sdb1 … lost async page write" por cada página que
+        #     no llegó — antes cada una de ellas era una crítica "💾 Error de disco".
+        #     (Por eso solo pasaba al MOVER archivos: sin nada sucio pendiente, no hay
+        #     writeback que fallar y el kernel no loguea nada.) Clasificamos por
+        #     dispositivo antes de alarmar.
         elif [[ "$sec_diskError" != false ]] && [[ "$lower" == *"i/o error"* ]]; then
-            notify-send -h string:x-gigios-source:system -u critical "💾 Error de disco" "$line" -t 15000
+            _dev=$(_io_dev "$line")
+            _base=$(_disk_base "$_dev")
+            _now=$(date +%s)
+            _key="${_base:-desconocido}"
+
+            if (( _now - ${_io_cooldown[$_key]:-0} >= 30 )); then
+                _io_cooldown[$_key]=$_now
+                if [[ -z "$_base" ]] || _disk_is_internal "$_base"; then
+                    # Disco interno (o línea que no nombra dispositivo → no la tragamos).
+                    notify-send -h string:x-gigios-source:system -u critical \
+                        "💾 Error de disco" "$line" -t 15000
+                else
+                    # Extraíble: aviso de datos, no de hardware.
+                    notify-send -h string:x-gigios-source:system -u normal \
+                        "⏏️ Extracción insegura" \
+                        "Se quitó ${_dev} con escrituras pendientes. Puede haber archivos incompletos o el sistema de ficheros marcado como sucio. Expúlsalo antes de retirarlo." \
+                        -t 12000
+                fi
+            fi
 
         # --- Hardware error (MCE / ECC / EDAC) ---
         elif [[ "$sec_hwErrors" != false ]] && \

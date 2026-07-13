@@ -387,62 +387,6 @@ popover.ws-preview-popover {
   }
 }
 
-/* Menú de acciones de un juego (clic derecho en su icono). */
-popover.game-popover-container {
-  > contents {
-    padding: 0;
-    @extend %chrome-reset;
-  }
-
-  > arrow {
-    background: #0e0e1a;
-    border: none;
-  }
-}
-
-.game-popover {
-  background: #0e0e1a;
-  border: 1px solid rgba(203, 166, 247, 0.22);
-  border-radius: 10px;
-  padding: 10px 12px;
-  min-width: 180px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-  transform-origin: top center;
-  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
-}
-
-.game-popover-header {
-  font-size: 11px;
-  font-weight: 700;
-  color: $violet;
-  margin-bottom: 6px;
-}
-
-.game-popover-btn {
-  font-family: $font-icon;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  color: $text;
-  background: rgba(203, 166, 247, 0.14);
-  border: 1px solid rgba(203, 166, 247, 0.24);
-  border-radius: 8px;
-
-  &:hover {
-    background: rgba(203, 166, 247, 0.26);
-  }
-
-  &.danger {
-    color: $red;
-    background: rgba(245, 50, 105, 0.12);
-    border-color: rgba(245, 50, 105, 0.28);
-
-    &:hover {
-      background: rgba(245, 50, 105, 0.22);
-    }
-  }
-}
-
 .battery {
   font-family: $font-icon;
   margin: 0;
@@ -679,7 +623,7 @@ popover.cpuram-popover {
 }
 
 // ── Tray: botón de icono + menú propio tipo funciones ──────────────────────
-.tray-item {
+.Bar .tray-item {
   border-radius: 7px;
   padding: 0;
   margin: 4px 0;
@@ -1642,12 +1586,34 @@ window.qs-window > box,
     color: $white;
     -gtk-icon-size: 14px;
     -gtk-icon-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
-    margin-top: -2px;
   }
 
   .qs-media-content {
     background-color: transparent;
     padding: 5px 14px 5px;
+    transition: opacity 110ms ease-out, transform 110ms ease-out;
+
+    &.switch-out-next {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+
+    &.switch-out-prev {
+      opacity: 0;
+      transform: translateX(10px);
+    }
+
+    &.switch-enter-next {
+      opacity: 0;
+      transform: translateX(10px);
+      transition: none;
+    }
+
+    &.switch-enter-prev {
+      opacity: 0;
+      transform: translateX(-10px);
+      transition: none;
+    }
   }
 
   .qs-media-switcher-row {
@@ -2808,6 +2774,15 @@ popover.upd-popover-container {
     margin: 0;
   }
 
+  // Pista de la acción (notify-send -A). Solo visible cuando la notificación trae una;
+  // es lo único que delata que el clic derecho hace algo.
+  .notif-popup-action-hint {
+    font-size: 9px;
+    font-weight: 600;
+    color: $violet;
+    font-family: $font-icon;
+    margin: 2px 0 0 0;
+  }
 
 }
 
@@ -2862,10 +2837,20 @@ popover.upd-popover-container {
     font-size: 11px;
   }
 
+  // El fondo del skin es sólido y de color (azul/rojo/gris según urgencia), así que el
+  // violeta del tema aquí sería ilegible: la pista va en blanco translúcido, que contrasta
+  // sobre las tres urgencias.
+  .notif-popup-action-hint {
+    font-family: monospace;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
   // urgency_low
   &.u-low {
     background: #222222;
     .notif-popup-summary, .notif-popup-body { color: #888888; }
+    .notif-popup-action-hint { color: #aaaaaa; }
   }
 
   // urgency_normal

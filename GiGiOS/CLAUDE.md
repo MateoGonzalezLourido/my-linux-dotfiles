@@ -17,7 +17,9 @@ XDG paths via **symlinks**, not copies. The three big components are:
 
 Supporting dirs: `Wallpapers/` (used directly by `wallpaper.sh`, no symlink),
 `state/orion/` → `~/.local/share/orion`, `cache/power-save/` → `~/.config/power-save`,
-`bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans).
+`bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
+`system/` (ficheros que van a `/etc`, **no** se symlinkean: se instalan con `sudo` — hoy solo la
+regla udev de escritura en USB, ver la sección de USB).
 
 ## Git caveat
 
@@ -202,6 +204,59 @@ leído **una vez al arrancar** — pero el toggle es maestro y su setter de AGS 
 caliente** (`pkill` + borrar el JSON al apagar; re-exec al encender), así que no hace falta
 reiniciar nada.
 
+### USB (`usb-monitor.sh`, `usb-eject.sh`, `usb-repair.sh`) + `system/udev/`
+
+**La raíz del problema con los USB no es el shell, es `vm.dirty_ratio`.** Linux acepta hasta el
+10 % de la RAM en páginas sucias (aquí ~1,5 GB) antes de forzar el volcado, así que una copia a un
+pendrive lento se traga los datos a velocidad de RAM: el diálogo llega al 100 % y "termina" en
+segundos con cientos de MB aún sin bajar al dispositivo. Al retirarlo — aunque sea minutos después —
+el kernel escupe `Buffer I/O error on dev sdb1 … lost async page write` y los datos **se han perdido
+de verdad** (a nosotros el volumen NTFS nos quedó `Mark volume as dirty`). Por eso el síntoma solo
+aparecía **al mover archivos**: sin escrituras pendientes no hay writeback que fallar.
+
+La cura vive fuera del repo, en `system/udev/99-gigios-usb-writeback.rules` → **hay que instalarla a
+mano con sudo** (`install -Dm644` en `/etc/udev/rules.d/`; **no** un symlink: udev lee `/etc` antes
+de que `$HOME` esté montado). Baja `bdi/max_bytes` a 16 MiB y pone `strict_limit=1` **solo** en
+almacenamiento externo. La barra de progreso pasa a ser honesta. Dos detalles medidos, no supuestos:
+el `bdi` cuelga del **disco entero** (`/sys/block/sdb/bdi`), las particiones **no tienen `bdi` ni
+`removable`** propios → la regla apunta al disco; y se filtra por **`ID_BUS=="usb"`, no por
+`removable=="1"`**, porque los **discos duros USB externos reportan `removable=0`** (lo extraíble es
+la carcasa, no el medio) y se habrían quedado fuera justo los que más datos mueven.
+
+`usb-monitor.sh` escucha **dos subsistemas en un solo stream** (`usb` + `block`). Un pendrive genera
+eventos de ambos, así que sin cuidado saldrían **dos popups** por enchufe: si el dispositivo es de
+clase *mass storage* (`ID_USB_INTERFACES` contiene `:08` — las entradas son de 6 dígitos entre `:`,
+así que `":08"` solo puede casar al principio de una) el aviso genérico **se calla** y habla el
+evento de bloque, que sabe el modelo y puede ofrecer botón. Si la propiedad no viniera, degrada al
+aviso genérico de siempre en vez de perder la notificación.
+
+- **Expulsar** (botón en el aviso de conexión) → `usb-eject.sh <disco>`: desmonta todas las
+  particiones y hace `power-off`. El unmount de udisks **hace el flush y espera**: cuando vuelve, los
+  datos están físicamente en el pendrive. Si `power-off` falla (hubs que no lo soportan) **no** es
+  error: ya está todo volcado, que es lo que protege los datos.
+- **Volumen sucio** → en cada partición USB nueva se llama a `org.freedesktop.UDisks2.Filesystem.Check`
+  (solo lectura); si no está limpia **se repara sola** (`usb-repair.sh` → `Filesystem.Repair`), sin
+  botón ni pregunta. Se puede porque la operación es **conservadora, no destructiva**: en NTFS udisks
+  ejecuta `ntfsfix`, que según su propio man **no es un chkdsk** — repara inconsistencias
+  fundamentales, resetea el journal y **programa la comprobación de verdad para el primer arranque de
+  Windows**. Auto-reparar no esconde nada. Y el instante del enchufe es la **única ventana** en la que
+  el volumen está sucio y todavía sin montar, que es lo que `Repair` exige: preguntar aquí solo servía
+  para que la ventana se cerrara mientras el usuario decidía. Se recomprueba `/proc/mounts` justo antes
+  de reparar — si el gestor de archivos lo montó en ese hueco, **no** se le desmonta por la cara: ahí
+  (y solo ahí) se cae al aviso con botón, donde el desmontaje lo autoriza el clic.
+
+**Por qué udisks y no `fsck`/`ntfsfix` directos**: van a un dispositivo `root:disk 660`, harían falta
+privilegios, y escalarlos desde un script de `~/.config` (escribible por el usuario) sería
+exactamente la escalada silenciosa contra la que avisa la sección de `PRIVESC_ALLOW`. Con udisks el
+trabajo privilegiado lo hace `udisksd` y lo autoriza polkit — y **no hay prompt de contraseña**
+porque `modify-device` es `allow_active=yes` para dispositivos que **no** son del sistema (en un
+disco interno sí lo pediría: `modify-device-system` → `auth_admin_keep`). `Check`/`Repair` **exigen
+el volumen desmontado**; si ya está montado, `check_volume` se calla (no vamos a desmontar por la
+cara). Cualquier error —fs no soportado, falta la herramienta— también es silencio: esto es una
+comodidad y no puede convertirse en una fuente de ruido. Reparar **NTFS** necesita `ntfsfix`, que
+viene en el paquete **`ntfsprogs`** — **no** en `ntfs-3g`, que hoy solo trae el driver FUSE
+(`pacman -F` puede decir lo contrario: su base de ficheros va desfasada respecto a lo instalado).
+
 ### Security monitor (`oom-monitor.sh`) + sandboxed launcher (`run-untrusted.sh`)
 
 Despite the filename, `hypr/scripts/oom-monitor.sh` is the general **security event monitor** —
@@ -210,6 +265,17 @@ OOM killer is just one of ~16 scanned event types. Five sub-monitors run in para
 - `monitor_kernel` — `journalctl -kf` (kernel-only, avoids matching app logs): OOM, panic,
   hung tasks, disk I/O errors, hardware errors (MCE/ECC/EDAC), unsigned/out-of-tree kernel
   modules, GPU/NVIDIA errors, CPU throttling, segfaults.
+  **`diskError` clasifica el dispositivo antes de alarmar.** Casaba `*"i/o error"*` a pelo contra
+  cualquier línea del kernel, así que arrancar un pendrive sin expulsarlo (que suelta un
+  `Buffer I/O error on dev sdb1 … lost async page write` por cada página no volcada) disparaba una
+  **crítica "💾 Error de disco" por línea** — un disco sano denunciado como moribundo. Ahora se saca
+  el dispositivo de la línea (`_io_dev`), se resuelve a su disco padre (`_disk_base`; las particiones
+  no tienen `bdi`/`removable` propios) y solo es "Error de disco" si `_disk_is_internal`: el nodo
+  **sigue existiendo** y `removable=0`. No basta con mirar si existe — el nodo sobrevive unos ms al
+  desconecte, y el flag `removable` cubre esa carrera. Si es extraíble o ya desapareció, sale un
+  aviso normal **"⏏️ Extracción insegura"** (datos, no hardware). Una línea que no nombre dispositivo
+  **sí** alarma (fail-safe). Además hay cooldown de 30 s **por dispositivo**: un disco muriéndose de
+  verdad suelta decenas de líneas por segundo. Ver la sección de USB para la causa raíz y la cura.
 - `monitor_system` — `journalctl -f` filtered by `-t` identifier (sudo, sshd, su, pkexec,
   polkitd, systemd, systemd-coredump): failed-to-start services, sudo/su/polkit auth failures,
   SSH accepted/failed, coredumps, and a sliding-window "crash storm" detector (≥3 coredumps

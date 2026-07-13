@@ -151,47 +151,49 @@ export default function GamesIndicator() {
     let btnRef: Gtk.Widget | null = null
     let activePopover: Gtk.Popover | null = null
     const autoClose = panelAutoClose(() => { if (activePopover) activePopover.popdown() }, 250)
+    const tooltipName = entry.name.replace(/(?:\s*\([^()]*\))+\s*$/, "").trim() || entry.name
 
-    const buildMenu = () => {
-      const card = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 4 })
-      card.add_css_class("game-popover")
-
-      const motion = new Gtk.EventControllerMotion()
-      motion.connect("enter", () => autoClose.onEnter())
-      motion.connect("leave", () => autoClose.onLeave())
-      card.add_controller(motion)
-
-      const header = new Gtk.Label({ label: entry.name, xalign: 0, wrap: true, maxWidthChars: 28 })
-      header.add_css_class("game-popover-header")
-      card.append(header)
-
-      const action = (label: string, cssClass: string, run: () => void) => {
-        const btn = new Gtk.Button({ label, halign: Gtk.Align.FILL })
-        btn.add_css_class("game-popover-btn")
-        if (cssClass) btn.add_css_class(cssClass)
-        btn.connect("clicked", () => {
-          run()
-          if (activePopover) activePopover.popdown()
-        })
-        card.append(btn)
-      }
-
-      action("󰊴  Ir al juego", "", () => focusGame(entry.address, false))
-      action("󰊓  Pantalla completa", "", () => focusGame(entry.address, true))
-      action("󰅖  Cerrar juego", "danger", () => closeGame(entry.address))
-
-      return card
+    // Menú GTK nativo, como el menuModel de las apps en segundo plano. Así las
+    // filas, estados de hover, tipografía y espaciado los pinta `.tray-popover`.
+    const menuModel = new Gio.Menu()
+    const actionGroup = new Gio.SimpleActionGroup()
+    const addAction = (name: string, label: string, run: () => void) => {
+      menuModel.append(label, `game.${name}`)
+      const action = new Gio.SimpleAction({ name })
+      action.connect("activate", () => {
+        run()
+        if (activePopover) activePopover.popdown()
+      })
+      actionGroup.add_action(action)
     }
+
+    addAction("focus", "󰊴  Ir al juego", () => focusGame(entry.address, false))
+    addAction("fullscreen", "󰊓  Pantalla completa", () => focusGame(entry.address, true))
+    addAction("close", "󰅖  Cerrar juego", () => closeGame(entry.address))
 
     const openMenu = () => {
       if (activePopover) { activePopover.popdown(); return }
       if (!btnRef) return
-      const pop = new Gtk.Popover()
-      pop.add_css_class("game-popover-container")
-      pop.set_has_arrow(true)
+      const pop = Gtk.PopoverMenu.new_from_model(menuModel)
+      // Mismo patrón que los menús de las apps en segundo plano: sin autohide
+      // nativo y con toda la superficie del popover dentro de la zona de hover.
+      // Vigilar solo la tarjeta interior deja un hueco al salir del icono y el
+      // temporizador la cierra antes de que el puntero pueda alcanzar las acciones.
+      pop.add_css_class("tray-popover")
+      pop.set_has_arrow(false)
+      pop.set_autohide(false)
       pop.set_position(Gtk.PositionType.BOTTOM)
-      pop.set_child(buildMenu())
+      // Un Gtk.Popover vive en una superficie GTK separada. Al crearlo y
+      // parentarlo manualmente no siempre resuelve los grupos de acciones del
+      // botón ancla, así que el grupo debe estar también en el propio popover.
+      pop.insert_action_group("game", actionGroup)
       pop.set_parent(btnRef)
+
+      const motion = new Gtk.EventControllerMotion()
+      motion.connect("enter", () => autoClose.onEnter())
+      motion.connect("leave", () => autoClose.onLeave())
+      pop.add_controller(motion)
+
       activePopover = pop
       popovers.push(pop)
       openBarMenu()
@@ -211,7 +213,7 @@ export default function GamesIndicator() {
         cssClasses={["game-tray-icon"]}
         valign={Gtk.Align.CENTER}
         onClicked={() => focusGame(entry.address, true)}
-        tooltipText={`${entry.name}\nClic: ir al juego (pantalla completa)\nClic derecho: más acciones`}
+        tooltipText={tooltipName}
       >
         {/* Botón secundario: Gtk.Button solo se queda el clic primario, así que este
             gesto sí llega (mismo motivo que el comentario de UpdatesButton). */}

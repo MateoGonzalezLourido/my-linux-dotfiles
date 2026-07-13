@@ -29,6 +29,8 @@ import { barAutoHideEnabled } from "../settings/preferences"
 // ── Constantes ────────────────────────────────────────────────────────────────
 
 const POPUP_TIMEOUT_MS = 5500
+const POPUP_TIMEOUT_ACTION_MS     = 20000   // suelo cuando hay un botón que pulsar
+const POPUP_TIMEOUT_ACTION_MAX_MS = 60000   // techo: ni con `-t 0` se queda clavado
 const ANIM_OUT_MS      = 220
 const POPUP_MAX        = 5
 const POPUP_WIDTH      = 360
@@ -140,12 +142,30 @@ function dismissAll() {
   }
 }
 
-function scheduleAutoDismiss(id: number) {
-  const timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, POPUP_TIMEOUT_MS, () => {
-    triggerDismiss(id)
+// Cuánto vive el popup. Sin acciones: los 5,5 s de siempre, intactos.
+//
+// Con acciones el popup ES la acción: el botón solo se puede pulsar mientras está en
+// pantalla (`_removeImmediate` no cierra la notificación en el daemon, pero se lleva el
+// widget, y lo que sale de hypr/scripts no llega al historial porque la builtin
+// `system-dunst` ya lo "gestiona"). 5,5 s no dan ni para leer «¿reparo el pendrive?»,
+// así que se respeta el `-t` que pidió quien la mandó, con suelo (que un -t corto no la
+// haga impulsable) y techo (que un `-t 0` —"no expira nunca" en el spec— no deje un
+// popup clavado para siempre).
+function popupLifetime(notif: StoredNotification): number {
+  const actionable = (notif.actions ?? []).some(a => a.id !== "default" && a.label.trim() !== "")
+  if (!actionable) return POPUP_TIMEOUT_MS
+
+  const requested = notif.expireTimeout ?? 0
+  const base = requested > 0 ? requested : POPUP_TIMEOUT_ACTION_MS
+  return Math.min(Math.max(base, POPUP_TIMEOUT_ACTION_MS), POPUP_TIMEOUT_ACTION_MAX_MS)
+}
+
+function scheduleAutoDismiss(notif: StoredNotification) {
+  const timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, popupLifetime(notif), () => {
+    triggerDismiss(notif.id)
     return GLib.SOURCE_REMOVE
   })
-  popupTimers.set(id, timerId)
+  popupTimers.set(notif.id, timerId)
 }
 
 function availablePopupHeight(): number {
@@ -187,7 +207,7 @@ function drainQueue() {
     popupWidgets.set(notif.id, item)
     popupHeights.set(notif.id, measuredHeight)
     popupContainer.append(item)
-    scheduleAutoDismiss(notif.id)
+    scheduleAutoDismiss(notif)
     setHasPopups(true)
   }
 }
@@ -290,6 +310,26 @@ function PopupItem({ notif, onDismiss, registerDismissCb }: {
   const dunst = notif.meta.style === "dunst"
   const urgencyClass = notif.urgency >= 2 ? "u-critical" : notif.urgency <= 0 ? "u-low" : "u-normal"
 
+  // Acciones D-Bus (notify-send -A). "default" es la activación implícita al hacer
+  // click, no un botón: se excluye, igual que en NotificationItem.
+  //
+  // El popup NUNCA las ha pintado (aquí solo había un `actions: []`), así que cualquier
+  // `-A` que mandara un script era INVISIBLE e impulsable — lo era el "Lanzar aislado" de
+  // las alertas de descarga de oom-monitor.sh desde que se escribió. Y no valía con mirar
+  // el historial: las notificaciones de hypr/scripts casan con la builtin `system-dunst`,
+  // y `shouldIndex()` no indexa lo que ya gestiona una regla, así que tampoco llegaban ahí.
+  // Quedaban muertas en los dos sitios.
+  const actions = (notif.actions ?? []).filter(a => a.id !== "default" && a.label.trim() !== "")
+  const primaryAction = actions[0]
+
+  function invokePrimary() {
+    if (!primaryAction) return
+    try {
+      const live = AstalNotifd.get_default().get_notification(notif.id)
+      if (live) live.invoke(primaryAction.id)
+    } catch { /* la notificación ya expiró: nada que invocar */ }
+  }
+
   const itemBox = (
     <box
       cssClasses={dunst ? ["notif-popup-item", "dunst", urgencyClass] : ["notif-popup-item"]}
@@ -329,6 +369,17 @@ function PopupItem({ notif, onDismiss, registerDismissCb }: {
         maxWidthChars={48}
         visible={!!(notif.body)}
       />
+      {/* Sin esto la acción sería invisible: no hay botón que ver, y el gesto que la
+          dispara (clic derecho) no se adivina. Se pinta también en el skin dunst —
+          se aparta del `format` por defecto del dunstrc a sabiendas, porque una acción
+          que nadie sabe pulsar es exactamente lo que acabamos de arreglar. */}
+      <label
+        cssClasses={["notif-popup-action-hint"]}
+        label={primaryAction ? `▸ clic derecho · ${primaryAction.label}` : ""}
+        halign={Gtk.Align.START}
+        xalign={0}
+        visible={!!primaryAction}
+      />
     </box>
   ) as Gtk.Box
 
@@ -350,9 +401,21 @@ function PopupItem({ notif, onDismiss, registerDismissCb }: {
   clickDismiss.connect("pressed", () => dismiss())
   itemBox.add_controller(clickDismiss)
 
-  const clickFocusApp = new Gtk.GestureClick({ button: 3 })
-  clickFocusApp.connect("pressed", () => { dismiss(); focusAppWindow(notif.appName) })
-  itemBox.add_controller(clickFocusApp)
+  // Clic derecho: si la notificación trae una acción, la ejecuta; si no, conserva el
+  // gesto de siempre (saltar a la ventana que la lanzó). No se pisan porque son
+  // excluyentes en la práctica: las notificaciones con acción vienen de scripts de
+  // hypr/scripts, cuyo "app" no es una ventana — enfocarla no hacía nada útil, así que
+  // ese gesto estaba libre justo donde hace falta.
+  //
+  // Invocar ANTES de dismiss(): dismiss cierra la notificación en el daemon, y una vez
+  // cerrada `get_notification(id)` ya no la encuentra y el invoke se perdería.
+  const clickRight = new Gtk.GestureClick({ button: 3 })
+  clickRight.connect("pressed", () => {
+    if (primaryAction) invokePrimary()
+    else focusAppWindow(notif.appName)
+    dismiss()
+  })
+  itemBox.add_controller(clickRight)
 
   return itemBox
 }

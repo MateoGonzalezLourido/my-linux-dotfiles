@@ -102,6 +102,11 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
     read: false,
     urgency: input.urgency,
     actions: (n.actions ?? []).map((a: any) => ({ id: a.id, label: a.label })),
+    // Lo pide NotificationPopup para dar más vida al popup cuando trae acciones: el
+    // botón solo existe mientras el popup está en pantalla (las notificaciones de
+    // hypr/scripts no llegan al historial), así que con los 5,5 s fijos de siempre no
+    // daba tiempo ni a leerlo. En el spec 0 = "no expira nunca"; el popup lo acota.
+    expireTimeout: typeof n.expire_timeout === "number" ? n.expire_timeout : undefined,
     image: n.image_path || undefined,
     source,
     meta,

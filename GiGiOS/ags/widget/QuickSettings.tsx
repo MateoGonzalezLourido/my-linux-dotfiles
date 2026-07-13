@@ -1137,6 +1137,8 @@ function QsMedia() {
     iconName: "audio-x-generic-symbolic",
     pixelSize: 14,
     cssClasses: ["qs-media-app-icon"],
+    valign: Gtk.Align.CENTER,
+    marginBottom: 6,
   })
 
   const normalizedAppKey = (value: string) => value
@@ -1201,6 +1203,8 @@ function QsMedia() {
   Spotify.isPremium().then(setCanLike)
 
   let currentP: any = null
+  let mediaContentWidget: Gtk.Widget | null = null
+  let switchingPlayer = false
 
   // Contador de anuncios del bloque actual. Spotify no expone por MPRIS cuántos
   // anuncios hay ni en cuál vas, así que los contamos: cada trackid de anuncio
@@ -1318,21 +1322,48 @@ function QsMedia() {
     setThemeIdx(0)
   }
 
-  const nextPlayer = () => {
+  const switchPlayer = (step: -1 | 1) => {
     const players = mpris.players
-    if (players.length > 1) {
-      setPlayerIndex((playerIndex.get() + 1) % players.length)
+    if (players.length <= 1 || switchingPlayer) return
+
+    const widget = mediaContentWidget
+    if (!widget) {
+      setPlayerIndex((playerIndex.get() + step + players.length) % players.length)
       update()
+      return
     }
+
+    switchingPlayer = true
+    const direction = step > 0 ? "next" : "prev"
+    const exitClass = `switch-out-${direction}`
+    const enterClass = `switch-enter-${direction}`
+    widget.add_css_class(exitClass)
+
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 110, () => {
+      const currentPlayers = mpris.players
+      if (currentPlayers.length > 1) {
+        setPlayerIndex((playerIndex.get() + step + currentPlayers.length) % currentPlayers.length)
+        update()
+      }
+
+      // Coloca el nuevo contenido, todavía invisible, al lado opuesto. Un frame
+      // después retiramos la clase para que la transición base lo lleve al centro.
+      widget.remove_css_class(exitClass)
+      widget.add_css_class(enterClass)
+      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, () => {
+        widget.remove_css_class(enterClass)
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 130, () => {
+          switchingPlayer = false
+          return GLib.SOURCE_REMOVE
+        })
+        return GLib.SOURCE_REMOVE
+      })
+      return GLib.SOURCE_REMOVE
+    })
   }
 
-  const prevPlayer = () => {
-    const players = mpris.players
-    if (players.length > 1) {
-      setPlayerIndex((playerIndex.get() - 1 + players.length) % players.length)
-      update()
-    }
-  }
+  const nextPlayer = () => switchPlayer(1)
+  const prevPlayer = () => switchPlayer(-1)
 
   // Initial update and interval — skip when panel is closed
   update()
@@ -1475,6 +1506,7 @@ function QsMedia() {
       hexpand
       heightRequest={CARD_H}
       cssClasses={["qs-media-content"]}
+      $={(self) => { mediaContentWidget = self }}
     >
       <box spacing={4} cssClasses={["qs-media-switcher-row"]}>
         {playerIcon}
@@ -1579,6 +1611,15 @@ function QsMedia() {
       visible={hasPlayer}
       overflow={Gtk.Overflow.HIDDEN}
     >
+      <Gtk.EventControllerScroll
+        flags={Gtk.EventControllerScrollFlags.VERTICAL | Gtk.EventControllerScrollFlags.DISCRETE}
+        onScroll={(_self, _dx, dy) => {
+          if (numPlayers.get() <= 1 || dy === 0) return false
+          if (dy > 0) nextPlayer()
+          else prevPlayer()
+          return true
+        }}
+      />
       <Gtk.Overlay $={(self: any) => {
         self.set_child(bgCap)
         self.add_overlay(colorFilter)
