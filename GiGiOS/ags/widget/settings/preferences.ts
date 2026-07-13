@@ -82,6 +82,27 @@ export { notificationBarEnabled }
 const [workspacesBarEnabled, _setWorkspacesBarEnabled] = createState(true)
 export { workspacesBarEnabled }
 
+// Máximo de iconos de aplicaciones que muestra cada workspace en la barra.
+// Cuatro conserva el comportamiento histórico; el tope evita que una sola
+// pastilla pueda ocupar la barra completa en workspaces muy cargados.
+export const WORKSPACE_APP_LIMIT_MIN = 1
+export const WORKSPACE_APP_LIMIT_MAX = 8
+const [workspaceAppLimit, _setWorkspaceAppLimit] = createState(4)
+export { workspaceAppLimit }
+
+const clampWorkspaceAppLimit = (value: number): number =>
+  Math.max(WORKSPACE_APP_LIMIT_MIN, Math.min(WORKSPACE_APP_LIMIT_MAX, Math.round(value)))
+
+// Máximo de botones de workspace visibles simultáneamente. El workspace enfocado
+// siempre entra en la selección; el resto se elige por uso reciente.
+export const WORKSPACE_VISIBLE_LIMIT_MIN = 1
+export const WORKSPACE_VISIBLE_LIMIT_MAX = 9
+const [workspaceVisibleLimit, _setWorkspaceVisibleLimit] = createState(9)
+export { workspaceVisibleLimit }
+
+const clampWorkspaceVisibleLimit = (value: number): number =>
+  Math.max(WORKSPACE_VISIBLE_LIMIT_MIN, Math.min(WORKSPACE_VISIBLE_LIMIT_MAX, Math.round(value)))
+
 // Auto-ocultado de la barra. Activado (default) = comportamiento actual: la barra
 // se retrae y vuelve al pasar el ratón por la hotzone superior. Desactivado, la
 // barra queda fija y además pasa a exclusivity EXCLUSIVE (Bar.tsx), de modo que
@@ -209,6 +230,12 @@ function load() {
     if (typeof saved.trayBar === "boolean") _setTrayBarEnabled(saved.trayBar)
     if (typeof saved.notificationBar === "boolean") _setNotificationBarEnabled(saved.notificationBar)
     if (typeof saved.workspacesBar === "boolean") _setWorkspacesBarEnabled(saved.workspacesBar)
+    if (typeof saved.workspaceAppLimit === "number" && Number.isFinite(saved.workspaceAppLimit)) {
+      _setWorkspaceAppLimit(clampWorkspaceAppLimit(saved.workspaceAppLimit))
+    }
+    if (typeof saved.workspaceVisibleLimit === "number" && Number.isFinite(saved.workspaceVisibleLimit)) {
+      _setWorkspaceVisibleLimit(clampWorkspaceVisibleLimit(saved.workspaceVisibleLimit))
+    }
     if (typeof saved.barAutoHide === "boolean") _setBarAutoHideEnabled(saved.barAutoHide)
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
@@ -248,6 +275,8 @@ function save() {
       trayBar: trayBarEnabled.get(),
       notificationBar: notificationBarEnabled.get(),
       workspacesBar: workspacesBarEnabled.get(),
+      workspaceAppLimit: workspaceAppLimit.get(),
+      workspaceVisibleLimit: workspaceVisibleLimit.get(),
       barAutoHide: barAutoHideEnabled.get(),
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
@@ -337,6 +366,20 @@ export function setNotificationBarEnabled(on: boolean) {
 }
 export function setWorkspacesBarEnabled(on: boolean) {
   _setWorkspacesBarEnabled(on)
+  save()
+}
+export function setWorkspaceAppLimit(value: number) {
+  if (!Number.isFinite(value)) return
+  const limit = clampWorkspaceAppLimit(value)
+  if (workspaceAppLimit.get() === limit) return
+  _setWorkspaceAppLimit(limit)
+  save()
+}
+export function setWorkspaceVisibleLimit(value: number) {
+  if (!Number.isFinite(value)) return
+  const limit = clampWorkspaceVisibleLimit(value)
+  if (workspaceVisibleLimit.get() === limit) return
+  _setWorkspaceVisibleLimit(limit)
   save()
 }
 export function setBarAutoHideEnabled(on: boolean) {

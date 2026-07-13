@@ -9,12 +9,12 @@ import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 
 import { barVisible, setIsWsDragging, setIsWsPreview, panelAutoClose, beginBarKeyboard, endBarKeyboard } from "../state.tsx"
-import { wsPreviewEnabled } from "../settings/preferences"
+import { workspaceAppLimit, workspaceVisibleLimit, wsPreviewEnabled } from "../settings/preferences"
 import { wsPreviewSuspended } from "../power/powerState"
 import { getIcon } from "./appIcons"
 import { appIconName, appOriginalIcon, describeGame, genericIconName, GAME_GLYPH } from "./games/icon"
 import { isGameClient } from "./games/evidence"
-import { orderWorkspaceClients } from "./workspaceOrder"
+import { orderWorkspaceClients, rememberRecentWorkspace, selectRecentWorkspaces } from "./workspaceOrder"
 
 // La preview de workspace se captura/muestra solo si el usuario la tiene activada
 // Y no está suspendida por el modo ahorro de energía.
@@ -533,13 +533,17 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         transitionDuration={250}
       >
         <box cssClasses={["ws-apps"]} spacing={0}>
-          {iconBtn(0)}
-          <box cssClasses={["ws-icon-separator"]} visible={clientsB((c: ClientIcon[]) => c.length > 1)} />
-          {iconBtn(1)}
-          <box cssClasses={["ws-icon-separator"]} visible={clientsB((c: ClientIcon[]) => c.length > 2)} />
-          {iconBtn(2)}
-          <box cssClasses={["ws-icon-separator"]} visible={clientsB((c: ClientIcon[]) => c.length > 3)} />
-          {iconBtn(3)}
+          <For each={() => Array.from({ length: workspaceAppLimit() }, (_, i) => i)}>
+            {(i) => (
+              <box spacing={0}>
+                <box
+                  cssClasses={["ws-icon-separator"]}
+                  visible={clientsB((clients: ClientIcon[]) => i > 0 && i < clients.length)}
+                />
+                {iconBtn(i)}
+              </box>
+            )}
+          </For>
         </box>
       </revealer>
     </box>
@@ -549,6 +553,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
 const [cacheLastTimeRendered, setCacheLastTimeRendered] = createState<any[]>([])
 export default function Workspaces() {
   const hypr = AstalHyprland.get_default()
+  let recentWorkspaceIds = rememberRecentWorkspace([], hypr.focusedWorkspace.id)
 
   const [wss, setWss] = createState<any[]>([])
   const [focusedId, setFocusedId] = createState<number>(hypr.focusedWorkspace.id)
@@ -560,37 +565,48 @@ export default function Workspaces() {
     if (_swapping) return
     const allWorkspaces = hypr.get_workspaces()
     const fId = hypr.focusedWorkspace.id
+    recentWorkspaceIds = rememberRecentWorkspace(recentWorkspaceIds, fId)
     setFocusedId(fId)
     setFocusedAddress((hypr as any).focusedClient?.address ?? "")
 
     const sorted = [...allWorkspaces].sort((a, b) => a.id - b.id)
-    const globalIcons = new Set<string>()
+    const clientsByWorkspace = new Map<number, any[]>()
+    for (const client of hypr.get_clients()) {
+      const workspaceId = client.workspace?.id ?? client.get_workspace?.()?.id
+      if (typeof workspaceId !== "number") continue
+      const clients = clientsByWorkspace.get(workspaceId) ?? []
+      clients.push(client)
+      clientsByWorkspace.set(workspaceId, clients)
+    }
 
     const workspacesData = sorted.map(ws => {
-      const clients = ws.get_clients ? ws.get_clients() : (ws as any).clients
+      // La lista global de clientes ya trae su workspace y es más fiable durante
+      // el cambio de foco que la lista interna del objeto Workspace de Astal.
+      const clients = clientsByWorkspace.get(ws.id) ?? []
       const allClients = getClientIcons(orderWorkspaceClients(clients))
-
-      const seenInWs = new Set<string>()
-      const uniqueClients = allClients.filter(c => {
-        const key = c.isGlyph ? c.icon : `cls:${c.icon}`
-        if (seenInWs.has(key) || globalIcons.has(key)) return false
-        seenInWs.add(key)
-        return true
-      })
-      uniqueClients.forEach(c => globalIcons.add(c.isGlyph ? c.icon : `cls:${c.icon}`))
 
       return {
         id: ws.id,
         focus: () => ws.focus(),
         hasClients: clients.length > 0,
-        allClients: allClients.slice(0, 4),
-        uniqueClients: uniqueClients.slice(0, 4),
+        allClients,
       }
     })
 
-    const visibleWss = workspacesData.filter(ws => ws.hasClients || ws.id === fId)
-    const shouldDeduplicate = visibleWss.length > 5
-    const newWss = visibleWss.map(ws => ({ ...ws, shouldDeduplicate }))
+    const visibleWss = selectRecentWorkspaces(
+      workspacesData.filter(ws => ws.hasClients || ws.id === fId),
+      recentWorkspaceIds,
+      fId,
+      workspaceVisibleLimit.get(),
+    )
+    // Cada workspace visible conserva sus propios iconos. La antigua
+    // deduplicación global podía dejar uno sin iconos si otra app con el mismo
+    // icono existía en un workspace anterior (incluso aunque ya estuviera oculto).
+    const newWss = visibleWss.map(ws => ({
+      ...ws,
+      uniqueClients: ws.allClients,
+      shouldDeduplicate: false,
+    }))
     setWss(newWss)
     setCacheLastTimeRendered(newWss)
   }
@@ -664,6 +680,7 @@ export default function Workspaces() {
   const recaptureCurrent = () => captureWorkspace(hypr.focusedWorkspace?.id ?? -1)
   wsPreviewEnabled.subscribe(recaptureCurrent)
   wsPreviewSuspended.subscribe(recaptureCurrent)
+  workspaceVisibleLimit.subscribe(update)
 
   update()
 

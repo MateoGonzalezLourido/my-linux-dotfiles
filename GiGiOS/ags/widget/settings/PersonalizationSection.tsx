@@ -22,6 +22,10 @@ import {
   trayBarEnabled, setTrayBarEnabled,
   notificationBarEnabled, setNotificationBarEnabled,
   workspacesBarEnabled, setWorkspacesBarEnabled,
+  workspaceAppLimit, setWorkspaceAppLimit,
+  WORKSPACE_APP_LIMIT_MIN, WORKSPACE_APP_LIMIT_MAX,
+  workspaceVisibleLimit, setWorkspaceVisibleLimit,
+  WORKSPACE_VISIBLE_LIMIT_MIN, WORKSPACE_VISIBLE_LIMIT_MAX,
   batteryMonitorEnabled, setBatteryMonitorEnabled,
   tempMonitorEnabled, setTempMonitorEnabled,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
@@ -29,6 +33,7 @@ import {
   orionAppsDefault, setOrionAppsDefault,
 } from "./preferences"
 import AutoDndSetting from "./AutoDndSetting"
+import { InlineEditableValue } from "../InlineEditableValue"
 
 // Monitor de actualizaciones del SO + drivers de GPU (hypr/scripts/updates-monitor.sh).
 // El maestro se aplica en caliente (su setter lanza/mata el script); la recomprobación
@@ -119,6 +124,60 @@ function UpdatesSetting() {
       </box>
     </box>
   )
+}
+
+function WorkspaceAppLimitSlider(): Gtk.Scale {
+  const adjustment = new Gtk.Adjustment({
+    lower: WORKSPACE_APP_LIMIT_MIN,
+    upper: WORKSPACE_APP_LIMIT_MAX,
+    stepIncrement: 1,
+    pageIncrement: 1,
+  })
+  adjustment.value = workspaceAppLimit.get()
+  workspaceAppLimit.subscribe(() => {
+    if (adjustment.value !== workspaceAppLimit.get()) adjustment.value = workspaceAppLimit.get()
+  })
+
+  const scale = new Gtk.Scale({
+    orientation: Gtk.Orientation.HORIZONTAL,
+    adjustment,
+    drawValue: false,
+    digits: 0,
+    hexpand: true,
+  })
+  scale.cssClasses = ["qs-slider", "brightness"]
+  scale.connect("change-value", (_scale, _scroll, value) => {
+    setWorkspaceAppLimit(value)
+    return false
+  })
+  return scale
+}
+
+function WorkspaceVisibleLimitSlider(): Gtk.Scale {
+  const adjustment = new Gtk.Adjustment({
+    lower: WORKSPACE_VISIBLE_LIMIT_MIN,
+    upper: WORKSPACE_VISIBLE_LIMIT_MAX,
+    stepIncrement: 1,
+    pageIncrement: 1,
+  })
+  adjustment.value = workspaceVisibleLimit.get()
+  workspaceVisibleLimit.subscribe(() => {
+    if (adjustment.value !== workspaceVisibleLimit.get()) adjustment.value = workspaceVisibleLimit.get()
+  })
+
+  const scale = new Gtk.Scale({
+    orientation: Gtk.Orientation.HORIZONTAL,
+    adjustment,
+    drawValue: false,
+    digits: 0,
+    hexpand: true,
+  })
+  scale.cssClasses = ["qs-slider", "brightness"]
+  scale.connect("change-value", (_scale, _scroll, value) => {
+    setWorkspaceVisibleLimit(value)
+    return false
+  })
+  return scale
 }
 
 export default function PersonalizationSection() {
@@ -522,6 +581,64 @@ export default function PersonalizationSection() {
               <box cssClasses={workspacesBarEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
             </box>
           </button>
+        </box>
+        <box
+          orientation={Gtk.Orientation.VERTICAL}
+          spacing={6}
+          visible={workspacesBarEnabled((enabled: boolean) => enabled)}
+        >
+          <box spacing={8} valign={Gtk.Align.CENTER}>
+            <label
+              cssClasses={["sp-field-label"]}
+              label="Máximo de apps por workspace"
+              hexpand
+              halign={Gtk.Align.START}
+            />
+            <InlineEditableValue
+              display={workspaceAppLimit((limit: number) => `${limit}`)}
+              getValue={() => workspaceAppLimit.get()}
+              onCommit={setWorkspaceAppLimit}
+              min={WORKSPACE_APP_LIMIT_MIN}
+              max={WORKSPACE_APP_LIMIT_MAX}
+              labelClass="sp-field-value"
+              tooltip="Editar límite de iconos"
+              maxLength={1}
+            />
+          </box>
+          {WorkspaceAppLimitSlider() as unknown as any}
+          <label
+            cssClasses={["sp-field-hint"]}
+            label={`Muestra entre ${WORKSPACE_APP_LIMIT_MIN} y ${WORKSPACE_APP_LIMIT_MAX} iconos en cada workspace. Se aplica al instante.`}
+            halign={Gtk.Align.START}
+            wrap={true}
+            xalign={0}
+          />
+          <box spacing={8} valign={Gtk.Align.CENTER} marginTop={4}>
+            <label
+              cssClasses={["sp-field-label"]}
+              label="Máximo de workspaces visibles"
+              hexpand
+              halign={Gtk.Align.START}
+            />
+            <InlineEditableValue
+              display={workspaceVisibleLimit((limit: number) => `${limit}`)}
+              getValue={() => workspaceVisibleLimit.get()}
+              onCommit={setWorkspaceVisibleLimit}
+              min={WORKSPACE_VISIBLE_LIMIT_MIN}
+              max={WORKSPACE_VISIBLE_LIMIT_MAX}
+              labelClass="sp-field-value"
+              tooltip="Editar límite de workspaces"
+              maxLength={1}
+            />
+          </box>
+          {WorkspaceVisibleLimitSlider() as unknown as any}
+          <label
+            cssClasses={["sp-field-hint"]}
+            label="El actual siempre permanece visible; al llegar al límite sale el workspace con contenido usado hace más tiempo."
+            halign={Gtk.Align.START}
+            wrap={true}
+            xalign={0}
+          />
         </box>
       </box>
 
