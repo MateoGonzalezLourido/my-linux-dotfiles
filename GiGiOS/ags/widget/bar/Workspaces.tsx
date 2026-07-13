@@ -12,7 +12,7 @@ import { barVisible, setIsWsDragging, setIsWsPreview, panelAutoClose, beginBarKe
 import { wsPreviewEnabled } from "../settings/preferences"
 import { wsPreviewSuspended } from "../power/powerState"
 import { getIcon } from "./appIcons"
-import { appIconName, describeGame, genericIconName, GAME_GLYPH } from "./games/icon"
+import { appIconName, appOriginalIcon, describeGame, genericIconName, GAME_GLYPH } from "./games/icon"
 import { isGameClient } from "./games/evidence"
 
 // La preview de workspace se captura/muestra solo si el usuario la tiene activada
@@ -111,6 +111,7 @@ const swapWorkspaces = async (idA: number, idB: number, afterSwap?: () => void) 
 
 interface ClientIcon {
   icon: string
+  gicon: Gio.Icon | null
   address: string
   appClass: string
   isGlyph: boolean
@@ -143,17 +144,30 @@ const getClientIcons = (clients: any[]): ClientIcon[] => {
       // 1. Glifo definido a mano en app_icons.json (override del usuario; el fichero
       //    no existe por defecto, así que normalmente esto no dispara).
       const glyph = getIcon(c.class)
-      if (glyph) return { ...common, icon: glyph, isGlyph: true }
+      if (glyph) return { ...common, icon: glyph, gicon: null, isGlyph: true }
 
-      // 2. Icono real del tema. appIconName SOLO devuelve nombres que el tema tiene:
+      // 2. Icono original instalado por la app (hicolor / ruta del .desktop). Evita
+      //    el círculo y padding que el tema activo añade y conserva una fuente SVG o
+      //    PNG grande para que el reescalado a 19px tenga mejores bordes.
+      const original = appOriginalIcon(c)
+      if (original) {
+        return {
+          ...common,
+          icon: original.to_string() ?? c.class,
+          gicon: original,
+          isGlyph: false,
+        }
+      }
+
+      // 3. Icono real del tema. appIconName SOLO devuelve nombres que el tema tiene:
       //    antes se le pasaba la clase cruda a iconName y, cuando no existía tal icono
       //    (p. ej. "steam_app_730"), GTK pintaba el icono roto en vez de nada.
       const name = appIconName(c)
-      if (name) return { ...common, icon: name, isGlyph: false }
+      if (name) return { ...common, icon: name, gicon: null, isGlyph: false }
 
-      // 3. Sin icono resoluble: mando para los juegos, genérico para lo demás.
-      if (isGameClient(c)) return { ...common, icon: GAME_GLYPH, isGlyph: true }
-      return { ...common, icon: genericIconName(c), isGlyph: false }
+      // 4. Sin icono resoluble: mando para los juegos, genérico para lo demás.
+      if (isGameClient(c)) return { ...common, icon: GAME_GLYPH, gicon: null, isGlyph: true }
+      return { ...common, icon: genericIconName(c), gicon: null, isGlyph: false }
     })
 }
 
@@ -308,9 +322,17 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         />
         <Gtk.Image
           cssClasses={["ws-app-icon", "ws-image-icon"]}
+          gicon={clientsB((c: ClientIcon[]) => c[i]?.gicon ?? null)}
+          pixelSize={19}
+          visible={clientsB((c: ClientIcon[]) => !!(c[i] && !c[i].isGlyph && c[i].gicon))}
+          halign={Gtk.Align.CENTER}
+          valign={Gtk.Align.CENTER}
+        />
+        <Gtk.Image
+          cssClasses={["ws-app-icon", "ws-image-icon"]}
           iconName={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? "" : (c[i]?.icon ?? ""))}
           pixelSize={19}
-          visible={clientsB((c: ClientIcon[]) => !!(c[i] && !c[i].isGlyph))}
+          visible={clientsB((c: ClientIcon[]) => !!(c[i] && !c[i].isGlyph && !c[i].gicon))}
           halign={Gtk.Align.CENTER}
           valign={Gtk.Align.CENTER}
         />
