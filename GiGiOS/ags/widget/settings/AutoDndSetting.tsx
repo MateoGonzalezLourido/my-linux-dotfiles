@@ -109,6 +109,7 @@ export default function AutoDndSetting() {
           <entry
             cssClasses={["sp-num-input", "adnd-entry"]}
             hexpand
+            xalign={0}
             placeholderText="clase de la ventana (p. ej. mpv)"
             $={(self: Gtk.Entry) => { entryRef = self }}
             onActivate={addTyped}

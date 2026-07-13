@@ -48,7 +48,7 @@ System services are GObject libraries imported as `gi://Astal*` (e.g. `AstalWp` 
 
 ### Styling
 
-Single global stylesheet `style.scss` (large, ~90KB). **`app.ts` imports `./out.css`, not the SCSS** — AGS does *not* compile SCSS at runtime, so editing `style.scss` has no visible effect until you regenerate the artifact: `sass style.scss out.css` from `ags/` (rewrites `out.css` + `out.css.map`). Dark catppuccin-inspired theme. Class-name prefixes scope features: `.nb-*`/`.np-*`/`.notif-*`/`.ns-*` for notifications, etc. Some self-contained widgets keep their own scss (`widget/orion/orion.scss`, `widget/WorkspaceOverview/style.scss`). UI uses JetBrainsMono Nerd Font glyphs throughout for icons.
+Single global stylesheet `style.scss` (large, ~90KB). **`app.ts` imports `./out.css`, not the SCSS** — AGS does *not* compile SCSS at runtime, so editing `style.scss` has no visible effect until you regenerate the artifact: `sass --no-charset style.scss out.css` from `ags/` (rewrites `out.css` + `out.css.map`; `--no-charset` is required because GTK CSS rejects Sass's `@charset` rule). Dark catppuccin-inspired theme. Class-name prefixes scope features: `.nb-*`/`.np-*`/`.notif-*`/`.ns-*` for notifications, etc. Some self-contained widgets keep their own scss (`widget/orion/orion.scss`, `widget/WorkspaceOverview/style.scss`). UI uses JetBrainsMono Nerd Font glyphs throughout for icons.
 
 Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fab387` orange, `#f9e2af` yellow, `#a6e3a1` green, `#94e2d5` teal.
 
