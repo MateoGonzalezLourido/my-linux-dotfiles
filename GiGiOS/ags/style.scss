@@ -1590,6 +1590,14 @@ window.qs-window > box,
     -gtk-icon-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
   }
 
+  .qs-media-app-glyph {
+    min-width: 14px;
+    color: $white;
+    font-family: $font-icon;
+    font-size: 14px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
+  }
+
   .qs-media-content {
     background-color: transparent;
     padding: 5px 14px 5px;

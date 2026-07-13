@@ -2448,6 +2448,13 @@ window.qs-window > box,
   -gtk-icon-size: 14px;
   -gtk-icon-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
 }
+.qs-media .qs-media-app-glyph {
+  min-width: 14px;
+  color: #ffffff;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 14px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
+}
 .qs-media .qs-media-content {
   background-color: transparent;
   padding: 5px 14px 5px;

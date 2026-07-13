@@ -12,6 +12,7 @@ import AstalBluetooth from "gi://AstalBluetooth"
 import AstalNotifd from "gi://AstalNotifd"
 import AstalMpris from "gi://AstalMpris"
 import Gio from "gi://Gio"
+import GioUnix from "gi://GioUnix?version=2.0"
 import GdkPixbuf from "gi://GdkPixbuf"
 import cairo from "gi://cairo"
 import {
@@ -43,6 +44,7 @@ import {
 } from "./display/service"
 import { DisplaySelect } from "./display/controls"
 import { InlineEditableValue } from "./InlineEditableValue"
+import { getIcon } from "./bar/appIcons"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -1116,8 +1118,8 @@ function QsMedia() {
   const [artist, setArtist] = createState("")
   const [isPlaying, setIsPlaying] = createState(false)
   const [prog, setProg] = createState(0)
-  const [positionLabel, setPositionLabel] = createState("0:00")
-  const [durationLabel, setDurationLabel] = createState("0:00")
+  const [positionLabel, setPositionLabel] = createState("")
+  const [durationLabel, setDurationLabel] = createState("")
   const [hasProgress, setHasProgress] = createState(false)
   const [hasPlayer, setHasPlayer] = createState(false)
   const [cover, setCover] = createState("")
@@ -1133,13 +1135,25 @@ function QsMedia() {
   const [canLike, setCanLike] = createState(false)
   let lastQueriedId: string | null = null
 
+  const playerGlyph = new Gtk.Label({
+    cssClasses: ["qs-media-app-glyph"],
+    visible: false,
+    valign: Gtk.Align.CENTER,
+  })
+
   const playerIcon = new Gtk.Image({
     iconName: "audio-x-generic-symbolic",
     pixelSize: 14,
     cssClasses: ["qs-media-app-icon"],
     valign: Gtk.Align.CENTER,
+  })
+
+  const playerAppIcon = new Gtk.Box({
+    valign: Gtk.Align.CENTER,
     marginBottom: 6,
   })
+  playerAppIcon.append(playerGlyph)
+  playerAppIcon.append(playerIcon)
 
   const normalizedAppKey = (value: string) => value
     .toLowerCase()
@@ -1156,7 +1170,7 @@ function QsMedia() {
     // ofrece la asociación exacta incluso para navegadores y apps Flatpak.
     for (const desktopId of [entry, entry && `${entry.replace(/\.desktop$/i, "")}.desktop`]) {
       if (!desktopId) continue
-      const desktop = Gio.DesktopAppInfo.new(desktopId)
+      const desktop = GioUnix.DesktopAppInfo.new(desktopId)
       const icon = desktop?.get_icon()
       if (icon) {
         playerIconCache.set(cacheKey, icon)
@@ -1301,9 +1315,24 @@ function QsMedia() {
     }
     resolveCover(art)
     setPlayerName(p.identity || p.bus_name.split(".").pop() || "Player")
-    const appIcon = resolvePlayerIcon(p)
-    if (appIcon) playerIcon.set_from_gicon(appIcon)
-    else playerIcon.set_from_icon_name("audio-x-generic-symbolic")
+    const entry = String(p.entry || "").replace(/\.desktop$/i, "")
+    const busId = String(p.bus_name || "")
+      .replace(/^org\.mpris\.MediaPlayer2\./i, "")
+      .replace(/\.instance[^.]*$/i, "")
+    const identity = String(p.identity || "")
+    const glyph = getIcon(entry, busId, p.bus_name, identity, identity.replace(/\s+/g, "-"))
+
+    if (glyph) {
+      playerGlyph.set_label(glyph)
+      playerGlyph.set_visible(true)
+      playerIcon.set_visible(false)
+    } else {
+      const appIcon = resolvePlayerIcon(p)
+      if (appIcon) playerIcon.set_from_gicon(appIcon)
+      else playerIcon.set_from_icon_name("audio-x-generic-symbolic")
+      playerGlyph.set_visible(false)
+      playerIcon.set_visible(true)
+    }
     // Algunos reproductores (Firefox/YouTube) no exponen duración ni posición por
     // MPRIS. Sin dato, ocultamos la barra y los tiempos en vez de mostrar 0:00 muerto.
     if (p.length > 0) {
@@ -1314,8 +1343,10 @@ function QsMedia() {
     } else {
       setHasProgress(false)
       setProg(0)
-      setPositionLabel("0:00")
-      setDurationLabel("0:00")
+      // Conservamos las etiquetas vacías dentro de la fila: sus dos zonas
+      // expansibles mantienen los controles centrados aunque no haya tiempos.
+      setPositionLabel("")
+      setDurationLabel("")
     }
 
     // Fallback theme for non-cover UI. The background filter uses the real cover color.
@@ -1509,7 +1540,7 @@ function QsMedia() {
       $={(self) => { mediaContentWidget = self }}
     >
       <box spacing={4} cssClasses={["qs-media-switcher-row"]}>
-        {playerIcon}
+        {playerAppIcon}
         <label
           cssClasses={["qs-media-source"]}
           label={playerName}
@@ -1545,7 +1576,6 @@ function QsMedia() {
           <label
             cssClasses={["qs-media-time"]}
             label={positionLabel}
-            visible={hasProgress}
             halign={Gtk.Align.START}
             hexpand
           />
@@ -1596,7 +1626,6 @@ function QsMedia() {
           <label
             cssClasses={["qs-media-time"]}
             label={durationLabel}
-            visible={hasProgress}
             halign={Gtk.Align.END}
             hexpand
           />
