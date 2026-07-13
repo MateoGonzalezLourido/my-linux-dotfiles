@@ -1,4 +1,3 @@
-@charset "UTF-8";
 .Orion {
   background: transparent;
 }
@@ -2188,10 +2187,7 @@ window.qs-window > box,
 
 .qs-panel {
   background-color: rgb(8, 8, 12);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-top: none;
-  border-left: none;
-  border-right: none;
+  border: none;
   border-top-right-radius: 0;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
@@ -2285,13 +2281,14 @@ window.qs-window > box,
   border: 1px solid transparent;
   border-radius: 14px;
   padding: 4px 6px;
-  transition: all 300ms cubic-bezier(0.2, 1, 0.2, 1);
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
   color: #ffffff;
   margin: 1px;
 }
 .qs-tile:hover {
-  background: rgba(255, 255, 255, 0.06);
-  transform: translateY(-1px);
+  background-color: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.008);
 }
 .qs-tile.active {
   background: rgba(0, 242, 255, 0.12);
@@ -2305,10 +2302,15 @@ window.qs-window > box,
   color: #00f2ff;
   text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
 }
+.qs-tile.active:hover {
+  background-color: rgba(0, 242, 255, 0.16);
+  border-color: rgba(0, 242, 255, 0.58);
+  box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.16), 0 0 14px rgba(0, 242, 255, 0.11);
+}
 .qs-tile .qs-tile-icon {
   font-family: "MesloLGS Nerd Font";
   font-size: 16px;
-  margin: 0;
+  margin: 0 2px 0 0;
   min-width: 20px;
 }
 .qs-tile .qs-tile-net-icon {
@@ -2350,7 +2352,7 @@ window.qs-window > box,
 .qs-tile .qs-tile-sub {
   font-size: 9px;
   color: rgba(255, 255, 255, 0.5);
-  margin: 0;
+  margin: 1px 0 0;
 }
 .qs-tile:not(.active) .qs-tile-icon {
   color: rgba(255, 255, 255, 0.28);
@@ -3131,19 +3133,19 @@ button.qs-user-settings-btn label {
   line-height: 1;
 }
 .qs-wifi-header .qs-wifi-search {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 0 7px;
-  min-height: 22px;
+  background: rgba(255, 255, 255, 0.012);
+  border: 1px solid rgba(255, 255, 255, 0.025);
+  border-radius: 7px;
+  padding: 0 9px;
+  min-height: 24px;
   transition: border-color 120ms ease, background 120ms ease;
 }
 .qs-wifi-header .qs-wifi-search:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.022);
 }
 .qs-wifi-header .qs-wifi-search:focus-within {
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(203, 166, 247, 0.11);
 }
 .qs-wifi-header .qs-wifi-search .qs-wifi-search-icon {
   font-size: 11px;
@@ -3155,9 +3157,9 @@ button.qs-user-settings-btn label {
   box-shadow: none;
   outline: none;
   padding: 0;
-  min-height: 20px;
+  min-height: 22px;
   caret-color: #89b4fa;
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(226, 226, 226, 0.78);
 }
 .qs-wifi-header .qs-wifi-search .qs-wifi-search-entry selection {
@@ -3304,18 +3306,16 @@ button.qs-user-settings-btn label {
 }
 
 .qs-tile-arrow {
-  background: transparent;
-  border: none;
-  color: rgba(200, 190, 255, 0.55);
+  color: rgba(203, 166, 247, 0.5);
   font-family: "MesloLGS Nerd Font";
   font-size: 14px;
-  padding: 0 4px;
-  border-radius: 4px;
-  transition: all 100ms ease;
+  min-width: 22px;
+  padding: 0;
+  margin: 0;
 }
-.qs-tile-arrow:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(230, 225, 255, 0.92);
+
+.qs-tile.active .qs-tile-arrow {
+  color: rgba(0, 242, 255, 0.62);
 }
 
 .qs-bluetooth-menu {

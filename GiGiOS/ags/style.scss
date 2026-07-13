@@ -1262,7 +1262,6 @@ progressbar.osd-progress {
 
 // ── Quick Settings Panel ──────────────────────────────────────────────────────
 $qs-bg: rgba(12, 12, 18, 1);
-$qs-border: rgba(255, 255, 255, 0.1);
 $qs-accent: #00f2ff;
 $qs-accent2: #7000ff;
 $qs-green: #00ff9d;
@@ -1305,10 +1304,7 @@ window.qs-window > box,
 
 .qs-panel {
   background-color: $bg-bar;
-  border: 1px solid $qs-border;
-  border-top: none;
-  border-left: none;
-  border-right: none;
+  border: none;
   border-top-right-radius: 0;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
@@ -1404,13 +1400,17 @@ window.qs-window > box,
   border: 1px solid transparent;
   border-radius: 14px;
   padding: 4px 6px;
-  transition: all 300ms cubic-bezier(0.2, 1, 0.2, 1);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
   color: $qs-text;
   margin: 1px;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    transform: translateY(-1px);
+    background-color: rgba(255, 255, 255, 0.035);
+    border-color: rgba(255, 255, 255, 0.045);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.008);
   }
 
   &.active {
@@ -1424,12 +1424,18 @@ window.qs-window > box,
       color: $qs-accent;
       text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
     }
+
+    &:hover {
+      background-color: rgba(0, 242, 255, 0.16);
+      border-color: rgba(0, 242, 255, 0.58);
+      box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.16), 0 0 14px rgba(0, 242, 255, 0.11);
+    }
   }
 
   .qs-tile-icon {
     font-family: $font-icon;
     font-size: 16px;
-    margin: 0;
+    margin: 0 2px 0 0;
     min-width: 20px;
   }
 
@@ -1471,7 +1477,7 @@ window.qs-window > box,
   .qs-tile-sub {
     font-size: 9px;
     color: $qs-text-dim;
-    margin: 0;
+    margin: 1px 0 0;
   }
 
   &:not(.active) .qs-tile-icon {
@@ -2352,20 +2358,20 @@ button.qs-user-settings-btn {
   }
 
   .qs-wifi-search {
-    background: rgba(255, 255, 255, 0.025);
-    border: 1px solid transparent;
-    border-radius: 6px;
-    padding: 0 7px;
-    min-height: 22px;
+    background: rgba(255, 255, 255, 0.012);
+    border: 1px solid rgba(255, 255, 255, 0.025);
+    border-radius: 7px;
+    padding: 0 9px;
+    min-height: 24px;
     transition: border-color 120ms ease, background 120ms ease;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.022);
     }
 
     &:focus-within {
-      background: rgba(255, 255, 255, 0.045);
-      border-color: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(203, 166, 247, 0.11);
     }
 
     .qs-wifi-search-icon {
@@ -2379,15 +2385,16 @@ button.qs-user-settings-btn {
       box-shadow: none;
       outline: none;
       padding: 0;
-      min-height: 20px;
+      min-height: 22px;
       caret-color: $blue;
-      font-size: 12px;
+      font-size: 11px;
       color: rgba($text, 0.78);
 
       selection {
         background: rgba(255, 255, 255, 0.16);
       }
     }
+
   }
 }
 
@@ -2550,19 +2557,16 @@ button.qs-user-settings-btn {
 }
 
 .qs-tile-arrow {
-  background: transparent;
-  border: none;
-  color: rgba(200, 190, 255, 0.55);
+  color: rgba(203, 166, 247, 0.5);
   font-family: $font-icon;
   font-size: 14px;
-  padding: 0 4px;
-  border-radius: 4px;
-  transition: all 100ms ease;
+  min-width: 22px;
+  padding: 0;
+  margin: 0;
+}
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(230, 225, 255, 0.92);
-  }
+.qs-tile.active .qs-tile-arrow {
+  color: rgba(0, 242, 255, 0.62);
 }
 
 // ── Bluetooth Menu ────────────────────────────────────────────────────────────

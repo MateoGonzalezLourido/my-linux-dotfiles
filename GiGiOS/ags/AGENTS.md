@@ -16,6 +16,8 @@ There is no `package.json`, `tsconfig.json`, or project build step in this repos
 
 Follow the existing TypeScript/TSX style: functional widgets, explicit imports from `ags/gtk4`, `ags/gtk4/app`, and `gi://...` modules, and colocated feature files. Use `createState` for reactive state and add new panel visibility state to `panelStates` plus `closeAllPanels()` in `widget/state.tsx`. Keep feature-specific CSS class prefixes consistent with surrounding code, such as `.notif-*`, `.nb-*`, and `.ns-*`.
 
+GTK CSS dimensions are minimums, not fixed sizes. Children of a horizontal `Gtk.Box` default to `valign=FILL`, so compact buttons can stretch to the tallest sibling and appear unaffected by smaller `min-height` or padding. Set `valign={Gtk.Align.CENTER}` (or the corresponding cross-axis alignment) on compact controls before changing their CSS dimensions.
+
 ## Testing Guidelines
 
 Tests use Node's built-in test runner and are colocated with implementation files as `*.test.ts`. Prefer testing pure logic modules without GTK imports. When adding notification rule, history, cleanup, or settings behavior, add or update a focused test next to the relevant module.

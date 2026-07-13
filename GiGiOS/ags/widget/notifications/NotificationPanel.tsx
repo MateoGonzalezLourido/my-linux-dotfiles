@@ -517,7 +517,9 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
       anchor={TOP | RIGHT}
       application={app}
       widthRequest={PANEL_TOTAL_WIDTH}
-      marginTop={barTopMargin(37)}
+      // La barra fija reserva 38px; mantener el mismo solape visual de 1px que
+      // usamos al flotar evita que aparezca una costura entre ambas superficies.
+      marginTop={barTopMargin(37, -1)}
       marginRight={0}
       decorated={false}
       cssClasses={["np-window"]}

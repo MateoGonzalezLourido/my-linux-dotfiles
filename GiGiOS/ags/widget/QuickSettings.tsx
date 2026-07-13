@@ -735,8 +735,8 @@ quickSettingsVisible.subscribe(() => {
   }
 })
 
-function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onSecondaryClick, onRightClick, subtitleWidthRequest }: {
-  icon: any, iconWidget?: any, label: any, subtitle: any, active: any, onToggle: () => void, onSecondaryClick?: () => void, onRightClick?: () => void, subtitleWidthRequest?: number
+function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onRightClick, subtitleWidthRequest }: {
+  icon: any, iconWidget?: any, label: any, subtitle: any, active: any, onToggle: () => void, onRightClick?: () => void, subtitleWidthRequest?: number
 }) {
   const classes = typeof active === "function"
     ? active((a: boolean) => a ? ["qs-tile", "active"] : ["qs-tile"])
@@ -760,14 +760,7 @@ function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onSeconda
             ellipsize={3}
           />
         </box>
-        {onSecondaryClick && (
-          <button cssClasses={["qs-tile-arrow"]} onClicked={(self) => {
-            onSecondaryClick()
-            // Stop propagation to prevent toggle
-          }} halign={Gtk.Align.END}>
-            <label label="󰅂" />
-          </button>
-        )}
+        <label cssClasses={["qs-tile-arrow"]} label="󰅂" halign={Gtk.Align.END} />
       </box>
     </button>
   )
@@ -832,7 +825,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
 
   // Tile de red consciente de ethernet: si network.primary es WIRED y el cable
   // está activo, muestra el nombre del perfil de NetworkManager (p. ej. "Casa");
-  // si no, mantiene el comportamiento WiFi de siempre.
+  // si no, mantiene el comportamiento WiFi de siempre mostrando el SSID.
   const NET_P  = AstalNetwork.Primary
   const NET_DS = AstalNetwork.DeviceState
   const ETHERNET_GLYPH = "󰈀"   // nf-md-ethernet
@@ -953,7 +946,6 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           subtitleWidthRequest={96}
           active={netTile((t) => t.active)}
           onToggle={onWifiClick}
-          onSecondaryClick={onWifiClick}
           onRightClick={() => wifi && execAsync(["bash", "-c", wifi.enabled ? "nmcli radio wifi off" : "nmcli radio wifi on"])}
         />
         <QsTile
@@ -962,7 +954,6 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           subtitle={speakerVol ? speakerVol((v) => `${Math.round(v * 100)}`) : "—"}
           active={speakerMute ? speakerMute((m) => !m) : true}
           onToggle={onAudioClick}
-          onSecondaryClick={onAudioClick}
           onRightClick={() => { if (speaker) speaker.mute = !speaker.mute }}
         />
         <QsTile
@@ -971,7 +962,6 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           subtitle={monitor}
           active={nightOn}
           onToggle={onDisplayClick}
-          onSecondaryClick={onDisplayClick}
           onRightClick={() => toggleNightNow()}
         />
       </box>
@@ -982,7 +972,6 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           subtitle={btInfoState((i) => i.label)}
           active={btActive}
           onToggle={onBluetoothClick}
-          onSecondaryClick={onBluetoothClick}
           onRightClick={() => { void toggleBluetoothPower(bt) }}
         />
         <QsTile
@@ -991,7 +980,6 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           subtitle={micVol ? micVol((v) => `${Math.round(v * 100)}`) : "—"}
           active={micMute ? micMute((m) => !m) : true}
           onToggle={onMicClick}
-          onSecondaryClick={onMicClick}
           onRightClick={() => { if (mic) mic.mute = !mic.mute }}
         />
       </box>
@@ -2675,8 +2663,9 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
           onClicked={() => scan()}
         ><label label="󰑐" /></button>
         <button
-          cssClasses={btPowered((p) => p ? ["qs-toggle", "on"] : ["qs-toggle"])}
+          cssClasses={btPowered((p) => p ? ["qs-toggle", "qs-header-toggle", "on"] : ["qs-toggle", "qs-header-toggle"])}
           visible={btSupported}
+          valign={Gtk.Align.CENTER}
           onClicked={() => { void toggleBluetoothPower(bt) }}
         >
           <ToggleSwitch active={btPowered} />
@@ -2788,7 +2777,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
 
     return (
       <box cssClasses={["qs-wifi-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-        <QsMenuHeader title={wiredInfo((info) => info.name)} onBack={onBack}>
+        <QsMenuHeader title="Ethernet" onBack={onBack}>
           <button
             cssClasses={["qs-icon-btn"]}
             tooltipText="Ajustes de red"
@@ -3288,7 +3277,9 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     anchor={TOP | RIGHT}
     application={app}
     widthRequest={PANEL_TOTAL_WIDTH}
-    marginTop={barTopMargin(PANEL_TOP)}
+    // La zona exclusiva de la barra mide 38px. Igual que PANEL_TOP=37 cuando
+    // flota, solapamos 1px al quedar fija para evitar una costura transparente.
+    marginTop={barTopMargin(PANEL_TOP, -1)}
     marginRight={0}
     decorated={false}
     cssClasses={["qs-window"]}
