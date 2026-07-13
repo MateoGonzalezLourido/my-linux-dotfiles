@@ -14,6 +14,7 @@ import { wsPreviewSuspended } from "../power/powerState"
 import { getIcon } from "./appIcons"
 import { appIconName, appOriginalIcon, describeGame, genericIconName, GAME_GLYPH } from "./games/icon"
 import { isGameClient } from "./games/evidence"
+import { orderWorkspaceClients } from "./workspaceOrder"
 
 // La preview de workspace se captura/muestra solo si el usuario la tiene activada
 // Y no está suspendida por el modo ahorro de energía.
@@ -567,7 +568,7 @@ export default function Workspaces() {
 
     const workspacesData = sorted.map(ws => {
       const clients = ws.get_clients ? ws.get_clients() : (ws as any).clients
-      const allClients = getClientIcons(clients)
+      const allClients = getClientIcons(orderWorkspaceClients(clients))
 
       const seenInWs = new Set<string>()
       const uniqueClients = allClients.filter(c => {
