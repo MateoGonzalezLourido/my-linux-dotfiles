@@ -51,6 +51,14 @@ for script in "$GIGIOS/install.sh" "$GIGIOS/bin/link.sh" "$GIGIOS/bin/preflight.
 done
 
 [[ -s "$GIGIOS/ags/out.css" ]] || fail "ags/out.css falta o está vacío"
+app_icons="$GIGIOS/ags/config/app_icons.json"
+if [[ ! -s "$app_icons" ]]; then
+  warn "sin ags/config/app_icons.json (los workspaces usarán iconos gráficos)"
+elif command -v jq >/dev/null 2>&1; then
+  jq -e 'type == "object" and length > 0 and all(to_entries[]; (.key | type == "string") and (.value | type == "string"))' \
+    "$app_icons" >/dev/null 2>&1 \
+    || warn "ags/config/app_icons.json no es un mapa válido (se usarán iconos gráficos)"
+fi
 if [[ -e "$GIGIOS/assets/face.png" ]]; then
   ok "avatar opcional presente"
 else

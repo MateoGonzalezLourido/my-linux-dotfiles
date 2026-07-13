@@ -141,8 +141,16 @@ fi
 # --- 4. Generar el CSS que importa app.ts ---
 SCSS="$HOME/GiGiOS/ags/style.scss"
 CSS="$HOME/GiGiOS/ags/out.css"
+APP_ICONS="$HOME/GiGiOS/ags/config/app_icons.json"
 
 [[ -f "$SCSS" ]] || die "Falta $SCSS. El checkout de GiGiOS está incompleto; vuelve a ejecutar el instalador o comprueba la rama '$BRANCH'."
+if [[ ! -s "$APP_ICONS" ]]; then
+  warn "Falta $APP_ICONS o está vacío; los workspaces usarán iconos gráficos."
+elif command -v jq >/dev/null 2>&1; then
+  jq -e 'type == "object" and length > 0 and all(to_entries[]; (.key | type == "string") and (.value | type == "string"))' \
+    "$APP_ICONS" >/dev/null \
+    || warn "$APP_ICONS no contiene un mapa válido; los workspaces usarán iconos gráficos."
+fi
 if ! command -v sass >/dev/null 2>&1; then
   die "Falta el comando 'sass'. En Arch/CachyOS instálalo con: sudo pacman -S --needed dart-sass"
 fi

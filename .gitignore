@@ -45,12 +45,6 @@ core
 
 # --- GiGiOS ---
 
-# Ajustes/estado/secretos de usuario de AGS: movidos a ~/.config/gigios/, fuera del
-# repo (GiGiOS/bin/link.sh los migra; ver GiGiOS/hypr/SETUP.md §14). config/ ya no
-# forma parte del repo — se ignora para que dispositivos que aún lo tengan no lo
-# vuelvan a añadir.
-GiGiOS/ags/config/
-
 # Logs de runtime
 GiGiOS/hypr/logs/
 
@@ -74,7 +68,6 @@ GiGiOS/cache/
 # Foto de perfil: mecanismo viejo eliminado (ahora estandarizada en
 # ~/.cache/gigios/face.png, ver GiGiOS/hypr/SETUP.md §13). Se ignoran para que los
 # dispositivos que todavía los tienen en disco no los vuelvan a añadir.
-# (fotoPerfil.txt queda cubierto por `GiGiOS/ags/config/` de arriba.)
 GiGiOS/hypr/hyprlock_avatar.png
 GiGiOS/assets/face.png
 

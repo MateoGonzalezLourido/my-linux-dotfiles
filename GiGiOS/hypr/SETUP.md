@@ -622,7 +622,7 @@ migrar y qué se regenera solo.
 | `~/.config/gigios/display.json` | brillo, night light (activo/temperatura) |
 | `~/.config/gigios/system_state.json` | estado guardado de wifi/bluetooth/volumen/mute |
 | `~/.config/gigios/audioPresets.json` | presets de audio de QuickSettings |
-| `~/.config/gigios/app_icons.json` | caché de iconos de apps resueltos |
+| `~/GiGiOS/ags/config/app_icons.json` | mapa versionado clase → glifo Nerd Font para los workspaces |
 | `~/.config/gigios/preferences.json` | preferencias de "Personalización" (p.ej. preview de workspace) |
 | `~/.config/gigios/notifications.json` | config de notificaciones |
 | `~/.config/gigios/notif-rules.json` | reglas del motor de notificaciones |

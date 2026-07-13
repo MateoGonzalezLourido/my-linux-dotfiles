@@ -141,9 +141,9 @@ const getClientIcons = (clients: any[]): ClientIcon[] => {
       const tooltip = buildTooltip(c)
       const common = { address: c.address, appClass: c.class, tooltip }
 
-      // 1. Glifo definido a mano en app_icons.json (override del usuario; el fichero
-      //    no existe por defecto, así que normalmente esto no dispara).
-      const glyph = getIcon(c.class)
+      // 1. Glifo definido a mano en ~/GiGiOS/ags/config/app_icons.json. Se prueban
+      //    tanto la clase actual como la inicial antes de resolver un icono gráfico.
+      const glyph = getIcon(c.class, c.initialClass ?? c.initial_class)
       if (glyph) return { ...common, icon: glyph, gicon: null, isGlyph: true }
 
       // 2. Icono original instalado por la app (hicolor / ruta del .desktop). Evita
