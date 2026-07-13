@@ -8,6 +8,8 @@ import { ruleFromHistoryEntry } from "./ruleFactory.ts"
 import RuleEditor from "./RuleEditor.tsx"
 import AppFilterBar from "./AppFilterBar.tsx"
 import EmptyState from "../../components/EmptyState.tsx"
+import { notifDaemonConflict, type DaemonConflict } from "../daemonCheck.ts"
+import DaemonConflictBanner from "../DaemonConflictBanner.tsx"
 
 export default function HistoryTab() {
   const [editing, setEditing] = createState<NotifRule | null>(null)
@@ -25,14 +27,29 @@ export default function HistoryTab() {
 
               <With value={empty}>
                 {(isEmpty: boolean) => isEmpty
-                  ? <EmptyState
-                      icon="󰂚"
-                      title="Historial vacío"
-                      wrapClass="ns-empty-state"
-                      iconClass="ns-empty-icon"
-                      titleClass="ns-empty-label"
-                      vexpand
-                    />
+                  // Vacío tiene dos causas MUY distintas: no ha pasado nada, o no somos el
+                  // servidor de notificaciones y no llega nada que guardar. Distinguirlas aquí
+                  // es el punto: es en esta pantalla donde se mira cuando "no guarda nada".
+                  ? <With value={notifDaemonConflict}>
+                      {(c: DaemonConflict | null) => c
+                        ? DaemonConflictBanner({
+                            conflict: c,
+                            wrapClass: "ns-empty-state",
+                            iconClass: "ns-empty-icon",
+                            titleClass: "ns-empty-label",
+                            subClass: "ns-empty-sub",
+                            vexpand: true,
+                          })
+                        : <EmptyState
+                            icon="󰂚"
+                            title="Historial vacío"
+                            wrapClass="ns-empty-state"
+                            iconClass="ns-empty-icon"
+                            titleClass="ns-empty-label"
+                            vexpand
+                          />
+                      }
+                    </With>
                   : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
                       <AppFilterBar apps={apps} active={filter} onSelect={setFilter} />
                       <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} hexpand vexpand>

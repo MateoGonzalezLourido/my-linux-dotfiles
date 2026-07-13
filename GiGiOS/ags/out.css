@@ -4214,6 +4214,13 @@ window.np-window.csd decoration {
   margin: 0;
 }
 
+.ns-empty-sub {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.45);
+  margin: 0;
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
 window.cal-panel,
 window.cal-panel.background,
 window.cal-panel.csd {

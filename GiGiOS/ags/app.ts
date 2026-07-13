@@ -15,6 +15,7 @@ import { orionEnabled } from "./widget/settings/preferences"
 import { startCleanupEngine } from "./widget/notifications/cleanup/cleanupEngine"
 import { runAppSettingsMigration } from "./widget/notifications/settings/runMigration"
 import { initAutoDnd } from "./widget/notifications/autoDnd/watcher"
+import { initNotifDaemonCheck } from "./widget/notifications/daemonCheck"
 import { initTrayApps } from "./widget/settings/trayApps"
 import { initGamingState } from "./widget/power/gamingState"
 import { showBrightnessOSD } from "./widget/state"
@@ -66,5 +67,7 @@ app.start({
     initAutoDnd()
     initTrayApps()
     initGamingState()
+    // Después de NotificationPopup: es quien construye el AstalNotifd que reclama el nombre.
+    initNotifDaemonCheck()
   },
 })

@@ -4,7 +4,11 @@
 set -euo pipefail
 
 REDIRECT="http://127.0.0.1:8888/callback"
-SCOPES="user-library-read user-library-modify"
+# Los dos scopes de playback son para llevar la reproducción a este equipo desde el
+# widget de la barra (Spotify Connect): leer los dispositivos y activar este. Si
+# cambias esta lista hay que volver a ejecutar este script: el refresh_token guardado
+# conserva para siempre los scopes con los que se emitió.
+SCOPES="user-library-read user-library-modify user-read-playback-state user-modify-playback-state"
 CREDS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/spotify-creds.json"
 
 command -v python3 >/dev/null || { echo "Falta python3"; exit 1; }

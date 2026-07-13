@@ -8,6 +8,8 @@ import GLib from "gi://GLib"
 import cairo from "gi://cairo"
 import { barVisible } from "../state"
 import { powerSaveActive } from "../power/powerState"
+import { isAd, parseTrackId } from "../services/spotify/parse"
+import { transferToThisDevice } from "../services/spotify/SpotifyService"
 
 const ART_WIDTH = 40
 const ART_HEIGHT = 30
@@ -74,6 +76,8 @@ export default function SpotifyNowPlaying() {
   let pollTimer: number | null = null
   let currentSpotify: any = null
   let spotifyPlaying = false
+  let adIndex = 0
+  let lastAdTrackId: string | null = null
 
   const bands = makeBands()
   let energy = 0            // 0 parado, 1 sonando: las barras suben y caen en vez de saltar
@@ -238,19 +242,109 @@ export default function SpotifyNowPlaying() {
     const isPlaying = spotify?.playback_status === AstalMpris.PlaybackStatus.PLAYING
     currentSpotify = spotify || null
     spotifyPlaying = isPlaying
-    setVisible(Boolean(spotify && (spotify.title || spotify.artist)))
 
     if (!spotify) {
+      setVisible(false)
       restWave()
       syncWave()
       waveform.queue_draw()
       return
     }
 
-    setTitle(spotify.title || "Sin título")
-    setArtist(spotify.artist || "Artista desconocido")
+    // Un anuncio trae título de reclamo ("Escucha música sin anuncios…") y ningún
+    // artista, así que se colaba como pista con "Artista desconocido". El trackid es
+    // el único dato que lo delata: mismo `isAd` puro que usa el reproductor de
+    // QuickSettings, y misma cuenta de anuncios del bloque (Spotify no publica
+    // cuántos van ni cuántos quedan).
+    const rawTrackId = spotify.trackid || ""
+    const ad = isAd(rawTrackId)
+    setVisible(Boolean(ad || spotify.title || spotify.artist))
+
+    if (ad) {
+      // El mismo anuncio persiste varios ticks de 1 s: solo cuenta si cambia el id.
+      if (rawTrackId !== lastAdTrackId) {
+        adIndex += 1
+        lastAdTrackId = rawTrackId
+      }
+      setTitle(`Anuncio · ${adIndex}`)
+      setArtist("Spotify")
+    } else {
+      adIndex = 0
+      lastAdTrackId = null
+      setTitle(spotify.title || "Sin título")
+      setArtist(spotify.artist || "Artista desconocido")
+    }
+
     resolveArtwork(spotify.cover_art || spotify.art_url || "")
     syncWave()
+  }
+
+  /**
+   * ¿El audio está saliendo por ESTE equipo? MPRIS no lo dice: cuando reproduces en
+   * el móvil, el cliente de escritorio hace de mando a distancia y su MPRIS anuncia
+   * "Playing" igual que si sonara aquí. Quien lo delata es PipeWire: el nodo de
+   * Spotify solo está `running` mientras el cliente *rinde* audio (medido: `running`
+   * sonando, `idle` en pausa, y no existe si nunca ha sonado). Sonando en el móvil,
+   * el cliente no rinde nada.
+   *
+   * Ante cualquier fallo (sin pw-dump, JSON raro) devuelve `true` = "suena aquí", que
+   * degrada al comportamiento de siempre (play/pausa) en vez de intentar una
+   * transferencia sorpresa.
+   */
+  const audioIsLocal = async (): Promise<boolean> => {
+    try {
+      const nodes = JSON.parse(await execAsync(["pw-dump"]))
+      return nodes.some((node: any) => {
+        const props = node?.info?.props
+        if (!props) return false
+        if (!String(props["media.class"] || "").includes("Stream/Output/Audio")) return false
+        const who = `${props["application.name"] || ""} ${props["node.name"] || ""}`.toLowerCase()
+        return who.includes("spotify") && node?.info?.state === "running"
+      })
+    } catch (_) { return true }
+  }
+
+  const wait = (ms: number) => new Promise<void>((resolve) => {
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE })
+  })
+
+  /**
+   * `audioIsLocal` con red de seguridad para el arranque: el nodo tarda un instante
+   * en pasar a `running` después de darle a play, así que un play seguido de un pause
+   * rápido se leería como "esto suena en otro sitio" y acabaría transfiriendo en vez
+   * de pausar. Un segundo sondeo solo en el camino dudoso lo descarta.
+   */
+  const resolveLocal = async (): Promise<boolean> => {
+    if (await audioIsLocal()) return true
+    await wait(350)
+    return audioIsLocal()
+  }
+
+  const notify = (body: string) =>
+    execAsync(["notify-send", "-a", "Spotify", "-i", "spotify", "Spotify", body]).catch(() => { })
+
+  /** Trae el audio del móvil (u otro dispositivo Connect) a este PC. */
+  const takeOverPlayback = async () => {
+    const result = await transferToThisDevice()
+    if (result === "ok") return
+
+    // Plan B (cuentas free: la API rechaza todo /me/player con 403, y sin
+    // credenciales configuradas ni eso). Lo único que queda es pedirle al cliente
+    // local que abra la pista: al reproducirla él, el audio pasa a este equipo.
+    // Reabre desde el principio — no hay forma de conservar la posición por aquí.
+    if (result === "denied" || result === "unavailable") {
+      const id = parseTrackId(currentSpotify?.trackid || "")
+      if (id && currentSpotify?.can_control) {
+        try {
+          currentSpotify.open_uri(`spotify:track:${id}`)
+          return
+        } catch (_) { /* cae al aviso */ }
+      }
+    }
+
+    notify(result === "no-device"
+      ? "No se pudo traer el audio: este equipo no aparece como dispositivo de Spotify Connect."
+      : "No se pudo traer el audio a este equipo.")
   }
 
   const focusSpotify = () => {
@@ -316,9 +410,25 @@ export default function SpotifyNowPlaying() {
         button={1}
         onReleased={() => {
           if (!currentSpotify) return
-          spotifyPlaying = !spotifyPlaying
-          syncWave()
-          currentSpotify.play_pause()
+
+          const toggle = () => {
+            spotifyPlaying = !spotifyPlaying
+            syncWave()
+            currentSpotify.play_pause()
+          }
+
+          // Si MPRIS dice "Playing" puede estar sonando aquí… o en el móvil. Solo en
+          // el segundo caso el clic significa "tráete el audio". Hay que preguntarle a
+          // PipeWire (async), así que aquí no se conmuta de forma optimista: pausar
+          // algo que en realidad suena en otro sitio sería justo lo contrario de lo
+          // que se ha pedido. El sondeo tarda decenas de ms; el poller de 1 s corrige
+          // el estado de la onda después.
+          if (!spotifyPlaying) { toggle(); return }
+          resolveLocal().then((local) => {
+            if (destroyed || !currentSpotify) return
+            if (local) toggle()
+            else takeOverPlayback()
+          })
         }}
       />
       <Gtk.GestureClick

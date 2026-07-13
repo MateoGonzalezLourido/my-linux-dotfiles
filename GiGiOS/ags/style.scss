@@ -3499,6 +3499,13 @@ window.np-window.csd decoration {
   @include empty-text(12px, rgba($text, 0.3));
 }
 
+// Solo lo usa el banner de conflicto de daemon (daemonCheck.ts): el historial vacío "normal"
+// no lleva subtítulo. Monoespaciada porque el cuerpo son los comandos del arreglo.
+.ns-empty-sub {
+  @include empty-text(11px, rgba($text, 0.45));
+  font-family: $font-icon, monospace;
+}
+
 // ── Calendar Panel ────────────────────────────────────────────────────────────
 
 $cal-bg:          rgba(8, 8, 12, 1);

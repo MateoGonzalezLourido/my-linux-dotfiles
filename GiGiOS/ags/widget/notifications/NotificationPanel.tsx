@@ -1,6 +1,6 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState, For, With, onCleanup, type Accessor } from "ags"
+import { createState, createComputed, For, With, onCleanup, type Accessor } from "ags"
 import GLib from "gi://GLib"
 import AstalNotifd from "gi://AstalNotifd"
 import { barTopMargin } from "../settings/preferences"
@@ -26,6 +26,8 @@ import {
 import NotificationItem from "./NotificationItem"
 import { clipWindowInputToContent } from "../inputRegion"
 import EmptyState from "../components/EmptyState"
+import { notifDaemonConflict, type DaemonConflict } from "./daemonCheck"
+import DaemonConflictBanner from "./DaemonConflictBanner"
 
 
 // ── Header ────────────────────────────────────────────────────────────────────
@@ -225,6 +227,21 @@ function NotificationList({
       $={(self: Gtk.ScrolledWindow) => { scrollRef = self }}
     >
       <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+        {/* "Sin notificaciones" es mentira si lo que pasa es que otro daemon nos ha quitado
+            org.freedesktop.Notifications: no es que no haya, es que no llegan. Ver daemonCheck.ts. */}
+        <With value={createComputed([empty, notifDaemonConflict], (isEmpty, c) => (isEmpty && c) || null)}>
+          {(c: DaemonConflict | null) => c
+            ? DaemonConflictBanner({
+                conflict: c,
+                wrapClass: "np-empty-state",
+                iconClass: "np-empty-icon",
+                titleClass: "np-empty-title",
+                subClass: "np-empty-sub",
+                vexpand: true,
+              })
+            : <box visible={false} />
+          }
+        </With>
         <EmptyState
           icon="󰂚"
           title="Sin notificaciones"
@@ -235,7 +252,7 @@ function NotificationList({
           subClass="np-empty-sub"
           spacing={10}
           vexpand
-          visible={empty}
+          visible={createComputed([empty, notifDaemonConflict], (isEmpty, c) => isEmpty && !c)}
         />
 
         {/* Los items solo se materializan mientras el panel está abierto y solo para la

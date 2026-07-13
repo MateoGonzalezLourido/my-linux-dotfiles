@@ -113,6 +113,41 @@ paru -S aylurs-gtk-shell-git libastal-meta
 `AstalNetwork`, `AstalBluetooth`, `AstalMpris`, `AstalNotifd`, `AstalBattery`, `AstalTray`).
 `AstalNotifd` es el servidor de notificaciones de la sesión: no instales otro daemon como
 `dunst` o `mako` a la vez, porque competirían por el mismo nombre de D-Bus.
+
+**Y no basta con no lanzarlo: hay que enmascararlo.** Un `dunst` meramente *instalado* y que
+nadie arranca resucita solo — trae `/usr/share/dbus-1/services/org.knopwob.dunst.service`, que
+registra `Name=org.freedesktop.Notifications` → `SystemdService=dunst.service`, así que la
+**primera notificación de la sesión** hace que D-Bus lo active vía systemd. En el arranque eso
+ocurre antes de que AGS esté listo, y como el nombre solo lo puede tener un proceso, dunst se
+queda con él para el resto de la sesión: `AstalNotifd` nunca lo consigue, la señal `notified` no
+se emite jamás y `ingest()` (único punto de entrada, `widget/notifications/NotificationPopup.tsx`)
+no llega a ejecutarse. Síntoma: los popups que ves son los de dunst y **`notifications.json` y
+`notif-history.json` se quedan vacíos** — el historial no guarda nada y parece que falta código,
+cuando el shell simplemente no recibe una sola notificación.
+
+Astal *sí* se queja (`proxy.vala: cannot get proxy: dunst is already running`), pero por el
+**stdout de `ags`**: lanzado desde `autostart.conf` ese aviso no llega ni a `hyprland.log` ni al
+journal, así que solo lo ve quien arranca el shell a mano. Por eso el shell **se autodiagnostica**
+desde `ags/widget/notifications/daemonCheck.ts`: comprueba quién tiene el nombre, y si no es él,
+lanza una notificación crítica (que pinta el propio daemon intruso, que es el que funciona) y
+sustituye el "Historial vacío"/"Sin notificaciones" por un banner que nombra al culpable y da el
+comando exacto. Se apaga solo, sin reiniciar AGS, en cuanto enmascaras al rival.
+
+`systemctl --user disable dunst.service` **no sirve** (la unidad es `static`, no tiene `[Install]`,
+existe solo para la activación por D-Bus). Hay que enmascararla:
+
+```sh
+systemctl --user mask dunst.service   # bloquea la reactivación por D-Bus
+systemctl --user stop dunst.service   # suelta el nombre ahora
+```
+
+No hace falta reiniciar AGS ni desinstalar dunst: `AstalNotifd` queda **en cola** por el nombre y
+lo toma en cuanto dunst lo libera. Comprobación:
+
+```sh
+busctl --user list | grep org.freedesktop.Notifications   # debe apuntar al PID de gjs, no a dunst
+```
+
 Dependencias que arrastra `aylurs-gtk-shell-git` (para que compile/corra el bundler):
 `gjs`, `gtk4-layer-shell`, `gobject-introspection`, `npm`, y opcionalmente `dart-sass`
 (compilar `style.scss`) y `blueprint-compiler` (no se usa aquí, pero es dependencia
