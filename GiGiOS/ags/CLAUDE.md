@@ -66,6 +66,41 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
 
   El tipo se decide por el **nombre de nodo** (`wpctl inspect <id>` → `node.name`, `…hdmi-stereo` vs `…analog-stereo`): `Endpoint.name` viene a **null** y el `icon` es el mismo (`audio-card-analog-pci`) en ambos, y la `description` sí se traduce, así que buscar "(HDMI)" ahí dependería del locale. El jack de auriculares **no** pasa por aquí: enchufarlo no crea un sink, cambia la *ruta* del mismo nodo analógico (por eso `bar/Volume.tsx` escucha `notify::route`). Un `set-default` por ráfaga (debounce) y por id de endpoint — no parseando `pactl` con awk.
 - `widget/display/` — cola de pantallas compartida por QuickSettings y Ajustes > Pantalla. `modes.ts` es la lógica pura (testeada con node); `service.ts` tiene el poller, `applyPatch` (aplica en vivo con `hyprctl keyword monitor`) y la persistencia. **Persiste por partida doble**: `~/.config/gigios/display.json` (fuente de verdad de AGS) **y** `~/.config/hypr/monitor-settings.conf`, un volcado generado que Hyprland sourcea. Lo segundo no es redundante: Hyprland no lee el JSON, así que sin ese `.conf` un **`hyprctl reload`** releía `monitors.conf` — cuya única regla es la comodín `preferred/escala 1` — y tiraba la pantalla de 240 Hz a 60 y de escala 1.25 a 1, sin que AGS pudiera enterarse (no hay señal de recarga; el poller solo observa). Ojo: un `source =` a un fichero ausente es **error duro** en Hyprland (saca el overlay), así que el `.conf` se versiona en el repo aunque se regenere solo. Detalle en el `CLAUDE.md` raíz.
+  - **Franjas horarias (`schedule.ts`, puro y testeado) — dos canales independientes, no uno.** Las reglas
+    de `global.nightRules` (Ajustes > Pantalla > "Programar por franjas horarias") son **franjas**
+    `{ start, end, temp, brightness }` que programan **luz nocturna Y brillo**, cada uno con `null` =
+    "esta franja no toca ese canal" (`activeSetpoint` resuelve canal a canal). Ese `null` es la pieza clave:
+    sin él, una franja de solo brillo tendría que traer `temp` y apagaría la luz nocturna, que es lo
+    contrario de "por separado". Solapes: gana la franja que **empezó más tarde** (y a igualdad, la última
+    de la lista), así una franja corta puede meterse dentro de otra larga y devolverle el mando al salir.
+  - **Una regla vale SOLO dentro de su franja — y esto es una corrección, no un detalle.** El modelo
+    original eran *puntos de cambio* encadenados (`{time, temp}`: cada regla regía "hasta que otra
+    cambiara ese canal", envolviendo a ayer). Consecuencia real y reportada: con una sola regla
+    "22:00 → encender", a las **19:00** la luz se encendía — a esa hora la última regla que había pasado
+    era la de las 22:00 *del día anterior*, así que estaba vigente. Exigía una regla-terminador ("07:00 →
+    apagar") que nadie deduce solo. Hoy `isWithinWindow(now, start, end)` (fin exclusivo, cruza medianoche)
+    manda: fuera de la franja la regla no existe, la luz nocturna vuelve al interruptor manual y el brillo,
+    al valor previo. `normalizeRules` **migra** el formato viejo (encadena cada `time` hasta el siguiente y
+    tira los terminadores), así que `22:00 on + 07:00 off` se convierte en la franja `22:00 → 07:00`.
+  - **El brillo se aplica AL ENTRAR en la franja y se RESTAURA al salir.** Las dos mitades son necesarias:
+    (1) el tick de 60 s de `applyRules()` re-aplica la temperatura (estado que hyprsunset debe sostener)
+    pero **no** el brillo — reescribirlo cada minuto dejaría sin efecto el slider y las teclas
+    `XF86MonBrightness*` dentro de la franja; `lastBrightnessKey` (`franja|valor`) distingue "he entrado en
+    otra franja" de "sigo en la misma", e incluye el valor para que editar la franja vigente se vea al
+    momento. (2) al salir se devuelve `brightnessBeforeWindow` (el brillo de justo antes de entrar, guardado
+    solo en la transición de entrada), porque el brillo es un ajuste **físico que no vuelve solo**: sin eso,
+    una franja de 10 a 11 se seguiría notando a la 1 de la tarde. La luz nocturna no necesita restauración
+    —basta con dejar de forzarla— y por eso su canal no tiene estado "Apagar".
+    Al arrancar dentro de una franja sí se aplica su brillo, pero **esperando a que haya backend**: en un
+    sobremesa el sondeo DDC tarda ~1 s, así que `applyScheduledBrightness()` no marca la franja como
+    aplicada mientras `brightnessSupported` sea falso, y `initDisplayService` reintenta al confirmarse (si
+    no, el primer intento se perdería en el vacío). En la UI las filas de brillo se ocultan con
+    `brightnessSupported`, como el slider. Limitación conocida: reiniciar AGS *dentro* de una franja pierde
+    el brillo previo (el "antes" pasa a ser el ya programado), así que al salir no restaura nada.
+  - **La UI enseña qué franja rige ahora** (`sp-rule-active-chip` + tarjeta `.active` + la línea
+    `Ahora (HH:MM) · luz nocturna: … · brillo: …`), movida por un reloj de 30 s ref-contado que solo vive
+    mientras la sección está montada. No es adorno: "¿por qué se ha encendido?" no se respondía en ningún
+    sitio, y fue justo así como se destapó lo de las 19:00.
 - `widget/notifications/` — notification daemon integration. `store.ts` holds panel-visibility state; `NotificationPopup` (transient) and `NotificationPanel` (history) are separate windows. `settings/SettingsWindow.tsx` is the in-shell settings UI. Sub-packages: `rules/` (pure rule engine — match, dedup, template, validate, tested by Node), `history/` (persistence logic, tested), `cleanup/` (rule-driven background cleanup engine, tested), `autoDnd/` (auto "No molestar": a single in-shell watcher — `watcher.ts`, started once via `initAutoDnd()` in `app.ts` — that flips `notifd.dontDisturb` while a game runs or a user-configured app is fullscreen; `detect.ts` is the pure predicate, tested — el watcher le **inyecta** `isGameClient` por el parámetro `isGameFn` de `shouldSilence`, para que el detector con evidencia no rompa la pureza del módulo; y "fullscreen" aquí significa el modo 2, no maximizado). **Skin dunst para las notificaciones del sistema — lo aplica una REGLA, no el hint.** Los `notify-send` de `hypr/scripts/` llevan `-h string:x-gigios-source:system`; `ingest.ts` lo lee (con `hints.lookup_value()` de esa clave suelta — **no** con `extractHints()`, que hace `recursiveUnpack()` de todo el `a{sv}` y con un `image-data` materializaría los píxeles en crudo por cada notificación) y lo mete **en `NotifInput.source`, antes de evaluar**, además de guardarlo en `StoredNotification.source`. El motor sabe casar por él (`match.source`, `MatchSpec`), y la builtin **`builtin.system-dunst`** (`defaults.ts`: `source equals "system"` → `style: "dunst"`, prioridad 10, **sin `stopOnMatch`** para no tapar a `builtin.low-battery` y compañía, que también casan con notificaciones de scripts) es la que pide el skin. El efecto es `style: "default" | "dunst"` (`PopupStyle`), plegado en `engine.ts` con el mismo `setOnce` que `color` y horneado en `meta.style`; en el editor es el segmento "Estilo del popup" (— / shell / dunst), donde `—` = "la regla no opina", que **no** es lo mismo que `shell`. `PopupItem` (`NotificationPopup.tsx`) hace `meta.style === "dunst"` y punto: **no mira el hint como fallback, a propósito** — si lo hiciera, desactivar la builtin desde la UI no quitaría el skin y el interruptor sería mentira (hay test). Por eso `"default"` tampoco puede colapsarse a `undefined` en el fold: es lo que permite a una regla de usuario **sacar** del skin a algo del sistema (y `"dunst"`, metérselo a una app normal). El skin reproduce el `/etc/dunst/dunstrc` **por defecto**: esquinas rectas, marco 3 px, monoespaciada, fondo sólido por urgencia (`#285577` / `#900000`+marco `#ff0000` / `#222222`) y **sin nombre de app ni icono** (el `format` de dunst es `"<b>%s</b>\n%b"`). El `css` inline del popup normal (borde izquierdo, tinte del icono) **se anula** ahí: inline gana al stylesheet y rompería el marco. Solo afecta al **popup**.
 
 **Acciones D-Bus en el popup (`notify-send -A`) — el clic derecho las ejecuta.** `PopupItem` no las pintaba: en `NotificationPopup.tsx` la palabra `action` solo aparecía en un `actions: []`. O sea que **todo `-A` era invisible e impulsable**, y llevaba años así — el botón "🛡️ Lanzar aislado" de las alertas de ejecutable nuevo (`oom-monitor.sh`) nunca se pudo pulsar. Y no había escapatoria por el historial: lo que sale de `hypr/scripts/` casa con `builtin.system-dunst`, y `shouldIndex()` no indexa lo que ya gestiona una regla (ver el peaje, abajo) → la acción estaba muerta en los dos sitios a la vez. Hoy: el popup **se engancha al gesto que ya existía**, el `Gtk.GestureClick` de `button: 3`, que hacía `focusAppWindow()` — inútil para un script, cuyo "app" no es una ventana, así que ese gesto estaba libre justo donde hacía falta. Ahora, **si hay acción la invoca; si no, sigue enfocando la ventana** (no se pisan: son excluyentes en la práctica). Tres detalles que no son adorno: (1) se **invoca antes de `dismiss()`** — `dismiss` cierra la notificación en el daemon y luego `get_notification(id)` ya no la encuentra; (2) hay una **pista visible** (`▸ clic derecho · <label>`, clase `.notif-popup-action-hint`, con override en el skin dunst porque su fondo sólido se come el violeta del tema): un botón que funciona pero que nadie sabe que existe es el mismo bug otra vez, y por eso se aparta a sabiendas del `format` por defecto del dunstrc; (3) **el popup ES la acción** — `_removeImmediate` no cierra la notificación en el daemon, pero se lleva el widget, y sin historial no queda dónde pulsar, así que los 5,5 s fijos de `POPUP_TIMEOUT_MS` no daban ni para leer «¿reparo el pendrive?». `popupLifetime()` respeta el `-t` de quien la mandó **solo si trae acciones**, con suelo (`POPUP_TIMEOUT_ACTION_MS`, 20 s) y techo (`…MAX_MS`, 60 s: en el spec `-t 0` es "no expira nunca", y un popup clavado para siempre no es opción). Las notificaciones sin acción conservan sus 5,5 s intactos. Requiere `expireTimeout` en `StoredNotification` (lo rellena `ingest.ts` desde `n.expire_timeout`).
@@ -77,6 +112,42 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
 - `widget/calendar/` + `CalendarPanel.tsx` — calendar/agenda with event editing.
 - `widget/WorkspaceOverview/` — workspace overview grid.
 - OSDs: `OSD.tsx` and `MicOSD.tsx` — volume/brightness and microphone overlays.
+- `widget/display/brightness.ts` — **el brillo, con DOS backends: son dos hardwares distintos, no uno
+  con dos rutas.** El estado (`brightness`), el OSD y las escrituras viven aquí; `state.tsx` solo los
+  **reexporta** (es el hub, y así `OSD.tsx`/`app.ts` no cambian). `brightnessBackend()` decide una vez
+  al arrancar:
+  - **`backlight`** (portátil): la GPU maneja la retroiluminación del panel interno y el kernel la
+    publica en `/sys/class/backlight` → `brightnessctl`. Barato, y **udev avisa** de los cambios los
+    haga quien los haga. La ruta ya **no está hardcodeada** a `intel_backlight`: se enumera el
+    directorio.
+  - **`ddc`** (sobremesa): un monitor externo **no aparece en esa clase**. Su brillo vive en el
+    firmware del monitor y se habla con él por **DDC/CI** — I2C sobre el propio cable de vídeo →
+    `ddcutil setvcp 10`. Detección asíncrona al arrancar (`ddcutil detect --terse` → bus, luego
+    `getvcp 10 --terse` para confirmar que el monitor **soporta** el VCP 10 y de paso leer su valor
+    real, que pasa a ser el que enseña el slider). Requiere el módulo **`i2c-dev`** cargado (ver
+    `system/modules-load.d/i2c-dev.conf`); el acceso a `/dev/i2c-*` ya lo da la regla udev del propio
+    ddcutil (`TAG+="uaccess"`), **sin** tocar el grupo `i2c`.
+  - **`none`**: ni una cosa ni la otra → los sliders (QuickSettings > Pantalla y Ajustes > Pantalla) se
+    **ocultan** con `visible={brightnessSupported}` y el OSD no sale. Ojo: `brightnessSupported` es
+    **estado reactivo, no una constante**, precisamente porque el sondeo DDC tarda ~1 s y termina
+    *después* de construirse la UI.
+
+  **Las escrituras DDC se coalescen, y no es opcional**: cuestan ~0,3 s (medido, con `--bus N
+  --noverify`; sin esos flags, 0,66 s), o sea que un arrastre del slider genera muchísimas más
+  peticiones de las que el bus I2C traga. Se mantiene **una escritura en vuelo como mucho** y al
+  terminar se lanza el último valor pendiente: ~3 actualizaciones/s mientras arrastras y siempre el
+  valor exacto al soltar. Todo `ddcutil` va bajo `timeout 10` — un bus mudo lo cuelga indefinidamente.
+
+  **El modo de fallo original era silencioso y peor que "no hace nada":** `brightnessctl` sin
+  dispositivos de clase `backlight` **no falla** — cae al primer dispositivo de clase `leds` y sale con
+  0, así que cada arrastre del slider en el sobremesa encendía el **LED de scroll-lock del teclado**
+  mientras el `.catch(() => {})` no veía error alguno y la UI seguía tan campante (el valor lo fijaba
+  `setBrightness(v)` en local y el watcher de udev que lo habría desmentido consultaba una ruta
+  inexistente). Por eso la llamada lleva `-c backlight` explícito y **nadie invoca `brightnessctl`
+  fuera de este módulo**: las teclas `XF86MonBrightness*` de `hypr/keybinds.conf` ya no lo llaman, van
+  por `ags request brightness-up|down` → `stepBrightness()`, que aplica al backend que toque y enseña
+  el OSD. `inicializador/init.sh` **no restaura brillo en un sobremesa** (sale si `/sys/class/backlight`
+  está vacío) y tampoco hace falta: el monitor guarda su brillo en su propia firmware.
 - `widget/SettingsPanel.tsx` — general settings window opened from the QuickSettings gear (`settingsPanelVisible` in `state.tsx`). Same full-screen backdrop pattern as the notification settings window, but nav is a vertical list on the left. Sections: `widget/power/EnergySection.tsx` ("Energía"), `widget/settings/SecuritySection.tsx` ("Seguridad"), `widget/notifications/settings/SettingsTabs.tsx` (reused as-is, "Notificaciones"), and `widget/settings/PersonalizationSection.tsx` ("Personalización"), among others. Don't confuse this with `widget/bar/PowerOptions.tsx` / `PowerButton.tsx`, which is the unrelated shutdown/reboot/logout bar menu.
 - `widget/power/powerState.ts` — derives a "power-save" flag from the real battery level via `AstalBattery` (Hyprland has no power-save signal to hook). Config lives outside the ags config tree, at `~/.config/power-save/config.json`. Exposes `powerSaveActive` plus opt-in flags (`suspendNotifFilters`, `pauseWsPreviewInPowerSave`) other subsystems read to pause battery-consuming background work.
 - `widget/power/gamingState.ts` — **bridges the "is a game running" signal to disk** so shell scripts (bash) can read it. Game detection (`isGameClient`, `widget/bar/games/evidence.ts`) is already used by `GamesIndicator` and auto-DND, but each computes it in AGS memory and nothing persists it. This single watcher (started once from `app.ts` via `initGamingState()`, like `initAutoDnd()`) **reuses `isGameClient`** with the same event-driven wiring as `GamesIndicator` (`client-added`/`client-removed`/`event=="fullscreen"`, no polling) and writes `~/.config/gigios/runtime-state.json` `{ "gaming": bool }` on change. `hypr/scripts/oom-monitor.sh` reads it to pause the download scan while gaming. Also exports a reactive `isGaming` for potential in-shell consumers.

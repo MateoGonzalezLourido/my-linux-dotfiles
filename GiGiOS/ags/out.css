@@ -1277,7 +1277,7 @@ window.qs-window scrolledwindow > overshoot,
   min-height: 18px;
 }
 .Workspaces .ws-btn .ws-image-btn {
-  min-width: 20px;
+  min-width: 24px;
   padding: 0;
 }
 .Workspaces .ws-btn .ws-glyph-btn,
@@ -1286,7 +1286,7 @@ window.qs-window scrolledwindow > overshoot,
   padding: 0 1px;
 }
 .Workspaces .ws-btn .ws-image-wrap {
-  min-width: 14px;
+  min-width: 20px;
 }
 .Workspaces .ws-btn .ws-apps {
   margin-left: -3px;
@@ -1317,15 +1317,15 @@ window.qs-window scrolledwindow > overshoot,
   margin-top: 0;
 }
 .Workspaces .ws-btn .ws-app-icon {
-  margin: 0 0 0 1px;
-  min-height: 16px;
+  margin: 0;
+  min-height: 19px;
 }
 .Workspaces .ws-btn .ws-icon-wrap.active-client .ws-icons {
   color: #ffffff;
   text-shadow: 0 0 6px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.8);
 }
 .Workspaces .ws-btn .ws-icon-wrap.active-client .ws-app-icon {
-  -gtk-icon-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
+  -gtk-icon-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
 
 popover.ws-preview-popover > contents {
@@ -2821,6 +2821,45 @@ entry.sp-num-input:focus-within {
 
 .sp-rule-row {
   padding: 2px 0;
+}
+
+.sp-rule-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+.sp-rule-card.active {
+  background: rgba(203, 166, 247, 0.07);
+  border-color: rgba(203, 166, 247, 0.35);
+}
+
+.sp-rule-active-chip {
+  background: rgba(203, 166, 247, 0.18);
+  border-radius: 6px;
+  padding: 1px 7px;
+  margin-left: 4px;
+  color: #cba6f7;
+  font-size: 10px;
+}
+
+.sp-schedule-now {
+  color: #cba6f7;
+  font-size: 11px;
+  font-family: "MesloLGS Nerd Font";
+}
+
+.sp-rule-chan {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  min-width: 92px;
+}
+.sp-rule-chan.narrow {
+  min-width: 0;
+}
+
+.sp-rule-select {
+  min-width: 130px;
 }
 
 button.sp-rule-del {

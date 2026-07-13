@@ -20,6 +20,13 @@ DEFAULT_MIC_MUTE=false       # true/false
 # --- Funciones Modulares ---
 
 apply_brightness() {
+    # Solo un panel interno expone la clase `backlight`. En un sobremesa el directorio
+    # está vacío y `brightnessctl` sin `-c` no falla: cae al primer dispositivo `leds`
+    # y acaba encendiendo el LED de scroll-lock del teclado en cada arranque.
+    if ! compgen -G "/sys/class/backlight/*" > /dev/null; then
+        return
+    fi
+
     local val=$DEFAULT_BRIGHTNESS
     if [ -f "$DISPLAY_CONFIG" ]; then
         local raw=$(jq -r '.brightness // empty' "$DISPLAY_CONFIG")
@@ -27,7 +34,7 @@ apply_brightness() {
             val=$(echo "$raw * 100" | bc | awk '{print int($1+0.5)}')
         fi
     fi
-    brightnessctl s "${val}%"
+    brightnessctl -c backlight s "${val}%"
 }
 
 apply_nightlight() {

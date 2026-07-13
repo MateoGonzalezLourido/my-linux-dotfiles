@@ -1,9 +1,7 @@
 import { createState } from "ags"
 import { notifPanelVisible, closeNotifPanel } from "./notifications/store"
 import GLib from "gi://GLib"
-import GUdev from "gi://GUdev"
 import Gio from "gi://Gio"
-import { brightnessOsdEnabled } from "./settings/preferences"
 
 export const [calendarVisible, setCalendarVisible] = createState(false)
 export function toggleCalendar() { setCalendarVisible(!calendarVisible.get()) }
@@ -12,7 +10,6 @@ export const [widgetsRefresh, setWidgetsRefresh] = createState(false)
 export const [barVisible, setBarVisible] = createState(false)
 export const [nightLightActive, setNightLightActive] = createState(false)
 export const [nightLightTemp, setNightLightTemp] = createState(4500)
-export const [brightness, setBrightness] = createState(0.5)
 export const [isMenuOpen, setIsMenuOpen] = createState(false)
 export const [isWsDragging, setIsWsDragging] = createState(false)
 export const [isWsPreview, setIsWsPreview] = createState(false)
@@ -184,75 +181,15 @@ try {
   _barToggleMonitor.connect("changed", () => toggleBarPin())
 } catch (e) { console.error("[bar-toggle] monitor error:", e) }
 
-// ── Brightness OSD ────────────────────────────────────────────────────────────
-export const [brightnessOsdVisible, setBrightnessOsdVisible] = createState(false)
-let _brightOsdTimer: number | null = null
-
-const BACKLIGHT_PATH = "/sys/class/backlight/intel_backlight"
-function readBacklightRatio(): number | null {
-  try {
-    const [brightnessOk, brightnessBytes] = GLib.file_get_contents(`${BACKLIGHT_PATH}/brightness`)
-    const [maxOk, maxBytes] = GLib.file_get_contents(`${BACKLIGHT_PATH}/max_brightness`)
-    if (!brightnessOk || !maxOk) return null
-    const current = Number(new TextDecoder().decode(brightnessBytes).trim())
-    const maximum = Number(new TextDecoder().decode(maxBytes).trim())
-    if (!Number.isFinite(current) || !Number.isFinite(maximum) || maximum <= 0) return null
-    return Math.max(0, Math.min(1, current / maximum))
-  } catch {
-    return null
-  }
-}
-
-function hideBrightnessOSD() {
-  setBrightnessOsdVisible(false)
-  if (_brightOsdTimer) clearTimeout(_brightOsdTimer)
-  _brightOsdTimer = null
-}
-export function showBrightnessOSD(startup = false) {
-  // brightnessctl ya ha terminado cuando llega esta petición IPC: leer sysfs aquí
-  // garantiza que cada repetición del atajo refresque el valor aunque udev tarde.
-  const current = readBacklightRatio()
-  if (current !== null) setBrightness(current)
-  const value = current ?? brightness.get()
-  if (!brightnessOsdEnabled.get() || !Number.isFinite(value) || (startup && value >= 0.999)) {
-    hideBrightnessOSD()
-    return
-  }
-  setBrightnessOsdVisible(true)
-  if (_brightOsdTimer) clearTimeout(_brightOsdTimer)
-  _brightOsdTimer = setTimeout(() => {
-    setBrightnessOsdVisible(false)
-    _brightOsdTimer = null
-  }, 2000)
-}
-brightnessOsdEnabled.subscribe(() => {
-  if (!brightnessOsdEnabled.get()) hideBrightnessOSD()
-})
-
-// ── Brightness watcher via udev (event-driven, zero polling) ─────────────────
-// El kernel mantiene el valor sincronizado para el OSD. Mostrarlo es una acción
-// separada que solo solicitan los atajos de Hyprland mediante `ags request`.
-
-try {
-  const _backlightClient = new GUdev.Client({ subsystems: ["backlight"] })
-  const _dev = _backlightClient.query_by_sysfs_path(BACKLIGHT_PATH)
-  const _maxBright = Number(_dev?.get_sysfs_attr_as_int("max_brightness") ?? 0)
-  const readBrightness = (device: GUdev.Device) => {
-    const raw = Number(device.get_sysfs_attr_as_int_uncached("brightness"))
-    if (!Number.isFinite(raw) || !Number.isFinite(_maxBright) || _maxBright <= 0) return null
-    return Math.max(0, Math.min(1, raw / _maxBright))
-  }
-
-  if (_dev && _maxBright > 0) {
-    const initial = readBrightness(_dev)
-    if (initial !== null) setBrightness(initial)
-
-    _backlightClient.connect("uevent", (_c: GUdev.Client, action: string, device: GUdev.Device) => {
-      if (action !== "change") return
-      const value = readBrightness(device)
-      if (value !== null) {
-        setBrightness(value)
-      }
-    })
-  }
-} catch {}
+// ── Brillo ───────────────────────────────────────────────────────────────────
+// El brillo vive en `display/brightness.ts` (dos backends: panel interno vía sysfs, o
+// monitor externo vía DDC/CI). Se reexporta aquí porque este módulo es el hub de estado.
+export {
+  brightness,
+  setBrightness,
+  brightnessSupported,
+  brightnessOsdVisible,
+  showBrightnessOSD,
+  applyBrightness,
+  stepBrightness,
+} from "./display/brightness"

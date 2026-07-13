@@ -24,9 +24,9 @@ import {
   setInfoSsid,
   openSettingsPanel,
 
-  brightness,
-  setBrightness
+  brightness
 } from "./state"
+import { applyBrightness, brightnessSupported } from "./display/brightness"
 import { openNotifPanel } from "./notifications/store"
 import { clipWindowInputToContent } from "./inputRegion"
 import * as Spotify from "./services/spotify/SpotifyService"
@@ -1945,9 +1945,8 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
     const value = Number.isFinite(parsed)
       ? Math.max(0, Math.min(100, parsed))
       : Math.round(brightness.get() * 100)
-    setBrightness(value / 100)
+    applyBrightness(value / 100)
     saveDisplayConfig()
-    execAsync(["bash", "-c", `brightnessctl -n2 s ${value}%`]).catch(() => {})
     if (brightnessEntry) brightnessEntry.text = String(value)
     setEditingBrightness(false)
   }
@@ -2019,9 +2018,8 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
     ["qs-slider", "brightness"],
     () => brightness.get(),
     (v) => {
-      setBrightness(v)
+      applyBrightness(v)
       saveDisplayConfig()
-      execAsync(["bash", "-c", `brightnessctl -n2 s ${Math.round(v * 100)}%`]).catch(() => {})
     },
     (cb) => brightness.subscribe(cb),
   )
@@ -2188,9 +2186,10 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
         </box>
       </box>
 
-      {/* Brillo + Luz nocturna */}
+      {/* Brillo + Luz nocturna. El brillo solo se muestra si hay backend (panel interno o
+          DDC/CI); ver `display/brightness.ts`. */}
       <box cssClasses={["qs-section", "qs-display-panel"]} orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={0} visible={brightnessSupported}>
           <box spacing={6}>
             <label cssClasses={["qs-section-icon", "bright"]} label="󰃟" />
             <label cssClasses={["qs-section-label"]} label="Brillo" hexpand halign={Gtk.Align.START} />

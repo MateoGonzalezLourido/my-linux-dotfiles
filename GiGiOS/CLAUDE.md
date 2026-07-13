@@ -18,8 +18,8 @@ XDG paths via **symlinks**, not copies. The three big components are:
 Supporting dirs: `Wallpapers/` (used directly by `wallpaper.sh`, no symlink),
 `state/orion/` → `~/.local/share/orion`, `cache/power-save/` → `~/.config/power-save`,
 `bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
-`system/` (ficheros que van a `/etc`, **no** se symlinkean: se instalan con `sudo` — hoy solo la
-regla udev de escritura en USB, ver la sección de USB).
+`system/` (ficheros que van a `/etc`, **no** se symlinkean: se instalan con `sudo` — la regla udev de
+escritura en USB y la carga del módulo `i2c-dev`; ver las secciones de USB y de brillo).
 
 ## Git caveat
 
@@ -214,10 +214,11 @@ el kernel escupe `Buffer I/O error on dev sdb1 … lost async page write` y los 
 de verdad** (a nosotros el volumen NTFS nos quedó `Mark volume as dirty`). Por eso el síntoma solo
 aparecía **al mover archivos**: sin escrituras pendientes no hay writeback que fallar.
 
-La cura vive fuera del repo, en `system/udev/99-gigios-usb-writeback.rules` → **hay que instalarla a
-mano con sudo** (`install -Dm644` en `/etc/udev/rules.d/`; **no** un symlink: udev lee `/etc` antes
-de que `$HOME` esté montado). Baja `bdi/max_bytes` a 16 MiB y pone `strict_limit=1` **solo** en
-almacenamiento externo. La barra de progreso pasa a ser honesta. Dos detalles medidos, no supuestos:
+La cura vive fuera del repo, en `system/udev/99-gigios-usb-writeback.rules`. La instala **`install.sh`
+(paso 6)** con `install -Dm644` en `/etc/udev/rules.d/`; en una máquina ya montada hay que copiarla a
+mano con `sudo`. **No** es un symlink, y no puede serlo: udev lee `/etc` antes de que `$HOME` esté
+montado, y apuntar `/etc` a un directorio escribible por el usuario sería una escalada silenciosa.
+La regla baja `bdi/max_bytes` a 16 MiB y pone `strict_limit=1` **solo** en almacenamiento externo. La barra de progreso pasa a ser honesta. Dos detalles medidos, no supuestos:
 el `bdi` cuelga del **disco entero** (`/sys/block/sdb/bdi`), las particiones **no tienen `bdi` ni
 `removable`** propios → la regla apunta al disco; y se filtra por **`ID_BUS=="usb"`, no por
 `removable=="1"`**, porque los **discos duros USB externos reportan `removable=0`** (lo extraíble es
@@ -256,6 +257,38 @@ cara). Cualquier error —fs no soportado, falta la herramienta— también es s
 comodidad y no puede convertirse en una fuente de ruido. Reparar **NTFS** necesita `ntfsfix`, que
 viene en el paquete **`ntfsprogs`** — **no** en `ntfs-3g`, que hoy solo trae el driver FUSE
 (`pacman -F` puede decir lo contrario: su base de ficheros va desfasada respecto a lo instalado).
+
+### Brillo: dos hardwares, y uno de ellos necesita `sudo` una vez (`system/modules-load.d/`)
+
+El brillo **no es una sola cosa**. En un **portátil** lo maneja la GPU y el kernel lo publica en
+`/sys/class/backlight` → `brightnessctl`. En un **sobremesa** ese directorio está **vacío**: el
+monitor externo no aparece ahí porque su brillo vive en el firmware del propio monitor, y solo se
+habla con él por **DDC/CI** (I2C sobre el cable de vídeo) → `ddcutil setvcp 10`. Lo implementa AGS
+en `ags/widget/display/brightness.ts`, que elige backend solo; ver `ags/CLAUDE.md`.
+
+Para el camino DDC hace falta el módulo **`i2c-dev`**, que no carga nadie por su cuenta. Sin él no
+existen los nodos `/dev/i2c-*`, `ddcutil` no ve nada y el slider **desaparece** (que es el
+comportamiento correcto: no hay backend). Lo persiste `system/modules-load.d/i2c-dev.conf`, que como
+la regla udev de USB va a `/etc` y **no se symlinkea**: lo copia **`install.sh` (paso 6)**, que además
+hace el `modprobe` para no obligar a reiniciar. En una máquina ya montada, a mano:
+
+```sh
+sudo install -Dm644 system/modules-load.d/i2c-dev.conf /etc/modules-load.d/i2c-dev.conf
+sudo modprobe i2c-dev   # modules-load.d solo actúa en el arranque
+```
+
+El **acceso** a los nodos no requiere nada más: la regla udev que ya trae el paquete `ddcutil`
+(`/usr/lib/udev/rules.d/60-ddcutil-i2c.rules`) marca los buses de la tarjeta gráfica con
+`TAG+="uaccess"`, o sea ACL para el usuario de la sesión — **no** hace falta meterse en el grupo
+`i2c` ni relogear. Medido en esta máquina (RTX 3060 + ASUS XG27AQDMES por DP): bus `/dev/i2c-3`,
+VCP 10 soportado, rango 0–100.
+
+**`brightnessctl` no se invoca desde ningún otro sitio, y es a propósito.** Sin dispositivos de clase
+`backlight` **no falla**: cae al primer dispositivo de clase `leds` y acaba encendiendo el **LED de
+scroll-lock del teclado**, devolviendo 0 — un fallo mudo que la UI no podía detectar. Por eso las
+teclas `XF86MonBrightness*` de `keybinds.conf` ya **no** lo llaman (van por `ags request
+brightness-up|down`, que aplica al backend que haya y enseña el OSD) y la llamada que queda en
+`init.sh` lleva `-c backlight` explícito.
 
 ### Security monitor (`oom-monitor.sh`) + sandboxed launcher (`run-untrusted.sh`)
 
@@ -379,6 +412,13 @@ across engines, and both surface a clear "run `sudo freshclam`" hint when the si
 brightness (`brightnessctl`), night light (`hyprsunset`), wifi (`nmcli`), bluetooth
 (`bluetoothctl`), and volume/mute (`wpctl`), falling back to hardcoded defaults when a key is
 absent. It's the counterpart to the AGS UI that *writes* those JSON files.
+
+El brillo **no se restaura en un sobremesa** y no hace falta que se restaure: `apply_brightness` sale
+si `/sys/class/backlight` está vacío (solo el panel interno de un portátil publica esa clase), porque
+allí el brillo lo guarda el **propio monitor** en su firmware y AGS se lo lee por DDC/CI al arrancar.
+Cuando sí aplica, la llamada fija `-c backlight`: sin dispositivos de esa clase `brightnessctl` **no
+falla** — cae al primer dispositivo `leds` y encendía el **LED de scroll-lock del teclado** en cada
+login. Ver la sección de brillo, abajo.
 
 El volumen espera antes (`wait_for_sink`, techo 10 s): init.sh sale de un `exec-once` de Hyprland
 y puede ganarle la carrera al arranque de PipeWire/WirePlumber en la sesión de usuario. Hasta que

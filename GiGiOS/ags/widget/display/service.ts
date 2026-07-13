@@ -8,9 +8,10 @@ import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import { buildMonitorRule, monitorNeedsUpdate } from "./modes"
 import type { MonitorPref } from "./modes"
-import { activeRule } from "./schedule"
+import { activeSetpoint, activeRuleFor, normalizeRules } from "./schedule"
 import type { NightRule } from "./schedule"
 import { parseModetestCaps, parseEdidHdr } from "./caps"
+import { applyBrightness, brightnessSupported } from "./brightness"
 import {
   brightness,
   nightLightActive, setNightLightActive,
@@ -23,7 +24,7 @@ export interface GlobalDisplay {
   vrrMode: number             // 0 off, 1 on, 2 solo fullscreen
   allowTearing: boolean
   nightRulesEnabled: boolean  // ¿programación por horas activada?
-  nightRules: NightRule[]     // reglas hora→temperatura
+  nightRules: NightRule[]     // reglas hora→{luz nocturna, brillo}
 }
 
 interface DisplayConfig {
@@ -53,7 +54,7 @@ export function loadDisplayConfig(): DisplayConfig {
         global: {
           ...DEFAULT_GLOBAL, ...g,
           nightRulesEnabled: !!g.nightRulesEnabled,
-          nightRules: Array.isArray(g.nightRules) ? g.nightRules : [],
+          nightRules: normalizeRules(g.nightRules),
         },
       }
     }
@@ -246,12 +247,21 @@ export function applyAllowTearing(on: boolean) {
   execAsync(["hyprctl", "keyword", "general:allow_tearing", on ? "1" : "0"]).catch(() => {})
 }
 
-// ── Luz nocturna: manual (fija) + reglas (programada) + maestro "ahora" ───────
+// ── Luz nocturna + brillo: manual (fijo) + franjas (programadas) + maestro "ahora" ─
 // (1) Manual (`nightLightActive` + `nightLightTemp`): enciende ya con una temp.
-// (2) Reglas (`nightRulesEnabled` + `nightRules`): programa por horas.
-// Precedencia: una franja de horario CÁLIDA manda; si el horario apaga (o no hay
-// reglas), vale el manual. `lastAppliedTemp === -1` ⇒ hyprsunset apagado.
+// (2) Franjas (`nightRulesEnabled` + `nightRules`): cada regla vale [start, end) y ahí
+//     dentro programa DOS canales independientes — luz nocturna y brillo. Una regla puede
+//     tocar uno, el otro o los dos. FUERA de su franja no pinta nada: la luz nocturna
+//     vuelve al manual y el brillo, al valor que tenía antes de entrar.
+// Precedencia (luz nocturna): dentro de una franja cálida manda el horario; fuera, el
+// manual. `lastAppliedTemp === -1` ⇒ hyprsunset apagado.
 let lastAppliedTemp = -1
+
+function nowHM() {
+  const d = GLib.DateTime.new_now_local()
+  return { h: d.get_hour(), m: d.get_minute() }
+}
+function rulesOn(): boolean { return nightRulesEnabled.get() && nightRules.get().length > 0 }
 
 // ¿La luz nocturna está encendida AHORA? Estado reactivo que consume el toggle
 // maestro de QuickSettings (refleja la fuente real: manual O programada).
@@ -263,28 +273,72 @@ export const [nightOn, setNightOn] = createState(false)
 let nightDismissed = false
 let dismissedKey = ""
 
-// Identidad de la franja de horario activa (para detectar la transición que
-// limpia el descarte). Sin reglas ⇒ clave fija.
+// Identidad de la franja de LUZ NOCTURNA vigente (para detectar la transición que limpia
+// el descarte). Solo cuentan las reglas que hablan de la luz: entrar en una franja de solo
+// brillo no es cambiar de franja. Fuera de toda franja ⇒ clave fija.
 function scheduleKey(): string {
-  if (nightRulesEnabled.get() && nightRules.get().length) {
-    const d = GLib.DateTime.new_now_local()
-    const r = activeRule({ h: d.get_hour(), m: d.get_minute() }, nightRules.get())
-    return r ? r.time : "none"
+  if (rulesOn()) {
+    const r = activeRuleFor(nowHM(), nightRules.get(), "temp")
+    return r ? `${r.start}-${r.end}` : "none"
   }
   return "no-schedule"
 }
 
-// Temperatura que "quieren" horario/manual (sin contar el descarte). El horario
-// cálido tiene prioridad; si el horario apaga (temp 0) o no hay reglas, vale el
-// manual. temp === 0 en una regla = "apagar desde esa hora".
+// Temperatura que "quieren" horario/manual (sin contar el descarte). Dentro de una franja
+// que programe la luz manda el horario; fuera de toda franja, el manual.
 function baseTemp(): number | null {
-  if (nightRulesEnabled.get() && nightRules.get().length) {
-    const d = GLib.DateTime.new_now_local()
-    const r = activeRule({ h: d.get_hour(), m: d.get_minute() }, nightRules.get())
-    if (r && r.temp > 0) return r.temp   // franja cálida: manda el horario
+  if (rulesOn()) {
+    const t = activeSetpoint(nowHM(), nightRules.get(), "temp")
+    if (t != null && t > 0) return t   // dentro de la franja: manda el horario
   }
   if (nightLightActive.get()) return nightLightTemp.get()
   return null
+}
+
+// Brillo programado. Dos reglas, y ninguna es cosmética:
+//
+// (1) Se aplica AL ENTRAR en la franja, no en cada reconciliación. Re-escribirlo cada
+//     60 s dejaría el slider (y las teclas XF86MonBrightness*) sin efecto: el horario te
+//     lo pisaría al minuto. `lastBrightnessKey` (franja + valor) distingue "he entrado en
+//     otra franja" de "sigo en la misma"; incluye el valor para que editar la regla
+//     vigente en Ajustes se vea al momento.
+// (2) Al SALIR de la franja se restaura el brillo que había antes de entrar. Sin esto, una
+//     franja de 10 a 11 seguiría "notándose" a la 1 de la tarde: nadie devolvería el brillo
+//     a su sitio, porque el brillo es un ajuste físico que no vuelve solo (a diferencia de
+//     la luz nocturna, que simplemente deja de forzarse y vuelve al manual).
+let lastBrightnessKey: string | null = null
+let brightnessBeforeWindow: number | null = null   // 0..1, el de justo antes de entrar
+
+function applyScheduledBrightness() {
+  const r = rulesOn() ? activeRuleFor(nowHM(), nightRules.get(), "brightness") : null
+
+  if (!r || r.brightness == null) {          // fuera de toda franja con brillo
+    if (lastBrightnessKey !== null && brightnessBeforeWindow !== null) {
+      applyBrightness(brightnessBeforeWindow)   // se acabó la franja: devuélvelo a su sitio
+    }
+    lastBrightnessKey = null
+    brightnessBeforeWindow = null
+    return
+  }
+
+  const key = `${r.start}-${r.end}|${r.brightness}`
+  if (key === lastBrightnessKey) return
+  // Sin backend confirmado, `applyBrightness` no llega al hardware — y en un sobremesa el
+  // sondeo DDC tarda ~1 s, así que al arrancar aún no lo hay. No se marca la franja como
+  // aplicada: initDisplayService reintenta en cuanto `brightnessSupported` se confirma.
+  if (!brightnessSupported.get()) return
+  // Solo se recuerda el brillo previo al ENTRAR (no al editar el valor de la franja en
+  // curso, que ya se aplicó sobre el suyo propio y machacaría el original).
+  if (lastBrightnessKey === null) brightnessBeforeWindow = brightness.get()
+  lastBrightnessKey = key
+  applyBrightness(r.brightness / 100)   // persiste solo: brightness.subscribe(saveDisplayConfig)
+}
+
+// Reconcilia los dos canales. Lo llaman el arranque, el tick de 60 s y todo cambio en
+// las reglas; los toggles manuales (que no tocan el brillo) se quedan en `applyNight`.
+function applyRules() {
+  applyNight()
+  applyScheduledBrightness()
 }
 
 // Reconcilia hyprsunset con el estado deseado (arranca / cambia temp / apaga) y
@@ -333,19 +387,21 @@ export function setManualTemp(t: number) {
   tempDebounce = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => { applyNight(); tempDebounce = null; return GLib.SOURCE_REMOVE })
 }
 
-// (2) Toggle de reglas — activa/desactiva la programación por horas. Al activar
-// sin reglas se añade un horario por defecto (cálida de noche, apagada de día)
-// para que NO se encienda 24/7 por sorpresa.
+// (2) Toggle de reglas — activa/desactiva la programación por horas. Al activar sin reglas
+// se añade una franja por defecto (cálida de 22:00 a 07:00). Sin brillo: programarlo es
+// opt-in, no algo que aparezca solo al encender el horario.
 export function setNightRulesEnabled(on: boolean) {
   nightDismissed = false
   setNightRulesEnabledState(on)
-  if (on && nightRules.get().length === 0) setNightRules([{ time: "22:00", temp: 3500 }, { time: "07:00", temp: 0 }])
-  saveDisplayConfig(); applyNight()
+  if (on && nightRules.get().length === 0) {
+    setNightRules([{ start: "22:00", end: "07:00", temp: 3500, brightness: null }])
+  }
+  saveDisplayConfig(); applyRules()
 }
 
 export function setNightRulesAndSave(rules: NightRule[]) {
   nightDismissed = false
-  setNightRules(rules); saveDisplayConfig(); applyNight()
+  setNightRules(rules); saveDisplayConfig(); applyRules()
 }
 
 // ── Re-aplicación al arranque + arranque del scheduler ───────────────────────
@@ -354,12 +410,15 @@ export function initDisplayService() {
   if (initialized) return
   initialized = true
 
-  // Luz nocturna: restaurar estado (manual + reglas) y reconciliar hyprsunset.
-  // brightness NO se restaura: state.tsx ya lee el valor real de sysfs al arrancar.
+  // Luz nocturna: restaurar estado (manual + reglas) y reconciliar hyprsunset. El brillo
+  // guardado NO se restaura aquí (brightness.ts ya lee el real del hardware al arrancar),
+  // pero sí se aplica el de la franja horaria vigente, si alguna regla lo programa: el
+  // horario describe cómo debe estar la pantalla a esta hora, también recién iniciada.
   setNightLightActive(config.nightLightActive)
   setNightLightTemp(config.nightLightTemp)
-  applyNight()
+  applyRules()
   brightness.subscribe(saveDisplayConfig)
+  brightnessSupported.subscribe(applyScheduledBrightness)   // backend DDC: llega ~1 s tarde
 
   // Re-aplicar preferencias por monitor (solo lo que difiera, para no pelear con
   // monitors.conf ni parpadear). Con monitor-settings.conf en su sitio esto ya no
@@ -395,8 +454,8 @@ export function initDisplayService() {
   if (g.vrrMode !== 0) execAsync(["hyprctl", "keyword", "misc:vrr", String(g.vrrMode)]).catch(() => {})
   if (g.allowTearing) execAsync(["hyprctl", "keyword", "general:allow_tearing", "1"]).catch(() => {})
 
-  // Reconciliación de luz nocturna cada 60 s (para que las reglas cambien la temp)
-  GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => { applyNight(); return GLib.SOURCE_CONTINUE })
+  // Reconciliación cada 60 s (para que las reglas cambien de franja: temp y brillo)
+  GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => { applyRules(); return GLib.SOURCE_CONTINUE })
 
   // Capacidades de hardware (para ocultar ajustes no soportados por monitor)
   detectCaps()

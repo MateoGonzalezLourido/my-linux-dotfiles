@@ -64,7 +64,7 @@ if [[ "$mode" == "--installed" ]]; then
     hyprctl:hyprland hyprlock:hyprlock hypridle:hypridle hyprsunset:hyprsunset
     uwsm:uwsm sass:dart-sass jq:jq rofi:rofi
     cliphist:cliphist wl-copy:wl-clipboard wl-paste:wl-clipboard
-    brightnessctl:brightnessctl playerctl:playerctl wpctl:wireplumber
+    brightnessctl:brightnessctl ddcutil:ddcutil playerctl:playerctl wpctl:wireplumber
     pactl:libpulse pw-metadata:pipewire wf-recorder:wf-recorder grim:grim
     slurp:slurp hyprshot:hyprshot awww:awww awww-daemon:awww
     notify-send:libnotify nmcli:networkmanager

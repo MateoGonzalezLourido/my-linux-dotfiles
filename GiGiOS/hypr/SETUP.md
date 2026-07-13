@@ -17,6 +17,8 @@ El instalador se encarga de:
 - crear los enlaces de `~/.config/ags`, `~/.config/hypr` y demás rutas XDG;
 - compilar `style.scss` a `out.css`;
 - reconstruir la caché de aplicaciones de Dolphin;
+- copiar a `/etc` (con `sudo`) los ficheros de `system/`: la regla udev que evita perder datos al
+  retirar un USB y la carga de `i2c-dev`, sin la cual no hay brillo por DDC/CI en un sobremesa;
 - ejecutar la validación final.
 
 El mismo comando sirve para actualizar un equipo que ya tenga GiGiOS instalado: hace
@@ -201,7 +203,7 @@ Cópialas y corre `fc-cache -f` en el PC destino.
 ## 4. Bar / atajos / herramientas de escritorio
 
 ```sh
-sudo pacman -S rofi cliphist wl-clipboard brightnessctl playerctl qalculate-gtk \
+sudo pacman -S rofi cliphist wl-clipboard brightnessctl ddcutil playerctl qalculate-gtk \
   wf-recorder grim slurp jq bc hyprshot nm-connection-editor blueman fish git curl \
   btop upower libgudev cups geoclue mesa-utils lshw fd github-cli
 ```
@@ -219,6 +221,12 @@ Qué usa cada cosa:
   el tema versionado `GiGiOS/rofi/clipboard-solarized.rasi`, sin modificar la
   configuración global de Rofi.
 - **`playerctl`** / **`brightnessctl`** — teclas multimedia y brillo.
+- **`ddcutil`** — brillo de **monitores externos** (sobremesa), por DDC/CI. Necesita además el módulo
+  `i2c-dev` cargado en cada arranque, cosa que hace `/etc/modules-load.d/i2c-dev.conf` — lo instala
+  `install.sh`; a mano sería
+  `sudo install -Dm644 system/modules-load.d/i2c-dev.conf /etc/modules-load.d/i2c-dev.conf && sudo modprobe i2c-dev`.
+  Sin eso el slider de brillo simplemente no aparece (no hay backend). En un portátil no hace falta:
+  ahí el panel interno se controla por `/sys/class/backlight`.
 - **`wpctl`** (paquete `wireplumber`) — volumen/mute por teclado y en `inicializador/init.sh`.
   El panel de audio de AGS (`QuickSettings.tsx`) además llama a **`pactl`** (paquete
   `libpulse`) y **`pw-metadata`** (paquete `pipewire`) para listar/cambiar sink-inputs y el

@@ -42,7 +42,7 @@ install_packages() {
     hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
-    ttf-meslo-nerd rofi cliphist wl-clipboard brightnessctl playerctl
+    ttf-meslo-nerd rofi cliphist wl-clipboard brightnessctl ddcutil playerctl
     qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
     nm-connection-editor blueman fish kitty dolphin kservice
     libpulse pipewire pipewire-audio pipewire-pulse pipewire-alsa wireplumber
@@ -164,7 +164,37 @@ else
   warn "No encontré kbuildsycoca6 ni kbuildsycoca5; el menú 'Abrir con...' podría quedar vacío."
 fi
 
-# --- 6. Verificación y notas finales ---
+# --- 6. Ficheros de sistema (/etc) ---
+# NO se symlinkean, se copian: udev y systemd leen /etc antes de que $HOME esté montado, y
+# apuntar /etc a un directorio escribible por el usuario sería una escalada silenciosa.
+# Sin este paso la instalación arranca igual, pero con dos fallos mudos:
+#   • sin la regla udev, una copia a un USB "termina" con cientos de MB aún en RAM y retirar
+#     el pendrive pierde los datos de verdad (ver CLAUDE.md, sección USB);
+#   • sin i2c-dev no existen los nodos /dev/i2c-*, así que ddcutil no ve el monitor y el
+#     slider de brillo desaparece en un sobremesa (en un portátil da igual: usa sysfs).
+SYSTEM_DIR="$HOME/GiGiOS/system"
+if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
+  info "Instalando los ficheros de sistema en /etc (pide sudo) ..."
+  if sudo install -Dm644 "$SYSTEM_DIR/udev/99-gigios-usb-writeback.rules" \
+       /etc/udev/rules.d/99-gigios-usb-writeback.rules; then
+    sudo udevadm control --reload-rules \
+      || warn "No pude recargar udev; la regla de USB se aplicará al reiniciar."
+  else
+    warn "No pude instalar la regla udev de USB. Instálala a mano (ver CLAUDE.md, sección USB)."
+  fi
+  if sudo install -Dm644 "$SYSTEM_DIR/modules-load.d/i2c-dev.conf" \
+       /etc/modules-load.d/i2c-dev.conf; then
+    # modules-load.d solo actúa en el arranque: cargarlo ahora evita tener que reiniciar
+    # para que el brillo por DDC/CI funcione ya en esta sesión.
+    sudo modprobe i2c-dev || warn "No pude cargar i2c-dev ahora; se cargará al reiniciar."
+  else
+    warn "No pude instalar i2c-dev.conf; el brillo por DDC/CI no funcionará hasta hacerlo."
+  fi
+else
+  warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
+fi
+
+# --- 7. Verificación y notas finales ---
 if [ -x "$HOME/GiGiOS/bin/preflight.sh" ]; then
   info "Validando la instalación ..."
   HOME="$HOME" GIGIOS="$HOME/GiGiOS" "$HOME/GiGiOS/bin/preflight.sh" --installed \

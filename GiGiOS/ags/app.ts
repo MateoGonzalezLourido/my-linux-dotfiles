@@ -18,7 +18,7 @@ import { initAutoDnd } from "./widget/notifications/autoDnd/watcher"
 import { initNotifDaemonCheck } from "./widget/notifications/daemonCheck"
 import { initTrayApps } from "./widget/settings/trayApps"
 import { initGamingState } from "./widget/power/gamingState"
-import { showBrightnessOSD } from "./widget/state"
+import { showBrightnessOSD, stepBrightness } from "./widget/state"
 
 app.start({
   css: style,
@@ -35,6 +35,19 @@ app.start({
     }
     if (argv.includes("brightness-osd")) {
       showBrightnessOSD()
+      response("ok")
+      return
+    }
+    // Las teclas de brillo pasan por aquí en vez de llamar a `brightnessctl` desde el
+    // keybind: así funcionan con los dos backends (panel interno o DDC/CI) y el estado
+    // del shell no se desincroniza del monitor. Ver `widget/display/brightness.ts`.
+    if (argv.includes("brightness-up")) {
+      stepBrightness(0.1)
+      response("ok")
+      return
+    }
+    if (argv.includes("brightness-down")) {
+      stepBrightness(-0.1)
       response("ok")
       return
     }

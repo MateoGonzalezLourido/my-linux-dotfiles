@@ -15,6 +15,7 @@ import {
   setNightLightManual, setManualTemp, saveDisplayConfig,
 } from "../display/service"
 import type { NightRule } from "../display/schedule"
+import { activeRuleFor, activeSetpoint } from "../display/schedule"
 import {
   resolutionOptions, refreshOptions, matchScalePreset, SCALE_PRESETS,
   TRANSFORMS, CM_MODES, computeRelativePosition,
@@ -23,9 +24,10 @@ import { parseHypridle, writeHypridle } from "../display/hypridle"
 import type { HypridleConfig, ListenerKind } from "../display/hypridle"
 import {
   settingsPanelVisible,
-  brightness, setBrightness,
+  brightness,
   nightLightActive, nightLightTemp,
 } from "../state"
+import { applyBrightness, brightnessSupported } from "../display/brightness"
 
 const HYPRIDLE_FILE = `${GLib.get_user_config_dir()}/hypr/hypridle.conf`
 
@@ -86,54 +88,139 @@ function NumberField({ initial, min, max, chars = 2, pad = 2, onCommit }: {
   )
 }
 
-// Fila de una regla de luz nocturna: HH : MM → NNNN K + borrar. Edita la regla en
-// su índice actual dentro de la lista (index es un accessor de gnim For).
+const DEFAULT_RULE_TEMP = 3500
+const DEFAULT_RULE_BRIGHTNESS = 60
+
+// Reloj compartido de la sección: sin él, "vigente ahora" solo sería cierto en el instante
+// en que se abrió el panel. Ref-contado y solo vivo mientras haya una sección montada (el
+// panel se construye por monitor y `<With>` lo levanta y lo tira en cada apertura).
+const hmNow = () => { const d = GLib.DateTime.new_now_local(); return { h: d.get_hour(), m: d.get_minute() } }
+const [scheduleNow, setScheduleNow] = createState(hmNow())
+let clockId: number | null = null
+let clockRefs = 0
+function acquireClock() {
+  clockRefs++
+  setScheduleNow(hmNow())
+  if (clockId === null) {
+    clockId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => { setScheduleNow(hmNow()); return GLib.SOURCE_CONTINUE })
+  }
+}
+function releaseClock() {
+  clockRefs = Math.max(0, clockRefs - 1)
+  if (clockRefs === 0 && clockId !== null) { GLib.source_remove(clockId); clockId = null }
+}
+
+// Los dos canales de una regla, cada uno con su "No cambiar" (= la franja no lo toca).
+// La luz nocturna no necesita un "Apagar": fuera de la franja ya vuelve sola al manual.
+const NIGHT_MODES = [
+  { label: "No cambiar", value: "keep" },
+  { label: "Encender a", value: "on" },
+]
+const BRIGHT_MODES = [
+  { label: "No cambiar", value: "keep" },
+  { label: "Fijar en", value: "set" },
+]
+
+// Tarjeta de una regla: la FRANJA (de HH:MM a HH:MM) y, debajo, sus DOS canales
+// independientes (luz nocturna y brillo). Cada canal puede quedarse en "No cambiar", así
+// que una regla puede tocar solo uno, solo el otro o los dos — y fuera de la franja no
+// toca nada. Edita la regla en su índice actual dentro de la lista (index es un accessor
+// de gnim For); al reemplazar el objeto, For reconstruye la fila, y por eso los valores se
+// leen sin reactividad.
 function RuleRow({ rule, index }: { rule: NightRule, index: any }) {
-  const [h0, m0] = rule.time.split(":").map(Number)
-  const setTimePart = (idx: 0 | 1, val: number) => {
+  const [sh, sm] = rule.start.split(":").map(Number)
+  const [eh, em] = rule.end.split(":").map(Number)
+
+  const patch = (p: Partial<NightRule>) => {
     const i = index.get()
     const rules = nightRules.get().slice()
     if (!rules[i]) return
-    const p = rules[i].time.split(":")
-    p[idx] = String(val).padStart(2, "0")
-    rules[i] = { ...rules[i], time: `${p[0]}:${p[1]}` }
+    rules[i] = { ...rules[i], ...p }
     setNightRulesAndSave(rules)
   }
-  const setTemp = (val: number) => {
-    const i = index.get()
-    const rules = nightRules.get().slice()
-    if (!rules[i]) return
-    rules[i] = { ...rules[i], temp: val }
-    setNightRulesAndSave(rules)
+  const setTimePart = (field: "start" | "end", idx: 0 | 1, val: number) => {
+    const cur = nightRules.get()[index.get()]
+    if (!cur) return
+    const p = cur[field].split(":")
+    p[idx] = String(val).padStart(2, "0")
+    patch({ [field]: `${p[0]}:${p[1]}` } as Partial<NightRule>)
   }
   const remove = () => setNightRulesAndSave(nightRules.get().filter((_, idx) => idx !== index.get()))
-  const isOn = rule.temp > 0   // temp 0 = apagar desde esa hora
+
+  const nightMode = rule.temp == null || rule.temp <= 0 ? "keep" : "on"
+  const brightMode = rule.brightness == null ? "keep" : "set"
+  const temp = rule.temp && rule.temp > 0 ? rule.temp : DEFAULT_RULE_TEMP
+  const bright = rule.brightness ?? DEFAULT_RULE_BRIGHTNESS
+
+  // Canales que ESTA regla rige ahora mismo (dentro de su franja). Se compara por
+  // identidad: la lista guarda el mismo objeto que For nos pasa, y cualquier edición lo
+  // reemplaza y reconstruye la fila. Es la prueba visible de que la franja empieza y acaba.
+  const activeChannels = createComputed(() => {
+    if (!nightRulesEnabled()) return [] as string[]
+    const t = scheduleNow(), rules = nightRules()
+    const out: string[] = []
+    if (activeRuleFor(t, rules, "temp") === rule) out.push("luz nocturna")
+    if (activeRuleFor(t, rules, "brightness") === rule) out.push("brillo")
+    return out
+  })
+
+  // hexpand={false} explícito: el disparador de DisplaySelect es hexpand y, sin cortarle la
+  // propagación aquí, el desplegable se comería toda la fila y mandaría el campo K/% al borde.
+  const modeSelect = (modes: typeof NIGHT_MODES, current: string, onSelect: (v: string) => void) => (
+    <box cssClasses={["sp-rule-select"]} valign={Gtk.Align.CENTER} hexpand={false} halign={Gtk.Align.START}>
+      <DisplaySelect
+        current={modes.find((x) => x.value === current)!.label}
+        options={createComputed(() => modes.map((x) => ({ label: x.label, value: x.value, active: x.value === current })))}
+        onSelect={onSelect}
+      />
+    </box>
+  )
+
   return (
-    <box spacing={5} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
-      <NumberField initial={h0} min={0} max={23} onCommit={(v) => setTimePart(0, v)} />
-      <label cssClasses={["sp-field-hint"]} label=":" />
-      <NumberField initial={m0} min={0} max={59} onCommit={(v) => setTimePart(1, v)} />
-      <label cssClasses={["sp-field-hint"]} label="→" />
-      {isOn
-        ? <box spacing={5} valign={Gtk.Align.CENTER}>
-            <NumberField initial={rule.temp} min={1000} max={6500} chars={4} pad={0} onCommit={setTemp} />
-            <label cssClasses={["sp-field-hint"]} label="K" />
-          </box>
-        : <label cssClasses={["sp-field-hint"]} label="Apagada" />}
-      <box hexpand />
-      <button
-        cssClasses={isOn ? ["qs-toggle", "on"] : ["qs-toggle"]}
-        onClicked={() => setTemp(isOn ? 0 : 3500)}
-        valign={Gtk.Align.CENTER}
-        tooltipText={isOn ? "Apagar en esta franja" : "Encender con temperatura"}
-      >
-        <box cssClasses={["qs-toggle-track"]}>
-          <box cssClasses={isOn ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"]} />
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={4}
+      cssClasses={activeChannels((c) => c.length ? ["sp-rule-card", "active"] : ["sp-rule-card"])}>
+      <box spacing={5} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
+        <label cssClasses={["sp-rule-chan", "narrow"]} label="de" halign={Gtk.Align.START} />
+        <NumberField initial={sh} min={0} max={23} onCommit={(v) => setTimePart("start", 0, v)} />
+        <label cssClasses={["sp-field-hint"]} label=":" />
+        <NumberField initial={sm} min={0} max={59} onCommit={(v) => setTimePart("start", 1, v)} />
+        <label cssClasses={["sp-field-hint"]} label="a" />
+        <NumberField initial={eh} min={0} max={23} onCommit={(v) => setTimePart("end", 0, v)} />
+        <label cssClasses={["sp-field-hint"]} label=":" />
+        <NumberField initial={em} min={0} max={59} onCommit={(v) => setTimePart("end", 1, v)} />
+        <label
+          cssClasses={["sp-rule-active-chip"]}
+          label="vigente"
+          visible={activeChannels((c) => c.length > 0)}
+          tooltipText={activeChannels((c) => `Rige ahora mismo: ${c.join(" · ")}`)}
+          valign={Gtk.Align.CENTER}
+        />
+        <box hexpand />
+        <button cssClasses={["sp-rule-del"]} onClicked={remove} valign={Gtk.Align.CENTER} tooltipText="Borrar regla">
+          <label label="󰅖" />
+        </button>
+      </box>
+
+      <box spacing={6} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
+        <label cssClasses={["sp-rule-chan"]} label="Luz nocturna" halign={Gtk.Align.START} />
+        {modeSelect(NIGHT_MODES, nightMode, (v) =>
+          patch({ temp: v === "keep" ? null : temp }))}
+        <box spacing={4} valign={Gtk.Align.CENTER} visible={nightMode === "on"}>
+          <NumberField initial={temp} min={1000} max={6500} chars={4} pad={0} onCommit={(v) => patch({ temp: v })} />
+          <label cssClasses={["sp-field-hint"]} label="K" />
         </box>
-      </button>
-      <button cssClasses={["sp-rule-del"]} onClicked={remove} valign={Gtk.Align.CENTER}>
-        <label label="󰅖" />
-      </button>
+      </box>
+
+      {/* Brillo: solo si hay backend (ver `display/brightness.ts`) */}
+      <box spacing={6} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]} visible={brightnessSupported}>
+        <label cssClasses={["sp-rule-chan"]} label="Brillo" halign={Gtk.Align.START} />
+        {modeSelect(BRIGHT_MODES, brightMode, (v) =>
+          patch({ brightness: v === "keep" ? null : bright }))}
+        <box spacing={4} valign={Gtk.Align.CENTER} visible={brightMode === "set"}>
+          <NumberField initial={bright} min={1} max={100} chars={3} pad={0} onCommit={(v) => patch({ brightness: v })} />
+          <label cssClasses={["sp-field-hint"]} label="%" />
+        </box>
+      </box>
     </box>
   )
 }
@@ -159,9 +246,8 @@ export default function DisplaySection() {
   const commitBrightness = () => {
     const parsed = Number.parseInt(brightnessEntry?.text.trim() ?? "", 10)
     const value = Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : Math.round(brightness.get() * 100)
-    setBrightness(value / 100)
+    applyBrightness(value / 100)
     saveDisplayConfig()
-    execAsync(["bash", "-c", `brightnessctl -n2 s ${value}%`]).catch(() => {})
     if (brightnessEntry) brightnessEntry.text = String(value)
     setEditingBrightness(false)
   }
@@ -200,6 +286,22 @@ export default function DisplaySection() {
   const unsub = settingsPanelVisible.subscribe(evalPoll)
   evalPoll()
 
+  // Reloj de la sección (para "vigente" y el resumen): vive mientras viva la sección.
+  acquireClock()
+
+  // Qué está aplicando el horario AHORA. Es la respuesta visible a "¿por qué se ha
+  // encendido?": si una franja rige, se ve aquí y su tarjeta sale marcada.
+  const scheduleSummary = createComputed(() => {
+    const t = scheduleNow()
+    const hh = `${String(t.h).padStart(2, "0")}:${String(t.m).padStart(2, "0")}`
+    if (!nightRulesEnabled() || nightRules().length === 0) return `Ahora (${hh}) · sin franjas: manda el ajuste manual de arriba`
+    const temp = activeSetpoint(t, nightRules(), "temp")
+    const bright = activeSetpoint(t, nightRules(), "brightness")
+    const luz = temp != null && temp > 0 ? `${temp} K` : "—"
+    const bri = bright != null ? `${bright} %` : "—"
+    return `Ahora (${hh}) · luz nocturna: ${luz} · brillo: ${bri}`
+  })
+
   const fixSelection = () => {
     const list = monitors.get()
     if (list.length && !list.some((m: any) => m.name === selectedName.get())) {
@@ -212,6 +314,7 @@ export default function DisplaySection() {
 
   const cleanup = () => {
     if (holding) { releasePoll(); holding = false }
+    releaseClock()
     if (typeof unsub === "function") unsub()
     if (typeof unsubMon === "function") unsubMon()
   }
@@ -222,7 +325,7 @@ export default function DisplaySection() {
   const brightScale = makeScale(
     ["qs-slider", "brightness"],
     () => brightness.get(),
-    (v) => { setBrightness(v); saveDisplayConfig(); execAsync(["bash", "-c", `brightnessctl -n2 s ${Math.round(v * 100)}%`]).catch(() => {}) },
+    (v) => { applyBrightness(v); saveDisplayConfig() },
     (cb) => brightness.subscribe(cb),
   )
 
@@ -425,8 +528,8 @@ export default function DisplaySection() {
         </box>
       </box>
 
-      {/* ── Brillo ── */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["sp-field"]}>
+      {/* ── Brillo ── (solo si hay backend: ver `display/brightness.ts`) */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["sp-field"]} visible={brightnessSupported}>
         <box spacing={6}>
           <label cssClasses={["sp-field-label"]} label="Brillo" hexpand halign={Gtk.Align.START} />
           <button cssClasses={["qs-inline-value-btn"]} visible={editingBrightness((v) => !v)} onClicked={editBrightness}>
@@ -469,10 +572,10 @@ export default function DisplaySection() {
         {tempScale}
       </box>
 
-      {/* ── Luz nocturna: programación por horas (independiente del manual) ── */}
+      {/* ── Franjas horarias: luz nocturna y/o brillo (independiente del manual) ── */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["sp-field"]}>
         <box spacing={6} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["sp-field-label"]} label="Programar por horas" hexpand halign={Gtk.Align.START} />
+          <label cssClasses={["sp-field-label"]} label="Programar por franjas horarias" hexpand halign={Gtk.Align.START} />
           <button
             cssClasses={nightRulesEnabled((n) => n ? ["qs-toggle", "on"] : ["qs-toggle"])}
             onClicked={() => setNightRulesEnabled(!nightRulesEnabled.get())}
@@ -484,8 +587,14 @@ export default function DisplaySection() {
         </box>
         <label
           cssClasses={["sp-field-hint"]}
-          label={"A cada hora se aplica su temperatura hasta la siguiente regla (prioridad sobre el manual).\nUsa el interruptor de cada regla para apagar la luz en esa franja. Menos K = más cálido (3500 ≈ cálido)."}
+          label={"Cada regla vale SOLO dentro de su franja: al terminar, la luz nocturna vuelve al ajuste manual y el brillo, al valor que tenía antes de entrar. Una franja puede cruzar la medianoche (22:00 → 07:00).\nLos dos canales son independientes: lo que dejes en «No cambiar» no lo toca esa franja. Menos K = más cálido (3500 ≈ cálido).\nEl brillo se fija al entrar: dentro de la franja puedes seguir ajustándolo a mano sin que te lo pise."}
           halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0}
+        />
+        <label
+          cssClasses={["sp-schedule-now"]}
+          label={scheduleSummary}
+          visible={nightRulesEnabled}
+          halign={Gtk.Align.START} xalign={0}
         />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={nightRulesEnabled}>
           <For each={nightRules}>
@@ -494,11 +603,11 @@ export default function DisplaySection() {
           <button
             cssClasses={["sp-add-rule"]}
             halign={Gtk.Align.START}
-            onClicked={() => setNightRulesAndSave([...nightRules.get(), { time: "22:00", temp: 4000 }])}
+            onClicked={() => setNightRulesAndSave([...nightRules.get(), { start: "22:00", end: "07:00", temp: DEFAULT_RULE_TEMP, brightness: null }])}
           >
             <box spacing={6} valign={Gtk.Align.CENTER}>
               <label label="󰐕" />
-              <label label="Añadir regla" />
+              <label label="Añadir franja" />
             </box>
           </button>
         </box>

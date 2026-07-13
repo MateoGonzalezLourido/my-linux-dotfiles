@@ -267,8 +267,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         "ws-icon-btn",
         c[i]?.isGlyph ? "ws-glyph-btn" : "ws-image-btn",
       ])}
-      widthRequest={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? 16 : 20)}
-      onClicked={() => ws.focus()}
+      widthRequest={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? 16 : 24)}
       visible={clientsB((c: ClientIcon[]) => i < c.length)}
       tooltipText={clientsB((c: ClientIcon[]) => c[i]?.tooltip ?? "")}
     >
@@ -310,7 +309,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         <Gtk.Image
           cssClasses={["ws-app-icon", "ws-image-icon"]}
           iconName={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? "" : (c[i]?.icon ?? ""))}
-          pixelSize={16}
+          pixelSize={19}
           visible={clientsB((c: ClientIcon[]) => !!(c[i] && !c[i].isGlyph))}
           halign={Gtk.Align.CENTER}
           valign={Gtk.Align.CENTER}
@@ -420,7 +419,9 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
         pressGesture.connect("released", () => {
           clearReady()
           pressStartTime = 0
-          if (!didDrag && ctrlAtPress) startRenumber()
+          if (didDrag) return
+          if (ctrlAtPress) startRenumber()
+          else ws.focus()
         })
         self.add_controller(pressGesture)
 
@@ -494,7 +495,6 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
       />
       <button
         cssClasses={["ws-num-btn"]}
-        onClicked={() => { if (!ctrlAtPress) ws.focus() }}
       >
         {/* Mantiene la preview abierta mientras el ratón esté sobre el número */}
         <Gtk.EventControllerMotion onEnter={previewAutoClose.onEnter} onLeave={previewAutoClose.onLeave} />
