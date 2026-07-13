@@ -15,7 +15,7 @@ WARN_BYTES=$(( WARN_GB * 1024 * 1024 * 1024 ))
 MIN_BYTES=$(( MIN_GB  * 1024 * 1024 * 1024 ))
 
 send_notif() {
-    notify-send \
+    notify-send -h string:x-gigios-source:system \
         --app-name="Disco" \
         --urgency="$1" \
         --icon="drive-harddisk" \

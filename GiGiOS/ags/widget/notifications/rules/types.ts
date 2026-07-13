@@ -3,6 +3,13 @@
 
 export type Lifetime = "flash" | "timed" | "clear-on-boot" | "persistent"
 
+/** Aspecto del popup. "dunst" = skin que replica el dunstrc por defecto (ver style.scss);
+ *  "default" = el diseño propio del shell. Una regla que lo fija GANA al hint
+ *  `x-gigios-source:system` de los scripts, así que `"default"` sirve para sacar del skin a una
+ *  notificación del sistema, y `"dunst"` para metérselo a una app cualquiera. */
+export type PopupStyle = "default" | "dunst"
+export const POPUP_STYLES: PopupStyle[] = ["default", "dunst"]
+
 export interface StringMatch {
   op: "contains" | "equals" | "regex"
   value: string
@@ -13,6 +20,10 @@ export interface MatchSpec {
   app?: StringMatch
   summary?: StringMatch
   body?: StringMatch
+  /** Origen: el hint `x-gigios-source` (los scripts de hypr/scripts mandan "system").
+   *  Ausente en las notificaciones de apps normales — y una regla que lo exija NO casará
+   *  con ellas, porque un subject vacío no puede ser "system". */
+  source?: StringMatch
 }
 
 export type DedupKeySpec =
@@ -34,6 +45,8 @@ export interface EffectSpec {
   // accent color override (hex, e.g. "#89b4fa"). Highest priority in color resolution:
   // rule color > per-app color > system default (getAppColor).
   color?: string
+  // popup skin override. Absent = decide el hint x-gigios-source (sistema → dunst).
+  style?: PopupStyle
   // text rewriting templates (see rules/template.ts + rules/notifFields.ts).
   // appName === "" omits the app name entirely from popup/panel.
   rewrite?: { appName?: string; summary?: string; body?: string }
@@ -56,6 +69,8 @@ export interface NotifInput {
   summary: string
   body: string
   urgency: number
+  /** Hint `x-gigios-source`. Ausente = notificación de una app normal. */
+  source?: string
 }
 
 export interface NotifMeta {
@@ -69,6 +84,7 @@ export interface NotifMeta {
   conditions: string[]
   matchedRules: string[]
   color?: string // accent color from the highest-priority matched rule, baked at ingest
+  style?: PopupStyle // popup skin from the highest-priority matched rule, baked at ingest
 }
 
 export interface EvalResult {

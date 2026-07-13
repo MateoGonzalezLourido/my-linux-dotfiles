@@ -81,7 +81,7 @@ get_gpu_temp() {
 
 send_notif() {
     local urgency=$1 icon=$2 title=$3 body=$4
-    notify-send \
+    notify-send -h string:x-gigios-source:system \
         --app-name="Temperatura" \
         --urgency="$urgency" \
         --icon="$icon" \

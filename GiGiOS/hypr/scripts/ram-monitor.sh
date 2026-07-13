@@ -40,7 +40,7 @@ read_meminfo() {
 }
 
 send_notif() {
-    notify-send \
+    notify-send -h string:x-gigios-source:system \
         --app-name="RAM" \
         --urgency="$1" \
         --icon="$2" \

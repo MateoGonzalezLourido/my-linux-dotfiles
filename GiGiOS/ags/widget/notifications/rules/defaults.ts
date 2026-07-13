@@ -7,6 +7,22 @@ const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
 
 export const BUILTIN_RULES: NotifRule[] = [
   {
+    // Las notificaciones de hypr/scripts (hint `x-gigios-source:system`) se pintan con el skin
+    // dunst. Prioridad 10 y SIN stopOnMatch a propósito: es una regla puramente cosmética y no
+    // debe tapar a las otras builtin que también casan con notificaciones de sistema
+    // (builtin.low-battery, builtin.coredump…). Como el fold es set-once por prioridad y solo
+    // esta toca `style`, cualquier regla de usuario que fije un `style` la gana.
+    //
+    // OJO: al ser una regla, lo que case con ella queda FUERA del historial de "Tipos sin regla"
+    // (`shouldIndex`: solo se indexa lo que no casa con ninguna). Es el precio de tenerla visible
+    // y desactivable desde la UI; el hint por sí solo hacía lo mismo sin ese efecto.
+    id: "builtin.system-dunst",
+    name: "Notificaciones del sistema (estilo dunst)",
+    enabled: true, priority: 10, source: "builtin",
+    match: { source: { op: "equals", value: "system" } },
+    effects: { style: "dunst" },
+  },
+  {
     id: "builtin.screenshot",
     name: "Capturas de pantalla (flash)",
     enabled: true, priority: 50, source: "builtin", stopOnMatch: true,

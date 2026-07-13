@@ -19,7 +19,7 @@ log() { echo "[$BOOT_TS] $*" >> "$LOG"; }
 notify_problem() {
     local urgency=$1 title=$2 body=$3
     DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus" \
-        notify-send --urgency="$urgency" --expire-time=0 "$title" "$body" 2>/dev/null
+        notify-send -h string:x-gigios-source:system --urgency="$urgency" --expire-time=0 "$title" "$body" 2>/dev/null
     log "[$urgency] $title — $body"
     (( ISSUES++ ))
 }

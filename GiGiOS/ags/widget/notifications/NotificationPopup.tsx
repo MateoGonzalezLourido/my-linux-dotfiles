@@ -274,24 +274,40 @@ function PopupItem({ notif, onDismiss, registerDismissCb }: {
   const color = resolveNotifColor(notif)
   const icon  = getAppIcon(notif.appName)
 
+  // Skin dunst: replica el dunstrc POR DEFECTO, que es el que se echaba de menos:
+  // `format = "<b>%s</b>\n%b"` — o sea resumen en negrita + cuerpo, SIN nombre de app ni icono —
+  // esquinas rectas, marco de 3px, monoespaciada y fondo sólido por urgencia. De ahí que aquí se
+  // oculten icono/app/punto y que el `css` inline (que pintaría el borde izquierdo de color y
+  // tintaría el icono) se anule: inline gana al stylesheet, así que dejarlo puesto rompería el
+  // marco del skin.
+  //
+  // Lo decide SIEMPRE una regla, vía `meta.style` (horneado al ingerir). Lo que pone en el skin a
+  // las notificaciones de hypr/scripts es la builtin `builtin.system-dunst`, que casa por el hint
+  // `x-gigios-source:system` (match.source). Aquí NO se mira el hint directamente a propósito:
+  // como fallback haría que desactivar esa regla desde la UI no sirviera de nada — el skin
+  // seguiría aplicándose por detrás. Una regla de usuario de más prioridad la pisa, poniendo
+  // `dunst` en una app normal o `default` para sacar del skin a algo del sistema.
+  const dunst = notif.meta.style === "dunst"
+  const urgencyClass = notif.urgency >= 2 ? "u-critical" : notif.urgency <= 0 ? "u-low" : "u-normal"
+
   const itemBox = (
     <box
-      cssClasses={["notif-popup-item"]}
-      css={`border-left: 3px solid ${color};`}
+      cssClasses={dunst ? ["notif-popup-item", "dunst", urgencyClass] : ["notif-popup-item"]}
+      css={dunst ? "" : `border-left: 3px solid ${color};`}
       orientation={Gtk.Orientation.VERTICAL}
       spacing={6}
     >
-      <box spacing={5} valign={Gtk.Align.CENTER}>
-        <label cssClasses={["notif-popup-app-icon"]} label={icon} css={`color: ${color};`} />
+      <box spacing={5} valign={Gtk.Align.CENTER} visible={!dunst || !!notif.summary}>
+        <label cssClasses={["notif-popup-app-icon"]} label={icon} css={dunst ? "" : `color: ${color};`} visible={!dunst} />
         <label
           cssClasses={["notif-popup-app-name"]}
           label={notif.appName}
           halign={Gtk.Align.START}
           ellipsize={3}
           maxWidthChars={18}
-          visible={!!notif.appName}
+          visible={!dunst && !!notif.appName}
         />
-        <label cssClasses={["notif-popup-dot"]} label="·" visible={!!notif.appName && !!(notif.summary)} />
+        <label cssClasses={["notif-popup-dot"]} label="·" visible={!dunst && !!notif.appName && !!(notif.summary)} />
         <label
           cssClasses={["notif-popup-summary"]}
           label={notif.summary}

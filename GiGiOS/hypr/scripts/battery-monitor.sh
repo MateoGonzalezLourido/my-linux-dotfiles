@@ -99,7 +99,7 @@ threshold_urgency() {
 
 send_notif() {
     local urgency=$1 icon=$2 title=$3 body=$4
-    notify-send \
+    notify-send -h string:x-gigios-source:system \
         --app-name="Batería" \
         --urgency="$urgency" \
         --icon="$icon" \

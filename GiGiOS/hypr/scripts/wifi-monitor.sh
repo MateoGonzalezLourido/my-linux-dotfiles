@@ -6,7 +6,7 @@
 
 IFACE=$(nmcli -t -f DEVICE,TYPE device 2>/dev/null | awk -F: '$2=="wifi"{print $1; exit}')
 if [[ -z "$IFACE" ]]; then
-    notify-send -u critical "wifi-monitor" "No se encontró ninguna interfaz WiFi. Saliendo." -t 10000
+    notify-send -h string:x-gigios-source:system -u critical "wifi-monitor" "No se encontró ninguna interfaz WiFi. Saliendo." -t 10000
     exit 0
 fi
 
@@ -21,15 +21,15 @@ get_ssid() {
 }
 
 notify_disconnected() {
-    notify-send -u critical "WiFi desconectado" "Se perdió la conexión en $IFACE" -t 0
+    notify-send -h string:x-gigios-source:system -u critical "WiFi desconectado" "Se perdió la conexión en $IFACE" -t 0
 }
 
 notify_reconnected() {
-    notify-send -u normal "WiFi reconectado" "Red: $(get_ssid)" -t 8000
+    notify-send -h string:x-gigios-source:system -u normal "WiFi reconectado" "Red: $(get_ssid)" -t 8000
 }
 
 notify_portal() {
-    notify-send -u critical "Portal cautivo detectado" \
+    notify-send -h string:x-gigios-source:system -u critical "Portal cautivo detectado" \
         "Abre el navegador para iniciar sesión y acceder a internet" -t 0
 }
 

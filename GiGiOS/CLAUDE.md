@@ -80,6 +80,43 @@ committed or copied into the repo. Set it up once via `ags/scripts/spotify-auth.
 `wallpaper.sh`, and a set of `hypr/scripts/*-monitor.sh` background daemons (battery, temp,
 ram, disk, oom, wifi, usb, bt, screencast, updates). Apply config changes with `hyprctl reload` and relaunch AGS.
 
+**Editar un `*-monitor.sh` NO afecta al que ya está corriendo — hay que matarlo y relanzarlo.**
+Son `exec-once`, así que viven desde el login, y `hyprctl reload` **no** los reinicia (releer los
+`.conf` no vuelve a lanzar un `exec-once`). Bash además ya tiene el bucle parseado en memoria, de
+modo que el proceso vivo sigue ejecutando el código **anterior** a tu edición: el fichero en disco
+y lo que corre divergen sin ningún aviso. Se manifiesta como "mi cambio no hace nada" horas
+después — así se coló una tanda de notificaciones de USB sin el hint `x-gigios-source` cuando ya
+estaba puesto en el script. Tras editar: `pkill -f ~/.config/hypr/scripts/<x>-monitor.sh` y
+relanzarlo (`setsid nohup … &`), o cerrar sesión. Ojo al comprobarlo: `battery-monitor` y
+`temp-monitor` **salen solos** si su toggle está a `false` en `preferences.json`, y `disk-monitor`
+/ `wifi-monitor` no son daemons persistentes — que no aparezcan en `ps` no significa que fallen.
+
+### Notificaciones de los scripts: el hint `x-gigios-source`
+
+**Todo `notify-send` de `hypr/scripts/` lleva `-h string:x-gigios-source:system`** (44 llamadas,
+12 scripts; dos de ellos —`run-untrusted.sh`, `scan-file.sh`— lo centralizan en su wrapper
+`notify() { notify-send -h … -a "$APP" "$@"; }`). No es decorativo: es lo que hace que el popup
+salga con el **skin dunst** — esquinas rectas, marco de 3 px, monoespaciada y fondo sólido por
+urgencia (azul `#285577` normal, `#900000` con marco `#ff0000` crítica, `#222222` baja), y **sin
+nombre de app ni icono**, porque el `format` por defecto de dunst es `"<b>%s</b>\n%b"`. Las apps
+normales conservan el diseño del shell. **Un script nuevo que se olvide del hint saldrá con el
+diseño normal**, sin error ni aviso — es el único modo de fallo aquí.
+
+El hint no pinta nada por sí mismo: lo lee el **motor de reglas** (`match.source`), y quien pide
+el skin es una regla builtin visible y desactivable desde Ajustes, **`builtin.system-dunst`**
+(`ags/widget/notifications/rules/defaults.ts`). Una regla de usuario de más prioridad la pisa —
+para sacar del skin a algo del sistema, o para metérselo a una app normal. **Consecuencia
+aceptada**: al estar cubiertas por una regla, las notificaciones de los scripts **no aparecen en
+el historial** ("Tipos sin regla"). Ver `ags/CLAUDE.md`.
+
+Se eligió el hint y no "casar por nombre de app" porque 44 de las 47 llamadas no pasan `-a`, así
+que llegan como app `notify-send`: filtrar por ahí le habría puesto el skin también a cualquier
+`notify-send` lanzado a mano desde una terminal. El hint es inequívoco y no cambia el nombre que
+se ve. Ojo al leerlo en AGS: se saca con `hints.lookup_value()` de la clave suelta, **no** con el
+`extractHints()` que ya existe — ese hace `recursiveUnpack()` de todo el `a{sv}`, y un
+`image-data` trae los píxeles en crudo; hoy solo se libra de ese coste porque únicamente corre
+cuando una regla reescribe texto.
+
 ### Update monitor (`updates-monitor.sh`)
 
 Checks for pending updates and surfaces the **important** ones as bar icons (AGS

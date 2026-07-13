@@ -14,7 +14,7 @@
 set -u
 
 APP="Análisis ClamAV"
-notify() { notify-send -a "$APP" "$@"; }
+notify() { notify-send -h string:x-gigios-source:system -a "$APP" "$@"; }
 
 f="${1:-}"
 f="$(realpath -- "$f" 2>/dev/null || echo "$f")"

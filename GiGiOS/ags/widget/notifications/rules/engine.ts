@@ -1,6 +1,6 @@
 // widget/notifications/rules/engine.ts
 // Pure rule engine: compile rules into an app-indexed structure, then evaluate a notification.
-import type { NotifRule, NotifInput, NotifMeta, EvalResult } from "./types.ts"
+import type { NotifRule, NotifInput, NotifMeta, EvalResult, PopupStyle } from "./types.ts"
 import { matchInput } from "./match.ts"
 import { computeDedupKey } from "./dedup.ts"
 
@@ -67,6 +67,7 @@ export function evaluate(input: NotifInput, index: RuleIndex, now: number): Eval
   let rewriteSummary: string | undefined
   let rewriteBody: string | undefined
   let color: string | undefined
+  let style: PopupStyle | undefined
   const conditions = new Set<string>()
 
   const setOnce = <T>(cur: T | undefined, val: T | undefined): T | undefined =>
@@ -86,6 +87,7 @@ export function evaluate(input: NotifInput, index: RuleIndex, now: number): Eval
     rewriteSummary = setOnce(rewriteSummary, r.effects.rewrite?.summary)
     rewriteBody    = setOnce(rewriteBody, r.effects.rewrite?.body)
     color       = setOnce(color, e.color)
+    style       = setOnce(style, e.style)
     for (const cond of e.conditions ?? []) conditions.add(cond)
   }
 
@@ -102,6 +104,7 @@ export function evaluate(input: NotifInput, index: RuleIndex, now: number): Eval
     matchedRules: matched.map(r => r.id),
   }
   if (color !== undefined) meta.color = color
+  if (style !== undefined) meta.style = style
   if (finalLifetime === "timed" && ttlMs !== undefined) {
     meta.expiresAt = now + ttlMs
   }

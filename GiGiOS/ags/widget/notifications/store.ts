@@ -24,6 +24,11 @@ export interface StoredNotification {
   urgency: number     // 0=low, 1=normal, 2=critical
   actions: { id: string; label: string }[]
   image?: string      // artwork/image hint
+  /** Hint `x-gigios-source`: los scripts de `hypr/scripts/` mandan "system"
+   *  (`-h string:x-gigios-source:system`). Ausente en las notificaciones de apps normales.
+   *  Lo consume el motor de reglas vía `NotifInput.source` / `match.source` — no se mira
+   *  directamente en la UI, para que las reglas que lo usan se puedan desactivar de verdad. */
+  source?: string
   meta: NotifMeta
 }
 

@@ -174,44 +174,44 @@ monitor_kernel() {
                 process="${BASH_REMATCH[1]} (disparador)"
             fi
 
-            notify-send -u critical "💀 OOM Killer" "Proceso: $process" -t 10000
+            notify-send -h string:x-gigios-source:system -u critical "💀 OOM Killer" "Proceso: $process" -t 10000
 
         # --- Kernel panic ---
         elif [[ "$sec_kernelPanic" != false ]] && [[ "$lower" == *"kernel panic"* ]]; then
-            notify-send -u critical "💥 Kernel Panic" "El sistema va a reiniciar" -t 0
+            notify-send -h string:x-gigios-source:system -u critical "💥 Kernel Panic" "El sistema va a reiniciar" -t 0
 
         # --- Hung task ---
         elif [[ "$sec_hungTask" != false ]] && \
              [[ "$lower" == *"hung_task"* || "$lower" == *"blocked for more than"* ]]; then
-            notify-send -u critical "⚠️ Proceso colgado" "$line" -t 15000
+            notify-send -h string:x-gigios-source:system -u critical "⚠️ Proceso colgado" "$line" -t 15000
 
         # --- Disk I/O error ---
         elif [[ "$sec_diskError" != false ]] && [[ "$lower" == *"i/o error"* ]]; then
-            notify-send -u critical "💾 Error de disco" "$line" -t 15000
+            notify-send -h string:x-gigios-source:system -u critical "💾 Error de disco" "$line" -t 15000
 
         # --- Hardware error (MCE / ECC / EDAC) ---
         elif [[ "$sec_hwErrors" != false ]] && \
              [[ "$lower" == *"machine check"* || "$lower" == *"mce:"* || \
                 "$lower" == *"hardware error"* || "$lower" == *"edac"* || \
                 "$lower" == *"memory error"* ]]; then
-            notify-send -u critical "🧠 Error de hardware" "$line" -t 15000
+            notify-send -h string:x-gigios-source:system -u critical "🧠 Error de hardware" "$line" -t 15000
 
         # --- Módulo de kernel sin firmar / fuera del árbol (posible rootkit) ---
         elif [[ "$sec_kernelModules" != false ]] && \
              [[ "$lower" == *"tainting kernel"* || "$lower" == *"module verification failed"* || \
                 "$lower" == *"loading out-of-tree module"* || "$lower" == *"unsigned module"* ]]; then
-            notify-send -u critical "🧩 Módulo de kernel sin firmar" "$line" -t 15000
+            notify-send -h string:x-gigios-source:system -u critical "🧩 Módulo de kernel sin firmar" "$line" -t 15000
 
         # --- GPU / NVIDIA error ---
         elif [[ "$sec_gpuError" != false ]] && \
              [[ "$lower" == *"nvrm"* || \
                 ( "$lower" == *"nvidia"* && "$lower" == *"error"* ) || \
                 ( "$lower" == *"gpu"* && "$lower" == *"error"* ) ]]; then
-            notify-send -u critical "🖥️ Error GPU" "$line" -t 15000
+            notify-send -h string:x-gigios-source:system -u critical "🖥️ Error GPU" "$line" -t 15000
 
         # --- CPU throttling ---
         elif [[ "$sec_cpuThrottling" != false ]] && [[ "$lower" =~ cpu.*throttl ]]; then
-            notify-send -u warning "🌡️ CPU Throttling" "$line" -t 10000
+            notify-send -h string:x-gigios-source:system -u warning "🌡️ CPU Throttling" "$line" -t 10000
 
         # --- App crash: segfault ---
         elif [[ "$sec_appCrash" != false ]] && [[ "$lower" == *"segfault"* ]]; then
@@ -221,7 +221,7 @@ monitor_kernel() {
             _now=$(date +%s)
             if (( _now - ${_crash_cooldown[$app]:-0} >= 10 )); then
                 _crash_cooldown[$app]=$_now
-                notify-send -u critical "App crasheada" "Proceso: $app (segfault)" -t 15000
+                notify-send -h string:x-gigios-source:system -u critical "App crasheada" "Proceso: $app (segfault)" -t 15000
             fi
 
         fi
@@ -250,13 +250,13 @@ monitor_system() {
 
         # --- Systemd service failure ---
         if [[ "$sec_serviceFailure" != false ]] && [[ "$lower" == *"failed to start"* ]]; then
-            notify-send -u warning "⚙️ Servicio fallido" "$line" -t 10000
+            notify-send -h string:x-gigios-source:system -u warning "⚙️ Servicio fallido" "$line" -t 10000
 
         # --- Sudo auth failure ---
         elif [[ "$sec_sudoAuth" != false ]] && \
              [[ "$lower" == *"sudo"* && \
                 ( "$lower" == *"authentication failure"* || "$lower" == *"incorrect password"* ) ]]; then
-            notify-send -u critical "🔐 Fallo sudo" "Intento fallido de sudo" -t 15000
+            notify-send -h string:x-gigios-source:system -u critical "🔐 Fallo sudo" "Intento fallido de sudo" -t 15000
 
         # --- Escalada de privilegios (pkexec / su / polkit) ---
         #     pkexec emite DOS líneas por escalada: la de PAM ("session opened",
@@ -280,13 +280,13 @@ monitor_system() {
                 fi
             fi
 
-            notify-send -u critical "🔓 Escalada de privilegios" "$line" -t 15000
+            notify-send -h string:x-gigios-source:system -u critical "🔓 Escalada de privilegios" "$line" -t 15000
 
         # --- SSH events ---
         elif [[ "$sec_ssh" != false ]] && \
              [[ "$lower" == *"sshd"* && \
                 ( "$lower" == *"failed password"* || "$lower" == *"accepted"* ) ]]; then
-            notify-send -u warning "🌐 SSH" "$line" -t 15000
+            notify-send -h string:x-gigios-source:system -u warning "🌐 SSH" "$line" -t 15000
 
         # --- App crash: coredump (systemd-coredump, userspace) ---
         #     La notificación por-app va bajo appCrash; la detección de "tormenta"
@@ -302,7 +302,7 @@ monitor_system() {
 
             if [[ "$sec_appCrash" != false ]] && (( _now - ${_crash_cooldown[$app]:-0} >= 10 )); then
                 _crash_cooldown[$app]=$_now
-                notify-send -u critical "App crasheada" "Proceso: $app (coredump)" -t 15000
+                notify-send -h string:x-gigios-source:system -u critical "App crasheada" "Proceso: $app (coredump)" -t 15000
             fi
 
             if [[ "$sec_serviceHealth" != false ]]; then
@@ -312,7 +312,7 @@ monitor_system() {
                 _coredump_times=("${pruned[@]}")
                 if (( ${#_coredump_times[@]} >= 3 )) && (( _now - _storm_last >= 60 )); then
                     _storm_last=$_now
-                    notify-send -u critical "🌩️ Tormenta de crashes" \
+                    notify-send -h string:x-gigios-source:system -u critical "🌩️ Tormenta de crashes" \
                         "${#_coredump_times[@]} volcados de core en <60s. Algo va muy mal." -t 0
                 fi
             fi
@@ -330,7 +330,7 @@ monitor_files() {
     [[ "$sec_fileIntegrity" == false ]] && return
 
     if ! command -v inotifywait &>/dev/null; then
-        notify-send -u warning "oom-monitor" \
+        notify-send -h string:x-gigios-source:system -u warning "oom-monitor" \
             "inotify-tools no instalado. Vigilancia de archivos desactivada." -t 10000
         return
     fi
@@ -356,16 +356,16 @@ monitor_files() {
     while IFS= read -r path; do
         case "$path" in
             /etc/passwd|/etc/shadow|/etc/group|/etc/gshadow|/etc/hosts|/etc/sudoers|/etc/ld.so.preload|/etc/ssh/sshd_config)
-                notify-send -u critical "🚨 Archivo crítico modificado" \
+                notify-send -h string:x-gigios-source:system -u critical "🚨 Archivo crítico modificado" \
                     "Archivo: $path" -t 0 ;;
             /etc/sudoers.d/*|/etc/pam.d/*|/etc/cron.d/*|/etc/systemd/system/*|"$HOME"/.config/autostart/*|"$HOME"/.config/systemd/user/*)
-                notify-send -u critical "🚨 Posible persistencia" \
+                notify-send -h string:x-gigios-source:system -u critical "🚨 Posible persistencia" \
                     "Nuevo/modificado: $path" -t 0 ;;
             "$HOME"/.ssh/authorized_keys|"$HOME"/.ssh/authorized_keys2)
-                notify-send -u critical "🔑 Clave SSH autorizada modificada" \
+                notify-send -h string:x-gigios-source:system -u critical "🔑 Clave SSH autorizada modificada" \
                     "Archivo: $path" -t 0 ;;
             /boot/*)
-                notify-send -u warning "🥾 Cambio en /boot" \
+                notify-send -h string:x-gigios-source:system -u warning "🥾 Cambio en /boot" \
                     "Archivo: $path (kernel/initramfs)" -t 15000 ;;
         esac
     done
@@ -393,7 +393,7 @@ monitor_smart() {
             if [[ -z "$report" ]]; then
                 if [[ "$warned_perm" == false ]]; then
                     warned_perm=true
-                    notify-send -u warning "💽 Salud de disco" \
+                    notify-send -h string:x-gigios-source:system -u warning "💽 Salud de disco" \
                         "smartctl no puede leer SMART (¿faltan privilegios?)." -t 10000
                 fi
                 continue
@@ -401,7 +401,7 @@ monitor_smart() {
             if grep -qiE 'result:[[:space:]]*FAILED|FAILING_NOW' <<< "$report"; then
                 if [[ -z "${_smart_notified[$dev]:-}" ]]; then
                     _smart_notified[$dev]=1
-                    notify-send -u critical "💽 Disco a punto de fallar" \
+                    notify-send -h string:x-gigios-source:system -u critical "💽 Disco a punto de fallar" \
                         "$dev: SMART reporta fallo inminente. Haz copia de seguridad YA." -t 0
                 fi
             fi
@@ -431,7 +431,7 @@ monitor_units() {
                 [[ -z "$unit" ]] && continue
                 current+="$scope/$unit"$'\n'
                 if [[ "$seeded" == true && -z "${_known[$scope/$unit]:-}" ]]; then
-                    notify-send -u critical "⚙️ Servicio en fallo" \
+                    notify-send -h string:x-gigios-source:system -u critical "⚙️ Servicio en fallo" \
                         "Unidad ($scope): $unit" -t 15000
                 fi
                 _known["$scope/$unit"]=1
@@ -500,13 +500,13 @@ download_alert() {
     local f="$1"
     if [[ "$sec_sandboxLaunch" != false && -x "$RUN_UNTRUSTED" ]]; then
         # notify-send --wait -A bloquea hasta el clic/cierre → subshell en 2º plano.
-        ( act=$(notify-send -a "Seguridad" --wait -t 45000 \
+        ( act=$(notify-send -h string:x-gigios-source:system -a "Seguridad" --wait -t 45000 \
             -A "launch=🛡️ Lanzar aislado" -u warning \
             "⬇️ Ejecutable nuevo en Descargas" \
             "$(basename "$f") — verifícalo antes de lanzarlo.")
           [[ "$act" == "launch" ]] && "$RUN_UNTRUSTED" "$f" ) &
     else
-        notify-send -u warning "⬇️ Ejecutable nuevo en Descargas" \
+        notify-send -h string:x-gigios-source:system -u warning "⬇️ Ejecutable nuevo en Descargas" \
             "$(basename "$f") — verifícalo antes de lanzarlo." -t 12000
     fi
 }
@@ -667,13 +667,13 @@ monitor_downloads() {
         for f in "${big_files[@]}"; do
             mb=$(( $(stat -c%s "$f" 2>/dev/null || echo 0) / 1048576 ))
             if [[ -x "$SCAN_FILE" ]]; then
-                ( act=$(notify-send -a "Seguridad" --wait -t 45000 \
+                ( act=$(notify-send -h string:x-gigios-source:system -a "Seguridad" --wait -t 45000 \
                     -A "scan=🔍 Escanear igualmente" -u warning \
                     "⬇️ Archivo grande sin analizar" \
                     "$(basename "$f") (${mb} MB) supera el tope de auto-análisis. Escanéalo aquí o en Ajustes › Seguridad.")
                   [[ "$act" == "scan" ]] && "$SCAN_FILE" "$f" ) &
             else
-                notify-send -u warning "⬇️ Archivo grande sin analizar" \
+                notify-send -h string:x-gigios-source:system -u warning "⬇️ Archivo grande sin analizar" \
                     "$(basename "$f") (${mb} MB) — escanéalo desde Ajustes › Seguridad." -t 12000
             fi
         done
@@ -683,7 +683,7 @@ monitor_downloads() {
             if (( ${#new_exec[@]} <= 4 )); then
                 for f in "${new_exec[@]}"; do download_alert "$f"; done
             else
-                notify-send -u warning "⬇️ ${#new_exec[@]} ejecutables nuevos en Descargas" \
+                notify-send -h string:x-gigios-source:system -u warning "⬇️ ${#new_exec[@]} ejecutables nuevos en Descargas" \
                     "En $(basename "$(dirname "${new_exec[0]}")")/ y otros. Revísalos antes de ejecutarlos (juego, instalador o crack)." -t 15000
             fi
         fi
@@ -712,7 +712,7 @@ monitor_downloads() {
                 [[ "$line" == *" FOUND" ]] || continue     # "/ruta: Firma FOUND"
                 vfile="${line%%: *}"
                 vsig="${line##*: }"; vsig="${vsig% FOUND}"
-                notify-send -u critical "🦠 Malware detectado en Descargas" \
+                notify-send -h string:x-gigios-source:system -u critical "🦠 Malware detectado en Descargas" \
                     "$(basename "$vfile"): $vsig — NO lo ejecutes. Ruta: $vfile" -t 0
             done < "$out"
             # Marcar índice + hash del CONTENIDO SOLO si terminó (no cortado): un

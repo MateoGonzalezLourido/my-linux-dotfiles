@@ -67,7 +67,7 @@ dbus-monitor --system \
             (
                 sleep "$GRACE"
                 if is_still_lost "$mac" && adapter_powered; then
-                    notify-send -u critical "Bluetooth perdido" \
+                    notify-send -h string:x-gigios-source:system -u critical "Bluetooth perdido" \
                         "Se perdió la conexión con: ${name:-$mac}" -t 0
                 fi
             ) &
@@ -75,7 +75,7 @@ dbus-monitor --system \
         elif [[ "$val_line" == *"boolean true"* ]]; then
             unset 'manual_disconnect_time[$mac]'
             name=$(get_device_name "$mac")
-            notify-send -u normal "Bluetooth conectado" \
+            notify-send -h string:x-gigios-source:system -u normal "Bluetooth conectado" \
                 "${name:-$mac}" -t 6000
         fi
     fi

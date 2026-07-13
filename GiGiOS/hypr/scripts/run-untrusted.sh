@@ -18,7 +18,7 @@
 set -u
 
 APP="Lanzador aislado"
-notify() { notify-send -a "$APP" "$@"; }
+notify() { notify-send -h string:x-gigios-source:system -a "$APP" "$@"; }
 
 f="${1:-}"
 

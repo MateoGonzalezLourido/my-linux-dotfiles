@@ -23,7 +23,7 @@ reset_event() {
 notify_usb() {
     local verb=$1
     local label="${vendor:+$vendor }${model:-dispositivo desconocido}"
-    notify-send -u normal "USB $verb" "$label" -t 8000
+    notify-send -h string:x-gigios-source:system -u normal "USB $verb" "$label" -t 8000
 }
 
 reset_event

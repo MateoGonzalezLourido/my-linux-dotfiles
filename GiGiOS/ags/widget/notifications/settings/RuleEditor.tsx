@@ -2,7 +2,7 @@
 // Form editor for a single rule. No JSON exposed. Mounted fresh per edit.
 import { Gtk } from "ags/gtk4"
 import { createState } from "ags"
-import type { NotifRule, StringMatch, Lifetime, DedupKeySpec } from "../rules/types.ts"
+import type { NotifRule, StringMatch, Lifetime, DedupKeySpec, PopupStyle } from "../rules/types.ts"
 import { NOTIF_FIELDS } from "../rules/notifFields.ts"
 import { parseDuration, formatDuration } from "../rules/duration.ts"
 import { upsertUserRule, removeUserRule, setBuiltinOverride, clearBuiltinOverride } from "../rules/rulesStore.ts"
@@ -15,6 +15,11 @@ const LIFETIMES: (Lifetime | "none")[] = ["none", "flash", "timed", "persistent"
 const LIFE_LABEL: Record<string, string> = { none: "—", flash: "flash", timed: "temporal", "clear-on-boot": "borrar al reinicio", persistent: "persistente" }
 const DEDUPS: ("app" | "app+summary" | "app+summary+body")[] = ["app", "app+summary", "app+summary+body"]
 const DEDUP_LABEL: Record<string, string> = { "app": "por app", "app+summary": "por app + título", "app+summary+body": "por app + título + cuerpo" }
+// "none" no es un PopupStyle: es "la regla no opina", y entonces decide el hint
+// x-gigios-source de los scripts (sistema → dunst). Fijar "default" NO es lo mismo — eso saca
+// del skin incluso a una notificación del sistema.
+const STYLES: (PopupStyle | "none")[] = ["none", "default", "dunst"]
+const STYLE_LABEL: Record<string, string> = { none: "—", default: "shell", dunst: "dunst" }
 const CONDITIONS = ["battery-resolved", "superseded"]
 const COND_LABEL: Record<string, string> = { "battery-resolved": "al cargar la batería", "superseded": "reemplazada por otra" }
 
@@ -43,7 +48,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
   const isBuiltin = rule.source === "builtin"
 
   // Build a StringMatch field block (operator selector + value entry). Empty value removes the field.
-  function MatchField(props: { field: "app" | "summary" | "body"; title: string }) {
+  function MatchField(props: { field: "app" | "summary" | "body" | "source"; title: string }) {
     const cur = (): StringMatch | undefined => draft.get().match[props.field]
     return (
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
@@ -141,6 +146,9 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
           <MatchField field="app" title="Aplicación" />
           <MatchField field="summary" title="Título" />
           <MatchField field="body" title="Cuerpo" />
+          {/* «system» = viene de un script de hypr/scripts (hint x-gigios-source). Es lo que casa
+              la builtin del skin dunst; sin este campo esa regla no se podría editar desde aquí. */}
+          <MatchField field="source" title="Origen (system = scripts del sistema)" />
 
           <label cssClasses={["re-section"]} label="Qué hacer" halign={Gtk.Align.START} />
           {/* lifetime */}
@@ -198,6 +206,24 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
                 patch({ effects: e })
               }}
             />
+          </Field>
+
+          {/* popup skin */}
+          <Field title="Estilo del popup">
+            <box spacing={4}>
+              {STYLES.map(st => (
+                <button
+                  cssClasses={draft((d) => (d.effects.style ?? "none") === st ? ["re-seg", "active"] : ["re-seg"])}
+                  onClicked={() => {
+                    const e = { ...draft.get().effects }
+                    if (st === "none") delete e.style; else e.style = st
+                    patch({ effects: e })
+                  }}
+                >
+                  <label label={STYLE_LABEL[st]} />
+                </button>
+              ))}
+            </box>
           </Field>
 
           {/* dedup key */}

@@ -27,6 +27,19 @@ function extractHints(n: AstalNotifd.Notification): Record<string, string> {
   return out
 }
 
+/** Lee SOLO el hint `x-gigios-source` (lo ponen los scripts de `hypr/scripts/`).
+ *  Deliberadamente NO pasa por `extractHints()`: ese hace `recursiveUnpack()` de todo el a{sv},
+ *  y un `image-data` trae los píxeles en crudo — materializarlos en JS por cada notificación
+ *  saldría caro. Hoy solo se libra porque únicamente corre cuando una regla reescribe texto.
+ *  `lookup_value` sobre el diccionario desenvuelve la 'v' él solo. */
+function readSourceHint(n: AstalNotifd.Notification): string | undefined {
+  try {
+    const v = (n as any).hints?.lookup_value?.("x-gigios-source", null)
+    if (!v) return undefined
+    return (v.get_type_string() === "s" ? v.get_string()[0] : String(v.deep_unpack())) || undefined
+  } catch (_) { return undefined }
+}
+
 const conditionDisposers = new Map<number, (() => void)[]>()
 
 export function disposeConditions(id: number): void {
@@ -53,11 +66,16 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
   // Bridge: honor existing per-app mute (appSettings) until Phase 3 migrates it to rules.
   if (appSettings.get()[n.app_name]?.muted) return null
 
+  // El origen se lee ANTES de evaluar: las reglas pueden casar por él (`match.source`), y de eso
+  // depende la builtin que da el skin dunst a lo que sale de hypr/scripts.
+  const source = readSourceHint(n)
+
   const input: NotifInput = {
     appName: n.app_name || "Sistema",
     summary: n.summary || "",
     body: n.body || "",
     urgency: n.urgency ?? 1,
+    source,
   }
   const { meta, suppress, rewrite } = evaluate(input, ruleIndex.get(), Date.now())
   if (suppress) return null
@@ -85,6 +103,7 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
     urgency: input.urgency,
     actions: (n.actions ?? []).map((a: any) => ({ id: a.id, label: a.label })),
     image: n.image_path || undefined,
+    source,
     meta,
   }
 

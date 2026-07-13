@@ -42,6 +42,11 @@ export function summarizeRule(rule: NotifRule): string {
   if (rule.match.app) m.push(`la app ${OP_TXT[rule.match.app.op]} «${rule.match.app.value}»`)
   if (rule.match.summary) m.push(`el título ${OP_TXT[rule.match.summary.op]} «${rule.match.summary.value}»`)
   if (rule.match.body) m.push(`el cuerpo ${OP_TXT[rule.match.body.op]} «${rule.match.body.value}»`)
+  if (rule.match.source) {
+    m.push(rule.match.source.op === "equals" && rule.match.source.value === "system"
+      ? "viene de un script del sistema"
+      : `el origen ${OP_TXT[rule.match.source.op]} «${rule.match.source.value}»`)
+  }
   const matchStr = m.length ? `Si ${m.join(" y ")}` : "Cualquier notificación"
 
   const e: string[] = []
@@ -61,6 +66,8 @@ export function summarizeRule(rule: NotifRule): string {
   else if (rw && rw.appName !== undefined) e.push("renombra la app")
   if (rw && (rw.summary !== undefined || rw.body !== undefined)) e.push("reescribe el texto")
   if (rule.effects.color) e.push(`color ${rule.effects.color}`)
+  if (rule.effects.style === "dunst") e.push("popup con estilo dunst")
+  else if (rule.effects.style === "default") e.push("popup con el estilo del shell")
   if (rule.effects.conditions && rule.effects.conditions.length) {
     e.push(rule.effects.conditions.map(c => COND_TXT[c] ?? c).join(", "))
   }

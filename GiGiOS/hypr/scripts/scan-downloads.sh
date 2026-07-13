@@ -26,7 +26,7 @@ if [[ -z "$dir" ]]; then
 fi
 
 if [[ -z "$dir" ]]; then
-    notify-send -a "$APP" -u critical "🔍 $APP" "No encuentro la carpeta de descargas." -t 8000
+    notify-send -h string:x-gigios-source:system -a "$APP" -u critical "🔍 $APP" "No encuentro la carpeta de descargas." -t 8000
     exit 1
 fi
 

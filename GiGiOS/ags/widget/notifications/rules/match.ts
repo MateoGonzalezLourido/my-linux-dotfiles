@@ -19,5 +19,7 @@ export function matchInput(spec: MatchSpec, input: NotifInput): boolean {
   if (spec.app && !matchString(spec.app, input.appName)) return false
   if (spec.summary && !matchString(spec.summary, input.summary)) return false
   if (spec.body && !matchString(spec.body, input.body)) return false
+  // Sin hint el subject es "", que no casa con `equals "system"` ni con `contains "system"`.
+  if (spec.source && !matchString(spec.source, input.source ?? "")) return false
   return true
 }

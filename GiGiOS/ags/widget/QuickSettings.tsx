@@ -11,6 +11,7 @@ import AstalNetwork from "gi://AstalNetwork"
 import AstalBluetooth from "gi://AstalBluetooth"
 import AstalNotifd from "gi://AstalNotifd"
 import AstalMpris from "gi://AstalMpris"
+import Gio from "gi://Gio"
 import GdkPixbuf from "gi://GdkPixbuf"
 import cairo from "gi://cairo"
 import {
@@ -1130,8 +1131,68 @@ function QsMedia() {
   const [liked, setLiked] = createState(false)
   const [likeVisible, setLikeVisible] = createState(false)
   const [canLike, setCanLike] = createState(false)
-  const [isSpotifyPlayer, setIsSpotifyPlayer] = createState(false)
   let lastQueriedId: string | null = null
+
+  const playerIcon = new Gtk.Image({
+    iconName: "audio-x-generic-symbolic",
+    pixelSize: 14,
+    cssClasses: ["qs-media-app-icon"],
+  })
+
+  const normalizedAppKey = (value: string) => value
+    .toLowerCase()
+    .replace(/\.desktop$/i, "")
+    .replace(/[^a-z0-9]/g, "")
+
+  const playerIconCache = new Map<string, Gio.Icon | null>()
+  const resolvePlayerIcon = (player: any): Gio.Icon | null => {
+    const entry = String(player.entry || "").trim()
+    const cacheKey = `${entry}\0${player.bus_name || ""}\0${player.identity || ""}`
+    if (playerIconCache.has(cacheKey)) return playerIconCache.get(cacheKey) ?? null
+
+    // MPRIS DesktopEntry es el basename del .desktop y, cuando está presente,
+    // ofrece la asociación exacta incluso para navegadores y apps Flatpak.
+    for (const desktopId of [entry, entry && `${entry.replace(/\.desktop$/i, "")}.desktop`]) {
+      if (!desktopId) continue
+      const desktop = Gio.DesktopAppInfo.new(desktopId)
+      const icon = desktop?.get_icon()
+      if (icon) {
+        playerIconCache.set(cacheKey, icon)
+        return icon
+      }
+    }
+
+    // Algunos clientes no publican DesktopEntry. En ese caso casamos las señales
+    // MPRIS con identificadores fiables de las aplicaciones instaladas.
+    const busId = String(player.bus_name || "")
+      .replace(/^org\.mpris\.MediaPlayer2\./i, "")
+      .replace(/\.instance[^.]*$/i, "")
+    const wanted = new Set([entry, busId, String(player.identity || "")]
+      .map(normalizedAppKey)
+      .filter(Boolean))
+
+    for (const appInfo of Gio.AppInfo.get_all() as Gio.AppInfo[]) {
+      const desktop = appInfo as any
+      const executable = String(appInfo.get_executable?.() || "").split("/").pop() || ""
+      const aliases = [
+        appInfo.get_id() || "",
+        appInfo.get_name() || "",
+        executable,
+        desktop.get_startup_wm_class?.() || "",
+      ].map(normalizedAppKey)
+
+      if (aliases.some((alias) => alias && wanted.has(alias))) {
+        const icon = appInfo.get_icon()
+        if (icon) {
+          playerIconCache.set(cacheKey, icon)
+          return icon
+        }
+      }
+    }
+
+    playerIconCache.set(cacheKey, null)
+    return null
+  }
 
   // El corazón solo aplica con cuenta Premium (los endpoints /me/tracks dan 403 en
   // free). isPremium() implica estar configurado. Se resuelve una vez (async) y se
@@ -1172,7 +1233,6 @@ function QsMedia() {
     setNumPlayers(players.length)
     if (players.length === 0) {
       setHasPlayer(false)
-      setIsSpotifyPlayer(false)
       return
     }
 
@@ -1185,7 +1245,6 @@ function QsMedia() {
     const p = players[idx]
     if (!p) {
       setHasPlayer(false)
-      setIsSpotifyPlayer(false)
       return
     }
 
@@ -1195,7 +1254,6 @@ function QsMedia() {
     const ad = Spotify.isAd(rawTrackId)
     const id = Spotify.parseTrackId(rawTrackId)
     const isSpotify = (p.bus_name || "").includes("spotify")
-    setIsSpotifyPlayer(isSpotify)
     setIsAd(ad)
 
     if (ad) {
@@ -1239,6 +1297,9 @@ function QsMedia() {
     }
     resolveCover(art)
     setPlayerName(p.identity || p.bus_name.split(".").pop() || "Player")
+    const appIcon = resolvePlayerIcon(p)
+    if (appIcon) playerIcon.set_from_gicon(appIcon)
+    else playerIcon.set_from_icon_name("audio-x-generic-symbolic")
     // Algunos reproductores (Firefox/YouTube) no exponen duración ni posición por
     // MPRIS. Sin dato, ocultamos la barra y los tiempos en vez de mostrar 0:00 muerto.
     if (p.length > 0) {
@@ -1294,7 +1355,7 @@ function QsMedia() {
   // Un ScrolledWindow con propagate_natural_height=false + min/max_content_height
   // CORTA la altura del fondo pase lo que pase con la imagen. Es el hijo principal
   // del Overlay; así el Overlay no puede crecer más que la tarjeta.
-  const CARD_H = 100
+  const CARD_H = 94
   const bgCap = new Gtk.ScrolledWindow()
   bgCap.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
   bgCap.set_propagate_natural_height(false)
@@ -1377,9 +1438,10 @@ function QsMedia() {
   progressArea.set_can_target(false)
   progressArea.set_hexpand(true)
   progressArea.set_content_width(1)
-  progressArea.set_content_height(7)
+  progressArea.set_content_height(4)
   progressArea.set_draw_func((_area, cr, width, height) => {
-    const radius = Math.min(height / 2, 3)
+    const barHeight = 4
+    const radius = Math.min(barHeight / 2, 3)
     const drawRoundRect = (x: number, y: number, w: number, h: number) => {
       const r = Math.min(radius, w / 2, h / 2)
       cr.newPath()
@@ -1390,15 +1452,15 @@ function QsMedia() {
       cr.closePath()
     }
 
-    const y = Math.max(0, (height - 5) / 2)
-    drawRoundRect(0, y, width, 5)
+    const y = Math.max(0, (height - barHeight) / 2)
+    drawRoundRect(0, y, width, barHeight)
     cr.setSourceRGBA(0, 0, 0, 0.42)
     cr.fill()
 
     const fillW = Math.max(0, Math.min(width, width * prog.get()))
     if (fillW <= 0) return
     const [r, g, b] = oneUiFgTone(cssRgbToTuple(coverAccent.get()))
-    drawRoundRect(0, y, fillW, 5)
+    drawRoundRect(0, y, fillW, barHeight)
     cr.setSourceRGBA(r / 255, g / 255, b / 255, 1)
     cr.fill()
   })
@@ -1414,26 +1476,25 @@ function QsMedia() {
       heightRequest={CARD_H}
       cssClasses={["qs-media-content"]}
     >
-      <box spacing={4} visible={numPlayers((n) => n > 1)} cssClasses={["qs-media-switcher-row"]}>
-        <label 
-          cssClasses={["qs-media-source"]} 
-          label={playerName} 
-          hexpand 
-          halign={Gtk.Align.START} 
-          css={curTheme((t) => `color: ${t.accent};`)}
+      <box spacing={4} cssClasses={["qs-media-switcher-row"]}>
+        {playerIcon}
+        <label
+          cssClasses={["qs-media-source"]}
+          label={playerName}
+          hexpand
+          halign={Gtk.Align.START}
         />
-        <box spacing={0} valign={Gtk.Align.CENTER}>
+        <box spacing={0} valign={Gtk.Align.CENTER} visible={numPlayers((n) => n > 1)}>
           <button cssClasses={["qs-media-switch"]} onClicked={prevPlayer}>
-            <label label="󰅁" css={curTheme((t) => `color: ${t.accent};`)} />
+            <label label="󰅁" />
           </button>
-          <label 
-            cssClasses={["qs-media-count"]} 
-            label={playerIndex((i) => `${i + 1}/${numPlayers()}`)} 
-            halign={Gtk.Align.CENTER} 
-            css={curTheme((t) => `color: ${t.accent};`)}
+          <label
+            cssClasses={["qs-media-count"]}
+            label={playerIndex((i) => `${i + 1}/${numPlayers()}`)}
+            halign={Gtk.Align.CENTER}
           />
           <button cssClasses={["qs-media-switch"]} onClicked={nextPlayer}>
-            <label label="󰅂" css={curTheme((t) => `color: ${t.accent};`)} />
+            <label label="󰅂" />
           </button>
         </box>
       </box>
@@ -1444,63 +1505,72 @@ function QsMedia() {
           <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
         </box>
       </box>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={hasProgress}>
-        {progressArea}
-        <box>
-          <label cssClasses={["qs-media-time"]} label={positionLabel} halign={Gtk.Align.START} hexpand />
-          <label cssClasses={["qs-media-time"]} label={durationLabel} halign={Gtk.Align.END} />
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-media-footer"]}>
+        <box visible={hasProgress}>
+          {progressArea}
+        </box>
+        <box valign={Gtk.Align.CENTER}>
+          <label
+            cssClasses={["qs-media-time"]}
+            label={positionLabel}
+            visible={hasProgress}
+            halign={Gtk.Align.START}
+            hexpand
+          />
+          <box
+            spacing={2}
+            halign={Gtk.Align.CENTER}
+            valign={Gtk.Align.CENTER}
+            cssClasses={["qs-media-controls"]}
+          >
+            <button
+              cssClasses={["qs-media-btn", "qs-media-like"]}
+              visible={likeVisible}
+              onClicked={() => {
+                const id = trackId.get()
+                if (!id) return
+                const next = !liked.get()
+                setLiked(next) // optimista
+                Spotify.setLiked(id, next).then((ok) => { if (!ok) setLiked(!next) })
+              }}
+            >
+              <label label={liked((v) => v ? "󰋑" : "󰋕")} />
+            </button>
+            <button cssClasses={["qs-media-btn"]} onClicked={() => {
+              const p = mpris.players[playerIndex.get()]
+              if (p) {
+                const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
+                execAsync(["playerctl", "-p", name, "previous"]).catch(() => {})
+              }
+            }}>
+              <label label="󰒮" />
+            </button>
+            <button cssClasses={["qs-media-btn"]} onClicked={() => {
+              const p = mpris.players[playerIndex.get()]
+              if (p) p.play_pause()
+            }}>
+              <label label={isPlaying((v) => v ? "󰏤" : "󰐊")} />
+            </button>
+            <button cssClasses={["qs-media-btn"]} onClicked={() => {
+              const p = mpris.players[playerIndex.get()]
+              if (p) {
+                const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
+                execAsync(["playerctl", "-p", name, "next"]).catch(() => {})
+              }
+            }}>
+              <label label="󰒭" />
+            </button>
+          </box>
+          <label
+            cssClasses={["qs-media-time"]}
+            label={durationLabel}
+            visible={hasProgress}
+            halign={Gtk.Align.END}
+            hexpand
+          />
         </box>
       </box>
-      <box spacing={2} halign={Gtk.Align.CENTER} valign={Gtk.Align.END}>
-        <button
-          cssClasses={["qs-media-btn", "qs-media-like"]}
-          visible={likeVisible}
-          onClicked={() => {
-            const id = trackId.get()
-            if (!id) return
-            const next = !liked.get()
-            setLiked(next) // optimista
-            Spotify.setLiked(id, next).then((ok) => { if (!ok) setLiked(!next) })
-          }}
-        >
-          <label label={liked((v) => v ? "󰋑" : "󰋕")} />
-        </button>
-        <button cssClasses={["qs-media-btn"]} onClicked={() => {
-          const p = mpris.players[playerIndex.get()]
-          if (p) {
-            const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
-            execAsync(["playerctl", "-p", name, "previous"]).catch(() => {})
-          }
-        }}>
-          <label label="󰒮" />
-        </button>
-        <button cssClasses={["qs-media-btn"]} onClicked={() => {
-          const p = mpris.players[playerIndex.get()]
-          if (p) p.play_pause()
-        }}>
-          <label label={isPlaying((v) => v ? "󰏤" : "󰐊")} />
-        </button>
-        <button cssClasses={["qs-media-btn"]} onClicked={() => {
-          const p = mpris.players[playerIndex.get()]
-          if (p) {
-            const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
-            execAsync(["playerctl", "-p", name, "next"]).catch(() => {})
-          }
-        }}>
-          <label label="󰒭" />
-        </button>
-      </box>
     </box>
-  )
-
-  const spotifyLogo = (
-    <label
-      cssClasses={["qs-media-spotify-logo"]}
-      label="󰓇"
-      visible={isSpotifyPlayer}
-      halign={Gtk.Align.END}
-      valign={Gtk.Align.START}
-    />
   )
 
   return (
@@ -1514,7 +1584,6 @@ function QsMedia() {
         self.add_overlay(colorFilter)
         self.add_overlay(coverScrim)
         self.add_overlay(mediaContent)
-        self.add_overlay(spotifyLogo)
         self.set_measure_overlay(mediaContent, true)
       }} />
     </box>
