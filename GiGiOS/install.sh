@@ -45,6 +45,9 @@ install_packages() {
     ttf-meslo-nerd rofi cliphist wl-clipboard brightnessctl ddcutil playerctl
     qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
     nm-connection-editor blueman fish kitty dolphin kservice
+    zsh oh-my-zsh-git zsh-completions zsh-autosuggestions
+    zsh-syntax-highlighting zsh-history-substring-search zsh-theme-powerlevel10k
+    fzf eza bat duf pkgfile fastfetch
     libpulse pipewire pipewire-audio pipewire-pulse pipewire-alsa wireplumber
     gst-plugin-pipewire libnotify awww upower libgudev
     smartmontools lm_sensors pciutils usbutils alsa-utils inotify-tools dbus

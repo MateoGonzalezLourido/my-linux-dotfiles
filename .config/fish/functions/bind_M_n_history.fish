@@ -8,11 +8,10 @@ function bind_M_n_history
         end
 
         if contains fish_vi_key_bindings $fish_key_bindings
-            bind -M default \e$i "$command"
-            bind -M insert \e$i "$command"
+            bind -M default alt-$i "$command"
+            bind -M insert alt-$i "$command"
         else
-            bind \e$i "$command"
+            bind alt-$i "$command"
         end
     end
 end
-

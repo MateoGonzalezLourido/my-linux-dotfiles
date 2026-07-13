@@ -86,7 +86,7 @@ GiGiOS/ags/.vscode/
 # Metadatos de escritorio
 **/.directory
 
-# --- zsh (~/.config/zsh, ZDOTDIR de HyDE) ---
+# --- zsh (~/.config/zsh) ---
 
 # Historial de comandos: privado, no se versiona.
 .config/zsh/.zsh_history

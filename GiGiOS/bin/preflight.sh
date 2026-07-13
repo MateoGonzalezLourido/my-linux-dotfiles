@@ -79,6 +79,7 @@ if [[ "$mode" == "--installed" ]]; then
     nm-connection-editor:nm-connection-editor bluetoothctl:bluez-utils
     blueman-manager:blueman bc:bc inotifywait:inotify-tools
     dbus-monitor:dbus rfkill:util-linux pkexec:polkit btop:btop kitty:kitty
+    zsh:zsh fzf:fzf eza:eza bat:bat duf:duf pkgfile:pkgfile fastfetch:fastfetch
     dolphin:dolphin kbuildsycoca6:kservice xdg-open:xdg-utils
     clamscan:clamav firejail:firejail bwrap:bubblewrap
     xdg-user-dir:xdg-user-dirs
@@ -91,6 +92,18 @@ if [[ "$mode" == "--installed" ]]; then
   done
   command -v ags >/dev/null 2>&1 \
     || fail "falta 'ags' (AUR: paru -S --needed aylurs-gtk-shell-git libastal-meta; también sirve yay)"
+  [[ -r /usr/share/oh-my-zsh/oh-my-zsh.sh ]] \
+    || fail "falta Oh My Zsh (CachyOS: sudo pacman -S --needed oh-my-zsh-git)"
+  [[ -r /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme ]] \
+    || fail "falta Powerlevel10k (sudo pacman -S --needed zsh-theme-powerlevel10k)"
+  for plugin in zsh-autosuggestions zsh-syntax-highlighting zsh-history-substring-search; do
+    compgen -G "/usr/share/zsh/plugins/$plugin/*.zsh" >/dev/null \
+      || fail "falta el plugin $plugin (sudo pacman -S --needed $plugin)"
+  done
+  for zsh_file in "$HOME/.zshenv" "$HOME/.config/zsh/.zshenv" "$HOME/.config/zsh/.zshrc" "$HOME/.config/zsh/functions/"*.zsh; do
+    [[ -f "$zsh_file" ]] || { fail "falta configuración Zsh: $zsh_file"; continue; }
+    zsh -n "$zsh_file" || fail "sintaxis Zsh: $zsh_file"
+  done
   optional_commands=(nvidia-smi gh fd lshw glxinfo sensors smartctl magick)
   for command in "${optional_commands[@]}"; do
     command -v "$command" >/dev/null 2>&1 || warn "comando opcional no disponible: $command"

@@ -3107,6 +3107,10 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   const PANEL_TOP = 37
   const PANEL_PREPARE_MS = 32
   const PANEL_ENTER_MS = 280
+  // La salida vertical necesita cruzar el borde con suficiente antelación para
+  // que el último muestreo visible no sea una franja del pie. Se calcula sobre
+  // la altura real porque las vistas internas de QS no miden todas lo mismo.
+  const PANEL_EXIT_CLEARANCE_RATIO = 0.2
   // Tiempo mínimo en el reloj de fotogramas antes de desmapear. La salida CSS
   // dura 220 ms; después se exige además un frame final ya fuera de pantalla.
   const PANEL_EXIT_MS = 280
@@ -3233,9 +3237,17 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     entranceActive = false
     qsAnimationRef?.remove_css_class("qs-preparing")
     qsAnimationRef?.remove_css_class("qs-entering")
-    // Igual que el recorrido horizontal de Notificaciones, pero usando la altura
-    // real de QS: el borde inferior cruza y=0 justo en el último frame.
-    const exitDistance = Math.max(1, Math.ceil(qsAnimationRef?.get_height?.() ?? 0) + 2)
+    // Medir la superficie completa (no solo el wrapper) y añadir holgura hace
+    // que el borde inferior cruce el límite varios frames antes del final.
+    const surfaceHeight = qsWindowRef?.get_surface?.()?.get_height?.() ?? 0
+    const windowHeight = qsWindowRef?.get_height?.() ?? 0
+    const wrapperHeight = qsAnimationRef?.get_height?.() ?? 0
+    const exitBaseHeight = Math.max(1, Math.ceil(Math.max(
+      surfaceHeight,
+      windowHeight,
+      wrapperHeight,
+    )))
+    const exitDistance = Math.ceil(exitBaseHeight * (1 + PANEL_EXIT_CLEARANCE_RATIO))
     setQsExitCss(`
       @keyframes qs-panel-slide-out-dynamic {
         from { transform: translateY(0); }

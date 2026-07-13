@@ -96,9 +96,19 @@ _fuzzy_search_cmd_history() {
   local ret=$?
   if [ -n "$selected" ]; then
     if [[ $(__fzf_exec_awk '{print $1; exit}' <<< "$selected") =~ ^[1-9][0-9]* ]]; then
-      zle vi-fetch-history -n $MATCH
+      if [[ -n "${WIDGET:-}" ]]; then
+        zle vi-fetch-history -n "$MATCH"
+      else
+        # Cuando ffch se ejecuta como comando ya no hay un widget ZLE activo.
+        # print -z deja la entrada elegida en el siguiente prompt sin ejecutarla.
+        print -z -- "${history[$MATCH]}"
+      fi
     else
-      LBUFFER="$selected"
+      if [[ -n "${WIDGET:-}" ]]; then
+        LBUFFER="$selected"
+      else
+        print -z -- "$selected"
+      fi
     fi
   fi
   return $ret
@@ -110,7 +120,6 @@ alias ffec='_fuzzy_edit_search_file_content' \
     ffcd='_fuzzy_change_directory' \
     ffe='_fuzzy_edit_search_file' \
     ffch='_fuzzy_search_cmd_history'
-
 
 
 

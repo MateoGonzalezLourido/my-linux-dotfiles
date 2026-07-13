@@ -303,7 +303,7 @@ sudo pacman -S wl-clipboard cliphist
 
 `autostart.conf` lanza `wl-paste --watch cliphist store` para poblar el historial que usa
 `SUPER+V`. El selector Rofi utiliza `#fdf6e3` como fondo principal, `#eee8d5` para las
-filas alternas y `#b4befe` —el `select-bg` de la plantilla `style_1` de HyDE— para la
+filas alternas y `#b4befe` para la
 selección activa. Como el script resuelve `GiGiOS/rofi/clipboard-solarized.rasi` desde la
 ruta física del repositorio, el tema se aplica también en instalaciones nuevas sin tocar
 `~/.config/rofi`.

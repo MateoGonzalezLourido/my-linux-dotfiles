@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`~/GiGiOS` is a personal Hyprland/Wayland desktop system, organized dotfiles-style
-(HyDE-inspired): the real files live here and are "installed" to their canonical
+`~/GiGiOS` is a personal Hyprland/Wayland desktop system, organized dotfiles-style:
+the real files live here and are "installed" to their canonical
 XDG paths via **symlinks**, not copies. The three big components are:
 
 - `ags/` — the desktop shell (AGS v2 / Astal, TypeScript + JSX for GTK4). **Has its

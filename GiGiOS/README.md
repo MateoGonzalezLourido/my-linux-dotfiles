@@ -2,7 +2,7 @@
 
 Carpeta única con todo mi sistema personal para Hyprland: el shell de AGS, la
 config de Hyprland (incl. hyprlock y scripts de escáner), la foto de perfil, los
-wallpapers y los directorios de config auxiliares. Estilo dotfiles/HyDE: los
+wallpapers y los directorios de config auxiliares. Como árbol de dotfiles, los
 archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 
 ## Contenido
