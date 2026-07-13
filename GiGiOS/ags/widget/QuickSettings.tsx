@@ -767,7 +767,8 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   }
 
   // Tile de red consciente de ethernet: si network.primary es WIRED y el cable
-  // está activo, el tile muestra Ethernet; si no, comportamiento WiFi de siempre.
+  // está activo, muestra el nombre del perfil de NetworkManager (p. ej. "Casa");
+  // si no, mantiene el comportamiento WiFi de siempre.
   const NET_P  = AstalNetwork.Primary
   const NET_DS = AstalNetwork.DeviceState
   const ETHERNET_GLYPH = "󰈀"   // nf-md-ethernet
@@ -775,7 +776,11 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
     const wired = network.wired
     const onWired = network.primary === NET_P.WIRED
       && !!wired && wired.state === NET_DS.ACTIVATED
-    if (onWired) return { icon: ETHERNET_GLYPH, label: "Ethernet", active: true }
+    if (onWired) return {
+      icon: ETHERNET_GLYPH,
+      label: network.client.get_primary_connection()?.get_id() || "Ethernet",
+      active: true,
+    }
     return { icon: "󰤨", label: wifi?.ssid || "Wi-Fi", active: wifi?.enabled ?? false }
   }
   const [netTile, setNetTile] = createState(computeNetTile())
@@ -788,7 +793,14 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
     wifi.connect("notify::enabled", syncNetTile)
     wifi.connect("notify::strength", syncNetTile)
   }
-  if (network.wired) network.wired.connect("notify::state", syncNetTile)
+  if (network.wired) {
+    network.wired.connect("notify::state", syncNetTile)
+  }
+  network.client.connect("notify::primary-connection", syncNetTile)
+  network.client.get_primary_connection()?.connect("notify::id", syncNetTile)
+  quickSettingsVisible.subscribe(() => {
+    if (quickSettingsVisible.get()) syncNetTile()
+  })
   const wifiStrength = wifi ? createBinding(wifi, "strength") : null
 
   const btPowered = createBinding(bt, "isPowered")
@@ -2631,12 +2643,48 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   const wifi = network.wifi
   const [scanning, setScanning] = createState(false)
 
-  if (!wifi) return (
-    <box cssClasses={["qs-wifi-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <QsMenuHeader title="Wi-Fi" onBack={onBack} />
-      <label label="No Wi-Fi device found" halign={Gtk.Align.CENTER} />
-    </box>
-  )
+  if (!wifi) {
+    const getWiredInfo = () => {
+      const wired = network.wired
+      const active = !!wired && wired.state === AstalNetwork.DeviceState.ACTIVATED
+      return {
+        active,
+        name: active
+          ? network.client.get_primary_connection()?.get_id() || "Ethernet"
+          : "Red",
+      }
+    }
+    const [wiredInfo, setWiredInfo] = createState(getWiredInfo())
+    const syncWiredInfo = () => setWiredInfo(getWiredInfo())
+
+    if (network.wired) {
+      network.wired.connect("notify::state", syncWiredInfo)
+    }
+    network.connect("notify::wired", syncWiredInfo)
+    network.client.connect("notify::primary-connection", syncWiredInfo)
+    network.client.get_primary_connection()?.connect("notify::id", syncWiredInfo)
+    qsView.subscribe(() => {
+      if (qsView.get() === "wifi") syncWiredInfo()
+    })
+
+    return (
+      <box cssClasses={["qs-wifi-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+        <QsMenuHeader title={wiredInfo((info) => info.name)} onBack={onBack}>
+          <button
+            cssClasses={["qs-icon-btn"]}
+            tooltipText="Ajustes de red"
+            onClicked={() => execAsync("nm-connection-editor")}
+          ><label label="󰒓" /></button>
+        </QsMenuHeader>
+        <label
+          label={wiredInfo((info) => info.active
+            ? `Conexión Ethernet activa · ${info.name}`
+            : "No se encontró ningún dispositivo Wi-Fi")}
+          halign={Gtk.Align.CENTER}
+        />
+      </box>
+    )
+  }
 
   const [apsVar, setApsVar] = createState<any[]>(wifi.get_access_points())
   const [passwordTarget, setPasswordTarget] = createState<string | null>(null)
