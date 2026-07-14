@@ -44,7 +44,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-bottom: none;
   border-radius: $j-radius $j-radius 0 0;
-  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.48), 0 -1px 0 rgba(203, 166, 247, 0.08);
+  box-shadow: none;
 }
 
 // Main content column — inherits border/bg/radius from .orion-panel

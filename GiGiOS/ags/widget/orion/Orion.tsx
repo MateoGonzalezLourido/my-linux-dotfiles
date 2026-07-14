@@ -25,6 +25,8 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
   const DURACION_ENTRADA_MS = 280
   const DURACION_ANIMACION_SALIDA_MS = 220
   const ESPERA_DESMAPEO_MS = 280
+  // Debe coincidir con el radio usado por components/CornerCurve.tsx.
+  const RADIO_CURVAS_LATERALES = 24
   const [orionRenderizado, establecerOrionRenderizado] = createState(orionVisible.get())
   const [cssAnimacionOrion, establecerCssAnimacionOrion] = createState(".orion-wrapper {}")
   let temporizadorPreparacionEntrada: number | null = null
@@ -264,7 +266,9 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
     }
   })
 
-  recalcularRegionEntrada = clipWindowInputToContent(win, panelInner)
+  recalcularRegionEntrada = clipWindowInputToContent(win, panelInner, {
+    radioCurvasInferioresLaterales: RADIO_CURVAS_LATERALES,
+  })
   // El panel contextual cambia la anchura y la posición de `.orion-panel` sin
   // redimensionar la superficie anclada a ambos lados de la pantalla.
   rightPanelVisible.subscribe(() => recalcularRegionEntrada?.())
