@@ -13,8 +13,9 @@ import { workspaceAppLimit, workspaceVisibleLimit, wsPreviewEnabled } from "../s
 import { wsPreviewSuspended } from "../power/powerState"
 import { getIcon } from "./appIcons"
 import { appIconName, appOriginalIcon, describeGame, genericIconName, GAME_GLYPH } from "./games/icon"
-import { isGameClient } from "./games/evidence"
+import { desktopEntryFor, isGameClient } from "./games/evidence"
 import { orderWorkspaceClients, rememberRecentWorkspace, selectRecentWorkspaces } from "./workspaceOrder"
+import { buildWorkspaceTooltip } from "./workspaceTooltip"
 
 // La preview de workspace se captura/muestra solo si el usuario la tiene activada
 // Y no está suspendida por el modo ahorro de energía.
@@ -122,17 +123,18 @@ interface ClientIcon {
 const cssSafeAppClass = (cls: string): string =>
   cls.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "app"
 
-const formatAppName = (cls: string): string =>
-  cls.split(/[-_\s]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
-
 const buildTooltip = (c: any): string => {
   const cls = c.class ?? ""
-  // El nombre real de la app (entrada .desktop) en vez de la clase: un juego de Steam
-  // decía "Steam_app_730" en vez de "Counter-Strike 2".
-  const appName = describeGame(c).name || formatAppName(cls)
-  const winTitle = (c.title ?? "").trim()
-  if (!winTitle || winTitle.toLowerCase() === cls.toLowerCase()) return appName
-  return `${appName}\n${winTitle}`
+  // Para apps normales manda el nombre de la entrada .desktop. En juegos sin entrada,
+  // describeGame sabe convertir clases opacas como steam_app_730 en algo entendible.
+  const entryName = desktopEntryFor(c)?.name ?? ""
+  const appName = entryName || (isGameClient(c) ? describeGame(c).name : "")
+  return buildWorkspaceTooltip({
+    appName,
+    className: cls,
+    initialClass: c.initialClass ?? c.initial_class,
+    title: c.title,
+  })
 }
 
 const getClientIcons = (clients: any[]): ClientIcon[] => {
@@ -564,6 +566,7 @@ export default function Workspaces() {
   const update = () => {
     if (_swapping) return
     const allWorkspaces = hypr.get_workspaces()
+    const allClients = hypr.get_clients()
     const fId = hypr.focusedWorkspace.id
     recentWorkspaceIds = rememberRecentWorkspace(recentWorkspaceIds, fId)
     setFocusedId(fId)
@@ -571,7 +574,7 @@ export default function Workspaces() {
 
     const sorted = [...allWorkspaces].sort((a, b) => a.id - b.id)
     const clientsByWorkspace = new Map<number, any[]>()
-    for (const client of hypr.get_clients()) {
+    for (const client of allClients) {
       const workspaceId = client.workspace?.id ?? client.get_workspace?.()?.id
       if (typeof workspaceId !== "number") continue
       const clients = clientsByWorkspace.get(workspaceId) ?? []
