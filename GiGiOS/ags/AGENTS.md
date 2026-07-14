@@ -45,6 +45,7 @@ Usa español de forma consistente en los nombres y la documentación orientados 
 - Antes de añadir una función nueva, comprueba si ya existe algo similar. Reutiliza o consolida cuando tenga sentido, pero no fusiones a ciegas si eso hace el camino sensiblemente más pesado en memoria o en tiempo de ejecución.
 - Antes de crear un elemento nuevo de interfaz, comprueba si ya existe un componente que lo cubra, o si el mismo elemento sin encapsular aparece en otro sitio y conviene extraerlo a un componente genérico. Prefiere componentes compartidos frente a copias sueltas repetidas para que el mismo patrón de interfaz viva en un solo sitio.
 - Al escribir funciones nuevas o modificar las existentes, piensa en la compatibilidad entre distintas máquinas, configuraciones y casos límite antes de dar por cerrado el cambio. El código debe funcionar de forma fiable en todos los entornos donde se espera que se ejecute, no solo en una configuración.
+- Si durante la implementación de un cambio o una feature pruebas enfoques que luego se descartan porque estaban mal, no funcionaban o quedaron reemplazados por la solución final, borra ese código sobrante antes de terminar. No dejes código muerto, ramas sin uso, utilidades abandonadas ni restos de intentos intermedios en el árbol.
 
 ### CSS
 

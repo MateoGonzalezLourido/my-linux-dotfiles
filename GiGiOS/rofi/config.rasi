@@ -1,3 +1,59 @@
+/**
+ * Diseño compartido por el lanzador de aplicaciones (SUPER+SPACE) y el
+ * historial del portapapeles (SUPER+V). Cada selector define únicamente su
+ * placeholder y sus opciones de búsqueda.
+ */
+
+* {
+    main-bg:   #313244e6;
+    main-fg:   #cdd6f4ff;
+    main-br:   #cba6f7ff;
+    main-ex:   #f5e0dcff;
+    select-bg: #b4befeff;
+    select-fg: #11111bff;
+}
+
 window {
-    background-color: #fdf6e3;
+    background-color: @main-bg;
+    border-color:     #cba6f7ff;
+}
+
+mainbox,
+inputbar,
+listview {
+    background-color: transparent;
+    border-color:     #f5c2e74d;
+}
+
+entry {
+    background-color: transparent;
+    text-color:       #f5e0dcff;
+}
+
+entry,
+element-text {
+    padding: 0px 0px 0px 3px;
+}
+
+prompt,
+textbox-prompt-colon {
+    enabled: false;
+}
+
+case-indicator {
+    text-color: transparent;
+}
+
+element {
+    background-color: transparent;
+    text-color:       #cdd6f4ff;
+}
+
+element selected {
+    background-color: #b4befeff;
+    text-color:       #11111bff;
+}
+
+scrollbar {
+    handle-color: #f5c2e7b3;
 }

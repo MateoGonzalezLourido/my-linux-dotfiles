@@ -23,6 +23,12 @@ LINKS=(
   "hypr::$HOME/.config/hypr"
   "inicializador::$HOME/.config/inicializador"
   "rofi/config.rasi::$HOME/.config/rofi/config.rasi"
+  "mimeapps.list::$HOME/.config/mimeapps.list"
+  "menus/applications.menu::$HOME/.config/menus/applications.menu"
+  "kdeglobals::$HOME/.config/kdeglobals"
+  "qt6ct/qt6ct.conf::$HOME/.config/qt6ct/qt6ct.conf"
+  "mime/packages/text-x-xresources.xml::$HOME/.local/share/mime/packages/text-x-xresources.xml"
+  "mime/packages/text-x-codigo.xml::$HOME/.local/share/mime/packages/text-x-codigo.xml"
   "cache/power-save::$HOME/.config/power-save"
   "state/orion::$HOME/.local/share/orion"
 )

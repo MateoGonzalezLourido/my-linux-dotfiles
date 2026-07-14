@@ -103,7 +103,7 @@ bloque de `pacman` después de haber usado el instalador recomendado.
 
 ```sh
 sudo pacman -S util-linux polkit hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm \
-  xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland
+  xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland qt6ct breeze
 ```
 
 - `hypridle` gestiona apagar pantalla / bloquear / suspender (`hypridle.conf`).
@@ -222,7 +222,7 @@ Cópialas y corre `fc-cache -f` en el PC destino.
 ## 4. Bar / atajos / herramientas de escritorio
 
 ```sh
-sudo pacman -S rofi cliphist wl-clipboard brightnessctl ddcutil playerctl qalculate-gtk \
+sudo pacman -S rofi cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl qalculate-gtk \
   wf-recorder grim slurp jq bc hyprshot nm-connection-editor blueman fish git curl \
   btop upower libgudev cups geoclue mesa-utils lshw fd github-cli
 ```
@@ -236,9 +236,9 @@ Qué usa cada cosa:
   (congela pantalla durante la captura).
 - **`rofi`** — lanzador de apps (`SUPER+SPACE` → `hypr/scripts/rofi-launch.py`, requiere
   además `python3`, ya lo trae el sistema base) y selector del portapapeles (`SUPER+V`,
-  con `cliphist` + `wl-clipboard`). `hypr/scripts/clipboard-history.sh` carga directamente
-  el tema versionado `GiGiOS/rofi/clipboard-solarized.rasi`, sin modificar la
-  configuración global de Rofi.
+  con `cliphist` + `wl-clipboard`). Ambos comparten el diseño versionado en
+  `GiGiOS/rofi/config.rasi`. Las miniaturas de imágenes binarias requieren
+  `imagemagick`.
 - **`playerctl`** / **`brightnessctl`** — teclas multimedia y brillo.
 - **`ddcutil`** — brillo de **monitores externos** (sobremesa), por DDC/CI. Necesita además el módulo
   `i2c-dev` cargado en cada arranque, cosa que hace `/etc/modules-load.d/i2c-dev.conf` — lo instala
@@ -275,17 +275,66 @@ $fileManager = dolphin
 ```
 
 ```sh
-sudo pacman -S --needed kitty dolphin kservice
+sudo pacman -S --needed \
+  kitty firefox dolphin kservice ffmpegthumbs kdegraphics-thumbnailers \
+  ark 7zip unrar elisa filelight gwenview haruna kate kfind kolourpaint \
+  libreoffice-fresh libreoffice-fresh-es okular partitionmanager simple-scan
 ```
 
 `kservice` proporciona `kbuildsycoca6`, que permite que Dolphin descubra las
 aplicaciones instaladas para el menú **Abrir con…**. La configuración incluye
 `~/.config/menus/applications.menu`; después de
-instalarla, se puede reconstruir manualmente la caché con:
+instalarla, se pueden reconstruir manualmente las bases con:
 
 ```sh
+update-mime-database ~/.local/share/mime
 kbuildsycoca6 --noincremental
 ```
+
+Las asociaciones predeterminadas viven en `~/GiGiOS/mimeapps.list`: Firefox
+abre los PDF; Okular, el resto de documentos de lectura; Gwenview y KolourPaint,
+las imágenes; Haruna y Elisa, vídeo y audio; Kate, texto normal; Obsidian,
+Markdown con Kate como alternativa si no está instalado; Visual Studio Code,
+código y configuración de proyectos; Ark, archivos
+comprimidos; y LibreOffice, los formatos ofimáticos. Filelight, KFind, KDE
+Partition Manager y Simple Scan quedan como utilidades, no como manejadores
+predeterminados. `~/GiGiOS/kdeglobals` hace que las acciones de terminal de KDE
+usen Kitty.
+
+`bin/configurar-dolphin.sh` limita los miniaturizadores a imágenes comunes y SVG,
+vídeo mediante `ffmpegthumbs`, PDF/PostScript mediante `gsthumbnail` y documentos
+OpenDocument mediante `opendocumentthumbnail`. Desactiva miniaturas de audio,
+ebooks, cómics, ejecutables y otros formatos costosos, pero conserva la
+restauración de pestañas anteriores. Las animaciones de Breeze permanecen
+activas porque su coste es breve y no reduce de forma apreciable la memoria base.
+
+Los archivos de texto desconocidos caen en Kate mediante `text/plain`. Además,
+los datos sin tipo reconocible (`application/octet-stream`) también caen en Kate,
+mientras que los ejecutables nativos se abren como código en Visual Studio Code
+en vez de lanzarse. Esto cubre cookies, locks y cachés sin extensión; un enlace
+simbólico roto seguirá sin poder abrirse porque su destino no existe.
+Además,
+`mime/packages/text-x-xresources.xml` evita que `.Xresources` se confunda con
+un cursor binario solo porque comienza por `Xcursor`; queda clasificado como
+`text/x-xresources` y también se abre con Kate.
+
+El esquema `BreezeDark` de KDE y la paleta oscura de `qt6ct` mantienen oscuras
+las aplicaciones Qt, incluido Dolphin. Hyprland exporta
+`QT_QPA_PLATFORMTHEME=qt6ct`; sin esa integración, Qt usa su paleta clara aunque
+`kdeglobals` indique Breeze Dark. El archivo `qt6ct/qt6ct.conf` aplica la paleta
+`darker` con el estilo Breeze. Además, `kdeglobals` fija Breeze Dark dentro de
+`[UiSettings]`, que es el grupo consultado por `KColorSchemeManager`: dejar el
+nombre únicamente en `[General]` hace que Dolphin vuelva a la paleta clara. Los
+grupos `[Colors:*]` completos quedan como paleta oscura global de respaldo.
+Para evitar que los menús y diálogos de Breeze queden sobredimensionados con
+escalado fraccional, `qt6ct` usa Noto Sans a 10 puntos y Hyprland exporta
+`QT_SCALE_FACTOR=0.9`. El ajuste solo cambia la densidad de aplicaciones Qt/KDE;
+la escala general del monitor y las aplicaciones GTK no se modifican.
+El tema de iconos `Tela-circle-grey` se aplica tanto a KDE mediante `kdeglobals`
+como a GTK durante el arranque de Hyprland. `mime/packages/text-x-codigo.xml` corrige
+los conflictos de extensiones `.ts` y `.tsx`, y da a `.conf`, `.cfg` e `.ini`
+un tipo de configuración propio; así Dolphin muestra iconos de código en vez de
+iconos de traducción Qt, vídeo, mapas de Tiled o archivos vacíos.
 
 **Menú de apagado** — `keybinds.conf` intenta `hyprshutdown` y si no existe cae a
 `hyprctl dispatch exit`. `hyprshutdown` **no está instalado en esta máquina tampoco**
@@ -317,15 +366,21 @@ falta, rehace lo que esté corrupto y borra las miniaturas de fondos que ya no e
 ## 6. Portapapeles y utilidades base
 
 ```sh
-sudo pacman -S wl-clipboard cliphist
+sudo pacman -S wl-clipboard cliphist imagemagick
 ```
 
 `autostart.conf` lanza `wl-paste --watch cliphist store` para poblar el historial que usa
-`SUPER+V`. El selector Rofi utiliza `#fdf6e3` como fondo principal, `#eee8d5` para las
-filas alternas y `#b4befe` para la
-selección activa. Como el script resuelve `GiGiOS/rofi/clipboard-solarized.rasi` desde la
-ruta física del repositorio, el tema se aplica también en instalaciones nuevas sin tocar
-`~/.config/rofi`.
+`SUPER+V`. El selector Rofi replica el diseño oscuro del lanzador de aplicaciones:
+fondo `#313244` al 90 %, selección `#b4befe` y scrollbar rosa `#f5c2e7` al 70 %.
+Ambos selectores leen `GiGiOS/rofi/config.rasi` mediante su enlace en
+`~/.config/rofi`; cada uno solo aporta su propio placeholder. La búsqueda difusa del
+portapapeles conserva el orden cronológico de `cliphist`. El watcher fija un máximo de
+750 elementos y el selector los numera de `1` a `750`, desde el más reciente hasta el
+más antiguo, sin mostrar el identificador interno utilizado para decodificarlos.
+Las entradas que apuntan a un archivo de imagen entregan directamente esa ruta al
+sistema de miniaturas de Rofi. Para capturas y otras imágenes binarias,
+`hypr/scripts/miniatura-portapapeles.sh` decodifica por `stdin` y escribe directamente
+en la ruta de caché proporcionada por Rofi, sin archivos intermedios ni una caché propia.
 
 ## 7. Secretos (Spotify, credenciales)
 
@@ -534,7 +589,8 @@ Comprueba además que no falte ningún archivo referenciado por la configuració
 ```sh
 for f in \
   GiGiOS/hypr/scripts/clipboard-history.sh \
-  GiGiOS/rofi/clipboard-solarized.rasi \
+  GiGiOS/hypr/scripts/miniatura-portapapeles.sh \
+  GiGiOS/rofi/config.rasi \
   GiGiOS/hypr/scripts/scan-file.sh \
   GiGiOS/hypr/scripts/run-untrusted.sh \
   GiGiOS/ags/widget/settings/AccountSection.tsx \

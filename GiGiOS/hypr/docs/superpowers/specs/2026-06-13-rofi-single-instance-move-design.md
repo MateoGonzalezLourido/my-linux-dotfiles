@@ -59,8 +59,10 @@ tiene `socat`/`nc`). Usa `hyprctl -j` para estado y dispatch.
    - `before`: conjunto de `address` de todas las ventanas (`hyprctl clients -j`).
    - `target_ws`: id del workspace activo (`hyprctl activeworkspace -j`). Destino.
 3. **Lanzar** `rofi -show drun` (bloquea hasta que el usuario elige o cancela; rofi
-   lanza la app y termina).
-4. **Observar el socket de eventos** durante `TIMEOUT` (def. 5 s):
+   lanza la app y termina). Si rofi devuelve cancelación, salir inmediatamente sin
+   abrir el socket ni mantener el proceso Python durante el timeout.
+4. **Observar el socket de eventos** durante `TIMEOUT` (def. 5 s) mediante una espera
+   bloqueante por el tiempo restante, sin sondeo periódico:
    - `openwindow>>ADDR,...` con `ADDR` **no** en `before` → ventana nueva
      (multi-instancia o primer arranque). **Anclarla al workspace de lanzamiento**: si
      abrió en un workspace distinto de `target_ws` (porque me cambié de workspace
@@ -69,8 +71,8 @@ tiene `socat`/`nc`). Usa `hyprctl -j` para estado y dispatch.
    - `urgent>>ADDR` con `ADDR` **sí** en `before` → relanzamiento single-instance →
      si la ventana está en otro workspace, `movetoworkspace target_ws,address:ADDR`;
      luego `focuswindow address:ADDR`. Salir.
-   - Si se agota el timeout sin nada de lo anterior → no hacer nada (cancelaste rofi,
-     relanzaste algo ya en tu workspace, o la app no emitió señal).
+   - Si se agota el timeout sin nada de lo anterior → no hacer nada (relanzaste algo
+     ya en tu workspace o la app no emitió señal).
 
 Nota: las direcciones en los eventos vienen **sin** prefijo `0x`; `hyprctl clients`
 las da **con** `0x`. El script normaliza añadiendo `0x` a las de los eventos.
@@ -95,7 +97,7 @@ adivina por clase.
 | App multi-instancia / primer arranque (aparece ventana nueva) | Se ancla al workspace de lanzamiento (si me cambié, la trae en silencio) |
 | App single-instance, ventana en otro workspace, reenfoca la suya | Mueve esa ventana al workspace actual y la enfoca |
 | App single-instance ya en el workspace actual | El movimiento es no-op |
-| Cancelo rofi (Esc) | No hace nada |
+| Cancelo rofi (Esc) | Sale inmediatamente y no abre el socket de eventos |
 
 ## Limitaciones conocidas
 
@@ -111,6 +113,10 @@ adivina por clase.
 
 Variable al inicio del script:
 - `TIMEOUT` (def. 5): segundos máximos de observación del socket de eventos.
+
+Rofi se lanza con `drun-use-desktop-cache` desactivado explícitamente. Con el volumen
+actual de entradas `.desktop`, se evita una caché persistente adicional sin un beneficio
+apreciable de tiempo de inicio.
 
 ## Archivos afectados
 

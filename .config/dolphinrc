@@ -4,14 +4,18 @@ MenuBar=Disabled
 update_info=dolphin_detailsmodesettings.upd:rename-leading-padding
 
 [General]
+BrowseThroughArchives=false
+DynamicView=false
+RememberOpenedTabs=true
 ShowSelectionToggle=false
 ShowStatusBar=false
+ShowToolTips=false
 Version=202
 ViewPropsTimestamp=2023,4,26,16,58,48.324
 
 [IconsMode]
 MaximumTextLines=1
-PreviewSize=144
+PreviewSize=128
 
 [InformationPanel]
 dateFormat=ShortFormat
@@ -34,7 +38,7 @@ ToolButtonStyle=IconOnly
 IconSize=16
 
 [PreviewSettings]
-Plugins=appimagethumbnail,audiothumbnail,comicbookthumbnail,cursorthumbnail,djvuthumbnail,ebookthumbnail,exrthumbnail,imagethumbnail,jpegthumbnail,kraorathumbnail,windowsexethumbnail,windowsimagethumbnail,opendocumentthumbnail,svgthumbnail,ffmpegthumbs
+Plugins=ffmpegthumbs,gsthumbnail,imagethumbnail,jpegthumbnail,opendocumentthumbnail,svgthumbnail
 
 [Search]
 SearchTool=Baloo

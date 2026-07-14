@@ -13,14 +13,16 @@ fail() { printf 'ERROR   %s\n' "$*" >&2; errors=$((errors + 1)); }
 warn() { printf 'AVISO   %s\n' "$*"; warnings=$((warnings + 1)); }
 
 required=(
-  install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh ags/app.ts ags/style.scss ags/out.css
+  install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh ags/app.ts ags/style.scss ags/out.css
+  mimeapps.list menus/applications.menu kdeglobals qt6ct/qt6ct.conf
+  mime/packages/text-x-xresources.xml mime/packages/text-x-codigo.xml
   ags/widget/settings/SecuritySection.tsx ags/widget/settings/securityPrefs.ts
   hypr/hyprland.conf hypr/gpu/laptop-hibrida.conf hypr/gpu/sobremesa-nvidia.conf
   Wallpapers/sunset.jpg
-  hypr/scripts/clipboard-history.sh hypr/scripts/scan-file.sh
+  hypr/scripts/clipboard-history.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/scan-file.sh
   hypr/scripts/run-untrusted.sh hypr/scripts/compact-workspaces.sh
   hypr/scripts/toggle-gaps-borders.sh
-  rofi/clipboard-solarized.rasi
+  rofi/config.rasi
 )
 for path in "${required[@]}"; do
   [[ -f "$GIGIOS/$path" ]] || fail "falta $path"
@@ -48,6 +50,7 @@ done < <(find "$GIGIOS/hypr/scripts" "$GIGIOS/ags/scripts" -type f -name '*.sh' 
 for script in \
   "$GIGIOS/install.sh" "$GIGIOS/bin/link.sh" "$GIGIOS/bin/preflight.sh" \
   "$GIGIOS/bin/kitty-profile.sh" "$GIGIOS/bin/firefox-profile.sh" \
+  "$GIGIOS/bin/configurar-dolphin.sh" \
   "$GIGIOS/inicializador/init.sh"; do
   bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGIOS"/}"
   [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGIOS"/}"
@@ -73,7 +76,7 @@ if [[ "$mode" == "--installed" ]]; then
   # comando de reparación directamente utilizable en Arch/CachyOS.
   commands=(
     hyprctl:hyprland hyprlock:hyprlock hypridle:hypridle hyprsunset:hyprsunset
-    uwsm:uwsm sass:dart-sass jq:jq rofi:rofi
+    uwsm:uwsm sass:dart-sass jq:jq rofi:rofi magick:imagemagick
     cliphist:cliphist wl-copy:wl-clipboard wl-paste:wl-clipboard
     brightnessctl:brightnessctl ddcutil:ddcutil playerctl:playerctl wpctl:wireplumber
     pactl:libpulse pw-metadata:pipewire wf-recorder:wf-recorder grim:grim
@@ -86,7 +89,12 @@ if [[ "$mode" == "--installed" ]]; then
     pkgfile:pkgfile fastfetch:fastfetch less:less man:man-db whatis:man-db
     wget:wget tar:tar expac:expac hwinfo:hwinfo nc:openbsd-netcat nvim:neovim
     code:code fc-match:fontconfig
-    dolphin:dolphin kbuildsycoca6:kservice xdg-open:xdg-utils
+    dolphin:dolphin kbuildsycoca6:kservice kwriteconfig6:kconfig qt6ct:qt6ct xdg-open:xdg-utils
+    update-mime-database:shared-mime-info
+    ark:ark 7z:7zip unrar:unrar elisa:elisa filelight:filelight
+    gwenview:gwenview haruna:haruna kate:kate kfind:kfind
+    kolourpaint:kolourpaint libreoffice:libreoffice-fresh okular:okular
+    partitionmanager:partitionmanager simple-scan:simple-scan
     clamscan:clamav firejail:firejail bwrap:bubblewrap
     xdg-user-dir:xdg-user-dirs
   )
@@ -96,6 +104,73 @@ if [[ "$mode" == "--installed" ]]; then
     command -v "$command" >/dev/null 2>&1 \
       || fail "falta '$command' (Arch/CachyOS: sudo pacman -S --needed $package)"
   done
+  while IFS='|' read -r mime application; do
+    grep -Fqx "$mime=$application;" "$GIGIOS/mimeapps.list" \
+      || fail "asociación MIME ausente: $mime -> $application"
+  done <<'EOF'
+inode/directory|org.kde.dolphin.desktop
+application/pdf|firefox.desktop
+application/epub+zip|okularApplication_epub.desktop
+image/png|org.kde.gwenview.desktop
+video/mp4|org.kde.haruna.desktop
+audio/mpeg|org.kde.elisa.desktop
+text/plain|org.kde.kate.desktop
+text/markdown|obsidian.desktop;org.kde.kate.desktop
+text/x-xresources|org.kde.kate.desktop
+text/x-csrc|code.desktop
+text/x-configuration|code.desktop
+text/x-typescript-jsx|code.desktop
+application/x-executable|code.desktop
+application/octet-stream|org.kde.kate.desktop
+application/zip|org.kde.ark.desktop
+application/vnd.openxmlformats-officedocument.wordprocessingml.document|libreoffice-writer.desktop
+EOF
+  grep -Fqx 'TerminalApplication=kitty' "$GIGIOS/kdeglobals" \
+    || fail "kdeglobals no configura Kitty como terminal"
+  grep -Fqx 'ColorScheme=BreezeDark' "$GIGIOS/kdeglobals" \
+    || fail "kdeglobals no configura Breeze Dark como esquema de colores"
+  awk '
+    /^\[UiSettings\]$/ { en_ajustes=1; next }
+    /^\[/ { en_ajustes=0 }
+    en_ajustes && /^ColorScheme=BreezeDark$/ { encontrado=1 }
+    END { exit !encontrado }
+  ' "$GIGIOS/kdeglobals" \
+    || fail "kdeglobals no activa Breeze Dark para KColorSchemeManager"
+  grep -Fqx 'BackgroundNormal=20,22,24' "$GIGIOS/kdeglobals" \
+    || fail "kdeglobals no contiene la paleta materializada de Breeze Dark"
+  grep -Fqx 'env = QT_QPA_PLATFORMTHEME,qt6ct' "$GIGIOS/hypr/env.conf" \
+    || fail "Hyprland no activa qt6ct como tema de plataforma Qt"
+  grep -Fqx 'env = QT_SCALE_FACTOR,0.9' "$GIGIOS/hypr/env.conf" \
+    || fail "Hyprland no configura la densidad compacta de las aplicaciones Qt"
+  grep -Fqx 'color_scheme_path=/usr/share/qt6ct/colors/darker.conf' "$GIGIOS/qt6ct/qt6ct.conf" \
+    || fail "qt6ct no configura la paleta oscura"
+  grep -Fqx 'custom_palette=true' "$GIGIOS/qt6ct/qt6ct.conf" \
+    || fail "qt6ct no activa la paleta personalizada"
+  grep -Fqx 'style=Breeze' "$GIGIOS/qt6ct/qt6ct.conf" \
+    || fail "qt6ct no configura el estilo Breeze"
+  grep -Fqx 'general="Noto Sans,10,-1,5,50,0,0,0,0,0,Regular"' "$GIGIOS/qt6ct/qt6ct.conf" \
+    || fail "qt6ct no configura la fuente general compacta"
+  grep -Fqx 'fixed="Noto Sans Mono,10,-1,5,50,0,0,0,0,0,Regular"' "$GIGIOS/qt6ct/qt6ct.conf" \
+    || fail "qt6ct no configura la fuente monoespaciada compacta"
+  grep -Fqx 'Theme=Tela-circle-grey' "$GIGIOS/kdeglobals" \
+    || fail "kdeglobals no configura Tela circle grey como tema de iconos"
+  [[ -r /usr/share/color-schemes/BreezeDark.colors ]] \
+    || fail "falta Breeze Dark (sudo pacman -S --needed breeze)"
+  compgen -G '/usr/lib/qt6/plugins/styles/breeze*.so' >/dev/null \
+    || fail "falta el plugin de estilo Breeze para Qt 6 (sudo pacman -S --needed breeze)"
+  [[ -r /usr/share/qt6ct/colors/darker.conf ]] \
+    || fail "falta la paleta oscura de qt6ct (sudo pacman -S --needed qt6ct)"
+  [[ -r /usr/lib/qt6/plugins/platformthemes/libqt6ct.so ]] \
+    || fail "falta el plugin de plataforma de qt6ct (sudo pacman -S --needed qt6ct)"
+  [[ -r /usr/lib/qt6/plugins/kf6/thumbcreator/ffmpegthumbs.so ]] \
+    || fail "falta el miniaturizador de vídeo (sudo pacman -S --needed ffmpegthumbs)"
+  [[ -r /usr/lib/qt6/plugins/kf6/thumbcreator/gsthumbnail.so ]] \
+    || fail "falta el miniaturizador de PDF (sudo pacman -S --needed kdegraphics-thumbnailers)"
+  "$GIGIOS/bin/configurar-dolphin.sh" --check \
+    || fail "el perfil ligero de Dolphin no está aplicado"
+  if [[ ! -d /usr/share/icons/Tela-circle-grey && ! -d "$HOME/.local/share/icons/Tela-circle-grey" ]]; then
+    fail "falta el tema Tela circle grey (sudo pacman -S --needed tela-circle-icon-theme-grey)"
+  fi
   command -v ags >/dev/null 2>&1 \
     || fail "falta 'ags' (AUR: paru -S --needed aylurs-gtk-shell-git libastal-meta; también sirve yay)"
   [[ -r /usr/share/oh-my-zsh/oh-my-zsh.sh ]] \

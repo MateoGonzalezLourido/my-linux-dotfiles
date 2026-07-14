@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="text/x-xresources">
+    <comment>Configuración de recursos X11</comment>
+    <sub-class-of type="text/plain"/>
+    <glob pattern=".Xresources" weight="100"/>
+    <glob pattern="*.Xresources" weight="100"/>
+    <magic priority="90">
+      <match type="string" offset="0" value="Xcursor."/>
+    </magic>
+  </mime-type>
+</mime-info>

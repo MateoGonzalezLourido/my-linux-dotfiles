@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/typescript">
+    <comment>Código TypeScript</comment>
+    <sub-class-of type="text/plain"/>
+    <generic-icon name="text-x-typescript"/>
+    <glob pattern="*.ts" weight="100"/>
+    <glob pattern="*.cts" weight="100"/>
+    <glob pattern="*.mts" weight="100"/>
+  </mime-type>
+  <mime-type type="text/x-typescript-jsx">
+    <comment>Código TypeScript JSX</comment>
+    <sub-class-of type="application/typescript"/>
+    <generic-icon name="text-x-typescript"/>
+    <glob pattern="*.tsx" weight="100"/>
+  </mime-type>
+  <mime-type type="text/x-configuration">
+    <comment>Archivo de configuración</comment>
+    <sub-class-of type="text/plain"/>
+    <generic-icon name="text-x-script"/>
+    <glob pattern="*.conf" weight="100"/>
+    <glob pattern="*.cfg" weight="90"/>
+    <glob pattern="*.ini" weight="90"/>
+  </mime-type>
+</mime-info>

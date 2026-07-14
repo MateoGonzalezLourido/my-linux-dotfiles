@@ -67,32 +67,39 @@ def main():
     target_ws = hypr_j("activeworkspace")["id"]
 
     # --- Lanzar rofi (bloquea hasta selección o cancelación) ---
-    # Solo se sustituyen las variables de color: el layout/config del usuario
-    # sigue siendo exactamente el que Rofi ya cargaba antes.
-    colors = (
-        "* { main-bg: #313244e6; main-fg: #cdd6f4ff; "
-        "main-br: #cba6f7ff; main-ex: #f5e0dcff; "
-        "select-bg: #b4befeff; select-fg: #11111bff; } "
-        "window { background-color: @main-bg; border-color: #cba6f7ff; } "
-        "mainbox, inputbar, listview { background-color: transparent; } "
-        "entry, prompt { background-color: transparent; text-color: #f5e0dcff; } "
-        "element { background-color: transparent; text-color: #cdd6f4ff; } "
-        "element selected { background-color: #b4befeff; text-color: #11111bff; }"
-    )
-    subprocess.run(["rofi", "-show", "drun", "-theme-str", colors])
+    # El diseño compartido vive en rofi/config.rasi; este selector solo cambia
+    # el placeholder respecto al historial del portapapeles.
+    tema_busqueda = 'entry { placeholder: "Buscar aplicaciones"; }'
+    resultado_rofi = subprocess.run([
+        "rofi", "-show", "drun",
+        "-display-drun", "",
+        "-no-drun-use-desktop-cache",
+        "-kb-row-select", "Right",
+        "-kb-move-char-forward", "Control+f",
+        "-matching", "fuzzy",
+        "-sort",
+        "-sorting-method", "fzf",
+        "-case-smart",
+        "-theme-str", tema_busqueda,
+    ])
+    if resultado_rofi.returncode != 0:
+        return
 
     # --- Observación vía socket de eventos ---
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect(event_socket_path())
-    sock.settimeout(0.3)
 
-    deadline = time.time() + TIMEOUT
+    limite = time.monotonic() + TIMEOUT
     buf = b""
-    while time.time() < deadline:
+    while True:
+        restante = limite - time.monotonic()
+        if restante <= 0:
+            return
+        sock.settimeout(restante)
         try:
             data = sock.recv(4096)
         except socket.timeout:
-            continue
+            return
         if not data:
             break
         buf += data

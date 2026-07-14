@@ -10,6 +10,11 @@ archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 - `ags/`            — shell de AGS  (symlink: `~/.config/ags`)
 - `hypr/`           — config de Hyprland + hyprlock + scripts  (symlink: `~/.config/hypr`)
 - `inicializador/`  — init.sh de arranque  (symlink: `~/.config/inicializador`)
+- `mimeapps.list`   — aplicaciones predeterminadas por tipo MIME  (symlink: `~/.config/mimeapps.list`)
+- `menus/applications.menu` — catálogo de aplicaciones de KDE/Dolphin  (symlink: `~/.config/menus/applications.menu`)
+- `kdeglobals`      — preferencias KDE compartidas: Breeze Dark, Kitty e iconos Tela  (symlink: `~/.config/kdeglobals`)
+- `qt6ct/qt6ct.conf` — integración Qt en Hyprland: Breeze oscuro con densidad compacta  (symlink: `~/.config/qt6ct/qt6ct.conf`)
+- `mime/packages/`  — tipos MIME propios para clasificar correctamente dotfiles especiales
 - `cache/power-save/` — flag de ahorro de energía, runtime git-ignored  (symlink: `~/.config/power-save`)
 - `Wallpapers/`     — fondos  (usados directo por `wallpaper.sh`, sin symlink)
 - `state/orion/`    — datos del launcher  (symlink: `~/.local/share/orion`)
@@ -18,6 +23,7 @@ archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 - `bin/link.sh`     — crea/repara/valida los symlinks
 - `bin/kitty-profile.sh` — selecciona el perfil de Kitty de esta máquina
 - `bin/firefox-profile.sh` — compone y aplica el perfil de Firefox en su perfil real
+- `bin/configurar-dolphin.sh` — aplica miniaturas selectivas y restaura las pestañas de Dolphin
 
 ## Instalación nueva (Arch/CachyOS)
 

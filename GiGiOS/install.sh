@@ -53,14 +53,18 @@ esac
 
 install_packages() {
   local official=(
-    git curl python xdg-utils base-devel util-linux polkit
+    git curl python xdg-utils shared-mime-info base-devel util-linux polkit
     less man-db wget tar expac hwinfo openbsd-netcat neovim
     hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
-    xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland
+    xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland qt6ct
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
-    ttf-meslo-nerd ttf-cascadia-code-nerd rofi cliphist wl-clipboard brightnessctl ddcutil playerctl
+    ttf-meslo-nerd ttf-cascadia-code-nerd rofi cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl
     qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
-    nm-connection-editor blueman fish kitty firefox dolphin kservice
+    nm-connection-editor blueman fish
+    kitty firefox dolphin kservice breeze ffmpegthumbs kdegraphics-thumbnailers
+    ark 7zip unrar elisa filelight gwenview haruna kate kfind kolourpaint
+    libreoffice-fresh libreoffice-fresh-es okular partitionmanager simple-scan
+    tela-circle-icon-theme-grey
     zsh oh-my-zsh-git zsh-completions zsh-autosuggestions
     zsh-syntax-highlighting zsh-history-substring-search zsh-theme-powerlevel10k
     fzf eza bat duf pkgfile fastfetch
@@ -189,7 +193,17 @@ else
   die "No encontré $LINK. El checkout no contiene GiGiOS/bin/link.sh."
 fi
 
-# --- 4. Seleccionar el perfil de rendimiento de Kitty ---
+# --- 4. Aplicar el perfil ligero de Dolphin ---
+DOLPHIN_CONFIGURATOR="$HOME/GiGiOS/bin/configurar-dolphin.sh"
+if [ -x "$DOLPHIN_CONFIGURATOR" ]; then
+  info "Configurando miniaturas y comportamiento de Dolphin ..."
+  "$DOLPHIN_CONFIGURATOR" aplicar \
+    || die "No se pudo aplicar el perfil de Dolphin."
+else
+  die "No encontré $DOLPHIN_CONFIGURATOR. El checkout no contiene el configurador de Dolphin."
+fi
+
+# --- 5. Seleccionar el perfil de rendimiento de Kitty ---
 KITTY_SELECTOR="$HOME/GiGiOS/bin/kitty-profile.sh"
 if [ -x "$KITTY_SELECTOR" ]; then
   info "Seleccionando el perfil de Kitty ($KITTY_PROFILE) ..."
@@ -199,7 +213,7 @@ else
   die "No encontré $KITTY_SELECTOR. El checkout no contiene el selector de perfiles de Kitty."
 fi
 
-# --- 5. Seleccionar y aplicar el perfil de rendimiento de Firefox ---
+# --- 6. Seleccionar y aplicar el perfil de rendimiento de Firefox ---
 FIREFOX_SELECTOR="$HOME/GiGiOS/bin/firefox-profile.sh"
 if [ -x "$FIREFOX_SELECTOR" ]; then
   info "Seleccionando el perfil de Firefox ($FIREFOX_PROFILE) ..."
@@ -209,7 +223,7 @@ else
   die "No encontré $FIREFOX_SELECTOR. El checkout no contiene el selector de perfiles de Firefox."
 fi
 
-# --- 6. Generar el CSS que importa app.ts ---
+# --- 7. Generar el CSS que importa app.ts ---
 SCSS="$HOME/GiGiOS/ags/style.scss"
 CSS="$HOME/GiGiOS/ags/out.css"
 APP_ICONS="$HOME/GiGiOS/ags/config/app_icons.json"
@@ -232,7 +246,14 @@ if ! sass_error="$(sass --no-source-map "$SCSS" "$CSS" 2>&1)"; then
   die "Sass no pudo compilar $SCSS. Reprodúcelo con: sass --no-source-map '$SCSS' '$CSS'"
 fi
 
-# --- 7. Reconstruir la caché de aplicaciones de KDE/Dolphin ---
+# --- 8. Reconstruir las bases MIME y de aplicaciones de KDE/Dolphin ---
+if command -v update-mime-database >/dev/null; then
+  info "Reconstruyendo la base MIME del usuario ..."
+  update-mime-database "$HOME/.local/share/mime"
+else
+  warn "No encontré update-mime-database; los tipos MIME propios no estarán disponibles."
+fi
+
 if command -v kbuildsycoca6 >/dev/null; then
   info "Reconstruyendo la caché de aplicaciones de KDE 6 ..."
   kbuildsycoca6 --noincremental
@@ -243,7 +264,7 @@ else
   warn "No encontré kbuildsycoca6 ni kbuildsycoca5; el menú 'Abrir con...' podría quedar vacío."
 fi
 
-# --- 8. Ficheros de sistema (/etc) ---
+# --- 9. Ficheros de sistema (/etc) ---
 # NO se symlinkean, se copian: udev y systemd leen /etc antes de que $HOME esté montado, y
 # apuntar /etc a un directorio escribible por el usuario sería una escalada silenciosa.
 # Sin este paso la instalación arranca igual, pero con dos fallos mudos:
@@ -273,7 +294,7 @@ else
   warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
 fi
 
-# --- 9. Verificación y notas finales ---
+# --- 10. Verificación y notas finales ---
 configure_default_shell
 
 if [ -x "$HOME/GiGiOS/bin/preflight.sh" ]; then
