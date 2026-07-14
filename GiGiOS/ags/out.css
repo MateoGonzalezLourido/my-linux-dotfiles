@@ -2138,10 +2138,6 @@ progressbar.osd-progress progress {
   color: #e2e2e2;
 }
 
-.osd-mic-spacer {
-  min-width: 242px;
-}
-
 .Bar .bar-pill-btn {
   padding: 0;
   margin: 0;
@@ -2246,35 +2242,6 @@ window.qs-window > box,
   font-weight: 400;
   color: rgba(255, 255, 255, 0.5);
   margin: 0;
-}
-
-.qs-notif-btn {
-  background: transparent;
-  background-color: transparent;
-  border: none;
-  box-shadow: none;
-  text-shadow: none;
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  margin: 0 4px 0 0;
-  color: rgba(255, 255, 255, 0.4);
-  transition: color 150ms ease;
-}
-.qs-notif-btn:hover {
-  color: rgba(255, 255, 255, 0.95);
-}
-.qs-notif-btn.has-notifs {
-  color: #cba6f7;
-}
-.qs-notif-btn.has-notifs:hover {
-  color: #d8bbf9;
-}
-.qs-notif-btn .qs-notif-icon {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 17px;
-  margin: 0;
-  padding: 0;
 }
 
 .qs-tile {
@@ -3092,7 +3059,7 @@ tooltip label {
   margin: 0;
 }
 .qs-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
 }
 .qs-icon-btn:hover label {
   color: rgba(226, 226, 226, 0.9);
@@ -3448,9 +3415,13 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   box-shadow: none;
   padding: 0;
   min-width: 28px;
+  transition: background-color 140ms ease, color 140ms ease;
 }
 .bar-status-pair .bar-pill.nb-pill {
   margin-right: 0;
+}
+.bar-pill.nb-pill:hover {
+  background-color: rgba(255, 255, 255, 0.07);
 }
 .bar-pill.nb-pill .nb-icon {
   font-family: "MesloLGS Nerd Font";

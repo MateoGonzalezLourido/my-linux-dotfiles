@@ -3,7 +3,7 @@ import style from "./out.css"
 import Bar from "./widget/Bar"
 import PowerOptions from "./widget/bar/PowerOptions"
 import OSD, { showOSD } from "./widget/OSD"
-import MicOSD, { showMicOSD } from "./widget/MicOSD"
+import { showMicOSD } from "./widget/MicOSD"
 import QuickSettings from "./widget/QuickSettings"
 import NotificationPopup from "./widget/notifications/NotificationPopup"
 import NotificationPanel from "./widget/notifications/NotificationPanel"
@@ -57,12 +57,13 @@ app.start({
     app.get_monitors().flatMap(Bar)
     app.get_monitors().map(PowerOptions)
     app.get_monitors().map(OSD)
-    app.get_monitors().map(MicOSD)
     // Resumen inicial simultáneo: cada tarjeta aplica su propia condición (el
     // volumen se omite si arranca silenciado o a cero, y el brillo si ya está al
     // máximo), pero las que procedan aparecen juntas.
-    setTimeout(() => showOSD(true), 1200)
-    setTimeout(() => showBrightnessOSD(true), 1200)
+    setTimeout(() => {
+      showOSD(true)
+      showBrightnessOSD(true)
+    }, 1200)
     app.get_monitors().map(QuickSettings)
     app.get_monitors().map(NotificationPopup)
     app.get_monitors().map(NotificationPanel)

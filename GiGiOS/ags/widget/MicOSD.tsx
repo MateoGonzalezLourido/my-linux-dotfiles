@@ -1,9 +1,8 @@
-import app from "ags/gtk4/app"
-import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createComputed, createState } from "ags"
+import { Gtk } from "ags/gtk4"
+import { createState } from "ags"
 import AstalWp from "gi://AstalWp"
-import { barVisible, osdVisible, micOsdVisible, setMicOsdVisible } from "./state"
-import { barAutoHideEnabled, micOsdEnabled } from "./settings/preferences"
+import { micOsdVisible, setMicOsdVisible } from "./state"
+import { micOsdEnabled } from "./settings/preferences"
 
 let micOsdTimeout: number | null = null
 let micOsdReady = false
@@ -41,7 +40,7 @@ function getMicOsdIcon(v: number, muted: boolean) {
     return "󰍬" // Unmuted mic icon
 }
 
-export default function MicOSD(gdkmonitor: Gdk.Monitor) {
+export function TarjetaMicrofonoOSD() {
     const wp = AstalWp.get_default()
     const audio = wp?.audio
     let microphone: AstalWp.Endpoint | null = audio?.defaultMicrophone ?? null
@@ -86,54 +85,28 @@ export default function MicOSD(gdkmonitor: Gdk.Monitor) {
     audio?.connect("notify::default-microphone", () => bindMicrophone(audio.defaultMicrophone ?? null))
 
     return (
-        <window
-            name="mic-osd"
+        <box
             visible={micOsdVisible}
-            gdkmonitor={gdkmonitor}
-            layer={Astal.Layer.OVERLAY}
-            anchor={Astal.WindowAnchor.TOP}
-            application={app}
-            cssClasses={["osd-window"]}
-            // Ver OSD.tsx: sin auto-ocultado la zona exclusiva del bar ya nos baja.
-            marginTop={createComputed(() => barAutoHideEnabled() && barVisible() ? 46 : 8)}
+            cssClasses={muted((isMuted) => [
+                "osd-container",
+                "osd-microphone",
+                isMuted ? "osd-muted" : "osd-active",
+            ])}
+            orientation={Gtk.Orientation.HORIZONTAL}
+            halign={Gtk.Align.CENTER}
+            valign={Gtk.Align.START}
+            spacing={15}
         >
-            <box orientation={Gtk.Orientation.HORIZONTAL} halign={Gtk.Align.CENTER}>
-                <revealer
-                    revealChild={osdVisible}
-                    transitionType={Gtk.RevealerTransitionType.SLIDE_LEFT}
-                    transitionDuration={180}
-                >
-                    <box cssClasses={["osd-mic-spacer"]} />
-                </revealer>
-                <box
-                    cssClasses={muted((isMuted) => [
-                        "osd-container",
-                        "osd-microphone",
-                        isMuted ? "osd-muted" : "osd-active",
-                    ])}
-                orientation={Gtk.Orientation.HORIZONTAL}
-                halign={Gtk.Align.CENTER}
-                valign={Gtk.Align.START}
-                spacing={15}
-            >
-                <label 
-                    cssClasses={["osd-icon"]} 
-                    label={icon} 
+            <label cssClasses={["osd-icon"]} label={icon} />
+            <box cssClasses={["osd-progress-container"]} valign={Gtk.Align.CENTER} hexpand>
+                <Gtk.ProgressBar
+                    cssClasses={["osd-progress"]}
+                    fraction={vol}
+                    valign={Gtk.Align.CENTER}
+                    hexpand
                 />
-                <box cssClasses={["osd-progress-container"]} valign={Gtk.Align.CENTER} hexpand>
-                    <Gtk.ProgressBar
-                        cssClasses={["osd-progress"]}
-                        fraction={vol}
-                        valign={Gtk.Align.CENTER}
-                        hexpand
-                    />
-                </box>
-                <label 
-                    cssClasses={["osd-percentage"]} 
-                    label={percent} 
-                />
-                </box>
             </box>
-        </window>
+            <label cssClasses={["osd-percentage"]} label={percent} />
+        </box>
     )
 }

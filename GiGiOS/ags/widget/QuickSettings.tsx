@@ -11,6 +11,7 @@ import AstalNetwork from "gi://AstalNetwork"
 import AstalBluetooth from "gi://AstalBluetooth"
 import AstalNotifd from "gi://AstalNotifd"
 import AstalMpris from "gi://AstalMpris"
+import AstalHyprland from "gi://AstalHyprland"
 import Gio from "gi://Gio"
 import GioUnix from "gi://GioUnix?version=2.0"
 import GdkPixbuf from "gi://GdkPixbuf"
@@ -47,6 +48,7 @@ import { InlineEditableValue } from "./InlineEditableValue"
 import { getIcon } from "./bar/appIcons"
 import { getBluetoothTileInfo } from "./bluetooth/tileState"
 import { resolveMediaLengthSeconds, safeMediaPosition } from "./mediaProgress"
+import { findMediaClient } from "./mediaClient"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -658,13 +660,16 @@ function QsHeader() {
       </box>
       <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} cssClasses={["qs-header-actions"]}>
         <button
-          cssClasses={notifs((n) => n.length > 0 ? ["qs-notif-btn", "has-notifs"] : ["qs-notif-btn"])}
+          cssClasses={["bar-pill", "nb-pill"]}
           onClicked={() => {
             closeAllPanels()
             openNotifPanel()
           }}
         >
-          <label cssClasses={["qs-notif-icon"]} label="󰂚" />
+          <label
+            cssClasses={notifs((n) => n.length > 0 ? ["nb-icon", "has-notifs"] : ["nb-icon"])}
+            label="󰂚"
+          />
         </button>
       </box>
     </box>
@@ -1188,6 +1193,7 @@ function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number]
 function QsMedia() {
   const mpris = AstalMpris.get_default()
   if (!mpris) return <box />
+  const hypr = AstalHyprland.get_default()
 
   const [title, setTitle] = createState("Sin reproducción")
   const [artist, setArtist] = createState("")
@@ -1561,6 +1567,17 @@ function QsMedia() {
   const nextPlayer = () => switchPlayer(1)
   const prevPlayer = () => switchPlayer(-1)
 
+  const focusPlayerWindow = () => {
+    const player = mpris.players[playerIndex.get()]
+    const client = findMediaClient(player, hypr.get_clients?.() ?? [])
+    if (!client?.address) return
+
+    const address = String(client.address)
+    const normalized = address.startsWith("0x") ? address : `0x${address}`
+    closeAllPanels()
+    execAsync(["hyprctl", "dispatch", "focuswindow", `address:${normalized}`]).catch(() => {})
+  }
+
   // Initial update and interval — skip when panel is closed
   update()
   const interval = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
@@ -1825,6 +1842,10 @@ function QsMedia() {
       visible={hasPlayer}
       overflow={Gtk.Overflow.HIDDEN}
     >
+      <Gtk.GestureClick
+        button={Gdk.BUTTON_SECONDARY}
+        onReleased={focusPlayerWindow}
+      />
       <Gtk.EventControllerScroll
         flags={Gtk.EventControllerScrollFlags.VERTICAL | Gtk.EventControllerScrollFlags.DISCRETE}
         onScroll={(_self, _dx, dy) => {

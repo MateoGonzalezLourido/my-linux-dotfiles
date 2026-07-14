@@ -6,6 +6,7 @@ import {
     barVisible, osdVisible, setOsdVisible, micOsdVisible,
     brightness, brightnessOsdVisible,
 } from "./state"
+import { TarjetaMicrofonoOSD } from "./MicOSD"
 import { barAutoHideEnabled, volumeOsdEnabled } from "./settings/preferences"
 
 let osdTimeout: number | null = null
@@ -60,7 +61,9 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
     const audio = wp?.audio
     let speaker: AstalWp.Endpoint | null = audio?.defaultSpeaker ?? null
 
-    const anyOsdVisible = createComputed(() => osdVisible() || brightnessOsdVisible())
+    const anyOsdVisible = createComputed(
+        () => osdVisible() || brightnessOsdVisible() || micOsdVisible(),
+    )
 
     const [volumeIcon, setVolumeIcon] = createState(speaker ? getOsdIcon(speaker.volume, speaker.mute) : "󰝟")
     const [volumeLevel, setVolumeLevel] = createState(speaker?.volume ?? 0)
@@ -119,8 +122,8 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
             marginTop={createComputed(() => barAutoHideEnabled() && barVisible() ? 46 : 8)}
         >
             <box orientation={Gtk.Orientation.HORIZONTAL} halign={Gtk.Align.CENTER}>
-                {/* Al ser homogéneo, las dos tarjetas ocupan el mismo ancho. El
-                    centro del grupo coincide así con el hueco que queda entre ellas. */}
+                {/* Todas las tarjetas viven en la misma superficie. La caja homogénea
+                    las separa y mantiene centrado el grupo completo. */}
                 <box orientation={Gtk.Orientation.HORIZONTAL} homogeneous spacing={12}>
                     <box
                         visible={osdVisible}
@@ -160,14 +163,8 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
                         </box>
                         <label cssClasses={["osd-percentage"]} label={brightnessPercent} />
                     </box>
+                    <TarjetaMicrofonoOSD />
                 </box>
-                <revealer
-                    revealChild={micOsdVisible}
-                    transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
-                    transitionDuration={180}
-                >
-                    <box cssClasses={["osd-mic-spacer"]} />
-                </revealer>
             </box>
         </window>
     )

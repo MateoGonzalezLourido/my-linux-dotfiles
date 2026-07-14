@@ -1233,12 +1233,6 @@ progressbar.osd-progress {
   color: $text;
 }
 
-.osd-mic-spacer {
-  // Cada OSD vive en su propia ventana centrada. Al coincidir, este espacio del
-  // ancho de una tarjeta desplaza uno a cada lado dejando un hueco de 12px.
-  min-width: 242px;
-}
-
 // ── bar-pill-btn (wrapper del bar-pill clickeable) ────────────────────────────
 .Bar .bar-pill-btn {
   @extend %chrome-reset;
@@ -1356,39 +1350,6 @@ window.qs-window > box,
   font-weight: 400;
   color: $qs-text-dim;
   margin: 0;
-}
-
-.qs-notif-btn {
-  background: transparent;
-  background-color: transparent;
-  border: none;
-  box-shadow: none;
-  text-shadow: none;
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  margin: 0 4px 0 0;
-  color: rgba(255, 255, 255, 0.4);
-  transition: color 150ms ease;
-
-  &:hover {
-    color: rgba(255, 255, 255, 0.95);
-  }
-
-  &.has-notifs {
-    color: $violet;
-
-    &:hover {
-      color: #d8bbf9;
-    }
-  }
-
-  .qs-notif-icon {
-    font-family: $font-icon;
-    font-size: 17px;
-    margin: 0;
-    padding: 0;
-  }
 }
 
 // ── Tiles 2×2 ─────────────────────────────────────────────────────────────────
@@ -2314,7 +2275,7 @@ tooltip {
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.07);
     label { color: rgba($text, 0.9); }
   }
 
@@ -2712,9 +2673,14 @@ button.qs-user-settings-btn {
   box-shadow: none;
   padding: 0;
   min-width: 28px;
+  transition: background-color 140ms ease, color 140ms ease;
 
   .bar-status-pair & {
     margin-right: 0;
+  }
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.07);
   }
 
   .nb-icon {
