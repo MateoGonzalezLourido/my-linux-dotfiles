@@ -91,11 +91,6 @@ export default function MicIndicator() {
             cssClasses={isMuted((m) =>
                 m ? ["recording", "mic-indicator", "muted"] : ["recording", "mic-indicator"],
             )}
-            tooltipText={isMuted((m) =>
-                m
-                    ? "Micrófono silenciado (app usándolo) · clic derecho para reactivar"
-                    : "Micrófono activo · clic derecho para silenciar",
-            )}
         >
             <Gtk.GestureClick
                 button={Gdk.BUTTON_SECONDARY}

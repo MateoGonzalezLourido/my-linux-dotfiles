@@ -39,7 +39,7 @@ export default function NotificationButton() {
     <button
       visible={hasNotifs((hn) => hn)}
       cssClasses={["bar-pill-btn"]}
-      tooltipText={unread((u) => u > 0 ? `${u} sin leer` : "Notificaciones")}
+      tooltipText={unread((u) => String(u))}
       onClicked={() => {
         if (notifPanelVisible.get()) {
           closeNotifPanel()

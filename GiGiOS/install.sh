@@ -35,14 +35,16 @@ case "$INSTALL_PACKAGES" in
   0|1) ;;
   *) die "INSTALL_PACKAGES debe valer 0 (omitir paquetes) o 1 (instalarlos); recibido: '$INSTALL_PACKAGES'." ;;
 esac
+(( EUID != 0 )) || die "No ejecutes este instalador como root; usa tu usuario normal (sudo se pedirá cuando haga falta)."
 
 install_packages() {
   local official=(
     git curl python xdg-utils base-devel util-linux polkit
+    less man-db wget tar expac hwinfo openbsd-netcat neovim
     hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
-    ttf-meslo-nerd rofi cliphist wl-clipboard brightnessctl ddcutil playerctl
+    ttf-meslo-nerd ttf-cascadia-code-nerd rofi cliphist wl-clipboard brightnessctl ddcutil playerctl
     qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
     nm-connection-editor blueman fish kitty dolphin kservice
     zsh oh-my-zsh-git zsh-completions zsh-autosuggestions
@@ -62,8 +64,21 @@ install_packages() {
   }
   command -v pacman >/dev/null || die "La instalación automática solo admite Arch/CachyOS (falta pacman). Usá INSTALL_PACKAGES=0 y seguí hypr/SETUP.md."
   command -v sudo >/dev/null || die "Falta sudo. Instálalo y concede permisos al usuario antes de continuar."
+  # CachyOS ofrece su perfil Pure de Fish y el actualizador de mirrors. En Arch
+  # puro esos paquetes no existen, así que sólo se agregan cuando el repositorio
+  # configurado los proporciona. VS Code se instala sólo si ningún paquete ya
+  # aporta el comando `code` (por ejemplo visual-studio-code-bin).
+  local optional_official
+  for optional_official in cachyos-fish-config cachyos-rate-mirrors; do
+    pacman -Si "$optional_official" >/dev/null 2>&1 && official+=("$optional_official")
+  done
+  command -v code >/dev/null 2>&1 || official+=(code)
   info "Instalando dependencias de repos oficiales ..."
   run_interactive sudo pacman -S --needed "${official[@]}"
+
+  info "Actualizando el índice local de pkgfile para sugerir paquetes cuando falte un comando ..."
+  run_interactive sudo pkgfile --update \
+    || warn "No pude actualizar pkgfile; command-not-found funcionará después de ejecutar 'sudo pkgfile --update'."
 
   local astal_ready=1 namespace
   command -v ags >/dev/null || astal_ready=0
@@ -86,6 +101,25 @@ install_packages() {
   info "Activando los servicios que usa el panel de red y Bluetooth ..."
   sudo systemctl enable --now NetworkManager.service bluetooth.service \
     || warn "No pude activar NetworkManager/Bluetooth ahora; actívalos antes de iniciar Hyprland."
+}
+
+configure_default_shell() {
+  local zsh_path current_shell current_user
+  zsh_path="$(command -v zsh 2>/dev/null || true)"
+  [[ -n "$zsh_path" ]] || die "Zsh no está instalado; no puedo activar la configuración restaurada."
+  grep -Fxq "$zsh_path" /etc/shells \
+    || die "$zsh_path no figura en /etc/shells; añádelo antes de continuar."
+
+  current_user="$(id -un)"
+  current_shell="$(getent passwd "$current_user" | cut -d: -f7)"
+  if [[ "$current_shell" == "$zsh_path" ]]; then
+    info "Zsh ya es el shell predeterminado de $current_user."
+    return
+  fi
+
+  info "Estableciendo Zsh como shell predeterminado de $current_user ..."
+  run_interactive chsh -s "$zsh_path" \
+    || die "No pude cambiar el shell a $zsh_path. Ejecutá: chsh -s '$zsh_path'"
 }
 
 install_packages
@@ -206,6 +240,8 @@ else
 fi
 
 # --- 7. Verificación y notas finales ---
+configure_default_shell
+
 if [ -x "$HOME/GiGiOS/bin/preflight.sh" ]; then
   info "Validando la instalación ..."
   HOME="$HOME" GIGIOS="$HOME/GiGiOS" "$HOME/GiGiOS/bin/preflight.sh" --installed \
@@ -218,7 +254,7 @@ echo "  • Rama:     $BRANCH"
 cat <<'EOF'
   • Secreto:  ~/.config/gigios/spotify-creds.json NO viene en el repo (git-ignored).
               Restaurá tu copia o corré  ~/GiGiOS/ags/scripts/spotify-auth.sh
-  • Shell:    abrí una terminal nueva para tener el alias 'dotfiles'.
+  • Shell:    Zsh quedó como predeterminado; abrí una terminal nueva para cargarlo.
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:
               dotfiles remote set-url origin git@github.com:MateoGonzalezLourido/my-linux-dotfiles.git
   • Hardware: antes de iniciar Hyprland elegí el perfil GPU; ver hypr/SETUP.md.

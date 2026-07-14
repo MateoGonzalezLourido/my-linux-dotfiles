@@ -1977,7 +1977,7 @@ popover.tray-overflow-popover.closing > contents {
 .power-button {
   all: unset;
   padding: 34px 30px;
-  transition: box-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1), transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
   color: rgba(226, 226, 226, 0.4);
   min-width: 128px;
   min-height: 148px;
@@ -1999,8 +1999,9 @@ popover.tray-overflow-popover.closing > contents {
   min-width: 56px;
   min-height: 56px;
   color: #ffffff;
-  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), text-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), opacity 120ms ease-out;
   opacity: 0.62;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.32);
   margin: 0;
 }
 .power-button .power-label {
@@ -2008,18 +2009,18 @@ popover.tray-overflow-popover.closing > contents {
   font-weight: 700;
   margin: 12px 0 0 0;
   opacity: 0.62;
-  transition: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.32);
+  transition: opacity 120ms ease-out;
 }
 .power-button:hover {
   background: linear-gradient(135deg, rgb(137, 180, 250), #cba6f7);
   color: #ffffff;
-  transform: translateY(-2px) scaleY(1.045);
+  transform: translateY(-2px) scale(1.045);
   box-shadow: none;
 }
 .power-button:hover .power-icon {
   opacity: 1;
   transform: translateY(-1px) scale(1.16);
-  text-shadow: 0 0 14px rgba(255, 255, 255, 0.42), 0 0 26px rgba(203, 166, 247, 0.32);
   margin: 0;
 }
 .power-button:hover .power-label {

@@ -73,8 +73,12 @@ alias egrep='egrep --color=auto'
 alias hw='hwinfo --short'
 alias big="expac -H M '%m\\t%n' | sort -h | nl"
 alias gitpkg="pacman -Q | grep -i -- '-git' | wc -l"
-alias update='sudo cachyos-rate-mirrors && sudo pacman -Syu'
-alias mirror='sudo cachyos-rate-mirrors'
+if command -v cachyos-rate-mirrors >/dev/null 2>&1; then
+    alias update='sudo cachyos-rate-mirrors && sudo pacman -Syu'
+    alias mirror='sudo cachyos-rate-mirrors'
+else
+    alias update='sudo pacman -Syu'
+fi
 alias apt='man pacman'
 alias apt-get='man pacman'
 alias tb='nc termbin.com 9999'

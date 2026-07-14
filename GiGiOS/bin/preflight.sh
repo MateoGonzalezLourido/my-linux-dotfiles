@@ -79,7 +79,10 @@ if [[ "$mode" == "--installed" ]]; then
     nm-connection-editor:nm-connection-editor bluetoothctl:bluez-utils
     blueman-manager:blueman bc:bc inotifywait:inotify-tools
     dbus-monitor:dbus rfkill:util-linux pkexec:polkit btop:btop kitty:kitty
-    zsh:zsh fzf:fzf eza:eza bat:bat duf:duf pkgfile:pkgfile fastfetch:fastfetch
+    zsh:zsh stty:util-linux fzf:fzf eza:eza bat:bat duf:duf
+    pkgfile:pkgfile fastfetch:fastfetch less:less man:man-db whatis:man-db
+    wget:wget tar:tar expac:expac hwinfo:hwinfo nc:openbsd-netcat nvim:neovim
+    code:code fc-match:fontconfig
     dolphin:dolphin kbuildsycoca6:kservice xdg-open:xdg-utils
     clamscan:clamav firejail:firejail bwrap:bubblewrap
     xdg-user-dir:xdg-user-dirs
@@ -104,6 +107,34 @@ if [[ "$mode" == "--installed" ]]; then
     [[ -f "$zsh_file" ]] || { fail "falta configuración Zsh: $zsh_file"; continue; }
     zsh -n "$zsh_file" || fail "sintaxis Zsh: $zsh_file"
   done
+  zsh -ic '
+    [[ "$(bindkey -M emacs "^C")" == *fish_clear_commandline* ]] &&
+    [[ "$(bindkey -M emacs $'"'"'\e[13;5u'"'"')" == *accept-line* ]] &&
+    [[ "$POWERLEVEL9K_DIR_FOREGROUND" == 4 ]] &&
+    [[ "$POWERLEVEL9K_PROMPT_CHAR_OK_VIINS_FOREGROUND" == 5 ]] &&
+    [[ "$ZSH_HIGHLIGHT_STYLES[default]" == fg=6 ]] &&
+    (( ${precmd_functions[(I)_fish_ctrl_c_for_zle]} )) &&
+    (( ${preexec_functions[(I)_fish_ctrl_c_for_commands]} ))
+  ' >/dev/null 2>&1 || fail "Zsh no cargó los bindings o la paleta de Fish"
+  for fish_file in "$HOME/.config/fish/config.fish" "$HOME/.config/fish/functions/"*.fish; do
+    [[ -f "$fish_file" ]] || { fail "falta configuración Fish: $fish_file"; continue; }
+    fish -n "$fish_file" || fail "sintaxis Fish: $fish_file"
+  done
+  kitty +runpy 'from kitty.config import load_config; load_config()' >/dev/null 2>&1 \
+    || fail "Kitty no puede cargar ~/.config/kitty/kitty.conf"
+  font_family="$(fc-match -f '%{family}' 'CaskaydiaCove Nerd Font Mono' 2>/dev/null)"
+  [[ "$font_family" == *CaskaydiaCove* || "$font_family" == *Caskaydia\ Cove* ]] \
+    || fail "falta CaskaydiaCove Nerd Font (sudo pacman -S --needed ttf-cascadia-code-nerd)"
+  current_user="$(id -un)"
+  login_shell="$(getent passwd "$current_user" | cut -d: -f7)"
+  [[ "$(readlink -f "$login_shell" 2>/dev/null)" == "$(readlink -f "$(command -v zsh)")" ]] \
+    || fail "Zsh no es el shell predeterminado de $current_user (actual: $login_shell)"
+  if pacman -Si cachyos-fish-config >/dev/null 2>&1; then
+    [[ -r /usr/share/cachyos-fish-config/cachyos-config.fish ]] \
+      || fail "falta el perfil Fish de CachyOS (sudo pacman -S --needed cachyos-fish-config)"
+    command -v cachyos-rate-mirrors >/dev/null 2>&1 \
+      || fail "falta cachyos-rate-mirrors para los alias update/mirror"
+  fi
   optional_commands=(nvidia-smi gh fd lshw glxinfo sensors smartctl magick)
   for command in "${optional_commands[@]}"; do
     command -v "$command" >/dev/null 2>&1 || warn "comando opcional no disponible: $command"
