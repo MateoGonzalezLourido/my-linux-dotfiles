@@ -508,6 +508,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   const win = (
     <window
       name="notification-panel"
+      namespace="notification-panel"
       visible={panelRendered}
       gdkmonitor={gdkmonitor}
       layer={Astal.Layer.TOP}

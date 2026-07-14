@@ -189,7 +189,9 @@ export default function NotificationItem({ notif }: { notif: StoredNotification 
   const visibleActions = notif.actions.filter(a => a.id !== "default" && a.label.trim() !== "")
 
   const unreadIndicator = color((c) => notif.read ? "background: transparent;" : `background: ${c};`)
-  const bgTint = color((c) => notif.read ? "" : `background: rgba(${hexToRgb(c)}, 0.06);`)
+  const bgTint = color((c) => notif.read
+    ? ""
+    : `background: ${fondoOpacoDesdeHex(c, 0.06)};`)
 
   return (
     <box
@@ -473,11 +475,18 @@ function stripMarkup(text: string): string {
     .replace(/&apos;/g, "'")
 }
 
-function hexToRgb(hex: string): string {
+function fondoOpacoDesdeHex(hex: string, opacidad: number): string {
   const h = hex.replace("#", "")
-  if (h.length !== 6) return "255,255,255"
-  const r = parseInt(h.substring(0, 2), 16)
-  const g = parseInt(h.substring(2, 4), 16)
-  const b = parseInt(h.substring(4, 6), 16)
-  return `${r},${g},${b}`
+  const colorValido = h.length === 6 && /^[0-9a-f]+$/i.test(h)
+  const r = colorValido ? parseInt(h.substring(0, 2), 16) : 255
+  const g = colorValido ? parseInt(h.substring(2, 4), 16) : 255
+  const b = colorValido ? parseInt(h.substring(4, 6), 16) : 255
+  const alfa = Math.max(0, Math.min(1, opacidad))
+
+  // El panel sólido anterior era rgb(8, 8, 12). Precomponer aquí el tinte
+  // conserva el color visual de las no leídas sin dejar pasar el blur.
+  const salidaR = 8 + (r - 8) * alfa
+  const salidaG = 8 + (g - 8) * alfa
+  const salidaB = 12 + (b - 12) * alfa
+  return `rgb(${salidaR}, ${salidaG}, ${salidaB})`
 }

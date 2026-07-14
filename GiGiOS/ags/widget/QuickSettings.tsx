@@ -3492,6 +3492,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
 
   const result = <window
     name="quick-settings"
+    namespace="quick-settings"
     visible={qsRendered}
     gdkmonitor={gdkmonitor}
     layer={Astal.Layer.TOP}

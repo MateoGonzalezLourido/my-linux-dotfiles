@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use 'widget/orion/orion';
 
 $bg-bar: rgba(8, 8, 12);
@@ -1252,7 +1253,20 @@ progressbar.osd-progress {
 }
 
 // ── Quick Settings Panel ──────────────────────────────────────────────────────
-$qs-bg: rgba(12, 12, 18, 1);
+$qs-bg-opaco: rgb(8, 8, 12);
+
+// Conserva el aspecto que tenía cada tinte sobre el antiguo fondo sólido, pero
+// devuelve un color RGB final. Así los controles tapan el blur de la lámina.
+@function fondo-qs-opaco($tinte) {
+  $tinte-opaco: color.change($tinte, $alpha: 1);
+  @return color.mix(
+    $tinte-opaco,
+    $qs-bg-opaco,
+    $weight: color.alpha($tinte) * 100%,
+  );
+}
+
+$qs-bg: rgba(8, 8, 12, 0.94);
 $qs-accent: #00f2ff;
 $qs-accent2: #7000ff;
 $qs-green: #00ff9d;
@@ -1260,7 +1274,7 @@ $qs-yellow: #fff200;
 $qs-orange: #ff7b00;
 $qs-text: $white;
 $qs-text-dim: rgba(255, 255, 255, 0.5);
-$qs-tile-act: rgba(0, 242, 255, 0.1);
+$qs-tile-act: fondo-qs-opaco(rgba(0, 242, 255, 0.1));
 $qs-tile-brd: rgba(0, 242, 255, 0.3);
 
 window.qs-window,
@@ -1288,13 +1302,13 @@ window.qs-window > box,
 
 .qs-bar-connector {
   background-color: transparent;
-  background-image: radial-gradient(circle at 0% 100%, transparent 18px, $bg-bar 18.5px);
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, $qs-bg 18.5px);
   min-width: 18px;
   min-height: 18px;
 }
 
 .qs-panel {
-  background-color: $bg-bar;
+  background-color: $qs-bg;
   border: none;
   border-top-right-radius: 0;
   border-top-left-radius: 0;
@@ -1354,7 +1368,7 @@ window.qs-window > box,
 
 // ── Tiles 2×2 ─────────────────────────────────────────────────────────────────
 .qs-tile {
-  background: transparent;
+  background: $qs-bg-opaco;
   border: 1px solid transparent;
   border-radius: 14px;
   padding: 4px 6px;
@@ -1366,13 +1380,13 @@ window.qs-window > box,
   margin: 1px;
 
   &:hover {
-    background-color: rgba(255, 255, 255, 0.035);
+    background-color: fondo-qs-opaco(rgba(255, 255, 255, 0.035));
     border-color: rgba(255, 255, 255, 0.045);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.008);
   }
 
   &.active {
-    background: rgba(0, 242, 255, 0.12);
+    background: fondo-qs-opaco(rgba(0, 242, 255, 0.12));
     border-color: rgba(0, 242, 255, 0.45);
     box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.12), 0 0 12px rgba(0, 242, 255, 0.08);
 
@@ -1384,7 +1398,7 @@ window.qs-window > box,
     }
 
     &:hover {
-      background-color: rgba(0, 242, 255, 0.16);
+      background-color: fondo-qs-opaco(rgba(0, 242, 255, 0.16));
       border-color: rgba(0, 242, 255, 0.58);
       box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.16), 0 0 14px rgba(0, 242, 255, 0.11);
     }
@@ -1448,7 +1462,7 @@ window.qs-window > box,
 .qs-media {
   // background-color (NO el shorthand `background`): el shorthand incluye
   // `background-image: none` y pisaba la carátula que se pone inline con css=.
-  background-color: rgba(137, 180, 250, 0.04);
+  background-color: fondo-qs-opaco(rgba(137, 180, 250, 0.04));
   border: none;
   border-radius: 20px;
   // padding 0: la carátula (Gtk.Picture de fondo) va a sangre; el padding real lo
@@ -1680,6 +1694,7 @@ window.qs-window > box,
 
 button.qs-inline-value-btn {
   @extend %chrome-reset;
+  background: $qs-bg-opaco;
   margin: 0;
   padding: 0;
   min-height: 0;
@@ -1692,7 +1707,7 @@ button.qs-inline-value-btn {
 }
 
 entry.qs-inline-number-input {
-  background: transparent;
+  background: $qs-bg-opaco;
   border: none;
   outline: none;
   box-shadow: none;
@@ -1771,13 +1786,13 @@ entry.qs-inline-number-input {
 }
 
 button.qs-dropdown-header {
-  background: transparent;
+  background: $qs-bg-opaco;
   border: none;
   padding: 0;
 }
 
 .qs-sink-item {
-  background: transparent;
+  background: $qs-bg-opaco;
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 6px 8px;
@@ -1785,11 +1800,11 @@ button.qs-dropdown-header {
   transition: all 100ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
   }
 
   &.active {
-    background: rgba(139, 120, 255, 0.18);
+    background: fondo-qs-opaco(rgba(139, 120, 255, 0.18));
     border-color: rgba(139, 120, 255, 0.3);
     color: $qs-accent2;
   }
@@ -1829,7 +1844,7 @@ button.qs-dropdown-header {
 
 button.qs-display-monitor-pill {
   @extend %chrome-reset;
-  background: rgba(255, 255, 255, 0.05);
+  background: fondo-qs-opaco(rgba(255, 255, 255, 0.05));
   border: 1px solid transparent;
   border-radius: 8px;
   min-height: 0;
@@ -1838,10 +1853,10 @@ button.qs-display-monitor-pill {
   font-size: 12px;
   transition: all 120ms ease;
 
-  &:hover { background: rgba(255, 255, 255, 0.08); }
+  &:hover { background: fondo-qs-opaco(rgba(255, 255, 255, 0.08)); }
 
   &.active {
-    background: rgba(203, 166, 247, 0.18);
+    background: fondo-qs-opaco(rgba(203, 166, 247, 0.18));
     border-color: rgba(203, 166, 247, 0.4);
     color: $violet;
   }
@@ -2064,6 +2079,46 @@ button.sp-add-rule {
   &:hover { background: rgba(203, 166, 247, 0.20); }
 }
 
+// Estos controles también se reutilizan en la vista de pantalla de Quick
+// Settings. Solo allí se solidifican; la ventana general conserva su estilo.
+.qs-panel {
+  button.sp-step-btn {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
+
+    &:hover { background: fondo-qs-opaco(rgba(255, 255, 255, 0.10)); }
+  }
+
+  entry.sp-num-input {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
+
+    &:focus-within {
+      background: fondo-qs-opaco(rgba(255, 255, 255, 0.09));
+    }
+  }
+
+  .sp-rule-card {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
+
+    &.active { background: fondo-qs-opaco(rgba(203, 166, 247, 0.07)); }
+  }
+
+  .sp-rule-active-chip {
+    background: fondo-qs-opaco(rgba(203, 166, 247, 0.18));
+  }
+
+  button.sp-rule-del {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.05));
+
+    &:hover { background: fondo-qs-opaco(rgba(243, 139, 168, 0.18)); }
+  }
+
+  button.sp-add-rule {
+    background: fondo-qs-opaco(rgba(203, 166, 247, 0.12));
+
+    &:hover { background: fondo-qs-opaco(rgba(203, 166, 247, 0.20)); }
+  }
+}
+
 // No molestar automático: lista de apps que silencian en pantalla completa
 .adnd-apps { margin-top: 2px; }
 .adnd-app-name {
@@ -2084,7 +2139,7 @@ scale.qs-slider {
   trough {
     min-height: 4px;
     border-radius: $radius-pill;
-    background: rgba(255, 255, 255, 0.06);
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
   }
 
   progress {
@@ -2155,6 +2210,7 @@ scale.qs-slider {
 // ── Quick settings toggle ─────────────────────────────────────────────────────
 button.qs-toggle {
   @extend %chrome-reset;
+  background: $qs-bg-opaco;
   padding: 0;
   min-width: 28px;
   min-height: 16px;
@@ -2162,7 +2218,7 @@ button.qs-toggle {
   transition: background-color 150ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.05));
   }
 
   &:focus {
@@ -2198,7 +2254,9 @@ button.qs-toggle {
   }
 
   &:disabled {
-    opacity: 0.4;
+    // El estado deshabilitado sigue sin responder, pero no vuelve translúcido
+    // todo el widget ni deja reaparecer el blur a través de él.
+    opacity: 1;
   }
 }
 
@@ -2215,7 +2273,7 @@ button.qs-toggle {
 }
 
 .qs-avatar {
-  background: rgba(139, 120, 255, 0.2);
+  background: fondo-qs-opaco(rgba(139, 120, 255, 0.2));
   border: 1px solid rgba(139, 120, 255, 0.3);
   border-radius: 999px;
   min-width: 30px;
@@ -2259,7 +2317,7 @@ tooltip {
 
 // ── Panel header icon buttons ──────────────────────────────────────────────
 .qs-icon-btn {
-  background: transparent;
+  background: $qs-bg-opaco;
   border: none;
   border-radius: 6px;
   min-width: 26px;
@@ -2275,12 +2333,12 @@ tooltip {
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.07));
     label { color: rgba($text, 0.9); }
   }
 
   &.active {
-    background: rgba(203, 166, 247, 0.14);
+    background: fondo-qs-opaco(rgba(203, 166, 247, 0.14));
     label { color: $violet; }
   }
 
@@ -2337,7 +2395,7 @@ button.qs-user-settings-btn {
   }
 
   .qs-wifi-search {
-    background: rgba(255, 255, 255, 0.012);
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.012));
     border: 1px solid rgba(255, 255, 255, 0.025);
     border-radius: 7px;
     padding: 0 9px;
@@ -2345,11 +2403,11 @@ button.qs-user-settings-btn {
     transition: border-color 120ms ease, background 120ms ease;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.022);
+      background: fondo-qs-opaco(rgba(255, 255, 255, 0.022));
     }
 
     &:focus-within {
-      background: rgba(255, 255, 255, 0.03);
+      background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
       border-color: rgba(203, 166, 247, 0.11);
     }
 
@@ -2395,18 +2453,18 @@ button.qs-user-settings-btn {
 }
 
 .qs-wifi-item {
-  background: transparent;
+  background: $qs-bg-opaco;
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 6px 10px;
   transition: all 100ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
   }
 
   &.active {
-    background: rgba(0, 242, 255, 0.12);
+    background: fondo-qs-opaco(rgba(0, 242, 255, 0.12));
     border-color: rgba(0, 242, 255, 0.35);
 
     .qs-wifi-signal-bar.active {
@@ -2415,7 +2473,7 @@ button.qs-user-settings-btn {
   }
 
   &.portal {
-    background: rgba(255, 123, 0, 0.15);
+    background: fondo-qs-opaco(rgba(255, 123, 0, 0.15));
     border-color: rgba(255, 123, 0, 0.4);
     box-shadow: 0 0 15px rgba(255, 123, 0, 0.1);
 
@@ -2434,7 +2492,7 @@ button.qs-user-settings-btn {
   }
 
   &.known {
-    background: rgba(245, 50, 105, 0.03);
+    background: fondo-qs-opaco(rgba(245, 50, 105, 0.03));
     border-color: rgba(245, 50, 105, 0.1);
 
     .qs-wifi-signal-bar.active {
@@ -2507,7 +2565,7 @@ button.qs-user-settings-btn {
 }
 
 .qs-wifi-info-section {
-  background: rgba(20, 20, 30, 0.45);
+  background: fondo-qs-opaco(rgba(20, 20, 30, 0.45));
   margin: 0 10px 10px 10px;
   padding: 12px;
   border-radius: 12px;
@@ -2595,7 +2653,7 @@ button.qs-user-settings-btn {
 
 // ── Audio/Mic Items ───────────────────────────────────────────────────────────
 .qs-audio-item {
-  background: rgba(255, 255, 255, 0.03);
+  background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   margin-bottom: 3px;
@@ -2603,11 +2661,11 @@ button.qs-user-settings-btn {
   transition: background 150ms ease, border-color 150ms ease;
 
   &:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.07);
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.07));
   }
 
   &.active {
-    background: rgba(89, 180, 250, 0.13);
+    background: fondo-qs-opaco(rgba(89, 180, 250, 0.13));
     border-color: rgba(89, 180, 250, 0.38);
 
     .qs-audio-name {
@@ -2927,6 +2985,19 @@ popover.upd-popover-container {
 
 
 // ── Notification Panel ────────────────────────────────────────────────────────
+$np-bg-opaco: rgb(8, 8, 12);
+
+@function fondo-np-opaco($tinte) {
+  $tinte-opaco: color.change($tinte, $alpha: 1);
+  @return color.mix(
+    $tinte-opaco,
+    $np-bg-opaco,
+    $weight: color.alpha($tinte) * 100%,
+  );
+}
+
+$np-bg: rgba(8, 8, 12, 0.94);
+
 window.np-window,
 window.np-window.background,
 window.np-window.csd {
@@ -2951,13 +3022,13 @@ window.np-window.csd decoration {
 
 .np-bar-connector {
   background-color: transparent;
-  background-image: radial-gradient(circle at 0% 100%, transparent 18px, $bg-bar 18.5px);
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, $np-bg 18.5px);
   min-width: 18px;
   min-height: 18px;
 }
 
 .np-panel {
-  background: $bg-bar;
+  background: $np-bg;
   border: none;
   border-radius: 14px;
   border-top-left-radius: 0;
@@ -3008,14 +3079,14 @@ window.np-window.csd decoration {
 }
 
 .np-unread-badge-btn {
-  background: rgba(203, 166, 247, 0.12);
+  background: fondo-np-opaco(rgba(203, 166, 247, 0.12));
   border: none;
   border-radius: $radius-pill;
   padding: 1px 7px;
   min-height: 18px;
   transition: all 120ms ease;
 
-  &:hover { background: rgba(203, 166, 247, 0.22); }
+  &:hover { background: fondo-np-opaco(rgba(203, 166, 247, 0.22)); }
 
   label { margin: 0; }
 }
@@ -3028,7 +3099,7 @@ window.np-window.csd decoration {
 }
 
 .np-icon-btn {
-  background: transparent;
+  background: $np-bg-opaco;
   border: none;
   border-radius: 6px;
   min-width: 28px;
@@ -3037,16 +3108,16 @@ window.np-window.csd decoration {
   transition: all 120ms ease-out;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: fondo-np-opaco(rgba(255, 255, 255, 0.07));
   }
 
   &.active {
-    background: rgba(203, 166, 247, 0.12);
+    background: fondo-np-opaco(rgba(203, 166, 247, 0.12));
     .np-btn-icon { color: $violet; }
   }
 
   &.dnd-active {
-    background: rgba($pink, 0.12);
+    background: fondo-np-opaco(rgba($pink, 0.12));
     .np-btn-icon { color: $pink; }
   }
 
@@ -3054,12 +3125,12 @@ window.np-window.csd decoration {
     .np-btn-icon { color: rgba($pink, 0.45); }
 
     &:hover {
-      background: rgba($pink, 0.1);
+      background: fondo-np-opaco(rgba($pink, 0.1));
       .np-btn-icon { color: $pink; }
     }
 
     &.confirm {
-      background: rgba($pink, 0.15);
+      background: fondo-np-opaco(rgba($pink, 0.15));
       .np-btn-icon { color: $pink; }
     }
   }
@@ -3127,19 +3198,19 @@ window.np-window.csd decoration {
 }
 
 .np-filter-chip {
-  background: transparent;
+  background: $np-bg-opaco;
   border: none;
   border-radius: 6px;
   padding: 3px 10px;
   transition: background 100ms ease;
 
   &.active {
-    background: rgba(203, 166, 247, 0.12);
+    background: fondo-np-opaco(rgba(203, 166, 247, 0.12));
     .np-filter-chip-label { color: $violet; }
   }
 
   &:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.06);
+    background: fondo-np-opaco(rgba(255, 255, 255, 0.06));
   }
 
   .np-filter-chip-label {
@@ -3191,13 +3262,13 @@ window.np-window.csd decoration {
 }
 
 .np-group-header {
-  background: transparent;
+  background: $np-bg-opaco;
   border: none;
   padding: 6px 14px;
   transition: background 100ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: fondo-np-opaco(rgba(255, 255, 255, 0.04));
   }
 }
 
@@ -3216,7 +3287,7 @@ window.np-window.csd decoration {
 }
 
 .np-group-badge {
-  background: rgba(203, 166, 247, 0.2);
+  background: fondo-np-opaco(rgba(203, 166, 247, 0.2));
   border-radius: $radius-pill;
   padding: 0 5px;
 }
@@ -3246,6 +3317,7 @@ window.np-window.csd decoration {
 }
 
 .notif-item {
+  background: $np-bg-opaco;
   transition: background 150ms ease-out;
 }
 
@@ -3403,7 +3475,7 @@ window.np-window.csd decoration {
 }
 
 .notif-dbus-btn {
-  background: rgba(255, 255, 255, 0.04);
+  background: fondo-np-opaco(rgba(255, 255, 255, 0.04));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   padding: 2px 10px;
@@ -3412,7 +3484,7 @@ window.np-window.csd decoration {
   transition: all 100ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: fondo-np-opaco(rgba(255, 255, 255, 0.1));
     color: $text;
   }
 
@@ -3422,12 +3494,12 @@ window.np-window.csd decoration {
 // Reply box
 .notif-reply-box {
   border-top: 0.5px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  background: fondo-np-opaco(rgba(255, 255, 255, 0.02));
   padding: 6px 8px;
 }
 
 .notif-reply-entry {
-  background: rgba(255, 255, 255, 0.06);
+  background: fondo-np-opaco(rgba(255, 255, 255, 0.06));
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 4px 8px;
@@ -3437,7 +3509,7 @@ window.np-window.csd decoration {
 }
 
 .notif-reply-send {
-  background: rgba(137, 180, 250, 0.1);
+  background: fondo-np-opaco(rgba(137, 180, 250, 0.1));
   border: 1px solid rgba(137, 180, 250, 0.2);
   border-radius: 6px;
   min-width: 28px;
@@ -3446,14 +3518,14 @@ window.np-window.csd decoration {
   transition: all 100ms ease;
 
   &:hover {
-    background: rgba(137, 180, 250, 0.2);
+    background: fondo-np-opaco(rgba(137, 180, 250, 0.2));
   }
 
   label { margin: 0; }
 }
 
 .notif-reply-cancel {
-  background: transparent;
+  background: $np-bg-opaco;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   min-width: 28px;
@@ -3466,7 +3538,7 @@ window.np-window.csd decoration {
 
   &:hover {
     color: $pink;
-    background: rgba($pink, 0.1);
+    background: fondo-np-opaco(rgba($pink, 0.1));
   }
 
   label { margin: 0; }
