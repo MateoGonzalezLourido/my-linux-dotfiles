@@ -1,4 +1,3 @@
-@charset "UTF-8";
 .Orion {
   background: transparent;
 }
@@ -3111,10 +3110,18 @@ tooltip label {
 button.qs-user-settings-btn {
   min-width: 26px;
   min-height: 26px;
+  border: none;
+  box-shadow: none;
+  outline: none;
 }
 button.qs-user-settings-btn label {
   font-size: 15px;
   margin: 0 2px 0 0;
+}
+button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-user-settings-btn:active {
+  border: none;
+  box-shadow: none;
+  outline: none;
 }
 
 .qs-wifi-menu {
