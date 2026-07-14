@@ -2,7 +2,8 @@ import { Gtk } from "ags/gtk4"
 import { With, createState } from "ags"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
-import { AVATAR_PATH, avatarRevision, refreshAvatar } from "./avatar"
+import ProfileAvatar from "./ProfileAvatar"
+import { AVATAR_PATH, refreshAvatar } from "./avatar"
 
 type Notice = { kind: "idle" | "working" | "ok" | "error"; text: string }
 
@@ -28,14 +29,6 @@ function cleanAdminError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   if (/incorrect password|authentication failure|try again/i.test(message)) return "La contraseña de administrador no es correcta."
   return message.replace(/^sudo:\s*/i, "") || "No se pudo completar la operación."
-}
-
-function Avatar({ user }: { user: string }) {
-  return <With value={avatarRevision}>{(_revision: number) =>
-    GLib.file_test(AVATAR_PATH, GLib.FileTest.EXISTS)
-      ? <box cssClasses={["account-avatar"]} css={`background-image: url("file://${AVATAR_PATH}");`} />
-      : <label cssClasses={["account-avatar", "fallback"]} label={user.slice(0, 2).toUpperCase()} />
-  }</With>
 }
 
 export default function AccountSection() {
@@ -110,7 +103,13 @@ export default function AccountSection() {
       </box>
 
       <box cssClasses={["account-profile-card"]} spacing={14} valign={Gtk.Align.CENTER}>
-        <Avatar user={currentUser} />
+        <ProfileAvatar
+          size={58}
+          fallbackLabel={currentUser.slice(0, 2).toUpperCase()}
+          fallbackCssClasses={["account-avatar", "fallback"]}
+          borderWidth={2}
+          borderRgba={[203 / 255, 166 / 255, 247 / 255, 0.45]}
+        />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={7} hexpand>
           <label cssClasses={["account-current-user"]} label={currentUser} halign={Gtk.Align.START} />
           <label cssClasses={["sp-field-hint"]} label={`@${GLib.get_host_name()}`} halign={Gtk.Align.START} />

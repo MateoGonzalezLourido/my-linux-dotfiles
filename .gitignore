@@ -92,3 +92,16 @@ GiGiOS/ags/.vscode/
 .config/zsh/.zsh_history
 # Cachés de compinit, se regeneran solos — no aporta versionarlos.
 .config/zsh/.zcompdump*
+
+# --- Kitty (~/.config/kitty) ---
+
+# Selector local generado por GiGiOS/bin/kitty-profile.sh. Los dos perfiles se
+# versionan, pero cada máquina decide cuál activa sin ensuciar el checkout.
+.config/kitty/active-profile.conf
+
+# --- Firefox (~/.config/firefox) ---
+
+# Selector y user.js compuesto por GiGiOS/bin/firefox-profile.sh. Las fuentes
+# base.js y profiles/*.js sí se versionan; cada máquina decide cuál activa.
+.config/firefox/active-profile.js
+.config/firefox/user.js

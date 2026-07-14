@@ -58,7 +58,13 @@ export default function NotificationButton() {
         halign={Gtk.Align.CENTER}
         valign={Gtk.Align.CENTER}
       >
-        <label cssClasses={iconClasses} label={iconLabel} hexpand halign={Gtk.Align.CENTER} />
+        <label
+          cssClasses={iconClasses}
+          label={iconLabel}
+          hexpand
+          halign={Gtk.Align.CENTER}
+          valign={Gtk.Align.CENTER}
+        />
       </box>
     </button>
   )

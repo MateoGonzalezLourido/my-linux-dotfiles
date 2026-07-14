@@ -17,6 +17,16 @@ GiGiOS is a personal Hyprland/Wayland dotfiles tree. The real files live here an
 
 Follow existing TypeScript/TSX style in `ags/`: functional widgets, explicit `ags/gtk4` and `gi://...` imports, and feature-local modules. Keep generated `ags/out.css` and `ags/out.css.map` out of manual edits; change `ags/style.scss` instead. Hyprland files use lowercase descriptive names ending in `.conf`; scripts use lowercase kebab-style names ending in `.sh`.
 
+## Machine Profiles
+
+Before adding or changing per-machine `laptop`/`desktop` settings for any
+application, read `docs/anadir-perfiles-por-equipo.md` and follow its shared
+layout and selector contract. This also applies when touching the installer,
+`bin/preflight.sh`, generated active-profile files, ignore rules, or profile
+documentation. Use the existing Kitty and Firefox implementations as the
+reference cases; do not introduce a separate profile mechanism without
+documenting why the shared pattern cannot support the application.
+
 ## Testing Guidelines
 
 Tests use Node's built-in test runner and live beside implementation files as `*.test.ts`. Prefer tests for pure logic without GTK imports, especially notification rules, history, cleanup, settings migrations, display logic, and Spotify parsing. For UI changes, manually verify with `ags run ~/.config/ags/app.ts`.

@@ -46,6 +46,17 @@ migrates leftover AGS JSON from the old `~/.config/ags/config/` into `~/.config/
 and re-applies `core.hooksPath`. `install.sh` is the fresh-machine path: it clones the bare
 dotfiles repo, checks out into `$HOME` (backing up conflicts), then runs `link.sh --force`.
 
+## Per-machine application profiles
+
+Before adding or modifying `laptop`/`desktop` configuration for an application,
+read **`docs/anadir-perfiles-por-equipo.md`**. It defines the repository-wide
+layout, the `auto|laptop|desktop|status` selector contract, tracked versus local
+generated files, installer and preflight integration, and clean-install tests.
+Follow the Kitty and Firefox implementations as its reference cases. This rule
+also applies to changes made only in `install.sh`, `bin/preflight.sh`, ignore
+rules, or profile documentation; do not create an independent profile mechanism
+unless the application's limitations are documented there.
+
 ## Runtime config & secrets live OUTSIDE the repo
 
 User/runtime state is **not** versioned. It lives in `~/.config/gigios/` (`display.json`,

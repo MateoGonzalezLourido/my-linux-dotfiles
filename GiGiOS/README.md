@@ -16,6 +16,8 @@ archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 - `assets/face.png` — foto personal opcional e ignorada por Git (copia de runtime: `~/.cache/gigios/face.png`)
 - `_legacy/`        — copias archivadas sin uso
 - `bin/link.sh`     — crea/repara/valida los symlinks
+- `bin/kitty-profile.sh` — selecciona el perfil de Kitty de esta máquina
+- `bin/firefox-profile.sh` — compone y aplica el perfil de Firefox en su perfil real
 
 ## Instalación nueva (Arch/CachyOS)
 
@@ -26,6 +28,22 @@ validación final:
 ```sh
 curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | bash
 ```
+
+Kitty elige automáticamente el perfil de bajo consumo en equipos con batería y
+el perfil responsivo en sobremesas. Se puede forzar durante la instalación con
+`KITTY_PROFILE=laptop` o `KITTY_PROFILE=desktop`. La estructura, los valores y
+el cambio posterior están documentados en [docs/kitty-profiles.md](docs/kitty-profiles.md).
+
+Firefox usa la misma detección con `FIREFOX_PROFILE`. Su selector resuelve el
+nombre aleatorio del perfil predeterminado y enlaza allí el `user.js` generado;
+así la configuración sí se aplica en cada arranque. Consulta
+[docs/firefox-profiles.md](docs/firefox-profiles.md) para ver las diferencias y
+las preferencias de seguridad corregidas.
+
+Para añadir otra aplicación con variantes por equipo, sigue la guía
+[docs/anadir-perfiles-por-equipo.md](docs/anadir-perfiles-por-equipo.md). Incluye
+la estructura, el contrato del selector, integración con el instalador,
+preflight y las pruebas de una instalación limpia.
 
 Antes de iniciar Hyprland, revisa la GPU en `hypr/hyprland.conf`. Por seguridad
 no se activa ningún perfil específico en una instalación nueva. Los únicos
@@ -48,6 +66,8 @@ comando `sass` que compila `ags/style.scss`.
 ```sh
 bin/link.sh          # crea o repara los symlinks
 bin/link.sh --check  # solo reporta estado
+bin/kitty-profile.sh status # muestra el perfil de Kitty activo
+bin/firefox-profile.sh status # comprueba el user.js del perfil real
 bin/preflight.sh --installed # archivos, scripts, comandos y enlaces
 ```
 

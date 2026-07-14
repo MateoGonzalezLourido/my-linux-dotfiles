@@ -1,3 +1,4 @@
+@charset "UTF-8";
 .Orion {
   background: transparent;
 }
@@ -2390,22 +2391,40 @@ window.qs-window > box,
   margin: -1px 0 0;
 }
 .qs-media .qs-media-btn {
-  background: transparent;
+  background-color: transparent;
+  background-image: none;
   border: none;
+  box-shadow: none;
+  outline: none;
   color: #ffffff;
   font-family: "MesloLGS Nerd Font";
   font-size: 16px;
   padding: 0 1px;
   border-radius: 7px;
-  transition: opacity 200ms ease, background 200ms ease;
+  transition: opacity 200ms ease, background-color 200ms ease;
   transform: none;
   opacity: 0.8;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
 }
 .qs-media .qs-media-btn:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+  outline: none;
   transform: none;
+}
+.qs-media .qs-media-btn:active {
+  background-color: rgba(255, 255, 255, 0.18);
+  box-shadow: none;
+  outline: none;
+}
+.qs-media .qs-media-btn:focus, .qs-media .qs-media-btn:focus-visible, .qs-media .qs-media-btn:checked {
+  background-image: none;
+  box-shadow: none;
+  outline: none;
+}
+.qs-media .qs-media-btn:focus:not(:hover):not(:active), .qs-media .qs-media-btn:checked:not(:hover):not(:active) {
+  background-color: transparent;
 }
 .qs-media .qs-media-btn label {
   margin: 0;
@@ -3020,24 +3039,13 @@ button.qs-toggle:disabled {
 .qs-avatar {
   background: rgba(139, 120, 255, 0.2);
   border: 1px solid rgba(139, 120, 255, 0.3);
-  border-radius: 50%;
+  border-radius: 999px;
   min-width: 30px;
   min-height: 30px;
   color: #7000ff;
   font-size: 10px;
   font-weight: 700;
   margin: 0;
-}
-
-.qs-avatar-img {
-  border-radius: 50%;
-  min-width: 30px;
-  min-height: 30px;
-  border: 1px solid rgba(139, 120, 255, 0.3);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .qs-username {
@@ -3441,7 +3449,7 @@ button.qs-user-settings-btn label {
   font-family: "MesloLGS Nerd Font";
   font-size: 16px;
   color: rgba(226, 226, 226, 0.48);
-  margin-left: -2px;
+  margin: 0;
 }
 .bar-pill.nb-pill .nb-icon.has-notifs {
   color: #cba6f7;
@@ -5353,7 +5361,7 @@ button.dl-city-result:hover {
 .account-avatar {
   min-width: 58px;
   min-height: 58px;
-  border-radius: 50%;
+  border-radius: 999px;
   border: 2px solid rgba(203, 166, 247, 0.45);
   background-size: cover;
   background-position: center;

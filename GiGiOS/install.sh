@@ -7,11 +7,15 @@
 #   curl -sSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | bash
 #   curl -sSL <url> | DOTFILES_BRANCH=desktop bash    # otra rama
 #   curl -sSL <url> | INSTALL_PACKAGES=0 bash        # sin instalar paquetes
+#   curl -sSL <url> | KITTY_PROFILE=desktop bash      # forzar perfil de Kitty
+#   curl -sSL <url> | FIREFOX_PROFILE=desktop bash    # forzar perfil de Firefox
 #
 # Variables:
 #   DOTFILES_REPO    URL del repo   (por defecto HTTPS público)
 #   DOTFILES_BRANCH  rama a instalar (por defecto: laptop)
 #   INSTALL_PACKAGES 1 instala las dependencias (por defecto); 0 las omite
+#   KITTY_PROFILE    auto, laptop o desktop (por defecto: auto)
+#   FIREFOX_PROFILE  auto, laptop o desktop (por defecto: auto)
 set -euo pipefail
 
 REPO_URL="${DOTFILES_REPO:-https://github.com/MateoGonzalezLourido/my-linux-dotfiles.git}"
@@ -19,6 +23,8 @@ BRANCH="${DOTFILES_BRANCH:-laptop}"
 DOTGIT="$HOME/.dotfiles"
 BACKUP="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
 INSTALL_PACKAGES="${INSTALL_PACKAGES:-1}"
+KITTY_PROFILE="${KITTY_PROFILE:-auto}"
+FIREFOX_PROFILE="${FIREFOX_PROFILE:-auto}"
 
 dotfiles() { git --git-dir="$DOTGIT" --work-tree="$HOME" "$@"; }
 info() { printf '\033[1;36m::\033[0m %s\n' "$*"; }
@@ -35,6 +41,14 @@ case "$INSTALL_PACKAGES" in
   0|1) ;;
   *) die "INSTALL_PACKAGES debe valer 0 (omitir paquetes) o 1 (instalarlos); recibido: '$INSTALL_PACKAGES'." ;;
 esac
+case "$KITTY_PROFILE" in
+  auto|laptop|desktop) ;;
+  *) die "KITTY_PROFILE debe ser auto, laptop o desktop; recibido: '$KITTY_PROFILE'." ;;
+esac
+case "$FIREFOX_PROFILE" in
+  auto|laptop|desktop) ;;
+  *) die "FIREFOX_PROFILE debe ser auto, laptop o desktop; recibido: '$FIREFOX_PROFILE'." ;;
+esac
 (( EUID != 0 )) || die "No ejecutes este instalador como root; usa tu usuario normal (sudo se pedirá cuando haga falta)."
 
 install_packages() {
@@ -46,7 +60,7 @@ install_packages() {
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
     ttf-meslo-nerd ttf-cascadia-code-nerd rofi cliphist wl-clipboard brightnessctl ddcutil playerctl
     qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
-    nm-connection-editor blueman fish kitty dolphin kservice
+    nm-connection-editor blueman fish kitty firefox dolphin kservice
     zsh oh-my-zsh-git zsh-completions zsh-autosuggestions
     zsh-syntax-highlighting zsh-history-substring-search zsh-theme-powerlevel10k
     fzf eza bat duf pkgfile fastfetch
@@ -175,7 +189,27 @@ else
   die "No encontré $LINK. El checkout no contiene GiGiOS/bin/link.sh."
 fi
 
-# --- 4. Generar el CSS que importa app.ts ---
+# --- 4. Seleccionar el perfil de rendimiento de Kitty ---
+KITTY_SELECTOR="$HOME/GiGiOS/bin/kitty-profile.sh"
+if [ -x "$KITTY_SELECTOR" ]; then
+  info "Seleccionando el perfil de Kitty ($KITTY_PROFILE) ..."
+  "$KITTY_SELECTOR" "$KITTY_PROFILE" \
+    || die "No se pudo activar el perfil de Kitty '$KITTY_PROFILE'."
+else
+  die "No encontré $KITTY_SELECTOR. El checkout no contiene el selector de perfiles de Kitty."
+fi
+
+# --- 5. Seleccionar y aplicar el perfil de rendimiento de Firefox ---
+FIREFOX_SELECTOR="$HOME/GiGiOS/bin/firefox-profile.sh"
+if [ -x "$FIREFOX_SELECTOR" ]; then
+  info "Seleccionando el perfil de Firefox ($FIREFOX_PROFILE) ..."
+  "$FIREFOX_SELECTOR" "$FIREFOX_PROFILE" \
+    || die "No se pudo activar el perfil de Firefox '$FIREFOX_PROFILE'."
+else
+  die "No encontré $FIREFOX_SELECTOR. El checkout no contiene el selector de perfiles de Firefox."
+fi
+
+# --- 6. Generar el CSS que importa app.ts ---
 SCSS="$HOME/GiGiOS/ags/style.scss"
 CSS="$HOME/GiGiOS/ags/out.css"
 APP_ICONS="$HOME/GiGiOS/ags/config/app_icons.json"
@@ -198,7 +232,7 @@ if ! sass_error="$(sass --no-source-map "$SCSS" "$CSS" 2>&1)"; then
   die "Sass no pudo compilar $SCSS. Reprodúcelo con: sass --no-source-map '$SCSS' '$CSS'"
 fi
 
-# --- 5. Reconstruir la caché de aplicaciones de KDE/Dolphin ---
+# --- 7. Reconstruir la caché de aplicaciones de KDE/Dolphin ---
 if command -v kbuildsycoca6 >/dev/null; then
   info "Reconstruyendo la caché de aplicaciones de KDE 6 ..."
   kbuildsycoca6 --noincremental
@@ -209,7 +243,7 @@ else
   warn "No encontré kbuildsycoca6 ni kbuildsycoca5; el menú 'Abrir con...' podría quedar vacío."
 fi
 
-# --- 6. Ficheros de sistema (/etc) ---
+# --- 8. Ficheros de sistema (/etc) ---
 # NO se symlinkean, se copian: udev y systemd leen /etc antes de que $HOME esté montado, y
 # apuntar /etc a un directorio escribible por el usuario sería una escalada silenciosa.
 # Sin este paso la instalación arranca igual, pero con dos fallos mudos:
@@ -239,7 +273,7 @@ else
   warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
 fi
 
-# --- 7. Verificación y notas finales ---
+# --- 9. Verificación y notas finales ---
 configure_default_shell
 
 if [ -x "$HOME/GiGiOS/bin/preflight.sh" ]; then
@@ -255,6 +289,8 @@ cat <<'EOF'
   • Secreto:  ~/.config/gigios/spotify-creds.json NO viene en el repo (git-ignored).
               Restaurá tu copia o corré  ~/GiGiOS/ags/scripts/spotify-auth.sh
   • Shell:    Zsh quedó como predeterminado; abrí una terminal nueva para cargarlo.
+  • Kitty:    el perfil se eligió según KITTY_PROFILE; cambiá con ~/GiGiOS/bin/kitty-profile.sh.
+  • Firefox:  el perfil se eligió según FIREFOX_PROFILE; reiniciá Firefox tras cambiarlo.
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:
               dotfiles remote set-url origin git@github.com:MateoGonzalezLourido/my-linux-dotfiles.git
   • Hardware: antes de iniciar Hyprland elegí el perfil GPU; ver hypr/SETUP.md.

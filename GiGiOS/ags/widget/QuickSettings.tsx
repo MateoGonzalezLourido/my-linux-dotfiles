@@ -4,7 +4,7 @@ import { createState, For, With, createComputed } from "ags"
 import { createBinding } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
-import { AVATAR_PATH, avatarRevision } from "./settings/avatar"
+import ProfileAvatar from "./settings/ProfileAvatar"
 import { barTopMargin } from "./settings/preferences"
 import AstalWp from "gi://AstalWp"
 import AstalNetwork from "gi://AstalNetwork"
@@ -46,6 +46,7 @@ import { DisplaySelect } from "./display/controls"
 import { InlineEditableValue } from "./InlineEditableValue"
 import { getIcon } from "./bar/appIcons"
 import { getBluetoothTileInfo } from "./bluetooth/tileState"
+import { resolveMediaLengthSeconds, safeMediaPosition } from "./mediaProgress"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -1293,6 +1294,38 @@ function QsMedia() {
   let currentP: any = null
   let mediaContentWidget: Gtk.Widget | null = null
   let switchingPlayer = false
+  const fallbackLengths = new Map<string, number>()
+  const pendingLengthQueries = new Set<string>()
+  const lengthQueryAttempts = new Map<string, number>()
+  const primedFirefoxTracks = new Set<string>()
+  let sessionBus: Gio.DBusConnection | null = null
+
+  // Firefox tiene una carrera conocida en su bridge MPRIS: si el servicio se
+  // registra después de durationchange, Metadata nace sin mpris:length y no lo
+  // vuelve a calcular hasta el siguiente comando que cambia el estado. Un ciclo
+  // Pause/Play consecutivo conserva el estado PLAYING y fuerza ese cálculo. Solo
+  // se usa una vez por pista, con el panel abierto y si ambos comandos existen.
+  const primeFirefoxLength = (busName: string): boolean => {
+    try {
+      sessionBus ??= Gio.bus_get_sync(Gio.BusType.SESSION, null)
+      const call = (method: "Pause" | "Play") => sessionBus!.call_sync(
+        busName,
+        "/org/mpris/MediaPlayer2",
+        "org.mpris.MediaPlayer2.Player",
+        method,
+        null,
+        null,
+        Gio.DBusCallFlags.NONE,
+        500,
+        null,
+      )
+      call("Pause")
+      call("Play")
+      return true
+    } catch (_) {
+      return false
+    }
+  }
 
   // Contador de anuncios del bloque actual. Spotify no expone por MPRIS cuántos
   // anuncios hay ni en cuál vas, así que los contamos: cada trackid de anuncio
@@ -1407,13 +1440,22 @@ function QsMedia() {
       playerGlyph.set_visible(false)
       playerIcon.set_visible(true)
     }
-    // Algunos reproductores (Firefox/YouTube) no exponen duración ni posición por
-    // MPRIS. Sin dato, ocultamos la barra y los tiempos en vez de mostrar 0:00 muerto.
-    if (p.length > 0) {
+    // Firefox puede aparecer en Astal antes de que Player.length se inicialice. El
+    // metadato MPRIS bruto ya contiene la duración, en microsegundos, así que lo
+    // leemos directamente antes de concluir que este reproductor no tiene progreso.
+    let rawMprisLength: unknown = null
+    try { rawMprisLength = p.get_meta?.("mpris:length")?.deep_unpack?.() } catch (_) {}
+
+    const progressKey = `${p.bus_name || ""}\0${p.trackid || ""}\0${p.title || ""}`
+    const directLength = resolveMediaLengthSeconds(p.length, rawMprisLength)
+    const mediaLength = directLength ?? fallbackLengths.get(progressKey) ?? null
+
+    if (mediaLength !== null) {
+      const mediaPosition = safeMediaPosition(p.position, mediaLength)
       setHasProgress(true)
-      setProg(p.position / p.length)
-      setPositionLabel(formatMediaTime(p.position))
-      setDurationLabel(formatMediaTime(p.length))
+      setProg(mediaPosition / mediaLength)
+      setPositionLabel(formatMediaTime(mediaPosition))
+      setDurationLabel(formatMediaTime(mediaLength))
     } else {
       setHasProgress(false)
       setProg(0)
@@ -1421,6 +1463,55 @@ function QsMedia() {
       // expansibles mantienen los controles centrados aunque no haya tiempos.
       setPositionLabel("")
       setDurationLabel("")
+
+      const isFirefox = String(p.bus_name || "").toLowerCase().includes("firefox")
+      const canPrimeFirefox = isFirefox
+        && quickSettingsVisible.get()
+        && p.playback_status === AstalMpris.PlaybackStatus.PLAYING
+        && p.can_pause
+        && p.can_play
+        && !primedFirefoxTracks.has(progressKey)
+
+      if (canPrimeFirefox) {
+        primedFirefoxTracks.add(progressKey)
+        if (primeFirefoxLength(p.bus_name)) {
+          // Deja que Astal procese PropertiesChanged antes de volver a leer Metadata.
+          GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            update()
+            return GLib.SOURCE_REMOVE
+          })
+          return
+        }
+      }
+
+      // Algunas versiones de Astal también conservan el Metadata inicial vacío
+      // hasta el primer PropertiesChanged (por ejemplo al pausar Firefox). Consulta
+      // la fuente MPRIS real (con unos pocos reintentos por la carrera inicial) y
+      // conserva el resultado. El límite evita sondear para siempre streams sin fin.
+      const queryAttempts = lengthQueryAttempts.get(progressKey) ?? 0
+      if (queryAttempts < 3 && !pendingLengthQueries.has(progressKey)) {
+        const playerName = String(p.bus_name || "")
+          .replace(/^org\.mpris\.MediaPlayer2\./, "")
+        if (playerName) {
+          lengthQueryAttempts.set(progressKey, queryAttempts + 1)
+          pendingLengthQueries.add(progressKey)
+          execAsync(["playerctl", "-p", playerName, "metadata", "mpris:length"])
+            .then((output) => {
+              const fallbackLength = resolveMediaLengthSeconds(0, output.trim())
+              if (fallbackLength !== null) {
+                fallbackLengths.set(progressKey, fallbackLength)
+                while (fallbackLengths.size > 32) {
+                  const oldest = fallbackLengths.keys().next().value
+                  if (oldest === undefined) break
+                  fallbackLengths.delete(oldest)
+                }
+              }
+              pendingLengthQueries.delete(progressKey)
+              if (fallbackLength !== null) update()
+            })
+            .catch(() => pendingLengthQueries.delete(progressKey))
+        }
+      }
     }
 
     // Fallback theme for non-cover UI. The background filter uses the real cover color.
@@ -1492,6 +1583,8 @@ function QsMedia() {
   // CORTA la altura del fondo pase lo que pase con la imagen. Es el hijo principal
   // del Overlay; así el Overlay no puede crecer más que la tarjeta.
   const CARD_H = 94
+  // 70% del ancho útil: (panel 330 - padding panel 20 - padding media 28) × 0.7.
+  const MEDIA_SOURCE_MAX_W = 197
   const bgCap = new Gtk.ScrolledWindow()
   bgCap.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
   bgCap.set_propagate_natural_height(false)
@@ -1525,14 +1618,16 @@ function QsMedia() {
   colorFilter.set_vexpand(true)
   colorFilter.set_content_width(1)
   colorFilter.set_content_height(CARD_H)
-  colorFilter.set_draw_func((_area, cr, width, height) => {
+  colorFilter.set_draw_func((_area, cr, _width, _height) => {
     if (!cover.get()) return
     const [r, g, b] = oneUiBgTone(cssRgbToTuple(coverAccent.get()))
     // Alpha medio: unifica el color pero DEJA VER la carátula por debajo, como
     // hace One UI (no un bloque opaco).
     cr.setSourceRGBA(r / 255, g / 255, b / 255, 0.45)
-    cr.rectangle(0, 0, width, height)
-    cr.fill()
+    // paint() cubre todo el clip real del DrawingArea. Un rectángulo de `height`
+    // unidades podía terminar entre píxeles con escalas fraccionales (p. ej. 1.25)
+    // y dejar la última fila parcialmente sin filtrar.
+    cr.paint()
   })
   const queueColorFilter = () => colorFilter.queue_draw()
   cover.subscribe(queueColorFilter)
@@ -1547,7 +1642,7 @@ function QsMedia() {
   coverScrim.set_vexpand(true)
   coverScrim.set_content_width(1)
   coverScrim.set_content_height(CARD_H)
-  coverScrim.set_draw_func((_area, cr, width, height) => {
+  coverScrim.set_draw_func((_area, cr, _width, height) => {
     if (!cover.get()) return
     // Degradado vertical real: arriba casi transparente (se ve la carátula), abajo
     // oscuro para dar contraste al texto/controles. Igual que One UI.
@@ -1557,13 +1652,11 @@ function QsMedia() {
       grad.addColorStopRGBA(0.55, 0, 0, 0, 0.30)
       grad.addColorStopRGBA(1, 0, 0, 0, 0.58)
       cr.setSource(grad)
-      cr.rectangle(0, 0, width, height)
-      cr.fill()
+      cr.paint()
     } catch (_) {
       // Fallback si el binding de GJS no expone LinearGradient: scrim plano.
       cr.setSourceRGBA(0, 0, 0, 0.34)
-      cr.rectangle(0, 0, width, height)
-      cr.fill()
+      cr.paint()
     }
   })
   const queueCoverScrim = () => coverScrim.queue_draw()
@@ -1618,9 +1711,11 @@ function QsMedia() {
         <label
           cssClasses={["qs-media-source"]}
           label={playerName}
-          hexpand
-          halign={Gtk.Align.START}
+          widthRequest={MEDIA_SOURCE_MAX_W}
+          xalign={0}
+          ellipsize={3}
         />
+        <box hexpand />
         <box spacing={0} valign={Gtk.Align.CENTER} visible={numPlayers((n) => n > 1)}>
           <button cssClasses={["qs-media-switch"]} onClicked={prevPlayer}>
             <label label="󰅁" />
@@ -1638,8 +1733,22 @@ function QsMedia() {
 
       <box spacing={10} vexpand valign={Gtk.Align.CENTER}>
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand valign={Gtk.Align.CENTER}>
-          <label cssClasses={["qs-media-title"]} label={title} halign={Gtk.Align.START} ellipsize={3} />
-          <label cssClasses={["qs-media-artist"]} label={artist} halign={Gtk.Align.START} ellipsize={3} />
+          <label
+            cssClasses={["qs-media-title"]}
+            label={title}
+            hexpand
+            halign={Gtk.Align.FILL}
+            xalign={0}
+            ellipsize={3}
+          />
+          <label
+            cssClasses={["qs-media-artist"]}
+            label={artist}
+            hexpand
+            halign={Gtk.Align.FILL}
+            xalign={0}
+            ellipsize={3}
+          />
         </box>
       </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-media-footer"]}>
@@ -1652,6 +1761,7 @@ function QsMedia() {
             label={positionLabel}
             halign={Gtk.Align.START}
             hexpand
+            marginEnd={10}
           />
           <box
             spacing={2}
@@ -1702,6 +1812,7 @@ function QsMedia() {
             label={durationLabel}
             halign={Gtk.Align.END}
             hexpand
+            marginStart={10}
           />
         </box>
       </box>
@@ -2376,18 +2487,16 @@ function QsFooter() {
   const host = GLib.get_host_name() ?? "host"
   const initials = user.slice(0, 2).toUpperCase()
 
-  // Foto de perfil: copia única de runtime en el cache XDG
-  // (~/.cache/gigios/face.png), compartida con hyprlock. La materializa
-  // bin/link.sh desde el master versionado assets/face.png.
   return (
     <box cssClasses={["qs-footer"]} spacing={10}>
       <box cssClasses={["qs-user-block"]} spacing={10} hexpand halign={Gtk.Align.START}>
-        <With value={avatarRevision}>{(_revision: number) =>
-          GLib.file_test(AVATAR_PATH, GLib.FileTest.EXISTS) ? (
-            <box cssClasses={["qs-avatar-img"]} css={`background-image: url("file://${AVATAR_PATH}");`}
-              valign={Gtk.Align.CENTER} halign={Gtk.Align.START} />
-          ) : <label cssClasses={["qs-avatar"]} label={initials} halign={Gtk.Align.START} />
-        }</With>
+        <ProfileAvatar
+          size={30}
+          fallbackLabel={initials}
+          fallbackCssClasses={["qs-avatar"]}
+          borderWidth={1}
+          borderRgba={[139 / 255, 120 / 255, 1, 0.3]}
+        />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={1} valign={Gtk.Align.CENTER}>
           <label cssClasses={["qs-username"]} label={user} halign={Gtk.Align.START} />
           <label cssClasses={["qs-hostname"]} label={`@${host}`} halign={Gtk.Align.START} />

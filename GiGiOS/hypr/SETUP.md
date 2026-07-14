@@ -15,6 +15,7 @@ El instalador se encarga de:
 - descargar la rama `laptop` mediante el repositorio bare de dotfiles;
 - respaldar los archivos locales que entren en conflicto;
 - crear los enlaces de `~/.config/ags`, `~/.config/hypr` y demás rutas XDG;
+- elegir los perfiles de Kitty y Firefox según la presencia de una batería;
 - compilar `style.scss` a `out.css`;
 - reconstruir la caché de aplicaciones de Dolphin;
 - copiar a `/etc` (con `sudo`) los ficheros de `system/`: la regla udev que evita perder datos al
@@ -25,6 +26,24 @@ El mismo comando sirve para actualizar un equipo que ya tenga GiGiOS instalado: 
 `fetch` en `~/.dotfiles`, avanza el checkout local hasta `origin/laptop` y vuelve a
 comprobar los enlaces. Un `git pull` realizado en otro clon independiente no actualiza
 por sí solo la copia desplegada por `~/.dotfiles`.
+
+El perfil de Kitty puede forzarse sin mantener ramas distintas para cada
+máquina:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh \
+  | KITTY_PROFILE=desktop bash
+```
+
+`KITTY_PROFILE` admite `auto` (predeterminado), `laptop` y `desktop`. Consulta
+[los perfiles de Kitty](../docs/kitty-profiles.md) para cambiarlo después de la
+instalación y diagnosticar el renderizado.
+
+Firefox se selecciona del mismo modo con `FIREFOX_PROFILE=auto|laptop|desktop`.
+El instalador localiza o crea su perfil predeterminado y enlaza allí el
+`user.js`; no depende del nombre aleatorio que Firefox asigne a la carpeta.
+Consulta [los perfiles de Firefox](../docs/firefox-profiles.md) para ver los
+ajustes y el procedimiento de cambio.
 
 **AGS sí es obligatorio.** GiGiOS no usa una barra o centro de notificaciones externo:
 `ags` ejecuta el shell completo y `AstalNotifd` proporciona el daemon y la interfaz de
@@ -443,7 +462,9 @@ necesita tu hardware.
 
 `envs/firefox.conf` solo activa Wayland/EGL y no fuerza un driver VA-API ni desactiva el
 sandbox multimedia. Los ajustes exclusivos de NVIDIA están aislados en el perfil de
-sobremesa.
+sobremesa. Las preferencias internas se gestionan por separado con
+`bin/firefox-profile.sh`, que enlaza el `user.js` compuesto al perfil
+predeterminado real.
 
 ```sh
 # solo si hay NVIDIA

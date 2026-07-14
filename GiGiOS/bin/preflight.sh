@@ -13,7 +13,7 @@ fail() { printf 'ERROR   %s\n' "$*" >&2; errors=$((errors + 1)); }
 warn() { printf 'AVISO   %s\n' "$*"; warnings=$((warnings + 1)); }
 
 required=(
-  install.sh bin/link.sh ags/app.ts ags/style.scss ags/out.css
+  install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh ags/app.ts ags/style.scss ags/out.css
   ags/widget/settings/SecuritySection.tsx ags/widget/settings/securityPrefs.ts
   hypr/hyprland.conf hypr/gpu/laptop-hibrida.conf hypr/gpu/sobremesa-nvidia.conf
   Wallpapers/sunset.jpg
@@ -45,7 +45,10 @@ while IFS= read -r script; do
   bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGIOS"/}"
   [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGIOS"/}"
 done < <(find "$GIGIOS/hypr/scripts" "$GIGIOS/ags/scripts" -type f -name '*.sh' -print)
-for script in "$GIGIOS/install.sh" "$GIGIOS/bin/link.sh" "$GIGIOS/bin/preflight.sh" "$GIGIOS/inicializador/init.sh"; do
+for script in \
+  "$GIGIOS/install.sh" "$GIGIOS/bin/link.sh" "$GIGIOS/bin/preflight.sh" \
+  "$GIGIOS/bin/kitty-profile.sh" "$GIGIOS/bin/firefox-profile.sh" \
+  "$GIGIOS/inicializador/init.sh"; do
   bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGIOS"/}"
   [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGIOS"/}"
 done
@@ -78,7 +81,7 @@ if [[ "$mode" == "--installed" ]]; then
     notify-send:libnotify nmcli:networkmanager
     nm-connection-editor:nm-connection-editor bluetoothctl:bluez-utils
     blueman-manager:blueman bc:bc inotifywait:inotify-tools
-    dbus-monitor:dbus rfkill:util-linux pkexec:polkit btop:btop kitty:kitty
+    dbus-monitor:dbus rfkill:util-linux pkexec:polkit btop:btop kitty:kitty firefox:firefox
     zsh:zsh stty:util-linux fzf:fzf eza:eza bat:bat duf:duf
     pkgfile:pkgfile fastfetch:fastfetch less:less man:man-db whatis:man-db
     wget:wget tar:tar expac:expac hwinfo:hwinfo nc:openbsd-netcat nvim:neovim
@@ -120,8 +123,152 @@ if [[ "$mode" == "--installed" ]]; then
     [[ -f "$fish_file" ]] || { fail "falta configuración Fish: $fish_file"; continue; }
     fish -n "$fish_file" || fail "sintaxis Fish: $fish_file"
   done
-  kitty +runpy 'from kitty.config import load_config; load_config()' >/dev/null 2>&1 \
-    || fail "Kitty no puede cargar ~/.config/kitty/kitty.conf"
+  kitty_dir="${KITTY_CONFIG_DIRECTORY:-${XDG_CONFIG_HOME:-$HOME/.config}/kitty}"
+  kitty_config="$kitty_dir/kitty.conf"
+  kitty_selector="$kitty_dir/active-profile.conf"
+  for kitty_file in \
+    "$kitty_config" "$kitty_dir/base.conf" "$kitty_dir/theme.conf" \
+    "$kitty_dir/profiles/laptop.conf" "$kitty_dir/profiles/desktop.conf"; do
+    [[ -f "$kitty_file" ]] || fail "falta configuración Kitty: $kitty_file"
+  done
+
+  kitty_profile=
+  kitty_expected=
+  if [[ ! -L "$kitty_selector" ]]; then
+    fail "falta el selector local de Kitty: $kitty_selector (ejecutá bin/kitty-profile.sh auto)"
+  else
+    kitty_target="$(readlink -f "$kitty_selector")"
+    case "$kitty_target" in
+      "$(readlink -f "$kitty_dir/profiles/laptop.conf")")
+        kitty_profile=laptop
+        kitty_expected='16,5,1,1,0,2000,0'
+        ;;
+      "$(readlink -f "$kitty_dir/profiles/desktop.conf")")
+        kitty_profile=desktop
+        kitty_expected='2,0,1,1,0,2000,5'
+        ;;
+      *) fail "el selector de Kitty apunta a un perfil desconocido: $kitty_target" ;;
+    esac
+  fi
+
+  validate_kitty_options() {
+    local path="$1" expected="$2" label="$3" validate_common="${4:-0}"
+    KITTY_VALIDATE_CONFIG="$path" \
+      KITTY_EXPECTED_OPTIONS="$expected" \
+      KITTY_VALIDATE_COMMON="$validate_common" \
+      kitty +runpy '
+import os
+import sys
+from kitty.config import load_config
+
+bad_lines = []
+options = load_config(
+    os.environ["KITTY_VALIDATE_CONFIG"],
+    accumulate_bad_lines=bad_lines,
+)
+if bad_lines:
+    for bad_line in bad_lines:
+        print(bad_line, file=sys.stderr)
+    raise SystemExit(1)
+expected = tuple(int(value) for value in os.environ["KITTY_EXPECTED_OPTIONS"].split(","))
+actual = (
+    int(options.repaint_delay),
+    int(options.input_delay),
+    int(options.sync_to_monitor),
+    int(options.cursor_trail),
+    int(options.cursor_blink_interval[0]),
+    int(options.scrollback_lines),
+    int(options.scrollback_pager_history_size // (1024 * 1024)),
+)
+if actual != expected:
+    print(f"valores efectivos {actual}; esperados {expected}", file=sys.stderr)
+    raise SystemExit(1)
+if os.environ["KITTY_VALIDATE_COMMON"] == "1":
+    common_ok = (
+        options.shell_integration == frozenset({"enabled"})
+        and options.allow_remote_control == "no"
+        and options.notify_on_cmd_finish.when == "invisible"
+        and options.notify_on_cmd_finish.duration == 15.0
+        and options.strip_trailing_spaces == "smart"
+        and options.scrollback_fill_enlarged_window
+        and options.tab_activity_symbol == "● "
+    )
+    if not common_ok:
+        print("las mejoras comunes de Kitty no están activas", file=sys.stderr)
+        raise SystemExit(1)
+' >/dev/null 2>&1 || fail "Kitty no cargó correctamente $label"
+  }
+
+  validate_kitty_options "$kitty_dir/profiles/laptop.conf" '16,5,1,1,0,2000,0' "profiles/laptop.conf"
+  validate_kitty_options "$kitty_dir/profiles/desktop.conf" '2,0,1,1,0,2000,5' "profiles/desktop.conf"
+  if [[ -n "$kitty_profile" ]]; then
+    validate_kitty_options "$kitty_config" "$kitty_expected" "kitty.conf con el perfil $kitty_profile" 1
+  fi
+
+  while IFS= read -r kitty_mapping; do
+    awk '{$1=$1; print}' "$kitty_config" | grep -Fqx "$kitty_mapping" \
+      || fail "falta el atajo de Kitty: $kitty_mapping"
+  done <<'EOF'
+map ctrl+enter send_text all \e[13;5u
+map alt+enter send_text all \e\r
+map ctrl+shift+z send_text all \e[122;6u
+map ctrl+shift+enter new_window_with_cwd
+map ctrl+shift+t new_tab_with_cwd
+map ctrl+shift+n new_os_window_with_cwd
+map ctrl+alt+z scroll_to_prompt -1
+map ctrl+alt+x scroll_to_prompt 1
+map ctrl+shift+g show_last_command_output
+map ctrl+shift+h show_scrollback
+map ctrl+shift+e open_url_with_hints
+map ctrl+alt+l clear_terminal last_command active
+EOF
+  firefox_dir="${FIREFOX_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/firefox}"
+  for firefox_file in \
+    "$firefox_dir/base.js" \
+    "$firefox_dir/profiles/laptop.js" \
+    "$firefox_dir/profiles/desktop.js"; do
+    [[ -f "$firefox_file" ]] || fail "falta configuración Firefox: $firefox_file"
+  done
+
+  while IFS='|' read -r firefox_file firefox_pref firefox_value; do
+    grep -Fqx "user_pref(\"$firefox_pref\", $firefox_value);" "$firefox_dir/$firefox_file" \
+      || fail "Firefox no tiene $firefox_pref=$firefox_value en $firefox_file"
+  done <<'EOF'
+profiles/laptop.js|dom.ipc.processCount|4
+profiles/laptop.js|dom.ipc.processCount.webIsolated|2
+profiles/laptop.js|browser.cache.memory.capacity|65536
+profiles/laptop.js|browser.tabs.unloadOnLowMemory|true
+profiles/laptop.js|browser.sessionstore.interval|60000
+profiles/laptop.js|network.prefetch-next|false
+profiles/laptop.js|general.smoothScroll|false
+profiles/desktop.js|dom.ipc.processCount|6
+profiles/desktop.js|dom.ipc.processCount.webIsolated|3
+profiles/desktop.js|browser.cache.memory.capacity|131072
+profiles/desktop.js|browser.tabs.unloadOnLowMemory|true
+profiles/desktop.js|browser.sessionstore.interval|30000
+profiles/desktop.js|network.prefetch-next|true
+profiles/desktop.js|general.smoothScroll|true
+EOF
+
+  if grep -Eq \
+    'user_pref\("(security\.OCSP\.enabled|browser\.safebrowsing\.(malware|phishing)\.enabled|media\.peerconnection\.enabled)",[[:space:]]*(0|false)\);|user_pref\("media\.hardware-video-decoding\.force-enabled",[[:space:]]*true\);' \
+    "$firefox_dir/base.js" "$firefox_dir/profiles/"*.js; then
+    fail "Firefox contiene una preferencia insegura o una aceleración forzada"
+  fi
+  while IFS='|' read -r firefox_pref firefox_value; do
+    grep -Fqx "user_pref(\"$firefox_pref\", $firefox_value);" "$firefox_dir/base.js" \
+      || fail "Firefox no restaura $firefox_pref=$firefox_value en base.js"
+  done <<'EOF'
+security.OCSP.enabled|1
+browser.safebrowsing.malware.enabled|true
+browser.safebrowsing.phishing.enabled|true
+browser.safebrowsing.downloads.enabled|true
+media.peerconnection.enabled|true
+reader.parse-on-load.enabled|true
+EOF
+  "$GIGIOS/bin/firefox-profile.sh" status >/dev/null 2>&1 \
+    || fail "el perfil de Firefox no está compuesto o enlazado correctamente"
+
   font_family="$(fc-match -f '%{family}' 'CaskaydiaCove Nerd Font Mono' 2>/dev/null)"
   [[ "$font_family" == *CaskaydiaCove* || "$font_family" == *Caskaydia\ Cove* ]] \
     || fail "falta CaskaydiaCove Nerd Font (sudo pacman -S --needed ttf-cascadia-code-nerd)"
