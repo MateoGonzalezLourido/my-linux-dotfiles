@@ -1133,12 +1133,33 @@ popover.tray-overflow-popover.closing > contents {
 }
 
 // ── OSD (On Screen Display) ──────────────────────────────────────────────────
+$osd-bg-opaco: rgb(8, 8, 12);
+$osd-bg: rgba(8, 8, 12, 0.94);
+
 @keyframes osd-enter {
   from { opacity: 0; transform: translateY(-5px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.osd-window {
+window.osd-window,
+window.osd-window.background,
+window.osd-window.csd {
+  background: none;
+  background-color: transparent;
+}
+
+window.osd-window decoration,
+window.osd-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+window.osd-window > box {
+  background: none;
   background-color: transparent;
 }
 
@@ -1146,10 +1167,10 @@ popover.tray-overflow-popover.closing > contents {
   min-width: 210px;
   min-height: 30px;
   padding: 4px 10px;
-  background-color: $bg-bar;
+  background-color: $osd-bg;
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 9px;
-  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.42);
+  box-shadow: none;
   animation: osd-enter 180ms cubic-bezier(0.22, 1, 0.36, 1);
 
   &.osd-volume {
@@ -1176,7 +1197,7 @@ popover.tray-overflow-popover.closing > contents {
       color: $pink;
     }
 
-    .osd-percentage { color: rgba($pink, 0.86); }
+    .osd-percentage { color: color.mix($pink, $osd-bg-opaco, 86%); }
 
     progressbar.osd-progress progress {
       background: $red;
@@ -1215,7 +1236,7 @@ progressbar.osd-progress {
   trough {
     min-height: 5px;
     border-radius: $radius-pill;
-    background-color: rgba(255, 255, 255, 0.09);
+    background-color: color.mix(white, $osd-bg-opaco, 9%);
   }
 
   progress {

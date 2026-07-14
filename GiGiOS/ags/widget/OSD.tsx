@@ -8,6 +8,10 @@ import {
 } from "./state"
 import { TarjetaMicrofonoOSD } from "./MicOSD"
 import { barAutoHideEnabled, volumeOsdEnabled } from "./settings/preferences"
+import { clipWindowInputToContent } from "./inputRegion"
+
+const RADIO_ESQUINAS_OSD = 9
+const DURACION_ENTRADA_OSD_MS = 180
 
 let osdTimeout: number | null = null
 
@@ -73,6 +77,22 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
     )
     const brightnessIcon = createComputed(() => getBrightnessIcon(brightness()))
     const brightnessPercent = createComputed(() => `${Math.round(brightness() * 100)}`)
+    let tarjetaVolumen: Gtk.Box
+    let tarjetaBrillo: Gtk.Box
+    let tarjetaMicrofono: Gtk.Box
+    let recalcularRegionEntrada: (() => void) | null = null
+    let temporizadorRecorte: number | null = null
+
+    const actualizarRegionEntrada = () => {
+        recalcularRegionEntrada?.()
+        if (temporizadorRecorte !== null) clearTimeout(temporizadorRecorte)
+        // La animación usa transform: hay que medir de nuevo cuando vuelve a
+        // identidad o la región conservaría el desplazamiento del primer frame.
+        temporizadorRecorte = setTimeout(() => {
+            recalcularRegionEntrada?.()
+            temporizadorRecorte = null
+        }, DURACION_ENTRADA_OSD_MS + 20)
+    }
 
     const updateVolumeVars = () => {
         if (!speaker) {
@@ -108,9 +128,10 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
     bindSpeaker(speaker)
     audio?.connect("notify::default-speaker", () => bindSpeaker(audio.defaultSpeaker ?? null))
 
-    return (
+    const win = (
         <window
             name="osd"
+            namespace="osd"
             visible={anyOsdVisible}
             gdkmonitor={gdkmonitor}
             layer={Astal.Layer.OVERLAY}
@@ -132,6 +153,7 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
                         halign={Gtk.Align.CENTER}
                         valign={Gtk.Align.START}
                         spacing={15}
+                        $={(self: Gtk.Box) => { tarjetaVolumen = self }}
                     >
                         <label cssClasses={["osd-icon"]} label={volumeIcon} />
                         <box cssClasses={["osd-progress-container"]} valign={Gtk.Align.CENTER} hexpand>
@@ -151,6 +173,7 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
                         halign={Gtk.Align.CENTER}
                         valign={Gtk.Align.START}
                         spacing={15}
+                        $={(self: Gtk.Box) => { tarjetaBrillo = self }}
                     >
                         <label cssClasses={["osd-icon"]} label={brightnessIcon} />
                         <box cssClasses={["osd-progress-container"]} valign={Gtk.Align.CENTER} hexpand>
@@ -163,9 +186,22 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
                         </box>
                         <label cssClasses={["osd-percentage"]} label={brightnessPercent} />
                     </box>
-                    <TarjetaMicrofonoOSD />
+                    <TarjetaMicrofonoOSD
+                        onSetup={(self) => { tarjetaMicrofono = self }}
+                    />
                 </box>
             </box>
         </window>
     )
+
+    recalcularRegionEntrada = clipWindowInputToContent(
+        win,
+        [tarjetaVolumen, tarjetaBrillo, tarjetaMicrofono],
+        { radioEsquinas: RADIO_ESQUINAS_OSD },
+    )
+    osdVisible.subscribe(actualizarRegionEntrada)
+    brightnessOsdVisible.subscribe(actualizarRegionEntrada)
+    micOsdVisible.subscribe(actualizarRegionEntrada)
+
+    return win
 }

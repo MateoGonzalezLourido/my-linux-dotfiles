@@ -40,7 +40,11 @@ function getMicOsdIcon(v: number, muted: boolean) {
     return "󰍬" // Unmuted mic icon
 }
 
-export function TarjetaMicrofonoOSD() {
+export function TarjetaMicrofonoOSD({
+    onSetup,
+}: {
+    onSetup?: (self: Gtk.Box) => void
+} = {}) {
     const wp = AstalWp.get_default()
     const audio = wp?.audio
     let microphone: AstalWp.Endpoint | null = audio?.defaultMicrophone ?? null
@@ -96,6 +100,7 @@ export function TarjetaMicrofonoOSD() {
             halign={Gtk.Align.CENTER}
             valign={Gtk.Align.START}
             spacing={15}
+            $={(self: Gtk.Box) => { onSetup?.(self) }}
         >
             <label cssClasses={["osd-icon"]} label={icon} />
             <box cssClasses={["osd-progress-container"]} valign={Gtk.Align.CENTER} hexpand>
