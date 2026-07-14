@@ -176,6 +176,10 @@ EOF
     || fail "falta la paleta oscura de qt6ct (sudo pacman -S --needed qt6ct)"
   [[ -r /usr/lib/qt6/plugins/platformthemes/libqt6ct.so ]] \
     || fail "falta el plugin de plataforma de qt6ct (sudo pacman -S --needed qt6ct)"
+  if pacman -Q hyprland >/dev/null 2>&1 &&
+    { pacman -Q hyprutils-git >/dev/null 2>&1 || pacman -Q hyprlang-git >/dev/null 2>&1; }; then
+    fail "Hyprland estable está mezclado con bibliotecas -git; restaura hyprutils e hyprlang estables"
+  fi
   [[ -r /usr/lib/qt6/plugins/kf6/thumbcreator/ffmpegthumbs.so ]] \
     || fail "falta el miniaturizador de vídeo (sudo pacman -S --needed ffmpegthumbs)"
   [[ -r /usr/lib/qt6/plugins/kf6/thumbcreator/gsthumbnail.so ]] \

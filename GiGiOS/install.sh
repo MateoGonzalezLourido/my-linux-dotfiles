@@ -55,6 +55,8 @@ install_packages() {
   local official=(
     git curl python xdg-utils shared-mime-info base-devel util-linux polkit
     less man-db wget tar expac hwinfo openbsd-netcat neovim
+    # Mantén esta pila en paquetes estables. qt6ct + Breeze proporcionan el
+    # tema Qt; hyprqt6engine-git no es necesario y fuerza bibliotecas -git.
     hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland qt6ct
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
@@ -74,7 +76,7 @@ install_packages() {
     alsa-utils inotify-tools dbus kmod
     networkmanager bluez bluez-utils xdg-user-dirs
     clamav firejail bubblewrap xxhash file cups geoclue
-    mesa-utils lshw fd github-cli imagemagick
+    mesa-utils lshw fd github-cli
   )
 
   [[ "$INSTALL_PACKAGES" == 1 ]] || {
@@ -83,6 +85,22 @@ install_packages() {
   }
   command -v pacman >/dev/null || die "La instalación automática solo admite Arch/CachyOS (falta pacman). Usá INSTALL_PACKAGES=0 y seguí hypr/SETUP.md."
   command -v sudo >/dev/null || die "Falta sudo. Instálalo y concede permisos al usuario antes de continuar."
+
+  # Pacman acepta paquetes -git como proveedores de hyprutils/hyprlang. Si ya
+  # están presentes, instalar Hyprland estable puede abrir un diálogo de
+  # conflictos o, peor, conservar una mezcla con ABI incompatible. No se
+  # desinstalan solos porque una máquina puede usar hyprland-git a propósito.
+  local paquete
+  local -a pila_hyprland_incompatible=()
+  for paquete in hyprland-git hyprqt6engine-git hyprutils-git hyprlang-git; do
+    pacman -Qq "$paquete" >/dev/null 2>&1 && pila_hyprland_incompatible+=("$paquete")
+  done
+  if (( ${#pila_hyprland_incompatible[@]} )); then
+    warn "Hay paquetes incompatibles con la pila estable que instala GiGiOS:"
+    printf '  - %s\n' "${pila_hyprland_incompatible[@]}" >&2
+    die "No modifico esa pila automáticamente. Sigue la recuperación de hypr/SETUP.md y repite el instalador."
+  fi
+
   # CachyOS ofrece su perfil Pure de Fish y el actualizador de mirrors. En Arch
   # puro esos paquetes no existen, así que sólo se agregan cuando el repositorio
   # configurado los proporciona. VS Code se instala sólo si ningún paquete ya

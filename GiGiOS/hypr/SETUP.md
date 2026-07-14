@@ -106,6 +106,26 @@ sudo pacman -S util-linux polkit hyprland hyprlock hypridle hyprpolkitagent hypr
   xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland qt6ct breeze
 ```
 
+Esta instalación usa deliberadamente la pila estable. No añadas
+`hyprqt6engine` ni `hyprqt6engine-git`: GiGiOS ya integra las aplicaciones Qt
+mediante `qt6ct` y Breeze. `hyprutils` y `hyprlang` tampoco se enumeran porque
+son dependencias internas de `hyprland` y Pacman debe resolver sus variantes
+estables. El instalador se detiene antes de modificar paquetes si encuentra
+`hyprland-git`, `hyprqt6engine-git`, `hyprutils-git` o `hyprlang-git`.
+
+Si `hyprqt6engine-git` se instaló por error, recupera la pila estable de forma
+interactiva:
+
+```sh
+sudo pacman -R hyprqt6engine-git
+sudo pacman -S hyprland hyprutils hyprlang
+```
+
+En el segundo comando acepta retirar las variantes `-git`. No uses
+`--noconfirm`: la respuesta predeterminada de Pacman ante esos conflictos es no
+retirarlas. Verifica después con
+`Hyprland --verify-config -c ~/.config/hypr/hyprland.conf`.
+
 - `hypridle` gestiona apagar pantalla / bloquear / suspender (`hypridle.conf`).
 - `hyprlock` es la pantalla de bloqueo (`hyprlock.conf`, usa `~/.cache/gigios/face.png`
   y el label `$USER` — no hace falta nada extra).
