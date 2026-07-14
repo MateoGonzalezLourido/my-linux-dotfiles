@@ -46,6 +46,10 @@ import {
 import { DisplaySelect } from "./display/controls"
 import { InlineEditableValue } from "./InlineEditableValue"
 import { getIcon } from "./bar/appIcons"
+import {
+  resolverRestauracionBluetooth,
+  valorBluetoothParaGuardar,
+} from "./bluetooth/estadoInicio"
 import { getBluetoothTileInfo } from "./bluetooth/tileState"
 import { resolveMediaLengthSeconds, safeMediaPosition } from "./mediaProgress"
 import { findMediaClient } from "./mediaClient"
@@ -482,32 +486,110 @@ function toggleBluetoothPower(bt: any) {
 }
 
 // ── System State Persistence (Wifi, BT, Vol) ──────────────────────────────────
-const SYSTEM_STATE_PATH = `${GLib.get_user_config_dir()}/gigios/system_state.json`
+const RUTA_ESTADO_SISTEMA = `${GLib.get_user_config_dir()}/gigios/system_state.json`
 
-let systemSaveTimeout: number | null = null
-function saveSystemState() {
-  if (systemSaveTimeout !== null) GLib.source_remove(systemSaveTimeout)
-  systemSaveTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+function cargarEstadoSistemaGuardado(): Record<string, unknown> {
+  if (!GLib.file_test(RUTA_ESTADO_SISTEMA, GLib.FileTest.EXISTS)) return {}
+
+  try {
+    const [ok, contenido] = GLib.file_get_contents(RUTA_ESTADO_SISTEMA)
+    if (ok) {
+      const estado = JSON.parse(new TextDecoder().decode(contenido))
+      if (estado && typeof estado === "object" && !Array.isArray(estado)) return estado
+    }
+  } catch (error) {
+    console.warn(`No se pudo leer el estado del sistema: ${bluetoothPowerError(error)}`)
+  }
+  return {}
+}
+
+const estadoSistemaGuardado = cargarEstadoSistemaGuardado()
+const objetivoBluetoothInicial = typeof estadoSistemaGuardado.bluetooth === "boolean"
+  ? estadoSistemaGuardado.bluetooth
+  : null
+let ultimoEstadoBluetoothConfirmado = objetivoBluetoothInicial
+let restauracionBluetoothCompletada = objetivoBluetoothInicial === null
+let restauracionBluetoothEnCurso = false
+
+let temporizadorGuardadoSistema: number | null = null
+function programarGuardadoEstadoSistema(demora: number) {
+  if (temporizadorGuardadoSistema !== null) GLib.source_remove(temporizadorGuardadoSistema)
+  temporizadorGuardadoSistema = GLib.timeout_add(GLib.PRIORITY_DEFAULT, demora, () => {
     try {
-      const dir = GLib.path_get_dirname(SYSTEM_STATE_PATH)
-      if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) execAsync(["mkdir", "-p", dir]).catch(() => { })
+      const directorio = GLib.path_get_dirname(RUTA_ESTADO_SISTEMA)
+      if (!GLib.file_test(directorio, GLib.FileTest.EXISTS)) GLib.mkdir_with_parents(directorio, 0o755)
       
       const wp = AstalWp.get_default()
-      const speaker = wp?.audio?.defaultSpeaker
-      const network = AstalNetwork.get_default()
-      const bt = AstalBluetooth.get_default()
+      const altavoz = wp?.audio?.defaultSpeaker
+      const red = AstalNetwork.get_default()
+      const bluetooth = AstalBluetooth.get_default()
       
-      const config = {
-        wifi: network?.wifi?.enabled ?? true,
-        bluetooth: bt?.adapter ? bt.isPowered : null,
-        volume: speaker?.volume ?? 0.5,
-        mute: speaker?.mute ?? false
+      const configuracion = {
+        wifi: red?.wifi?.enabled ?? true,
+        bluetooth: valorBluetoothParaGuardar(
+          ultimoEstadoBluetoothConfirmado,
+          restauracionBluetoothCompletada,
+          !!bluetooth?.adapter,
+          bluetooth?.isPowered ?? false,
+        ),
+        volume: altavoz?.volume ?? 0.5,
+        mute: altavoz?.mute ?? false
       }
-      GLib.file_set_contents(SYSTEM_STATE_PATH, JSON.stringify(config))
-    } catch (e) { }
-    systemSaveTimeout = null
+      GLib.file_set_contents(RUTA_ESTADO_SISTEMA, JSON.stringify(configuracion))
+    } catch (error) {
+      console.warn(`No se pudo guardar el estado del sistema: ${bluetoothPowerError(error)}`)
+    }
+    temporizadorGuardadoSistema = null
     return GLib.SOURCE_REMOVE
   })
+}
+
+function guardarEstadoSistema() {
+  programarGuardadoEstadoSistema(2000)
+}
+
+function guardarEstadoSistemaAhora() {
+  programarGuardadoEstadoSistema(0)
+}
+
+function registrarEstadoBluetoothConfirmado() {
+  const bluetooth = AstalBluetooth.get_default()
+  if (restauracionBluetoothCompletada && bluetooth?.adapter)
+    ultimoEstadoBluetoothConfirmado = bluetooth.isPowered
+}
+
+async function restaurarEstadoInicialBluetooth() {
+  if (restauracionBluetoothCompletada || restauracionBluetoothEnCurso) return
+
+  const bluetooth = AstalBluetooth.get_default()
+  const estado = resolverRestauracionBluetooth(
+    objetivoBluetoothInicial,
+    !!bluetooth?.adapter,
+    bluetooth?.isPowered ?? false,
+  )
+  if (estado.completada) {
+    restauracionBluetoothCompletada = true
+    return
+  }
+  if (estado.accion === null) return
+
+  restauracionBluetoothEnCurso = true
+  try {
+    await setBluetoothPower(estado.accion, false)
+  } finally {
+    restauracionBluetoothEnCurso = false
+    const bluetoothActual = AstalBluetooth.get_default()
+    const estadoActual = resolverRestauracionBluetooth(
+      objetivoBluetoothInicial,
+      !!bluetoothActual?.adapter,
+      bluetoothActual?.isPowered ?? false,
+    )
+    if (estadoActual.completada) {
+      restauracionBluetoothCompletada = true
+      registrarEstadoBluetoothConfirmado()
+      guardarEstadoSistemaAhora()
+    }
+  }
 }
 
 try {
@@ -515,46 +597,46 @@ try {
   const network = AstalNetwork.get_default()
   const bt = AstalBluetooth.get_default()
   
-  if (network?.wifi) network.wifi.connect("notify::enabled", saveSystemState)
-  if (bt) bt.connect("notify::is-powered", saveSystemState)
+  if (network?.wifi) network.wifi.connect("notify::enabled", guardarEstadoSistema)
+  if (bt) {
+    const sincronizarEstadoBluetooth = () => {
+      void restaurarEstadoInicialBluetooth()
+      registrarEstadoBluetoothConfirmado()
+      guardarEstadoSistemaAhora()
+    }
+    bt.connect("notify::is-powered", sincronizarEstadoBluetooth)
+    bt.connect("notify::adapter", sincronizarEstadoBluetooth)
+    bt.connect("adapter-added", sincronizarEstadoBluetooth)
+  }
   if (wp?.audio) {
     wp.audio.connect("notify::default-speaker", () => {
       const spk = wp.audio?.defaultSpeaker
       if (spk) {
-        spk.connect("notify::volume", saveSystemState)
-        spk.connect("notify::mute", saveSystemState)
+        spk.connect("notify::volume", guardarEstadoSistema)
+        spk.connect("notify::mute", guardarEstadoSistema)
       }
-      saveSystemState()
+      guardarEstadoSistema()
     })
     if (wp.audio.defaultSpeaker) {
-      wp.audio.defaultSpeaker.connect("notify::volume", saveSystemState)
-      wp.audio.defaultSpeaker.connect("notify::mute", saveSystemState)
+      wp.audio.defaultSpeaker.connect("notify::volume", guardarEstadoSistema)
+      wp.audio.defaultSpeaker.connect("notify::mute", guardarEstadoSistema)
     }
   }
 } catch(e) {}
 
-// Restore state from cache on startup. Uses idle_add (next event-loop tick, no
-// fixed delay) so D-Bus proxies have reported their real state before we compare.
-// Only acts when current state differs from cache — external changes are respected.
+// AstalBluetooth enumera los adaptadores de forma asíncrona. El primer idle cubre
+// los ya disponibles y las señales de arriba reintentan cuando BlueZ registra uno;
+// hasta entonces las demás escrituras conservan el valor Bluetooth leído del disco.
 GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+  void restaurarEstadoInicialBluetooth()
+  registrarEstadoBluetoothConfirmado()
   try {
-    const [ok, content] = GLib.file_get_contents(SYSTEM_STATE_PATH)
-    if (ok) {
-      const saved = JSON.parse(new TextDecoder().decode(content))
-      const bt      = AstalBluetooth.get_default()
-      const network = AstalNetwork.get_default()
-      if (bt?.adapter) {
-        if (saved.bluetooth === false && bt.isPowered)
-          void setBluetoothPower(false, false)
-        else if (saved.bluetooth === true && !bt.isPowered)
-          void setBluetoothPower(true, false)
-      }
-      if (network?.wifi) {
-        if (saved.wifi === false && network.wifi.enabled)
-          execAsync(["nmcli", "radio", "wifi", "off"]).catch(() => {})
-        else if (saved.wifi === true && !network.wifi.enabled)
-          execAsync(["nmcli", "radio", "wifi", "on"]).catch(() => {})
-      }
+    const network = AstalNetwork.get_default()
+    if (network?.wifi) {
+      if (estadoSistemaGuardado.wifi === false && network.wifi.enabled)
+        execAsync(["nmcli", "radio", "wifi", "off"]).catch(() => {})
+      else if (estadoSistemaGuardado.wifi === true && !network.wifi.enabled)
+        execAsync(["nmcli", "radio", "wifi", "on"]).catch(() => {})
     }
   } catch(e) {}
   return GLib.SOURCE_REMOVE

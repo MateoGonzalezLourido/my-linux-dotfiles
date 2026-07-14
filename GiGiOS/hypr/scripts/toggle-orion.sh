@@ -13,4 +13,8 @@ if [[ -f "$prefs" ]]; then
   fi
 fi
 
-exec ags toggle orion
+# Durante una recarga, el script enlazado puede actualizarse antes que la
+# instancia de AGS. Conservar el toggle directo como respaldo evita dejar el
+# atajo inservible en esa breve ventana.
+respuesta="$(ags request toggle-orion 2>/dev/null)" || exec ags toggle orion
+[[ "$respuesta" == "ok" ]] || exec ags toggle orion

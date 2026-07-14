@@ -11,6 +11,7 @@ import SettingsWindow from "./widget/notifications/settings/SettingsWindow"
 import CalendarPanel from "./widget/CalendarPanel"
 import SettingsPanel from "./widget/SettingsPanel"
 import Orion from "./widget/orion/Orion"
+import { togglePanel as alternarPanelOrion } from "./widget/orion/state"
 import { orionEnabled } from "./widget/settings/preferences"
 import { startCleanupEngine } from "./widget/notifications/cleanup/cleanupEngine"
 import { runAppSettingsMigration } from "./widget/notifications/settings/runMigration"
@@ -48,6 +49,11 @@ app.start({
     }
     if (argv.includes("brightness-down")) {
       stepBrightness(-0.1)
+      response("ok")
+      return
+    }
+    if (argv.includes("toggle-orion")) {
+      alternarPanelOrion()
       response("ok")
       return
     }

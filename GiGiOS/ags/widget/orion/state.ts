@@ -14,13 +14,16 @@ export const [searchQuery,    setSearchQuery]    = createState("")
 export const [searchResults,  setSearchResults]  = createState<SearchResult[]>([])
 
 export function preparePanelOpen() {
+  setSearchQuery("")
+  setSearchResults([])
+  setRightPanelVisible(false)
   const section = orionAppsDefault.get() ? "apps" : "inicio"
   originSection = section
   setSection(section)
 }
 
 export function showPanel()   { preparePanelOpen(); setOrionVisible(true) }
-export function hidePanel()   { setOrionVisible(false); setSection("inicio"); originSection = "inicio" }
+export function hidePanel()   { setOrionVisible(false) }
 export function togglePanel() {
   if (orionVisible.get()) hidePanel()
   else showPanel()
@@ -37,6 +40,16 @@ export function setSection(section: SectionId) {
 
 // Section the user was in before a reactive search redirected them
 let originSection: SectionId = "inicio"
+
+/** Limpia el estado cuando la ventana ya ha terminado de salir de pantalla. */
+export function finalizarCierrePanel() {
+  if (orionVisible.get()) return
+  setSearchQuery("")
+  setSearchResults([])
+  setRightPanelVisible(false)
+  setSection("inicio")
+  originSection = "inicio"
+}
 
 export function setQuery(query: string) {
   setSearchQuery(query)
@@ -96,10 +109,6 @@ export interface AppContextItem {
 
 export const [rightPanelApp,     setRightPanelApp]     = createState<AppContextItem | null>(null)
 export const [rightPanelVisible, setRightPanelVisible] = createState(false)
-
-orionVisible.subscribe(() => {
-  if (!orionVisible.get()) setRightPanelVisible(false)
-})
 
 export function showAppContext(item: AppContextItem) {
   setRightPanelApp(item)

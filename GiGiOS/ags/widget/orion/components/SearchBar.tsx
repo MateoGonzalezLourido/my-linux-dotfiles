@@ -19,8 +19,11 @@ export default function SearchBar() {
   _entry = entry
 
   orionVisible.subscribe(v => {
-    if (v) entry.grab_focus()
-    else entry.text = ""
+    // La búsqueda se conserva durante la salida para que el contenido no cambie
+    // mientras Orion baja. Se limpia al comenzar la siguiente apertura.
+    if (!v) return
+    entry.text = ""
+    entry.grab_focus()
   })
 
   return (

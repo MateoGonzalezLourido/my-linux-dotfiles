@@ -19,6 +19,7 @@ required=(
   ags/widget/bar/games/evidence.ts ags/widget/bar/games/icon.ts
   ags/widget/bar/workspaceOrder.ts ags/widget/bar/workspaceOrder.test.ts
   ags/widget/bar/workspaceTooltip.ts ags/widget/bar/workspaceTooltip.test.ts
+  ags/widget/bluetooth/estadoInicio.ts ags/widget/bluetooth/estadoInicio.test.ts
   ags/widget/bluetooth/tileState.ts ags/widget/bluetooth/tileState.test.ts
   ags/widget/display/brightness.ts
   ags/widget/mediaClient.ts ags/widget/mediaClient.test.ts
