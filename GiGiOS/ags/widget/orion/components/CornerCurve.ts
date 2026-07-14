@@ -9,7 +9,7 @@ export default function CornerCurve({ left }: { left: boolean }): Gtk.DrawingAre
 
   area.set_draw_func((_w, cr, _width, _height) => {
     // Paint the same near-black used by the Orion shell.
-    cr.setSourceRGBA(8 / 255, 8 / 255, 12 / 255, 0.985)
+    cr.setSourceRGBA(8 / 255, 8 / 255, 12 / 255, 0.92)
 
     if (left) {
       // LEFT corner (placed to the left of the panel): fill upper-right quadrant

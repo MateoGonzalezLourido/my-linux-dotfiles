@@ -9,7 +9,7 @@ export default function CornerCurve({ left = true }: { left?: boolean }) {
   
   da.set_draw_func((_area, cr, width, height) => {
     // Keep the outward foot visually continuous with the Orion shell.
-    cr.setSourceRGBA(8 / 255, 8 / 255, 12 / 255, 0.985)
+    cr.setSourceRGBA(8 / 255, 8 / 255, 12 / 255, 0.92)
 
     if (left) {
       cr.moveTo(width, height)

@@ -8,9 +8,8 @@
 }
 
 .orion-panel {
-  background: rgba(8, 8, 12, 0.985);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: none;
+  background: rgba(8, 8, 12, 0.92);
+  border: none;
   border-radius: 24px 24px 0 0;
   box-shadow: none;
 }
@@ -38,7 +37,7 @@
 }
 
 .section-index {
-  background: rgba(255, 255, 255, 0.035);
+  background: rgb(16.645, 16.645, 20.505);
   border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: 10px;
   min-height: 27px;
@@ -100,7 +99,7 @@
 }
 
 .search-bar {
-  background: rgba(255, 255, 255, 0.055);
+  background: rgb(21.585, 21.585, 25.365);
   border: 1px solid rgba(255, 255, 255, 0.105);
   border-radius: 14px;
   padding: 2px 8px;
@@ -136,6 +135,7 @@
 }
 
 .ns {
+  background: rgb(8, 8, 12);
   padding: 5px 9px;
   border-radius: 8px;
   font-size: 10px;
@@ -144,12 +144,12 @@
 }
 .ns:hover {
   color: rgba(226, 226, 226, 0.62);
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
   border-color: rgba(255, 255, 255, 0.055);
 }
 .ns.active {
   color: #89b4fa;
-  background: rgba(203, 166, 247, 0.11);
+  background: rgb(29.45, 25.38, 37.85);
   border-color: rgba(203, 166, 247, 0.42);
 }
 
@@ -204,10 +204,10 @@
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.018);
   min-width: 56px;
-  background: rgba(255, 255, 255, 0.024);
+  background: rgb(13.928, 13.928, 17.832);
 }
 .Orion .app-item:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgb(25.29, 25.29, 29.01);
   border-color: rgba(255, 255, 255, 0.04);
   box-shadow: none;
 }
@@ -238,11 +238,11 @@
 
 .sys-strip-fixed {
   border-top: 1px solid rgba(255, 255, 255, 0.04);
-  background: rgba(8, 8, 12, 0.72);
+  background: rgb(8, 8, 12);
 }
 
-.sys-card {
-  background: rgba(255, 255, 255, 0.018);
+.Orion .sys-card {
+  background: rgb(12.446, 12.446, 16.374);
   border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: 8px;
   padding: 4px 7px 5px;
@@ -316,13 +316,14 @@
 }
 
 .kb-row {
+  background: rgb(8, 8, 12);
   min-height: 25px;
   padding: 3px 5px;
   border-radius: 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.035);
 }
 .kb-row:hover {
-  background: rgba(255, 255, 255, 0.035);
+  background: rgb(16.645, 16.645, 20.505);
 }
 
 .kb-key {
@@ -350,17 +351,17 @@
 }
 
 .rx-item {
-  background: rgba(255, 255, 255, 0.022);
+  background: rgb(13.434, 13.434, 17.346);
   border: 1px solid rgba(255, 255, 255, 0.035);
   border-radius: 11px;
   padding: 0;
 }
 .rx-item:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
   border-color: rgba(255, 255, 255, 0.105);
 }
 .rx-item:active {
-  background: rgba(203, 166, 247, 0.11);
+  background: rgb(29.45, 25.38, 37.85);
 }
 
 .rx-row {
@@ -405,7 +406,7 @@
 }
 
 popover.background {
-  background: rgba(12, 16, 28, 0.97);
+  background: rgb(11.88, 15.76, 27.52);
   border: 1px solid rgba(255, 255, 255, 0.105);
   border-radius: 11px;
   padding: 4px;
@@ -465,16 +466,16 @@ popover.background {
   margin: 0;
   border-radius: 7px;
   border: none;
-  background: transparent;
+  background: rgb(8, 8, 12);
 }
 .orion-panel .rp-action:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgb(20.35, 20.35, 24.15);
 }
 .orion-panel .rp-action:hover .rp-action-ico {
   color: #e2e2e2;
 }
 .orion-panel .rp-action:active {
-  background: rgba(203, 166, 247, 0.08);
+  background: rgb(23.6, 20.64, 30.8);
 }
 
 .rp-action-row {
@@ -516,7 +517,7 @@ popover.background {
 }
 
 .apps-cat-btn {
-  background: transparent;
+  background: rgb(8, 8, 12);
   border: none;
   border-radius: 6px;
   color: rgba(226, 226, 226, 0.58);
@@ -526,11 +527,11 @@ popover.background {
   transition: background 100ms ease;
 }
 .apps-cat-btn.active {
-  background: rgba(203, 166, 247, 0.12);
+  background: rgb(31.4, 26.96, 40.2);
   color: #cba6f7;
 }
 .apps-cat-btn:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgb(22.82, 22.82, 26.58);
   color: rgba(226, 226, 226, 0.58);
 }
 
@@ -554,10 +555,11 @@ popover.background {
 }
 
 .apps-mode-toggle {
+  background: rgb(8, 8, 12);
   border-radius: 6px;
 }
 .apps-mode-toggle:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgb(22.82, 22.82, 26.58);
 }
 .apps-mode-toggle:hover image {
   color: rgba(226, 226, 226, 0.62);
@@ -592,16 +594,16 @@ popover.background {
 
 .apps-tile {
   min-height: 82px;
-  background: rgba(255, 255, 255, 0.025);
+  background: rgb(14.175, 14.175, 18.075);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
 }
 .apps-tile:hover {
-  background: rgba(255, 255, 255, 0.065);
+  background: rgb(24.055, 24.055, 27.795);
   border-color: rgba(203, 166, 247, 0.18);
 }
 .apps-tile:active {
-  background: rgba(203, 166, 247, 0.1);
+  background: rgb(27.5, 23.8, 35.5);
 }
 
 .apps-tile-inner {
@@ -626,14 +628,14 @@ popover.background {
 }
 
 .apps-row {
-  background: rgba(255, 255, 255, 0.022);
+  background: rgb(13.434, 13.434, 17.346);
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.035);
   padding: 0;
   margin-bottom: 4px;
 }
 .apps-row:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
   border-color: rgba(255, 255, 255, 0.105);
 }
 
@@ -666,17 +668,17 @@ popover.background {
   padding: 2px 0;
 }
 .git-section .git-chip {
-  background: rgba(255, 255, 255, 0.035);
+  background: rgb(16.645, 16.645, 20.505);
   border: 0.5px solid rgba(255, 255, 255, 0.055);
   border-radius: 20px;
   padding: 3px 10px;
 }
 .git-section .git-chip:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
   border-color: rgba(255, 255, 255, 0.105);
 }
 .git-section .git-chip.git-chip-active {
-  background: rgba(137, 180, 250, 0.1);
+  background: rgb(20.9, 25.2, 35.8);
   border-color: rgba(203, 166, 247, 0.42);
 }
 .git-section .git-chip-name {
@@ -699,6 +701,7 @@ popover.background {
   background: #f38ba8;
 }
 .git-section .git-icon-btn {
+  background: rgb(8, 8, 12);
   min-width: 26px;
   min-height: 26px;
   border-radius: 7px;
@@ -706,24 +709,31 @@ popover.background {
   color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
   color: #e2e2e2;
 }
 .git-section .git-icon-btn.git-icon-spin {
   color: #94e2d5;
 }
 .git-section .git-icon-btn-sm {
+  background: rgb(8, 8, 12);
   min-width: 20px;
   min-height: 20px;
   border-radius: 5px;
   color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-icon-btn-sm:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
   color: #e2e2e2;
 }
+.git-section .git-tab,
+.git-section .git-manage-confirm,
+.git-section .git-saved-view,
+.git-section .git-saved-rm {
+  background: rgb(8, 8, 12);
+}
 .git-section .git-status-bar {
-  background: rgba(255, 255, 255, 0.035);
+  background: rgb(16.645, 16.645, 20.505);
   border: 0.5px solid rgba(255, 255, 255, 0.055);
   border-radius: 11px;
   padding: 5px 10px;
@@ -768,7 +778,7 @@ popover.background {
   color: #f38ba8;
 }
 .git-section .git-col-card {
-  background: rgba(255, 255, 255, 0.035);
+  background: rgb(16.645, 16.645, 20.505);
   border: 0.5px solid rgba(255, 255, 255, 0.055);
   border-radius: 11px;
 }
@@ -834,7 +844,7 @@ popover.background {
   border-bottom: none;
 }
 .git-section .git-file-row:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
 }
 .git-section .git-file-row.git-file-active {
   background: rgba(137, 180, 250, 0.07);
@@ -874,7 +884,7 @@ popover.background {
 }
 .git-section .git-commit-entry {
   margin: 5px 8px 4px;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgb(6.4, 6.4, 9.6);
   border: 0.5px solid rgba(255, 255, 255, 0.055);
   border-radius: 6px;
   font-size: 11px;
@@ -889,6 +899,7 @@ popover.background {
   padding: 4px 6px;
 }
 .git-section .git-act-btn {
+  background: rgb(8, 8, 12);
   min-width: 28px;
   min-height: 28px;
   border-radius: 7px;
@@ -896,7 +907,7 @@ popover.background {
   color: rgba(226, 226, 226, 0.62);
 }
 .git-section .git-act-btn:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
   color: #e2e2e2;
   border-color: rgba(255, 255, 255, 0.105);
 }
@@ -913,7 +924,7 @@ popover.background {
   padding: 4px 8px;
 }
 .git-section .git-branch-item-btn:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
 }
 .git-section .git-branch-item-lbl {
   font-size: 11px;
@@ -924,7 +935,7 @@ popover.background {
   color: #89b4fa;
 }
 .git-section .git-diff-panel {
-  background: rgba(255, 255, 255, 0.035);
+  background: rgb(16.645, 16.645, 20.505);
   border: 0.5px solid rgba(255, 255, 255, 0.055);
   border-radius: 11px;
   margin-top: 2px;
@@ -977,10 +988,10 @@ popover.background {
   padding: 5px 6px;
   border-radius: 7px;
   border: 0.5px solid rgba(255, 255, 255, 0.055);
-  background: rgba(137, 180, 250, 0.02);
+  background: rgb(10.58, 11.44, 16.76);
 }
 .git-section .git-disc-item:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: rgb(26.525, 26.525, 30.225);
 }
 .git-section .git-disc-icon {
   color: rgba(226, 226, 226, 0.32);
@@ -1017,7 +1028,7 @@ popover.background {
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
   color: #94e2d5;
   padding: 3px 8px;
-  background: rgba(148, 226, 213, 0.07);
+  background: rgb(17.8, 23.26, 26.07);
   border-radius: 8px;
   border: 0.5px solid rgba(148, 226, 213, 0.15);
 }
@@ -1035,15 +1046,15 @@ popover.background {
   min-height: 27px;
   border-radius: 7px;
   border: 1px solid transparent;
-  background: transparent;
+  background: rgb(8, 8, 12);
   color: rgba(226, 226, 226, 0.62);
 }
 .rice-random-btn:hover {
-  background: rgba(255, 255, 255, 0.055);
+  background: rgb(21.585, 21.585, 25.365);
   color: #e2e2e2;
 }
 .rice-random-btn:active {
-  background: rgba(203, 166, 247, 0.11);
+  background: rgb(29.45, 25.38, 37.85);
   border-color: rgba(203, 166, 247, 0.16);
 }
 
@@ -1060,6 +1071,19 @@ popover.background {
   padding: 6px 2px 12px;
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.055);
   margin-bottom: 10px;
+}
+
+.Orion button.qs-toggle {
+  background: rgb(8, 8, 12);
+}
+.Orion button.qs-toggle:hover {
+  background: rgb(20.35, 20.35, 24.15);
+}
+.Orion button.qs-toggle .qs-toggle-track {
+  background: rgb(27.76, 27.76, 31.44);
+}
+.Orion button.qs-toggle.on .qs-toggle-track {
+  background: rgb(4.64, 106.28, 114.06);
 }
 
 .rice-thumb {

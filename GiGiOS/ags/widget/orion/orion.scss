@@ -1,12 +1,27 @@
+@use 'sass:color';
+
 // ═══════════════════════════════════════════════════════════
 // ORION PANEL
 // ═══════════════════════════════════════════════════════════
 
 // ── Tokens ──────────────────────────────────────────────────
-$j-bg-shell:       rgba(8, 8, 12, 0.985);
-$j-bg-item:        rgba(255, 255, 255, 0.035);
-$j-bg-item-hover:  rgba(255, 255, 255, 0.075);
-$j-bg-item-active: rgba(203, 166, 247, 0.11);
+$j-bg-shell-opaco: rgb(8, 8, 12);
+
+// Compone los tintes de los controles sobre una base sólida. El color conserva
+// el contraste anterior, pero el píxel final ya no deja pasar el blur del shell.
+@function fondo-control-opaco($tinte) {
+  $tinte-opaco: color.change($tinte, $alpha: 1);
+  @return color.mix(
+    $tinte-opaco,
+    $j-bg-shell-opaco,
+    $weight: color.alpha($tinte) * 100%,
+  );
+}
+
+$j-bg-shell:       rgba(8, 8, 12, 0.92);
+$j-bg-item:        fondo-control-opaco(rgba(255, 255, 255, 0.035));
+$j-bg-item-hover:  fondo-control-opaco(rgba(255, 255, 255, 0.075));
+$j-bg-item-active: fondo-control-opaco(rgba(203, 166, 247, 0.11));
 
 $j-accent:         #89b4fa;
 $j-accent-teal:    #94e2d5;
@@ -41,8 +56,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 // Unified shell for the main content and its contextual panel.
 .orion-panel {
   background: $j-bg-shell;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: none;
+  border: none;
   border-radius: $j-radius $j-radius 0 0;
   box-shadow: none;
 }
@@ -118,7 +132,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 // ── Search ───────────────────────────────────────────────────
 .search-zone { padding: 0 18px 5px; }
 .search-bar {
-  background: rgba(255, 255, 255, 0.055);
+  background: fondo-control-opaco(rgba(255, 255, 255, 0.055));
   border: 1px solid rgba(255, 255, 255, 0.105);
   border-radius: $j-radius-md;
   padding: 2px 8px;
@@ -146,6 +160,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 .search-input placeholder { color: $j-text-muted; }
 // ── Nav sections ─────────────────────────────────────────────
 .ns {
+  background: $j-bg-shell-opaco;
   padding: 5px 9px;
   border-radius: $j-radius-xs;
   font-size: 10px;
@@ -210,9 +225,9 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.018);
   min-width: 56px;
-  background: rgba(255, 255, 255, 0.024);
+  background: fondo-control-opaco(rgba(255, 255, 255, 0.024));
   &:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: fondo-control-opaco(rgba(255, 255, 255, 0.07));
     border-color: rgba(255, 255, 255, 0.04);
     box-shadow: none;
   }
@@ -227,10 +242,10 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 .sys-strip { padding: 5px 8px 7px; }
 .sys-strip-fixed {
   border-top: 1px solid rgba(255, 255, 255, 0.04);
-  background: rgba(8, 8, 12, 0.72);
+  background: $j-bg-shell-opaco;
 }
-.sys-card {
-  background: rgba(255, 255, 255, 0.018);
+.Orion .sys-card {
+  background: fondo-control-opaco(rgba(255, 255, 255, 0.018));
   border: 1px solid $j-border-subtle;
   border-radius: 8px;
   padding: 4px 7px 5px;
@@ -265,13 +280,14 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 }
 .kb-group-title:first-child { padding-top: 4px; }
 .kb-row {
+  background: $j-bg-shell-opaco;
   min-height: 25px;
   padding: 3px 5px;
   border-radius: 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.035);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.035);
+    background: $j-bg-item;
   }
 }
 .kb-key {
@@ -297,7 +313,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   padding: 8px 12px 14px;
 }
 .rx-item {
-  background: rgba(255, 255, 255, 0.022);
+  background: fondo-control-opaco(rgba(255, 255, 255, 0.022));
   border: 1px solid rgba(255, 255, 255, 0.035);
   border-radius: 11px;
   padding: 0;
@@ -350,7 +366,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 }
 // ── App context menu (popover) ───────────────────────────────────────────────
 popover.background {
-  background: rgba(12, 16, 28, 0.97);
+  background: fondo-control-opaco(rgba(12, 16, 28, 0.97));
   border: 1px solid $j-border-normal;
   border-radius: $j-radius-sm;
   padding: 4px;
@@ -406,10 +422,10 @@ popover.background {
   margin: 0;
   border-radius: 7px;
   border: none;
-  background: transparent;
+  background: $j-bg-shell-opaco;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: fondo-control-opaco(rgba(255, 255, 255, 0.05));
 
     .rp-action-ico {
       color: $j-text-primary;
@@ -417,7 +433,7 @@ popover.background {
   }
 
   &:active {
-    background: rgba($j-accent-purple, 0.08);
+    background: fondo-control-opaco(rgba($j-accent-purple, 0.08));
   }
 
 }
@@ -461,7 +477,7 @@ popover.background {
 .apps-cats { padding-right: 4px; }
 
 .apps-cat-btn {
-  background: transparent;
+  background: $j-bg-shell-opaco;
   border: none;
   border-radius: 6px;
   color: rgba(226, 226, 226, 0.58);
@@ -471,12 +487,12 @@ popover.background {
   transition: background 100ms ease;
 
   &.active {
-    background: rgba($j-accent-purple, 0.12);
+    background: fondo-control-opaco(rgba($j-accent-purple, 0.12));
     color: $j-accent-purple;
   }
 
   &:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.06);
+    background: fondo-control-opaco(rgba(255, 255, 255, 0.06));
     color: rgba(226, 226, 226, 0.58);
   }
 }
@@ -499,10 +515,11 @@ popover.background {
 }
 
 .apps-mode-toggle {
+  background: $j-bg-shell-opaco;
   border-radius: 6px;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: fondo-control-opaco(rgba(255, 255, 255, 0.06));
     image { color: $j-text-secondary; }
     .apps-mode-label { color: $j-text-secondary; }
   }
@@ -532,16 +549,16 @@ popover.background {
 
 .apps-tile {
   min-height: 82px;
-  background: rgba(255, 255, 255, 0.025);
+  background: fondo-control-opaco(rgba(255, 255, 255, 0.025));
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.065);
+    background: fondo-control-opaco(rgba(255, 255, 255, 0.065));
     border-color: rgba($j-accent-purple, 0.18);
   }
 
-  &:active { background: rgba($j-accent-purple, 0.1); }
+  &:active { background: fondo-control-opaco(rgba($j-accent-purple, 0.1)); }
 }
 
 .apps-tile-inner {
@@ -566,7 +583,7 @@ popover.background {
 }
 
 .apps-row {
-  background: rgba(255, 255, 255, 0.022);
+  background: fondo-control-opaco(rgba(255, 255, 255, 0.022));
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.035);
   padding: 0;
@@ -613,7 +630,7 @@ popover.background {
     padding: 3px 10px;
     &:hover { background: $j-bg-item-hover; border-color: $j-border-normal; }
     &.git-chip-active {
-      background: rgba($j-accent, 0.1);
+      background: fondo-control-opaco(rgba($j-accent, 0.1));
       border-color: $j-border-active;
     }
   }
@@ -636,6 +653,7 @@ popover.background {
   // ── Icon buttons ────────────────────────────────────────────────────────────
 
   .git-icon-btn {
+    background: $j-bg-shell-opaco;
     min-width: 26px; min-height: 26px;
     border-radius: 7px;
     border: 0.5px solid $j-border-subtle;
@@ -645,10 +663,20 @@ popover.background {
   }
 
   .git-icon-btn-sm {
+    background: $j-bg-shell-opaco;
     min-width: 20px; min-height: 20px;
     border-radius: 5px;
     color: $j-text-muted;
     &:hover { background: $j-bg-item-hover; color: $j-text-primary; }
+  }
+
+  // Controles auxiliares que antes dependían únicamente del reset transparente
+  // de Orion. No se les añade relieve: solo una base opaca bajo su contenido.
+  .git-tab,
+  .git-manage-confirm,
+  .git-saved-view,
+  .git-saved-rm {
+    background: $j-bg-shell-opaco;
   }
 
   // ── Status bar ──────────────────────────────────────────────────────────────
@@ -736,7 +764,7 @@ popover.background {
 
   .git-commit-entry {
     margin: 5px 8px 4px;
-    background: rgba(0,0,0,0.2);
+    background: fondo-control-opaco(rgba(0, 0, 0, 0.2));
     border: 0.5px solid $j-border-subtle;
     border-radius: 6px;
     font-size: 11px; font-family: $j-font-mono;
@@ -748,6 +776,7 @@ popover.background {
   .git-act-row { padding: 4px 6px; }
 
   .git-act-btn {
+    background: $j-bg-shell-opaco;
     min-width: 28px; min-height: 28px;
     border-radius: 7px;
     border: 0.5px solid $j-border-subtle;
@@ -790,7 +819,7 @@ popover.background {
   .git-disc-item {
     padding: 5px 6px; border-radius: 7px;
     border: 0.5px solid $j-border-subtle;
-    background: rgba($j-accent, 0.02);
+    background: fondo-control-opaco(rgba($j-accent, 0.02));
     &:hover { background: $j-bg-item-hover; }
   }
   .git-disc-icon { color: $j-text-muted; }
@@ -811,7 +840,7 @@ popover.background {
     font-size: 10px; font-family: $j-font-mono;
     color: $j-accent-teal;
     padding: 3px 8px;
-    background: rgba($j-accent-teal, 0.07);
+    background: fondo-control-opaco(rgba($j-accent-teal, 0.07));
     border-radius: $j-radius-xs;
     border: 0.5px solid rgba($j-accent-teal, 0.15);
   }
@@ -831,16 +860,16 @@ popover.background {
   min-height: 27px;
   border-radius: 7px;
   border: 1px solid transparent;
-  background: transparent;
+  background: $j-bg-shell-opaco;
   color: $j-text-secondary;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.055);
+    background: fondo-control-opaco(rgba(255, 255, 255, 0.055));
     color: $j-text-primary;
   }
 
   &:active {
-    background: rgba($j-accent-purple, 0.11);
+    background: fondo-control-opaco(rgba($j-accent-purple, 0.11));
     border-color: rgba($j-accent-purple, 0.16);
   }
 }
@@ -858,6 +887,24 @@ popover.background {
   padding: 6px 2px 12px;
   border-bottom: 0.5px solid $j-border-subtle;
   margin-bottom: 10px;
+}
+
+// La regla compartida de Quick Settings se compila después de Orion. Esta
+// especificidad mantiene sólido el interruptor sin duplicar su geometría.
+.Orion button.qs-toggle {
+  background: $j-bg-shell-opaco;
+
+  &:hover {
+    background: fondo-control-opaco(rgba(255, 255, 255, 0.05));
+  }
+
+  .qs-toggle-track {
+    background: fondo-control-opaco(rgba(255, 255, 255, 0.08));
+  }
+
+  &.on .qs-toggle-track {
+    background: fondo-control-opaco(rgba(0, 242, 255, 0.42));
+  }
 }
 
 .rice-thumb {

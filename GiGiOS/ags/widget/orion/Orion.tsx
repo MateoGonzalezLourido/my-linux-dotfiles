@@ -19,7 +19,7 @@ import RightPanel from "./components/RightPanel"
 import { clipWindowInputToContent } from "../inputRegion"
 
 export default function Orion(gdkmonitor: Gdk.Monitor) {
-  const { BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
+  const { BOTTOM } = Astal.WindowAnchor
   const PROPORCION_HOLGURA_VERTICAL = 0.2
   const PREPARACION_ENTRADA_MS = 32
   const DURACION_ENTRADA_MS = 280
@@ -196,10 +196,14 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
   const win = (
     <window
       name="orion"
+      namespace="orion"
       visible={orionRenderizado}
       gdkmonitor={gdkmonitor}
       layer={Astal.Layer.OVERLAY}
-      anchor={BOTTOM | LEFT | RIGHT}
+      // Sin anclajes laterales, la layer conserva el centrado horizontal pero
+      // limita su superficie al ancho real de Orion. Así el blur y la entrada
+      // no abarcan todo el monitor.
+      anchor={BOTTOM}
       exclusivity={Astal.Exclusivity.IGNORE}
       keymode={orionVisible((visible) =>
         visible ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
