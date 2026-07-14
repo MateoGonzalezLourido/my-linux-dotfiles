@@ -224,7 +224,8 @@ Cópialas y corre `fc-cache -f` en el PC destino.
 ```sh
 sudo pacman -S rofi cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl qalculate-gtk \
   wf-recorder grim slurp jq bc hyprshot nm-connection-editor blueman fish git curl \
-  btop upower libgudev cups geoclue mesa-utils lshw fd github-cli
+  btop upower libgudev cups geoclue mesa-utils lshw fd github-cli \
+  udisks2 lsof ntfsprogs dosfstools exfatprogs kmod
 ```
 
 Qué usa cada cosa:
@@ -246,6 +247,10 @@ Qué usa cada cosa:
   `sudo install -Dm644 system/modules-load.d/i2c-dev.conf /etc/modules-load.d/i2c-dev.conf && sudo modprobe i2c-dev`.
   Sin eso el slider de brillo simplemente no aparece (no hay backend). En un portátil no hace falta:
   ahí el panel interno se controla por `/sys/class/backlight`.
+- **`udisks2`** — comprobación, reparación, desmontaje y apagado seguro de discos USB
+  desde `usb-monitor.sh`, `usb-repair.sh` y `usb-eject.sh`. `ntfsprogs`,
+  `dosfstools` y `exfatprogs` aportan las herramientas de reparación para NTFS,
+  FAT y exFAT; `lsof` permite indicar qué aplicación mantiene ocupado un volumen.
 - **`wpctl`** (paquete `wireplumber`) — volumen/mute por teclado y en `inicializador/init.sh`.
   El panel de audio de AGS (`QuickSettings.tsx`) además llama a **`pactl`** (paquete
   `libpulse`) y **`pw-metadata`** (paquete `pipewire`) para listar/cambiar sink-inputs y el

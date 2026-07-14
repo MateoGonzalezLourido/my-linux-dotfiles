@@ -70,7 +70,8 @@ install_packages() {
     fzf eza bat duf pkgfile fastfetch
     libpulse pipewire pipewire-audio pipewire-pulse pipewire-alsa wireplumber
     gst-plugin-pipewire libnotify awww upower libgudev
-    smartmontools lm_sensors pciutils usbutils alsa-utils inotify-tools dbus
+    smartmontools lm_sensors pciutils usbutils udisks2 lsof ntfsprogs dosfstools exfatprogs
+    alsa-utils inotify-tools dbus kmod
     networkmanager bluez bluez-utils xdg-user-dirs
     clamav firejail bubblewrap xxhash file cups geoclue
     mesa-utils lshw fd github-cli imagemagick

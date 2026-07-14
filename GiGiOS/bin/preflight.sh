@@ -16,12 +16,24 @@ required=(
   install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh ags/app.ts ags/style.scss ags/out.css
   mimeapps.list menus/applications.menu kdeglobals qt6ct/qt6ct.conf
   mime/packages/text-x-xresources.xml mime/packages/text-x-codigo.xml
+  ags/widget/bar/games/evidence.ts ags/widget/bar/games/icon.ts
+  ags/widget/bar/workspaceOrder.ts ags/widget/bar/workspaceOrder.test.ts
+  ags/widget/bar/workspaceTooltip.ts ags/widget/bar/workspaceTooltip.test.ts
+  ags/widget/bluetooth/tileState.ts ags/widget/bluetooth/tileState.test.ts
+  ags/widget/display/brightness.ts
+  ags/widget/mediaClient.ts ags/widget/mediaClient.test.ts
+  ags/widget/mediaProgress.ts ags/widget/mediaProgress.test.ts
+  ags/widget/notifications/DaemonConflictBanner.tsx ags/widget/notifications/daemonCheck.ts
+  ags/widget/notifications/rules/engine.style.test.ts ags/widget/settings/ProfileAvatar.tsx
   ags/widget/settings/SecuritySection.tsx ags/widget/settings/securityPrefs.ts
-  hypr/hyprland.conf hypr/gpu/laptop-hibrida.conf hypr/gpu/sobremesa-nvidia.conf
+  hypr/hyprland.conf hypr/monitor-settings.conf
+  hypr/gpu/laptop-hibrida.conf hypr/gpu/sobremesa-nvidia.conf
   Wallpapers/sunset.jpg
   hypr/scripts/clipboard-history.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/scan-file.sh
+  hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
   hypr/scripts/run-untrusted.sh hypr/scripts/compact-workspaces.sh
   hypr/scripts/toggle-gaps-borders.sh
+  system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
   rofi/config.rasi
 )
 for path in "${required[@]}"; do
@@ -84,7 +96,9 @@ if [[ "$mode" == "--installed" ]]; then
     notify-send:libnotify nmcli:networkmanager
     nm-connection-editor:nm-connection-editor bluetoothctl:bluez-utils
     blueman-manager:blueman bc:bc inotifywait:inotify-tools
-    dbus-monitor:dbus rfkill:util-linux pkexec:polkit btop:btop kitty:kitty firefox:firefox
+    dbus-monitor:dbus busctl:systemd udevadm:systemd rfkill:util-linux pkexec:polkit
+    udisksctl:udisks2 lsof:lsof ntfsfix:ntfsprogs fsck.fat:dosfstools fsck.exfat:exfatprogs
+    modprobe:kmod btop:btop kitty:kitty firefox:firefox
     zsh:zsh stty:util-linux fzf:fzf eza:eza bat:bat duf:duf
     pkgfile:pkgfile fastfetch:fastfetch less:less man:man-db whatis:man-db
     wget:wget tar:tar expac:expac hwinfo:hwinfo nc:openbsd-netcat nvim:neovim
