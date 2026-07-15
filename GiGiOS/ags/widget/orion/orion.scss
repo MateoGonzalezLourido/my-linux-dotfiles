@@ -481,9 +481,9 @@ popover.background {
   border: none;
   border-radius: 6px;
   color: rgba(226, 226, 226, 0.58);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
-  padding: 3px 10px;
+  padding: 0 10px 2px;
   transition: background 100ms ease;
 
   &.active {
@@ -498,10 +498,10 @@ popover.background {
 }
 
 // Sobrescribe el reset general de botones de Orion, igual que en Notificaciones.
-.Orion .apps-cat-btn { padding: 3px 10px; }
+.Orion .apps-cat-btn { padding: 0 10px 2px; }
 
 .apps-meta {
-  padding: 2px 15px 8px;
+  padding: 0 15px 4px;
   color: $j-text-muted;
 
   image { color: $j-text-muted; }
@@ -510,7 +510,7 @@ popover.background {
 .apps-count,
 .apps-mode-label {
   font-family: $j-font-mono;
-  font-size: 9px;
+  font-size: 10px;
   color: $j-text-muted;
 }
 
@@ -573,8 +573,9 @@ popover.background {
 }
 
 .apps-tile-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: -0.17px;
   color: $j-text-primary;
 }
 
@@ -592,16 +593,16 @@ popover.background {
 }
 
 .apps-row-icon {
-  min-width: 30px;
-  min-height: 30px;
+  min-width: 32px;
+  min-height: 32px;
   margin: 3px 6px 3px 4px;
   padding: 0;
   background: transparent;
   border: none;
   image {
-    min-width: 26px;
-    min-height: 26px;
-    -gtk-icon-size: 26px;
+    min-width: 32px;
+    min-height: 32px;
+    -gtk-icon-size: 32px;
     color: $j-accent;
   }
 }

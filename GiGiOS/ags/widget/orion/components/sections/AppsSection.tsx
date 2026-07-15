@@ -1,6 +1,7 @@
 import { Gtk } from "ags/gtk4"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
+import Pango from "gi://Pango"
 import { execAsync } from "ags/process"
 import { hidePanel, showAppContext } from "../../state"
 
@@ -111,7 +112,7 @@ function buildAppRow(app: AppEntry): Gtk.Widget {
   const inner = new Gtk.Box({ spacing: 10 })
 
   const iconBox = new Gtk.Box({ cssClasses: ["apps-row-icon"], valign: Gtk.Align.CENTER })
-  iconBox.append(appIcon(app, 26))
+  iconBox.append(appIcon(app, 32))
   inner.append(iconBox)
   inner.append(new Gtk.Label({
     label: app.name,
@@ -132,7 +133,7 @@ function buildAppTile(app: AppEntry): Gtk.Widget {
   const inner = new Gtk.Box({
     orientation: Gtk.Orientation.VERTICAL,
     cssClasses: ["apps-tile-inner"],
-    spacing: 7,
+    spacing: 6,
     halign: Gtk.Align.CENTER,
   })
   const iconBox = new Gtk.Box({
@@ -140,14 +141,19 @@ function buildAppTile(app: AppEntry): Gtk.Widget {
     halign: Gtk.Align.CENTER,
     valign: Gtk.Align.CENTER,
   })
-  iconBox.append(appIcon(app, 32))
+  iconBox.append(appIcon(app, 38))
   inner.append(iconBox)
   inner.append(new Gtk.Label({
     label: app.name,
     cssClasses: ["apps-tile-label"],
-    ellipsize: 3,
+    wrap: true,
+    wrapMode: Pango.WrapMode.WORD_CHAR,
+    lines: 2,
+    ellipsize: Pango.EllipsizeMode.END,
     maxWidthChars: 12,
     halign: Gtk.Align.CENTER,
+    justify: Gtk.Justification.CENTER,
+    xalign: 0.5,
   }))
   btn.set_child(inner)
   bindAppActivation(btn, app)
@@ -156,7 +162,7 @@ function buildAppTile(app: AppEntry): Gtk.Widget {
 
 export function AppsSection() {
   // ── Category pills ────────────────────────────────────────────
-  const catsBox = new Gtk.Box({ cssClasses: ["apps-cats"], spacing: 4 })
+  const catsBox = new Gtk.Box({ cssClasses: ["apps-cats"], spacing: 2 })
 
   const catBtns: Map<string, Gtk.Button> = new Map()
 
@@ -170,6 +176,7 @@ export function AppsSection() {
     const btn = new Gtk.Button({
       cssClasses: cat.id === "all" ? ["apps-cat-btn", "active"] : ["apps-cat-btn"],
       label: cat.label,
+      valign: Gtk.Align.CENTER,
     })
     btn.connect("clicked", () => {
       refreshCatBtns(cat.id)

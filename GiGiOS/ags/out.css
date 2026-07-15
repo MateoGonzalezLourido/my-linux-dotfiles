@@ -521,9 +521,9 @@ popover.background {
   border: none;
   border-radius: 6px;
   color: rgba(226, 226, 226, 0.58);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
-  padding: 3px 10px;
+  padding: 0 10px 2px;
   transition: background 100ms ease;
 }
 .apps-cat-btn.active {
@@ -536,11 +536,11 @@ popover.background {
 }
 
 .Orion .apps-cat-btn {
-  padding: 3px 10px;
+  padding: 0 10px 2px;
 }
 
 .apps-meta {
-  padding: 2px 15px 8px;
+  padding: 0 15px 4px;
   color: rgba(226, 226, 226, 0.32);
 }
 .apps-meta image {
@@ -550,7 +550,7 @@ popover.background {
 .apps-count,
 .apps-mode-label {
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  font-size: 9px;
+  font-size: 10px;
   color: rgba(226, 226, 226, 0.32);
 }
 
@@ -618,8 +618,9 @@ popover.background {
 }
 
 .apps-tile-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: -0.17px;
   color: #e2e2e2;
 }
 
@@ -640,17 +641,17 @@ popover.background {
 }
 
 .apps-row-icon {
-  min-width: 30px;
-  min-height: 30px;
+  min-width: 32px;
+  min-height: 32px;
   margin: 3px 6px 3px 4px;
   padding: 0;
   background: transparent;
   border: none;
 }
 .apps-row-icon image {
-  min-width: 26px;
-  min-height: 26px;
-  -gtk-icon-size: 26px;
+  min-width: 32px;
+  min-height: 32px;
+  -gtk-icon-size: 32px;
   color: #89b4fa;
 }
 
