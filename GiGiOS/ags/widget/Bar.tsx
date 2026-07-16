@@ -14,6 +14,7 @@ import Volume from "./bar/Volume"
 import Battery from "./bar/Battery"
 import CpuRam from "./bar/CpuRam"
 import ScreencastIndicator from "./bar/ScreencastIndicator"
+import WakeUpIndicator from "./bar/WakeUpIndicator"
 import MicIndicator from "./bar/MicIndicator"
 import NotificationButton from "./bar/NotificationButton"
 import UpdatesButton from "./bar/UpdatesButton"
@@ -212,6 +213,10 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           <box valign={Gtk.Align.CENTER}>
             <With value={screencastIndicatorEnabled}>{(on: boolean) => on && <ScreencastIndicator />}</With>
           </box>
+          {/* Wake up: montado siempre y escondido con `visible`, no con un <With>.
+              No es una preferencia que se pueda apagar, así que no hay remontaje en
+              caliente del que protegerse con una caja propia. */}
+          <WakeUpIndicator />
           <With value={notificationBarEnabled}>{(on: boolean) => on && <NotificationButton />}</With>
           <button
             cssClasses={["bar-pill-btn"]}

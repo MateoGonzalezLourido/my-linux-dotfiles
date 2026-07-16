@@ -104,6 +104,57 @@ relanzarlo (`setsid nohup … &`), o cerrar sesión. Ojo al comprobarlo: `batter
 `temp-monitor` **salen solos** si su toggle está a `false` en `preferences.json`, y `disk-monitor`
 / `wifi-monitor` no son daemons persistentes — que no aparezcan en `ps` no significa que fallen.
 
+### Wake up: la puerta `idle-action.sh` delante de hypridle
+
+**Los `on-timeout` de `hypridle.conf` ya no llaman a la acción: llaman a
+`hypr/scripts/idle-action.sh {dpms-off|lock|suspend}`**, que la ejecuta salvo que la función
+**Wake up** del menú del logo Arch la esté vetando ("que el PC no se suspenda aunque no lo toque").
+Hizo falta una puerta porque hypridle **no tiene API en caliente**: no se le puede desactivar un
+listener suelto ni recargarle el config. Las dos alternativas se descartaron con motivo.
+`systemd-inhibit --what=idle` (que hypridle sí respeta) apaga **todos** los listeners a la vez, y
+entonces "que no se suspenda **pero la pantalla sí se apague**" —el modo por defecto— es
+inexpresable. Y reutilizar el `# GIGIOS-OFF` que ya sabe comentar listeners (Ajustes > Pantalla)
+significaría **escribir en el config del usuario** para un estado temporal: si AGS muere a mitad,
+sus tiempos quedan desactivados para siempre y la UI de Ajustes los enseña apagados, confundiendo
+"lo apagué yo" con "lo apagó el Wake up".
+
+**Alcance**: Wake up a secas veta **solo `suspend`** — la pantalla se apaga a los 10 min y bloquea
+a los 11, como siempre. Con la subopción **Pantalla** veta además `dpms-off` **y `lock`**: el
+bloqueo va atado a la pantalla porque hyprlock la taparía, que es justo lo que la opción evita.
+`on-resume` **no** pasa por la puerta: encender la pantalla al volver no se veta nunca, y es lo
+único que la despierta si vuelves con el ratón (`mouse_move_enables_dpms = false` en
+`windows.conf`; solo una tecla la enciende por su cuenta).
+
+**Estado**: `~/.config/gigios/wakeup.json`, `{active, until, screen, pid}`, escrito por AGS
+(`ags/widget/bar/functions/wakeup.ts`) y leído por el script — misma dirección que
+`runtime-state.json`, no al revés que los `*-monitor.sh`. `until` es **epoch absoluto**, no un
+contador: así la puerta resuelve la caducidad sola contra el reloj de pared aunque nadie reescriba
+el fichero, y la cuenta atrás no se desfasa tras una suspensión manual (los timeouts de GLib no
+corren dormidos). `pid` es el de AGS y la puerta comprueba que sigue vivo.
+
+**Todo error ejecuta la acción (fail-open), y esa asimetría es el diseño**: sin fichero, con JSON
+corrupto, sin `jq`, con el pid muerto o con el plazo vencido, la acción sale. Un fallo aquí debe
+degradar a "el Wake up no funciona" —visible y arreglable— y nunca a "el PC no se suspende jamás",
+que es silencioso, permanente, se come la batería y **no tiene UI donde apagarse** si AGS ya no
+está. Por eso hay dos guardas encadenadas y no una: el `pid` cubre "AGS murió y no volvió", pero
+los pid **se reciclan** —tras un reinicio el del AGS anterior puede estar ocupado por otro proceso
+vivo y la puerta lo daría por bueno—, así que además `initWakeUp()` **limpia el JSON al arrancar**
+el shell. El Wake up es por sesión, como el resto del menú de funciones.
+
+**Al caducar se reinicia hypridle** (`pkill hypridle; hypridle &`, el mismo gesto que ya hace
+`DisplaySection.tsx` al guardar los tiempos). No es opcional: hypridle **no repite un `on-timeout`
+ya disparado** en esa tanda de inactividad, así que un Wake up de 30 min que veta la suspensión en
+el minuto 11 y caduca en el 30 dejaría el PC despierto **para siempre** — nadie volvería a
+intentarlo hasta que tocaras el teclado. Reiniciarlo rearma los contadores desde cero: se suspende
+~11 min después de caducar, y nunca estando tú delante. El peaje aceptado es ese margen extra.
+
+**Si tocas los `on-timeout`, mira `kindOf()`** en `ags/widget/display/hypridle.ts`: Ajustes >
+Pantalla reconoce los tres listeners **por su comando**, y ahora los tres nombran el mismo script
+—los distingue el argumento—. Si dejara de reconocerlos, sus tiempos se volverían ineditables **en
+silencio** (`parseHypridle` degrada a "no encontrado", no a un error). Sigue leyendo también el
+formato directo (`hyprctl dispatch dpms off` / `hyprlock` / `systemctl suspend`) para un config
+traído de otra máquina. Cubierto por `hypridle.test.ts`.
+
 ### Notificaciones de los scripts: el hint `x-gigios-source`
 
 **Todo `notify-send` de `hypr/scripts/` lleva `-h string:x-gigios-source:system`** (44 llamadas,

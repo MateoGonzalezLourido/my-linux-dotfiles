@@ -19,6 +19,7 @@ import { initAutoDnd } from "./widget/notifications/autoDnd/watcher"
 import { initNotifDaemonCheck } from "./widget/notifications/daemonCheck"
 import { initTrayApps } from "./widget/settings/trayApps"
 import { initGamingState } from "./widget/power/gamingState"
+import { initWakeUp } from "./widget/bar/functions/wakeup"
 import { showBrightnessOSD, stepBrightness } from "./widget/state"
 
 app.start({
@@ -87,6 +88,9 @@ app.start({
     initAutoDnd()
     initTrayApps()
     initGamingState()
+    // Deja el Wake up apagado: es por sesión, y un wakeup.json heredado seguiría
+    // vetando la suspensión sin que ninguna UI lo enseñe.
+    initWakeUp()
     // Después de NotificationPopup: es quien construye el AstalNotifd que reclama el nombre.
     initNotifDaemonCheck()
   },

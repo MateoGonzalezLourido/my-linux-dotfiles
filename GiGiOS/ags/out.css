@@ -1103,12 +1103,25 @@ popover.background {
   margin-bottom: 6px;
 }
 
+.rice-section-title {
+  background: transparent;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+  color: rgba(226, 226, 226, 0.62);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 7px 10px 1px;
+}
+
 .rice-random-btn {
   min-width: 27px;
   min-height: 27px;
   border-radius: 7px;
   border: 1px solid transparent;
-  background: rgb(8, 8, 12);
+  background: transparent;
   color: rgba(226, 226, 226, 0.62);
 }
 .rice-random-btn:hover {
@@ -1166,6 +1179,7 @@ popover.background {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
 }
 .rice-thumb:active {
   background: transparent;
@@ -1174,7 +1188,7 @@ popover.background {
   box-shadow: 0 0 0 2px #cba6f7;
 }
 .rice-thumb.wp-current:hover {
-  box-shadow: 0 0 0 2px #cba6f7, inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 0 0 2px #cba6f7, 0 6px 16px rgba(0, 0, 0, 0.28);
 }
 
 .rice-grid flowboxchild,
@@ -1711,6 +1725,70 @@ popover.cpuram-popover > arrow {
   color: rgba(137, 180, 250, 0.7);
 }
 
+.fn-menu-expand {
+  margin: 1px 5px 3px 9px;
+  padding-left: 7px;
+  border-left: 1px solid rgba(137, 180, 250, 0.22);
+}
+
+.fn-menu-subrow {
+  padding: 1px 0;
+  min-height: 18px;
+}
+
+.fn-menu-sublabel {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(226, 226, 226, 0.62);
+}
+
+.fn-menu-subbutton {
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  box-shadow: none;
+  margin: 0;
+  padding: 0 2px;
+  outline: none;
+}
+.fn-menu-subbutton:hover {
+  background: rgba(137, 180, 250, 0.1);
+}
+
+.fn-menu-state.on label {
+  color: rgba(137, 180, 250, 0.7);
+}
+
+entry.fn-menu-minutes {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 10px;
+  color: #cdd6f4;
+  background: rgba(17, 17, 27, 0.9);
+  border: 1px solid rgba(137, 180, 250, 0.22);
+  outline: none;
+  box-shadow: none;
+  border-radius: 5px;
+  padding: 0 4px;
+  margin: 0;
+  min-width: 0;
+  min-height: 16px;
+  caret-color: #89b4fa;
+}
+entry.fn-menu-minutes:focus, entry.fn-menu-minutes:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border: 1px solid rgba(137, 180, 250, 0.55);
+  background: rgb(17, 17, 27);
+}
+entry.fn-menu-minutes > text > placeholder {
+  color: rgba(226, 226, 226, 0.3);
+}
+entry.fn-menu-minutes selection {
+  background: rgba(137, 180, 250, 0.3);
+  color: #cdd6f4;
+}
+
 .Bar .tray-item {
   border-radius: 7px;
   padding: 0;
@@ -1916,6 +1994,16 @@ popover.tray-overflow-popover.closing > contents {
   padding: 0 5px;
   margin: 4px 0;
   animation: pulse 1s infinite;
+}
+
+.wakeup-indicator {
+  color: #94e2d5;
+  padding: 0 5px;
+  margin: 4px 0;
+}
+.wakeup-indicator label {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 14px;
 }
 
 .mic-indicator.muted {

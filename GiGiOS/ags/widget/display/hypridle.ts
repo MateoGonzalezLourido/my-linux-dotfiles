@@ -10,8 +10,28 @@ export interface HypridleConfig {
   suspend: ListenerState
 }
 
-// on-timeout → tipo de listener
+// on-timeout → tipo de listener.
+//
+// Conviven DOS formatos a propósito:
+//   1. La puerta `idle-action.sh <acción>`, por donde van hoy los listeners para
+//      que la función "Wake up" pueda vetarlos (ver hypr/scripts/idle-action.sh).
+//   2. El comando directo (`hyprctl dispatch dpms off` / `hyprlock` /
+//      `systemctl suspend`), que es lo que documenta hypridle y lo que traería un
+//      hypridle.conf de otra máquina o una copia de seguridad anterior al Wake up.
+//
+// La puerta va PRIMERO: su ruta contiene ".../hypr/scripts/...", y un `hyprlock`
+// dentro de la ruta engañaría al patrón directo. Comprobar el argumento es además
+// lo único que distingue las tres invocaciones entre sí — todas nombran el mismo
+// script.
+const GATE_ACTIONS: Record<string, ListenerKind> = {
+  "dpms-off": "dpms",
+  "lock": "lock",
+  "suspend": "suspend",
+}
+
 function kindOf(onTimeout: string): ListenerKind | null {
+  const gated = onTimeout.match(/idle-action\.sh\s+(\S+)/)
+  if (gated) return GATE_ACTIONS[gated[1]] ?? null
   if (/dpms\s+off/.test(onTimeout)) return "dpms"
   if (/hyprlock/.test(onTimeout)) return "lock"
   if (/systemctl\s+suspend/.test(onTimeout)) return "suspend"

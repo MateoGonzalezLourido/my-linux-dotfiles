@@ -903,12 +903,25 @@ popover.background {
   margin-bottom: 6px;
 }
 
+.rice-section-title {
+  background: transparent;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+  color: $j-text-secondary;
+  font-family: $j-font-sans;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 7px 10px 1px;
+}
+
 .rice-random-btn {
   min-width: 27px;
   min-height: 27px;
   border-radius: 7px;
   border: 1px solid transparent;
-  background: $j-bg-shell-opaco;
+  background: transparent;
   color: $j-text-secondary;
 
   &:hover {
@@ -970,6 +983,7 @@ popover.background {
 
   &:hover {
     @include hover-con-profundidad;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
   }
 
   &:active {
@@ -983,8 +997,7 @@ popover.background {
   &.wp-current:hover {
     box-shadow:
       0 0 0 2px $j-accent-purple,
-      inset 0 -1px rgba(0, 0, 0, 0.12),
-      0 5px 14px rgba(0, 0, 0, 0.18);
+      0 6px 16px rgba(0, 0, 0, 0.28);
   }
 }
 

@@ -28,7 +28,7 @@ export function RiceSection() {
   // ── Cabecera: título + botón aleatorio ─────────────────────────────────────
   const header = new Gtk.Box({ cssClasses: ["rice-header"], spacing: 8 })
   header.append(new Gtk.Label({
-    label: "Fondos de pantalla", cssClasses: ["section-title"],
+    label: "Fondos de pantalla", cssClasses: ["rice-section-title"],
     halign: Gtk.Align.START, hexpand: true,
   }))
 
