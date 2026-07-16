@@ -1134,7 +1134,11 @@ popover.tray-overflow-popover.closing > contents {
 
 // ── OSD (On Screen Display) ──────────────────────────────────────────────────
 $osd-bg-opaco: rgb(8, 8, 12);
-$osd-bg: rgba(8, 8, 12, 0.94);
+// Las tarjetas OSD solo miden unos 40 px de alto. Con el 94 % usado por los
+// paneles grandes, el compositor sí aplicaba blur, pero el 6 % visible no daba
+// superficie suficiente para percibirlo. Los controles internos siguen usando
+// la base opaca de arriba para que la mayor transparencia no reste legibilidad.
+$osd-bg: rgba(8, 8, 12, 0.82);
 
 @keyframes osd-enter {
   from { opacity: 0; transform: translateY(-5px) scale(0.98); }
