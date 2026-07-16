@@ -53,6 +53,11 @@ import {
 import { getBluetoothTileInfo } from "./bluetooth/tileState"
 import { resolveMediaLengthSeconds, safeMediaPosition } from "./mediaProgress"
 import { findMediaClient } from "./mediaClient"
+import {
+  programarLimpiezaCacheCaratulas,
+  registrarCaratulaLocal,
+  resolverCaratulaRemota,
+} from "./cacheCaratulas"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -1240,15 +1245,6 @@ function youtubeThumb(url: string): string {
   return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : ""
 }
 
-// Nombre de caché ÚNICO por URL. El esquema viejo (último segmento de la ruta)
-// colisiona: todas las miniaturas de YouTube son "hqdefault.jpg" → portada vieja.
-function coverCacheName(url: string): string {
-  let h = 0
-  for (let i = 0; i < url.length; i++) h = (Math.imul(h, 31) + url.charCodeAt(i)) | 0
-  const ext = (url.split("?")[0].match(/\.(jpe?g|png|webp|gif)$/i)?.[1] || "img").toLowerCase()
-  return `c${(h >>> 0).toString(16)}.${ext}`
-}
-
 function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number] {
   const pixels = pixbuf.get_pixels()
   const width = pixbuf.get_width()
@@ -1321,6 +1317,7 @@ function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number]
 function QsMedia() {
   const mpris = AstalMpris.get_default()
   if (!mpris) return <box />
+  programarLimpiezaCacheCaratulas()
   const hypr = AstalHyprland.get_default()
 
   const [title, setTitle] = createState("Sin reproducción")
@@ -1478,13 +1475,14 @@ function QsMedia() {
     if (raw === lastCoverInput) return // misma fuente que el tick anterior
     lastCoverInput = raw
     if (!raw) { setCover(""); return }
-    if (!raw.startsWith("http")) { setCover(raw); return } // ya es ruta local
-    const dir = `${GLib.get_user_cache_dir()}/ags/media`
-    const path = `${dir}/${coverCacheName(raw)}`
-    if (GLib.file_test(path, GLib.FileTest.EXISTS)) { setCover(path); return }
-    execAsync(["bash", "-c", `mkdir -p '${dir}' && curl -sfL -o '${path}' '${raw}'`])
-      .then(() => setCover(path))
-      .catch(() => setCover(""))
+    if (!raw.startsWith("http")) {
+      registrarCaratulaLocal(raw)
+      setCover(raw)
+      return
+    }
+    resolverCaratulaRemota(raw)
+      .then((path) => { if (lastCoverInput === raw) setCover(path) })
+      .catch(() => { if (lastCoverInput === raw) setCover("") })
   }
 
   const update = () => {

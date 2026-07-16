@@ -10,6 +10,11 @@ import { barVisible } from "../state"
 import { powerSaveActive } from "../power/powerState"
 import { isAd, parseTrackId } from "../services/spotify/parse"
 import { transferToThisDevice } from "../services/spotify/SpotifyService"
+import {
+  programarLimpiezaCacheCaratulas,
+  registrarCaratulaLocal,
+  resolverCaratulaRemota,
+} from "../cacheCaratulas"
 
 const ART_WIDTH = 40
 const ART_HEIGHT = 30
@@ -54,18 +59,12 @@ function makeBands(): Band[] {
   })
 }
 
-function coverCacheName(url: string): string {
-  let hash = 0
-  for (let i = 0; i < url.length; i++) hash = (Math.imul(hash, 31) + url.charCodeAt(i)) | 0
-  const ext = (url.split("?")[0].match(/\.(jpe?g|png|webp|gif)$/i)?.[1] || "img").toLowerCase()
-  return `c${(hash >>> 0).toString(16)}.${ext}`
-}
-
 /** Reproductor mínimo de Spotify para el centro de la barra. */
 export default function SpotifyNowPlaying() {
   const hypr = AstalHyprland.get_default()
   const mpris = AstalMpris.get_default()
   if (!mpris) return <box />
+  programarLimpiezaCacheCaratulas()
 
   const [visible, setVisible] = createState(false)
   const [title, setTitle] = createState("")
@@ -125,20 +124,13 @@ export default function SpotifyNowPlaying() {
     }
 
     if (!raw.startsWith("http")) {
+      registrarCaratulaLocal(raw)
       setArtworkFile(raw.startsWith("file://") ? raw.slice(7) : raw)
       return
     }
 
-    const dir = `${GLib.get_user_cache_dir()}/ags/media`
-    const path = `${dir}/${coverCacheName(raw)}`
-    if (GLib.file_test(path, GLib.FileTest.EXISTS)) {
-      setArtworkFile(path)
-      return
-    }
-
-    GLib.mkdir_with_parents(dir, 0o700)
-    execAsync(["curl", "-sfL", "-o", path, raw])
-      .then(() => { if (coverInput === raw) setArtworkFile(path) })
+    resolverCaratulaRemota(raw)
+      .then((path) => { if (coverInput === raw) setArtworkFile(path) })
       .catch(() => { if (coverInput === raw) artPicture.set_paintable(null) })
   }
 
