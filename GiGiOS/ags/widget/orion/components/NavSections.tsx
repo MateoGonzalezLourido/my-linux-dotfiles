@@ -9,7 +9,7 @@ export default function NavSections() {
   const scroll = new Gtk.ScrolledWindow({ cssClasses: ["orion-content-scroll"], vexpand: true })
   // EXTERNAL mantiene rueda/touchpad pero no crea una barra visible o pulsable.
   scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.EXTERNAL)
-  scroll.height_request = 428
+  scroll.height_request = 458
   scroll.set_child(outer)
 
   for (const [id, Component] of Object.entries(SECTION_COMPONENTS)) {

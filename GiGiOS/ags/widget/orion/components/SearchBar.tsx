@@ -29,7 +29,7 @@ export default function SearchBar() {
   return (
     <box cssClasses={["search-zone"]}>
       <box cssClasses={["search-bar"]} hexpand>
-        <image iconName="system-search-symbolic" cssClasses={["search-icon"]} />
+        <image iconName="system-search-symbolic" pixelSize={13} cssClasses={["search-icon"]} />
         {entry}
       </box>
     </box>

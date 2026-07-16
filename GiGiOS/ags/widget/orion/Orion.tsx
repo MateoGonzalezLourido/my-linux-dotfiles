@@ -10,8 +10,8 @@ import {
   preparePanelOpen,
   finalizarCierrePanel,
 } from "./state"
-import SectionIndex from "./components/SectionIndex"
-import SearchBar, { focusSearchAndType } from "./components/SearchBar"
+import CentroComandos from "./components/CentroComandos"
+import { focusSearchAndType } from "./components/SearchBar"
 import NavSections from "./components/NavSections"
 import { SystemStats } from "./components/sections/HomeSection"
 import CornerCurve from "./components/CornerCurve"
@@ -44,10 +44,7 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
   const panelInner = (
     <box cssClasses={["orion-panel"]}>
       <box cssClasses={["orion-main"]} orientation={Gtk.Orientation.VERTICAL}>
-        <box cssClasses={["section-index-container"]}>
-          <SectionIndex />
-        </box>
-        <SearchBar />
+        <CentroComandos />
         <NavSections />
         <SystemStats />
       </box>

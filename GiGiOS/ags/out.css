@@ -30,21 +30,28 @@
   outline: none;
   padding: 0;
   margin: 0;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
-.section-index-container {
+.centro-comandos-container {
   padding: 8px 18px 6px;
 }
 
+.centro-comandos {
+  background: rgba(255, 255, 255, 0.055);
+  border: none;
+  border-radius: 14px;
+  padding: 2px;
+  box-shadow: inset 0 3px 9px rgba(0, 0, 0, 0.34);
+}
+
 .section-index {
-  background: rgb(16.645, 16.645, 20.505);
-  border: 1px solid rgba(255, 255, 255, 0.055);
-  border-radius: 10px;
+  background: transparent;
+  border: none;
+  border-radius: 11px 11px 7px 7px;
   min-height: 27px;
   padding: 2px;
-}
-.section-index image {
-  -gtk-icon-size: 14px;
+  box-shadow: none;
 }
 
 .section-index-scroll scrollbar,
@@ -75,7 +82,9 @@
   color: rgba(226, 226, 226, 0.62);
 }
 .section-index-btn:hover {
-  background: rgba(255, 255, 255, 0.055);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   color: #e2e2e2;
 }
 .section-index-btn:hover image {
@@ -83,11 +92,23 @@
 }
 .section-index-btn.active {
   color: #e2e2e2;
-  background: rgba(203, 166, 247, 0.11);
-  border-color: rgba(203, 166, 247, 0.16);
+  background: transparent;
+  border-color: transparent;
+  border-radius: 9px;
+  box-shadow: none;
 }
 .section-index-btn.active image {
   color: #cba6f7;
+}
+
+.section-index-indicator {
+  background: rgba(203, 166, 247, 0.14);
+  border-radius: 9px;
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 3px 10px rgba(203, 166, 247, 0.1);
+}
+
+.section-index-icon {
+  margin: 0 2px 0 1px;
 }
 
 .Orion .section-index-btn {
@@ -95,20 +116,20 @@
 }
 
 .search-zone {
-  padding: 0 18px 5px;
+  padding: 1px 3px 3px;
 }
 
 .search-bar {
-  background: rgb(21.585, 21.585, 25.365);
-  border: 1px solid rgba(255, 255, 255, 0.105);
-  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 10px;
   padding: 2px 8px;
   min-height: 19px;
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 8px 22px rgba(0, 0, 0, 0.16);
+  box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.28);
 }
-.search-bar image {
-  color: #cba6f7;
-  -gtk-icon-size: 14px;
+.search-bar .search-icon {
+  color: rgba(203, 166, 247, 0.72);
+  margin: 0 7px 0 3px;
 }
 .search-bar text {
   background: transparent;
@@ -143,9 +164,10 @@
   border: 1px solid transparent;
 }
 .ns:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   color: rgba(226, 226, 226, 0.62);
-  background: rgb(26.525, 26.525, 30.225);
-  border-color: rgba(255, 255, 255, 0.055);
 }
 .ns.active {
   color: #89b4fa;
@@ -160,7 +182,7 @@
 }
 
 .orion-content-scroll {
-  min-height: 428px;
+  min-height: 458px;
 }
 .orion-content-scroll scrollbar,
 .orion-content-scroll scrollbar slider,
@@ -207,9 +229,9 @@
   background: rgb(13.928, 13.928, 17.832);
 }
 .Orion .app-item:hover {
-  background: rgb(25.29, 25.29, 29.01);
-  border-color: rgba(255, 255, 255, 0.04);
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 
 .app-item-img {
@@ -316,14 +338,16 @@
 }
 
 .kb-row {
-  background: rgb(8, 8, 12);
+  background: transparent;
   min-height: 25px;
   padding: 3px 5px;
   border-radius: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 .kb-row:hover {
-  background: rgb(16.645, 16.645, 20.505);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 
 .kb-key {
@@ -357,8 +381,9 @@
   padding: 0;
 }
 .rx-item:hover {
-  background: rgb(26.525, 26.525, 30.225);
-  border-color: rgba(255, 255, 255, 0.105);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .rx-item:active {
   background: rgb(29.45, 25.38, 37.85);
@@ -466,16 +491,18 @@ popover.background {
   margin: 0;
   border-radius: 7px;
   border: none;
-  background: rgb(8, 8, 12);
+  background: transparent;
 }
 .orion-panel .rp-action:hover {
-  background: rgb(20.35, 20.35, 24.15);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .orion-panel .rp-action:hover .rp-action-ico {
   color: #e2e2e2;
 }
 .orion-panel .rp-action:active {
-  background: rgb(23.6, 20.64, 30.8);
+  background: rgba(203, 166, 247, 0.08);
 }
 
 .rp-action-row {
@@ -530,8 +557,16 @@ popover.background {
   background: rgb(31.4, 26.96, 40.2);
   color: #cba6f7;
 }
+.apps-cat-btn.active:hover {
+  background: rgba(203, 166, 247, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
+  border-color: rgba(203, 166, 247, 0.22);
+}
 .apps-cat-btn:hover:not(.active) {
-  background: rgb(22.82, 22.82, 26.58);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   color: rgba(226, 226, 226, 0.58);
 }
 
@@ -559,7 +594,9 @@ popover.background {
   border-radius: 6px;
 }
 .apps-mode-toggle:hover {
-  background: rgb(22.82, 22.82, 26.58);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .apps-mode-toggle:hover image {
   color: rgba(226, 226, 226, 0.62);
@@ -599,8 +636,9 @@ popover.background {
   border-radius: 12px;
 }
 .apps-tile:hover {
-  background: rgb(24.055, 24.055, 27.795);
-  border-color: rgba(203, 166, 247, 0.18);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .apps-tile:active {
   background: rgb(27.5, 23.8, 35.5);
@@ -636,8 +674,9 @@ popover.background {
   margin-bottom: 4px;
 }
 .apps-row:hover {
-  background: rgb(26.525, 26.525, 30.225);
-  border-color: rgba(255, 255, 255, 0.105);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 
 .apps-row-icon {
@@ -675,8 +714,9 @@ popover.background {
   padding: 3px 10px;
 }
 .git-section .git-chip:hover {
-  background: rgb(26.525, 26.525, 30.225);
-  border-color: rgba(255, 255, 255, 0.105);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .git-section .git-chip.git-chip-active {
   background: rgb(20.9, 25.2, 35.8);
@@ -710,7 +750,9 @@ popover.background {
   color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-icon-btn:hover {
-  background: rgb(26.525, 26.525, 30.225);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   color: #e2e2e2;
 }
 .git-section .git-icon-btn.git-icon-spin {
@@ -724,7 +766,9 @@ popover.background {
   color: rgba(226, 226, 226, 0.32);
 }
 .git-section .git-icon-btn-sm:hover {
-  background: rgb(26.525, 26.525, 30.225);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   color: #e2e2e2;
 }
 .git-section .git-tab,
@@ -732,6 +776,14 @@ popover.background {
 .git-section .git-saved-view,
 .git-section .git-saved-rm {
   background: rgb(8, 8, 12);
+}
+.git-section .git-tab:hover,
+.git-section .git-manage-confirm:hover,
+.git-section .git-saved-view:hover,
+.git-section .git-saved-rm:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .git-section .git-status-bar {
   background: rgb(16.645, 16.645, 20.505);
@@ -845,7 +897,9 @@ popover.background {
   border-bottom: none;
 }
 .git-section .git-file-row:hover {
-  background: rgb(26.525, 26.525, 30.225);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .git-section .git-file-row.git-file-active {
   background: rgba(137, 180, 250, 0.07);
@@ -908,9 +962,10 @@ popover.background {
   color: rgba(226, 226, 226, 0.62);
 }
 .git-section .git-act-btn:hover {
-  background: rgb(26.525, 26.525, 30.225);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   color: #e2e2e2;
-  border-color: rgba(255, 255, 255, 0.105);
 }
 .git-section .git-act-btn:disabled {
   color: rgba(226, 226, 226, 0.32);
@@ -925,7 +980,9 @@ popover.background {
   padding: 4px 8px;
 }
 .git-section .git-branch-item-btn:hover {
-  background: rgb(26.525, 26.525, 30.225);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .git-section .git-branch-item-lbl {
   font-size: 11px;
@@ -1016,11 +1073,15 @@ popover.background {
 }
 .git-section .git-disc-btn.git-disc-pin:hover {
   background: rgba(137, 180, 250, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   border-color: rgba(203, 166, 247, 0.42);
   color: #89b4fa;
 }
 .git-section .git-disc-btn.git-disc-ignore:hover {
   background: rgba(243, 139, 168, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   border-color: rgba(243, 139, 168, 0.25);
   color: #f38ba8;
 }
@@ -1051,7 +1112,9 @@ popover.background {
   color: rgba(226, 226, 226, 0.62);
 }
 .rice-random-btn:hover {
-  background: rgb(21.585, 21.585, 25.365);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   color: #e2e2e2;
 }
 .rice-random-btn:active {
@@ -1078,7 +1141,9 @@ popover.background {
   background: rgb(8, 8, 12);
 }
 .Orion button.qs-toggle:hover {
-  background: rgb(20.35, 20.35, 24.15);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .Orion button.qs-toggle .qs-toggle-track {
   background: rgb(27.76, 27.76, 31.44);
@@ -1096,12 +1161,19 @@ popover.background {
   min-height: 96px;
   box-shadow: none;
 }
-.rice-thumb:hover, .rice-thumb:active {
+.rice-thumb:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
+}
+.rice-thumb:active {
   background: transparent;
-  box-shadow: none;
 }
 .rice-thumb.wp-current {
   box-shadow: 0 0 0 2px #cba6f7;
+}
+.rice-thumb.wp-current:hover {
+  box-shadow: 0 0 0 2px #cba6f7, inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 
 .rice-grid flowboxchild,

@@ -7,7 +7,7 @@ import Gio from "gi://Gio"
 import Gdk from "gi://Gdk"
 import GObject from "gi://GObject"
 import {
-  setSection, showAppContext, orionVisible, activeSection,
+  showAppContext, orionVisible, activeSection,
   hidePanel,
 } from "../../state"
 import { favorites, setFavorites, saveFavorites, type FavoriteApp } from "../../data/favorites"
@@ -356,15 +356,13 @@ export function HomeSection() {
   appsFlow.row_spacing = 2
   appsFlow.max_children_per_line = 99
 
-  // Sort by _workOrder; "todas" (not in _btnApp) is always index -1 → first
+  // Mantiene el orden editable de las aplicaciones visibles.
   appsFlow.set_sort_func((c1: any, c2: any) => {
     const b1 = c1.get_first_child() as Gtk.Widget | null
     const b2 = c2.get_first_child() as Gtk.Widget | null
     const a1 = b1 ? _btnApp.get(b1) : undefined
     const a2 = b2 ? _btnApp.get(b2) : undefined
-    if (!a1 && !a2) return 0
-    if (!a1) return -1   // "todas" before everything
-    if (!a2) return 1
+    if (!a1 || !a2) return 0
     const i1 = _workOrder.indexOf(a1.id)
     const i2 = _workOrder.indexOf(a2.id)
     return (i1 === -1 ? 999 : i1) - (i2 === -1 ? 999 : i2)
@@ -374,16 +372,6 @@ export function HomeSection() {
     _btnApp.clear()
     let ch: Gtk.FlowBoxChild | null
     while ((ch = appsFlow.get_child_at_index(0)) !== null) appsFlow.remove(ch)
-
-    // "todas" always first (not registered in _btnApp → sort places it first)
-    const todasBtn = new Gtk.Button({ cssClasses: ["app-item"] })
-    const todasInner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 4, halign: Gtk.Align.CENTER })
-    const todasImg = new Gtk.Image({ iconName: "view-app-grid-symbolic", cssClasses: ["app-item-img"] })
-    todasImg.pixel_size = 28
-    todasInner.append(todasImg)
-    todasBtn.set_child(todasInner)
-    todasBtn.connect("clicked", () => setSection("apps"))
-    appsFlow.append(todasBtn)
 
     // Only show apps whose exec resolves; register in _btnApp for sort/drag
     for (const app of favorites.get()) {
