@@ -2119,6 +2119,13 @@ button.sp-step-btn {
   color: #dfe1f0;
   font-size: 12px;
   min-width: 56px;
+
+  // Ocupa el hueco del stepper cuando la fila está apagada ("Nunca"), atenuado
+  // para que se lea como ausencia de tiempo y no como un valor más.
+  &.off {
+    color: rgba(223, 225, 240, 0.45);
+    font-style: italic;
+  }
 }
 
 // Input numérico escrito a mano (reglas de luz nocturna)

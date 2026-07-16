@@ -158,6 +158,19 @@ silencio** (`parseHypridle` degrada a "no encontrado", no a un error). Sigue ley
 formato directo (`hyprctl dispatch dpms off` / `hyprlock` / `systemctl suspend`) para un config
 traído de otra máquina. Cubierto por `hypridle.test.ts`.
 
+**Desactivar un tiempo se hace comentando la línea, NUNCA con `timeout = 0`.** Cada fila de Ajustes
+> Pantalla lleva un interruptor que apaga *ese* listener (`IdleRow` en `DisplaySection.tsx` →
+`writeHypridle(…, {enabled:false})` → `# timeout = N   # GIGIOS-OFF`). El 0 no es una forma pobre de
+decir "nunca": es lo contrario. Medido en hypridle 0.1.7 — con `timeout = 0` el listener **se
+registra y se dispara al instante** (`Registered timeout rule for 0s`, y la acción ejecutada ya), o
+sea que ponerlo en la fila "Suspender" apagaría el PC nada más guardar. Comentado, hypridle saca un
+`Category has a missing timeout setting`, **ignora ese listener y sigue con los demás** (también
+medido) — y el valor sobrevive dentro del comentario, así que al reencender vuelve el número del
+usuario. De ahí el suelo de 1 min al leer el fichero: un listener ausente parsea a `{timeout: 0}`, y
+ese 0 llegaría al `.conf` al encender la fila. **El estado del interruptor sale de `parseHypridle`,
+no de un `true` fijo**: cuando la UI escribía `enabled: true` a pelo, mover cualquier stepper
+reescribía los tres listeners como activos y resucitaba en silencio un GIGIOS-OFF ya puesto.
+
 ### Notificaciones de los scripts: el hint `x-gigios-source`
 
 **Todo `notify-send` de `hypr/scripts/` lleva `-h string:x-gigios-source:system`** (44 llamadas,

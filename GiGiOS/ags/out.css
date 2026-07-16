@@ -3013,6 +3013,10 @@ button.sp-step-btn:hover {
   font-size: 12px;
   min-width: 56px;
 }
+.sp-step-val.off {
+  color: rgba(223, 225, 240, 0.45);
+  font-style: italic;
+}
 
 entry.sp-num-input {
   background: rgba(255, 255, 255, 0.06);

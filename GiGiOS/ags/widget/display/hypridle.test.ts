@@ -53,6 +53,52 @@ test("writeHypridle reactiva quitando el sentinel", () => {
   assert.equal(p.suspend.enabled, true)
 })
 
+// ── Desactivar un listener (interruptor de Ajustes > Pantalla) ───────────────
+// Por qué comentar y no `timeout = 0`: hypridle 0.1.7 acepta el 0 como listener
+// válido y lo dispara AL INSTANTE (medido: "Registered timeout rule for 0s" + la
+// acción ejecutada) — en "Suspender" eso apaga el PC al guardar. Comentado, avisa
+// de "Category has a missing timeout setting", ignora ese listener y sigue con el
+// resto. De ahí que desactivar NUNCA deba escribir un timeout, ni siquiera 0.
+test("desactivar no deja ningún `timeout = N` activo en el bloque", () => {
+  const out = writeHypridle(SAMPLE, { suspend: { timeout: 660, enabled: false } })
+  const block = out.match(/listener\s*\{[^}]*systemctl suspend[^}]*\}/)
+  assert.ok(block, "no se encontró el bloque de suspend")
+  // Ni una línea timeout sin comentar: el 0 instantáneo es inalcanzable por diseño.
+  assert.ok(!/^\s*timeout\s*=/m.test(block![0]), "quedó un timeout activo al desactivar")
+})
+
+// El .conf real lleva un comentario DETRÁS del valor (`timeout = 660  # 11 min —
+// suspender`). El SAMPLE de arriba no, así que sin este caso el formato que de
+// verdad se edita no está cubierto: el sentinel se inserta en medio de la línea y
+// hay que comprobar que se sigue parseando y que el ciclo vuelve al original.
+const REAL = `listener {
+    timeout = 600          # 10 min — apagar pantalla
+    on-timeout = ~/.config/hypr/scripts/idle-action.sh dpms-off
+    on-resume = hyprctl dispatch dpms on
+}
+
+listener {
+    timeout = 660         # 11 min — suspender
+    on-timeout = ~/.config/hypr/scripts/idle-action.sh suspend
+}
+`
+
+test("el comentario de la derecha no rompe parse/write ni el sentinel", () => {
+  assert.equal(parseHypridle(REAL).dpms.timeout, 600)
+  const off = writeHypridle(REAL, { suspend: { timeout: 660, enabled: false } })
+  const p = parseHypridle(off)
+  assert.equal(p.suspend.enabled, false)
+  assert.equal(p.suspend.timeout, 660)   // el valor sobrevive comentado
+  assert.equal(p.dpms.enabled, true)     // no se ha tocado el otro listener
+  assert.match(off, /#\s*timeout = 660\s+# GIGIOS-OFF/)
+})
+
+test("apagar y volver a encender devuelve el fichero EXACTAMENTE al original", () => {
+  const off = writeHypridle(REAL, { suspend: { timeout: 660, enabled: false } })
+  const on = writeHypridle(off, { suspend: { timeout: 660, enabled: true } })
+  assert.equal(on, REAL)
+})
+
 // ── La puerta del Wake up (hypr/scripts/idle-action.sh) ──────────────────────
 // Los listeners reales ya no llaman a la acción directamente: pasan por el script
 // que consulta el Wake up. Si kindOf() no supiera reconocerlos, Ajustes > Pantalla

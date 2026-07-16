@@ -298,6 +298,45 @@ function MinuteStepper({ value, onChange }: { value: any, onChange: (mins: numbe
   )
 }
 
+// Una fila de tiempo de inactividad: interruptor + stepper (o "Nunca" al apagarlo).
+//
+// El interruptor NO desactiva poniendo el timeout a 0, y eso no es preferencia de
+// estilo: hypridle acepta `timeout = 0` como listener válido y lo dispara AL
+// INSTANTE (medido: "Registered timeout rule for 0s" y la acción ejecutada ya).
+// En la fila "Suspender" eso apagaría el PC nada más guardar. Desactivar es
+// comentar la línea con el sentinel `# GIGIOS-OFF` (writeHypridle): hypridle
+// registra "Category has a missing timeout setting", ignora ESE listener y sigue
+// con los demás. De regalo, el valor sobrevive comentado, así que al reencender
+// vuelve tu número en vez de un valor por defecto.
+function IdleRow({ label, mins, setMins, on, setOn, commit }: {
+  label: string
+  mins: Accessor<number>
+  setMins: (v: number) => void
+  on: Accessor<boolean>
+  setOn: (v: boolean) => void
+  commit: () => void
+}) {
+  return (
+    <box spacing={8} valign={Gtk.Align.CENTER}>
+      <label cssClasses={["sp-field-label"]} label={label} hexpand halign={Gtk.Align.START} />
+      <label cssClasses={["sp-step-val", "off"]} label="Nunca" visible={on((v) => !v)} />
+      {/* `visible` y no `<With>`: un With se remonta al final de su caja y mandaría
+          el stepper detrás del interruptor cada vez que se enciende la fila. */}
+      <box visible={on}>
+        <MinuteStepper value={mins} onChange={(v) => { setMins(v); commit() }} />
+      </box>
+      <button
+        cssClasses={on((v) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+        onClicked={() => { setOn(!on.get()); commit() }}
+      >
+        <box cssClasses={["qs-toggle-track"]}>
+          <box cssClasses={on((v) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+        </box>
+      </button>
+    </box>
+  )
+}
+
 export default function DisplaySection() {
   const [selectedName, setSelectedName] = createState<string>("")
   const [editingBrightness, setEditingBrightness] = createState(false)
@@ -401,17 +440,24 @@ export default function DisplaySection() {
 
   // ── hypridle (suspensión) ──
   const hypr = readHypridle() || { dpms: { timeout: 600, enabled: true }, lock: { timeout: 630, enabled: true }, suspend: { timeout: 660, enabled: true } }
-  const [dpmsMin, setDpmsMin] = createState(Math.round(hypr.dpms.timeout / 60))
-  const [lockMin, setLockMin] = createState(Math.round(hypr.lock.timeout / 60))
-  const [suspMin, setSuspMin] = createState(Math.round(hypr.suspend.timeout / 60))
+  // Suelo de 1 min: un listener ausente del .conf parsea a `{timeout: 0}`, y ese 0
+  // llegaría al fichero al encender la fila — que es justo el disparo instantáneo
+  // que el sentinel evita. El stepper ya no baja de 1; esto cubre la entrada.
+  const toMin = (secs: number) => Math.max(1, Math.round(secs / 60))
+  const [dpmsMin, setDpmsMin] = createState(toMin(hypr.dpms.timeout))
+  const [lockMin, setLockMin] = createState(toMin(hypr.lock.timeout))
+  const [suspMin, setSuspMin] = createState(toMin(hypr.suspend.timeout))
+  // El estado de encendido sale del fichero, NO de `true` fijo: con `true` cualquier
+  // edición (mover un stepper de otra fila) reescribía los tres listeners como
+  // activos y resucitaba en silencio un GIGIOS-OFF ya puesto.
+  const [dpmsOn, setDpmsOn] = createState(hypr.dpms.enabled)
+  const [lockOn, setLockOn] = createState(hypr.lock.enabled)
+  const [suspOn, setSuspOn] = createState(hypr.suspend.enabled)
   const commitHypridle = () => saveHypridle({
-    dpms: { timeout: dpmsMin.get() * 60, enabled: true },
-    lock: { timeout: lockMin.get() * 60, enabled: true },
-    suspend: { timeout: suspMin.get() * 60, enabled: true },
+    dpms: { timeout: dpmsMin.get() * 60, enabled: dpmsOn.get() },
+    lock: { timeout: lockMin.get() * 60, enabled: lockOn.get() },
+    suspend: { timeout: suspMin.get() * 60, enabled: suspOn.get() },
   })
-  const stepper = (st: any, setter: (v: number) => void) => (
-    <MinuteStepper value={st} onChange={(v) => { setter(v); commitHypridle() }} />
-  )
 
   // Bit depth / gestión de color: reflejan la PREFERENCIA guardada (monitorPrefs),
   // no solo el formato reportado — así la elección "se queda" aunque el panel no
@@ -708,19 +754,10 @@ export default function DisplaySection() {
       {/* ── Suspensión de pantalla (hypridle) ── */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-field"]}>
         <label cssClasses={["sp-subsection-title"]} label="✦ Suspensión de pantalla" halign={Gtk.Align.START} />
-        <label cssClasses={["sp-field-hint"]} label="Tiempos de inactividad. Se guardan en hypridle.conf y reinician hypridle." halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
-        <box spacing={8} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["sp-field-label"]} label="Apagar pantalla" hexpand halign={Gtk.Align.START} />
-          {stepper(dpmsMin, setDpmsMin)}
-        </box>
-        <box spacing={8} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["sp-field-label"]} label="Bloquear" hexpand halign={Gtk.Align.START} />
-          {stepper(lockMin, setLockMin)}
-        </box>
-        <box spacing={8} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["sp-field-label"]} label="Suspender" hexpand halign={Gtk.Align.START} />
-          {stepper(suspMin, setSuspMin)}
-        </box>
+        <label cssClasses={["sp-field-hint"]} label="Tiempos de inactividad. Apaga el interruptor para que algo no ocurra nunca; se conserva el tiempo por si lo vuelves a encender. Se guardan en hypridle.conf y reinician hypridle." halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
+        <IdleRow label="Apagar pantalla" mins={dpmsMin} setMins={setDpmsMin} on={dpmsOn} setOn={setDpmsOn} commit={commitHypridle} />
+        <IdleRow label="Bloquear" mins={lockMin} setMins={setLockMin} on={lockOn} setOn={setLockOn} commit={commitHypridle} />
+        <IdleRow label="Suspender" mins={suspMin} setMins={setSuspMin} on={suspOn} setOn={setSuspOn} commit={commitHypridle} />
       </box>
 
     </box>
