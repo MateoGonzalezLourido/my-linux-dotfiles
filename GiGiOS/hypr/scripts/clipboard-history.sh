@@ -13,12 +13,13 @@
 #   picker  abre el selector Rofi (SUPER+V). Toggle: si ya está abierto, lo cierra.
 
 prefs="$HOME/.config/gigios/preferences.json"
-limite_historial=750
+limite_historial=500
 ruta_miniatura="$HOME/.config/hypr/scripts/miniatura-portapapeles.sh"
-# Patrón del watcher, compartido por start/stop. (^|/) tolera ruta absoluta.
-# La parte opcional también reconoce el watcher anterior para no duplicarlo
-# durante la transición; el límite predeterminado actual de cliphist ya es 750.
-watch_re="(^|/)wl-paste --watch cliphist store([[:space:]]+-max-items[[:space:]]+$limite_historial)?$"
+# Patrones del watcher, compartidos por start/stop. (^|/) tolera ruta absoluta.
+# El patrón general reconoce límites anteriores para poder sustituir el proceso
+# sin perder el historial; el específico evita reiniciar si ya usa el actual.
+watch_re="(^|/)wl-paste --watch cliphist store([[:space:]]+-max-items[[:space:]]+[0-9]+)?$"
+watch_re_actual="(^|/)wl-paste --watch cliphist store[[:space:]]+-max-items[[:space:]]+$limite_historial$"
 
 history_enabled() {
     [[ ! -f "$prefs" ]] && return 0
@@ -36,7 +37,10 @@ history_enabled() {
 case "${1:-}" in
     start)
         history_enabled || exit 0
-        pgrep -f "$watch_re" >/dev/null && exit 0
+        pgrep -f "$watch_re_actual" >/dev/null && exit 0
+        # Si quedó un watcher con un límite anterior, sustituirlo sin borrar la
+        # base. `stop` no sirve aquí porque también ejecuta `cliphist wipe`.
+        pkill -f "$watch_re" 2>/dev/null || true
         # setsid --fork: nueva sesión + fork, el watcher queda reparentado a init
         # y NO muere aunque AGS/Hyprland reinicien.
         setsid --fork wl-paste --watch cliphist store \
@@ -69,7 +73,7 @@ case "${1:-}" in
         # vacío: NO tocamos el portapapeles, evitando que un wl-copy vacío borre
         # lo que el usuario tenía copiado.
         # cliphist entrega primero lo más reciente. Conservamos su ID en la
-        # primera columna (oculta) y anteponemos 1..750 al texto visible.
+        # primera columna (oculta) y anteponemos 1..500 al texto visible.
         sel="$(cliphist list | awk -F '\t' '
             function decodificar_ruta(uri, hexadecimal, caracter) {
                 sub(/^file:\/\//, "", uri)

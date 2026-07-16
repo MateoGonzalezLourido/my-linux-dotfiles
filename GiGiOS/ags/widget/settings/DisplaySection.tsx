@@ -4,7 +4,7 @@
 // (widget/display/service.ts). Patrón visual sp-section/sp-field como
 // PersonalizationSection.
 import { Gtk } from "ags/gtk4"
-import { createState, createComputed, For } from "ags"
+import { createState, createComputed, createMemo, For, onCleanup, Accessor } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import { DisplaySelect } from "../display/controls"
@@ -63,15 +63,24 @@ function makeScale(classes: string[], getValue: () => number, setValue: (v: numb
 
 // Input numérico que se escribe a mano. Valida y acota [min, max] al pulsar Enter
 // o al salir del campo; reescribe con `pad` dígitos.
-function NumberField({ initial, min, max, chars = 2, pad = 2, onCommit }: {
-  initial: number, min: number, max: number, chars?: number, pad?: number, onCommit: (n: number) => void,
+//
+// `value` es REACTIVO, y tiene que serlo: la fila ya no se reconstruye al editar (ver
+// `ruleKey`), así que un cambio que no venga de teclear aquí no se vería nunca. Pasa de
+// verdad: pon la temp en 4000, cambia el canal a "No cambiar" y vuelve a "Encender a" — la
+// regla vuelve al valor por defecto (3500, porque `temp` ya era null) y sin esto el campo
+// seguiría enseñando 4000, o sea que la UI mentiría sobre lo que hace la franja (medido con
+// un A/B, no supuesto). El texto NO se pisa mientras el campo tiene el foco: ahí estás
+// escribiendo tú, y manda lo tecleado hasta que `commit` lo valide.
+function NumberField({ value, min, max, chars = 2, pad = 2, onCommit }: {
+  value: Accessor<number>, min: number, max: number, chars?: number, pad?: number, onCommit: (n: number) => void,
 }) {
   let ref: Gtk.Entry
+  const render = (n: number) => String(n).padStart(pad, "0")
   const commit = () => {
     if (!ref) return
     const raw = parseInt(ref.get_text().trim(), 10)
     const v = isNaN(raw) ? min : Math.max(min, Math.min(max, raw))
-    ref.set_text(String(v).padStart(pad, "0"))
+    ref.set_text(render(v))
     onCommit(v)
   }
   return (
@@ -80,7 +89,13 @@ function NumberField({ initial, min, max, chars = 2, pad = 2, onCommit }: {
       maxLength={chars}
       widthChars={chars}
       xalign={0.5}
-      $={(self: Gtk.Entry) => { ref = self; self.set_text(String(initial).padStart(pad, "0")) }}
+      $={(self: Gtk.Entry) => {
+        ref = self
+        self.set_text(render(value.get()))
+        onCleanup(value.subscribe(() => {
+          if (!self.has_focus) self.set_text(render(value.get()))
+        }))
+      }}
       onActivate={commit}
     >
       <Gtk.EventControllerFocus onLeave={commit} />
@@ -121,15 +136,46 @@ const BRIGHT_MODES = [
   { label: "Fijar en", value: "set" },
 ]
 
+// Identidad estable de una regla, para el `id` de `<For>`. NO es cosmética: sin ella
+// **editar una franja mataba todo AGS**, y de la peor manera posible.
+//
+// Editar REEMPLAZA el objeto de la regla (`patch` hace `{...rule, ...cambio}`, porque el
+// estado es inmutable) y `<For>` indexa por identidad de objeto: objeto nuevo = clave
+// nueva = tira la fila y construye otra. O sea que cada edición destruía **el editor que
+// estabas usando**. Con `commit` colgando del `leave` de un campo (que es como se edita de
+// verdad: tecleas la hora y pasas al minuto), eso destruía el `Gtk.Entry` que tenía el foco
+// DESDE DENTRO de su propio handler de foco, con GTK a mitad del cambio: el método de
+// entrada de Wayland se quedaba apuntando al widget ya liberado y el siguiente evento
+// reventaba en `wl_proxy_get_version` (SIGSEGV, se cae el shell entero).
+//
+// El crash es una CARRERA con el evento de text-input del compositor, así que no era
+// determinista y por eso parecía caprichoso: medido sobre el código viejo, salir del campo
+// petaba 2 de cada 3 veces y pulsar Enter 1 de cada 3 — menos, pero petaba. No busques una
+// ruta "segura": la destrucción de la fila al editar es el fallo, y la cura es no destruirla.
+//
+// La clave va en un `Symbol` a propósito: el spread de `patch` lo copia (la fila sobrevive
+// a la edición, que es justo lo que hace falta) pero `JSON.stringify` lo ignora, así que no
+// se cuela en `display.json` ni obliga a tocar la lógica pura de `schedule.ts`. Es identidad
+// de sesión: al recargar se reparte de nuevo, y no hace falta que sea estable en disco.
+const RULE_KEY = Symbol("rule-key")
+let nextRuleKey = 1
+function ruleKey(rule: NightRule): number {
+  const r = rule as unknown as Record<symbol, number>
+  if (!r[RULE_KEY]) r[RULE_KEY] = nextRuleKey++
+  return r[RULE_KEY]
+}
+
 // Tarjeta de una regla: la FRANJA (de HH:MM a HH:MM) y, debajo, sus DOS canales
 // independientes (luz nocturna y brillo). Cada canal puede quedarse en "No cambiar", así
 // que una regla puede tocar solo uno, solo el otro o los dos — y fuera de la franja no
-// toca nada. Edita la regla en su índice actual dentro de la lista (index es un accessor
-// de gnim For); al reemplazar el objeto, For reconstruye la fila, y por eso los valores se
-// leen sin reactividad.
+// toca nada.
+//
+// La fila SOBREVIVE a sus propias ediciones (ver `ruleKey`), así que el `rule` que nos pasó
+// `<For>` queda obsoleto en cuanto tocas algo: la regla vigente se lee del estado por el
+// índice (que `<For>` sí mantiene al día), y todo lo que se enseña cuelga de `cur`. Leerlo
+// de `rule` sería leer el pasado.
 function RuleRow({ rule, index }: { rule: NightRule, index: any }) {
-  const [sh, sm] = rule.start.split(":").map(Number)
-  const [eh, em] = rule.end.split(":").map(Number)
+  const cur = createComputed(() => nightRules()[index()] ?? rule)
 
   const patch = (p: Partial<NightRule>) => {
     const i = index.get()
@@ -139,38 +185,54 @@ function RuleRow({ rule, index }: { rule: NightRule, index: any }) {
     setNightRulesAndSave(rules)
   }
   const setTimePart = (field: "start" | "end", idx: 0 | 1, val: number) => {
-    const cur = nightRules.get()[index.get()]
-    if (!cur) return
-    const p = cur[field].split(":")
+    const r = nightRules.get()[index.get()]
+    if (!r) return
+    const p = r[field].split(":")
     p[idx] = String(val).padStart(2, "0")
     patch({ [field]: `${p[0]}:${p[1]}` } as Partial<NightRule>)
   }
   const remove = () => setNightRulesAndSave(nightRules.get().filter((_, idx) => idx !== index.get()))
 
-  const nightMode = rule.temp == null || rule.temp <= 0 ? "keep" : "on"
-  const brightMode = rule.brightness == null ? "keep" : "set"
-  const temp = rule.temp && rule.temp > 0 ? rule.temp : DEFAULT_RULE_TEMP
-  const bright = rule.brightness ?? DEFAULT_RULE_BRIGHTNESS
+  // Los derivados salen por `createMemo`, y NO por `cur((r) => …)`: `createComputed` no
+  // compara nada y reemite en CADA cambio de la lista (y `cur` produce un objeto nuevo en
+  // cada edición, así que "cambia" siempre). Sin memo, tocar la hora reemitía `nightMode`
+  // con el mismo "on" de antes, y eso **reconstruye las opciones del desplegable** — su
+  // `<For>` también va por identidad —: destrucción de widgets gratis en cada tecleo, que
+  // es justo la clase de churn que traía el crash. `createMemo` solo avisa si el valor
+  // cambia de verdad (`Object.is`).
+  const memo = <T,>(f: (r: NightRule) => T) => createMemo(() => f(cur()))
+  const startH = memo((r) => Number(r.start.split(":")[0]))
+  const startM = memo((r) => Number(r.start.split(":")[1]))
+  const endH = memo((r) => Number(r.end.split(":")[0]))
+  const endM = memo((r) => Number(r.end.split(":")[1]))
+
+  const nightMode = memo((r) => (r.temp == null || r.temp <= 0 ? "keep" : "on"))
+  const brightMode = memo((r) => (r.brightness == null ? "keep" : "set"))
+  const temp = memo((r) => (r.temp && r.temp > 0 ? r.temp : DEFAULT_RULE_TEMP))
+  const bright = memo((r) => r.brightness ?? DEFAULT_RULE_BRIGHTNESS)
 
   // Canales que ESTA regla rige ahora mismo (dentro de su franja). Se compara por
-  // identidad: la lista guarda el mismo objeto que For nos pasa, y cualquier edición lo
-  // reemplaza y reconstruye la fila. Es la prueba visible de que la franja empieza y acaba.
+  // identidad contra el objeto VIVO de la lista (`rules[index()]`), no contra el `rule` que
+  // nos pasaron al construir: ese se queda atrás en la primera edición. Es la prueba visible
+  // de que la franja empieza y acaba.
   const activeChannels = createComputed(() => {
     if (!nightRulesEnabled()) return [] as string[]
     const t = scheduleNow(), rules = nightRules()
+    const self = rules[index()]
+    if (!self) return [] as string[]
     const out: string[] = []
-    if (activeRuleFor(t, rules, "temp") === rule) out.push("luz nocturna")
-    if (activeRuleFor(t, rules, "brightness") === rule) out.push("brillo")
+    if (activeRuleFor(t, rules, "temp") === self) out.push("luz nocturna")
+    if (activeRuleFor(t, rules, "brightness") === self) out.push("brillo")
     return out
   })
 
   // hexpand={false} explícito: el disparador de DisplaySelect es hexpand y, sin cortarle la
   // propagación aquí, el desplegable se comería toda la fila y mandaría el campo K/% al borde.
-  const modeSelect = (modes: typeof NIGHT_MODES, current: string, onSelect: (v: string) => void) => (
+  const modeSelect = (modes: typeof NIGHT_MODES, current: Accessor<string>, onSelect: (v: string) => void) => (
     <box cssClasses={["sp-rule-select"]} valign={Gtk.Align.CENTER} hexpand={false} halign={Gtk.Align.START}>
       <DisplaySelect
-        current={modes.find((x) => x.value === current)!.label}
-        options={createComputed(() => modes.map((x) => ({ label: x.label, value: x.value, active: x.value === current })))}
+        current={current((c) => modes.find((x) => x.value === c)!.label)}
+        options={current((c) => modes.map((x) => ({ label: x.label, value: x.value, active: x.value === c })))}
         onSelect={onSelect}
       />
     </box>
@@ -181,13 +243,13 @@ function RuleRow({ rule, index }: { rule: NightRule, index: any }) {
       cssClasses={activeChannels((c) => c.length ? ["sp-rule-card", "active"] : ["sp-rule-card"])}>
       <box spacing={5} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
         <label cssClasses={["sp-rule-chan", "narrow"]} label="de" halign={Gtk.Align.START} />
-        <NumberField initial={sh} min={0} max={23} onCommit={(v) => setTimePart("start", 0, v)} />
+        <NumberField value={startH} min={0} max={23} onCommit={(v) => setTimePart("start", 0, v)} />
         <label cssClasses={["sp-field-hint"]} label=":" />
-        <NumberField initial={sm} min={0} max={59} onCommit={(v) => setTimePart("start", 1, v)} />
+        <NumberField value={startM} min={0} max={59} onCommit={(v) => setTimePart("start", 1, v)} />
         <label cssClasses={["sp-field-hint"]} label="a" />
-        <NumberField initial={eh} min={0} max={23} onCommit={(v) => setTimePart("end", 0, v)} />
+        <NumberField value={endH} min={0} max={23} onCommit={(v) => setTimePart("end", 0, v)} />
         <label cssClasses={["sp-field-hint"]} label=":" />
-        <NumberField initial={em} min={0} max={59} onCommit={(v) => setTimePart("end", 1, v)} />
+        <NumberField value={endM} min={0} max={59} onCommit={(v) => setTimePart("end", 1, v)} />
         <label
           cssClasses={["sp-rule-active-chip"]}
           label="vigente"
@@ -204,9 +266,9 @@ function RuleRow({ rule, index }: { rule: NightRule, index: any }) {
       <box spacing={6} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
         <label cssClasses={["sp-rule-chan"]} label="Luz nocturna" halign={Gtk.Align.START} />
         {modeSelect(NIGHT_MODES, nightMode, (v) =>
-          patch({ temp: v === "keep" ? null : temp }))}
-        <box spacing={4} valign={Gtk.Align.CENTER} visible={nightMode === "on"}>
-          <NumberField initial={temp} min={1000} max={6500} chars={4} pad={0} onCommit={(v) => patch({ temp: v })} />
+          patch({ temp: v === "keep" ? null : temp.get() }))}
+        <box spacing={4} valign={Gtk.Align.CENTER} visible={nightMode((m) => m === "on")}>
+          <NumberField value={temp} min={1000} max={6500} chars={4} pad={0} onCommit={(v) => patch({ temp: v })} />
           <label cssClasses={["sp-field-hint"]} label="K" />
         </box>
       </box>
@@ -215,9 +277,9 @@ function RuleRow({ rule, index }: { rule: NightRule, index: any }) {
       <box spacing={6} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]} visible={brightnessSupported}>
         <label cssClasses={["sp-rule-chan"]} label="Brillo" halign={Gtk.Align.START} />
         {modeSelect(BRIGHT_MODES, brightMode, (v) =>
-          patch({ brightness: v === "keep" ? null : bright }))}
-        <box spacing={4} valign={Gtk.Align.CENTER} visible={brightMode === "set"}>
-          <NumberField initial={bright} min={1} max={100} chars={3} pad={0} onCommit={(v) => patch({ brightness: v })} />
+          patch({ brightness: v === "keep" ? null : bright.get() }))}
+        <box spacing={4} valign={Gtk.Align.CENTER} visible={brightMode((m) => m === "set")}>
+          <NumberField value={bright} min={1} max={100} chars={3} pad={0} onCommit={(v) => patch({ brightness: v })} />
           <label cssClasses={["sp-field-hint"]} label="%" />
         </box>
       </box>
@@ -597,7 +659,7 @@ export default function DisplaySection() {
           halign={Gtk.Align.START} xalign={0}
         />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={nightRulesEnabled}>
-          <For each={nightRules}>
+          <For each={nightRules} id={ruleKey}>
             {(rule: NightRule, index: any) => <RuleRow rule={rule} index={index} />}
           </For>
           <button

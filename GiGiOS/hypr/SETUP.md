@@ -400,7 +400,7 @@ fondo `#313244` al 90 %, selección `#b4befe` y scrollbar rosa `#f5c2e7` al 70 %
 Ambos selectores leen `GiGiOS/rofi/config.rasi` mediante su enlace en
 `~/.config/rofi`; cada uno solo aporta su propio placeholder. La búsqueda difusa del
 portapapeles conserva el orden cronológico de `cliphist`. El watcher fija un máximo de
-750 elementos y el selector los numera de `1` a `750`, desde el más reciente hasta el
+500 elementos y el selector los numera de `1` a `500`, desde el más reciente hasta el
 más antiguo, sin mostrar el identificador interno utilizado para decodificarlos.
 Las entradas que apuntan a un archivo de imagen entregan directamente esa ruta al
 sistema de miniaturas de Rofi. Para capturas y otras imágenes binarias,
