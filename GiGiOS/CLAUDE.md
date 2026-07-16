@@ -240,18 +240,27 @@ anterior — un "Discord compartiendo" sobrevivía al reboot y el icono se queda
 `ags/widget/bar/ScreencastIndicator.tsx` con un `Gio.FileMonitor`; fichero ausente = nada
 capturando = icono oculto.
 
-Dos sub-monitores en paralelo (`&` + `wait`, como `oom-monitor.sh`), porque las dos formas de
-capturar no comparten mecanismo: **compartir pantalla** (Discord, OBS, Zoom, navegadores) pasa
-por `xdg-desktop-portal-hyprland`, que crea un nodo PipeWire `Video/Source` → se detecta
-bloqueando en `pw-mon` (event-driven, con debounce), filtrando por nodo del portal y
-**excluyendo las cámaras** (`v4l2_*`/`libcamera*`) para que la webcam no encienda el icono;
-cuando PipeWire lo expone, se sigue el link hasta el nodo `Stream/Input/Video` para nombrar la
-app consumidora (si no, la etiqueta cae a "Pantalla"). **Grabar en local** (`wf-recorder`,
-`gpu-screen-recorder`, `wl-screenrec`, `obs`) usa wlr-screencopy y **no toca PipeWire**: no hay
-señal a la que suscribirse, así que ahí sí se sondea con `pgrep` cada 3 s.
+Un único coordinador conserva en memoria dos estados, porque las formas de capturar no comparten
+mecanismo. **Compartir pantalla** (Discord, OBS, Zoom, navegadores) pasa por
+`xdg-desktop-portal-hyprland`, que crea un nodo PipeWire `Video/Source`: `pw-mon -p` alimenta un
+filtro `awk` que recuerda los ids de los nodos/enlaces de vídeo y descarta todos los demás
+eventos (incluido el audio); después de cada ráfaga espera **300 ms reales sin otra señal** y
+solo entonces ejecuta un `pw-dump`. No se hace una consulta por cada línea encolada. Se filtra
+por nodo del portal y se **excluyen las cámaras** (`v4l2_*`/`libcamera*`) para que la webcam no
+encienda el icono;
+además, el nodo debe estar **`running` o tener un link `active`**: Discord/Electron puede dejar
+un nodo `idle` huérfano al terminar de compartir, y contar su mera existencia mantenía el icono
+encendido aunque ya no hubiera captura. Cuando PipeWire lo expone, se sigue el link activo hasta
+el nodo `Stream/Input/Video` para nombrar la app consumidora (si no, la etiqueta cae a
+"Pantalla"). **Grabar en local** (`wf-recorder`, `gpu-screen-recorder`, `wl-screenrec`, `obs`)
+usa wlr-screencopy y **no toca PipeWire**: no hay señal a la que suscribirse, así que ahí se
+sondea solo `pgrep` cada 3 s, sin volver a ejecutar `pw-dump`. El coordinador combina ambos
+resultados y escribe únicamente si cambia el conjunto final; no usa estado auxiliar en disco.
 
-El trap `TERM` mata a los sub-monitores **y a sus nietos** (`pw-mon`, `sleep`) y borra el JSON:
-sin eso, el `pkill` del toggle maestro dejaría el icono encendido. Requiere `jq` y `pw-dump`;
+El trap `TERM` mata al coproceso **y a sus hijos** (`pw-mon`, `awk`) y borra el JSON. El
+coproceso se ejecuta con un argv propio (`gigios-screencast-events`): si heredara
+`screencast-monitor.sh`, el `pkill -f` del toggle mataría padre e hijo a la vez y podría dejar
+`pw-mon` huérfano antes de que el padre hiciera la limpieza. Requiere `jq` y `pw-dump`;
 sin ellos sale sin escribir.
 
 **Filtro de PipeWire, medido en esta máquina (no supuesto):** el nodo del portal se identifica
