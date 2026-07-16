@@ -3,7 +3,10 @@
 # Autodiscovers hardware; checks only relevant subsystems.
 # Silent on clean boot. Notifies per category on problems only.
 
-sleep 5  # Let the session fully initialize before checking
+# La espera a que la sesión termine de cargar la pone quien lo lanza
+# (`hypr/autostart.conf`, ~30 s), no este script: es el más caro del arranque y su
+# retardo forma parte del calendario que se lee allí de una vez. Ejecutarlo a mano
+# responde al instante.
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 

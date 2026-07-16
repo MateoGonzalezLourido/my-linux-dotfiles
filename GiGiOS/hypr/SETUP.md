@@ -469,11 +469,19 @@ Instala sus dependencias:
 
 ```sh
 sudo pacman -S --needed clamav firejail bubblewrap xxhash xdg-user-dirs file
-sudo freshclam
+sudo systemctl enable --now clamav-freshclam
 ```
 
-- `clamav` proporciona `clamscan`. Sin una base descargada con `freshclam`, el programa
-  existe pero no puede detectar firmas.
+- `clamav` proporciona `clamscan`. Sin una base de firmas descargada, el programa existe
+  pero no puede detectar nada — y esto no falla en silencio: `clamscan` sale con código
+  **2** ("No supported database files found"), que `oom-monitor.sh` interpreta como
+  "motor no disponible" y por eso **no** marca nada como analizado (ver más abajo).
+  Usa el **servicio**, no un `freshclam` suelto de una sola vez: `enable --now` descarga
+  la base ya mismo (unos 200 MB; tarda un par de minutos) y además la deja
+  **actualizándose sola** — un `freshclam` manual se queda obsoleto en días y nadie
+  vuelve a acordarse de repetirlo. Comprueba que cuajó con
+  `systemctl status clamav-freshclam` y `ls /var/lib/clamav` (debe tener ficheros, no
+  estar vacío).
 - `firejail` es el motor principal usado para lanzar archivos o aplicaciones no
   confiables con aislamiento de procesos, red y sistema de archivos según el perfil
   aplicado por `run-untrusted.sh`.
@@ -498,8 +506,13 @@ clamscan --no-summary ~/Descargas/algún-archivo
 ```
 
 El estado se guarda en `~/.cache/gigios/download-index` y
-`~/.cache/gigios/download-hashes`; es caché regenerable y no se copia al migrar. Las
-preferencias viven en `~/.config/gigios/security.json` y se leen una sola vez al arrancar
+`~/.cache/gigios/download-hashes`; es caché regenerable y no se copia al migrar.
+**Si `oom-monitor.sh` ya llevaba corriendo sin base de firmas** (instalaste ClamAV pero
+tardaste en habilitar `clamav-freshclam`), lo escaneado en ese hueco quedó **sin marcar**
+como analizado — el propio script lo detecta (código 2) y no lo sella — así que en
+cuanto las firmas estén listas el siguiente barrido lo recupera solo, sin tocar nada a mano.
+
+Las preferencias viven en `~/.config/gigios/security.json` y se leen una sola vez al arrancar
 `oom-monitor.sh`: después de cambiar un interruptor de Seguridad hay que cerrar sesión o
 reiniciar manualmente ese script.
 

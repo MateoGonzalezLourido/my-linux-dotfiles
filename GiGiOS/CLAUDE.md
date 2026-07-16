@@ -96,6 +96,20 @@ committed or copied into the repo. Set it up once via `ags/scripts/spotify-auth.
 `wallpaper.sh`, and a set of `hypr/scripts/*-monitor.sh` background daemons (battery, temp,
 ram, disk, oom, wifi, usb, bt, screencast, updates). Apply config changes with `hyprctl reload` and relaunch AGS.
 
+**El arranque está ESCALONADO, y `autostart.conf` es el único sitio donde se lee el calendario
+entero.** Todo esto salía a la vez y competía con la carga de Hyprland y del shell con la caché
+fría. La regla: lo que se ve (wallpaper, AGS, `init.sh`) o lo que no puede perder eventos va a
+t=0; lo que solo consulta el estado del PC se aparta — eventos a t=3..6 (bt, usb, wifi,
+screencast), sondeos a t=8..15 (ram, temp, batería, disco), y lo caro al final (updates t=20,
+`boot-healthcheck` t=30, que antes esperaba 5 s por dentro). Van a segundos DISTINTOS a
+propósito: darles a todos el mismo `sleep` solo movería la avalancha unos segundos más tarde.
+
+**El retardo vive en el punto de llamada, no dentro de los scripts**, y eso es deliberado:
+`screencast-monitor` y `updates-monitor` también los lanza AGS en caliente desde sus
+interruptores de Ajustes (setter maestro = `pkill` + re-exec), así que un `sleep` interno haría
+que encender el interruptor tardara y pareciera roto. La excepción es `oom-monitor.sh`, que se
+escalona por dentro porque sus sub-monitores no corren el mismo riesgo (ver su sección).
+
 **Editar un `*-monitor.sh` NO afecta al que ya está corriendo — hay que matarlo y relanzarlo.**
 Son `exec-once`, así que viven desde el login, y `hyprctl reload` **no** los reinicia (releer los
 `.conf` no vuelve a lanzar un `exec-once`). Bash además ya tiene el bucle parseado en memoria, de
@@ -106,6 +120,17 @@ estaba puesto en el script. Tras editar: `pkill -f ~/.config/hypr/scripts/<x>-mo
 relanzarlo (`setsid nohup … &`), o cerrar sesión. Ojo al comprobarlo: `battery-monitor` y
 `temp-monitor` **salen solos** si su toggle está a `false` en `preferences.json`, y `disk-monitor`
 / `wifi-monitor` no son daemons persistentes — que no aparezcan en `ps` no significa que fallen.
+
+**`wifi-monitor` distingue tres desenlaces, y antes no.** Salía con un aviso **crítico** en cuanto
+`nmcli` no le daba interfaz, sin mirar por qué, juntando dos casos opuestos: en un **sobremesa sin
+wifi** (este equipo: solo `enp4s0`; ni `/sys/class/net/*/wireless`, ni entrada en `rfkill`, ni
+tarjeta PCI) era un popup rojo en **cada login** anunciando que un hardware inexistente no existe
+—ruido del que enseña a ignorar los críticos—; y en un **portátil** era una carrera que se
+resolvía **mintiendo** (sale de un `exec-once` a la vez que NetworkManager: perder la carrera
+avisaba de "no hay WiFi" habiéndola, y dejaba la sesión sin monitor). Hoy: hay interfaz → vigila;
+**no hay hardware → sale en silencio** (se mira `/sys/class/net/<if>/wireless`, que lo publica el
+**kernel** y no depende de NM, así que no reintroduce la carrera); hay antena pero NM no la
+publica → reintenta 30 s y solo entonces avisa, que ahí sí es un problema real.
 
 ### Wake up: la puerta `idle-action.sh` delante de hypridle
 
@@ -204,8 +229,11 @@ Checks for pending updates and surfaces the **important** ones as bar icons (AGS
 for GPU drivers (green)**, each shown only when its own category has something pending.
 Ordinary package/dependency updates deliberately show **no icon at all** — they were pure noise;
 they are only listed as context ("Otros: N paquetes") inside the popover. Launched from
-`autostart.conf` as `sleep 3 && …/updates-monitor.sh` — the 3 s delay lets the rest of the
-session finish loading before the first (network-touching) query.
+`autostart.conf` as `sleep 20 && …/updates-monitor.sh` — el retardo deja que el resto de la
+sesión termine de cargar antes de la primera consulta, que toca **red** y sincroniza una BD
+temporal de pacman (eran 3 s; se subió a 20 al escalonar el arranque). El retardo va ahí y no
+dentro del script porque el toggle maestro de AGS lo re-ejecuta en caliente, y ahí sí se quiere
+inmediato.
 
 **A package-DB watch is what makes the icon go away after you update.** Periodic re-checks alone
 left the icon stuck: `updates.json` kept advertising what you had just installed until the next
@@ -382,6 +410,19 @@ brightness-up|down`, que aplica al backend que haya y enseña el OSD) y la llama
 Despite the filename, `hypr/scripts/oom-monitor.sh` is the general **security event monitor** —
 OOM killer is just one of ~16 scanned event types. Five sub-monitors run in parallel (`&` + `wait`):
 
+**No se retrasa entero desde `autostart.conf` — se escalona por dentro, y la asimetría es el
+diseño.** Sus sub-monitores no corren el mismo riesgo si empiezan tarde. Los que **siguen**
+(`journalctl -kf`/`-f` con `-n 0`, que salta el backlog a propósito, e `inotifywait`) no
+recuperan lo pasado: retrasarlos convertiría un OOM, un `sudo` fallido o un cambio en
+`/etc/shadow` en una **ventana ciega** — justo lo que el script existe para evitar. Los que
+**sondean** leen un estado que sigue ahí cuando lo mires, así que apartarlos no pierde nada y son
+además los caros: `DELAY_UNITS=25` (su primera pasada solo siembra, no notifica: retrasarla es
+literalmente invisible), `DELAY_SMART=45` (despierta cada disco; el sondeo es horario) y
+`DELAY_DOWNLOADS=60` (el más caro: recorre Descargas y, ante un fichero nuevo, lo hashea y lo pasa
+por ClamAV, que recarga ~200 MB de firmas **por invocación**). Los `sleep` van **dentro de cada
+función y tras sus guardas**, para no dejar uno colgando por un monitor apagado. Medido en vivo:
+los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
+
 - `monitor_kernel` — `journalctl -kf` (kernel-only, avoids matching app logs): OOM, panic,
   hung tasks, disk I/O errors, hardware errors (MCE/ECC/EDAC), unsigned/out-of-tree kernel
   modules, GPU/NVIDIA errors, CPU throttling, segfaults.
@@ -455,11 +496,53 @@ OOM killer is just one of ~16 scanned event types. Five sub-monitors run in para
   **Resource controls (all live-read from `security.json` each sweep — no reboot needed, unlike the
   event toggles):** hashing and ClamAV run under `nice -n19 ionice -c3` (idle). `_dl_paused` defers
   the *whole* sweep when an enabled pause gate is active *now* — `dlPauseOnBattery` / `dlPauseInPowerSave`
-  (battery read from `/sys/class/power_supply`, threshold from `~/.config/power-save/config.json`) /
+  (battery read from `/sys/class/power_supply`, ver el aviso de abajo; threshold from
+  `~/.config/power-save/config.json`) /
   `dlPauseWhileGaming` (reads `~/.config/gigios/runtime-state.json` `{gaming}`, written by AGS
   `widget/power/gamingState.ts`, which reuses the `isGameClient` heuristic — `ags/widget/bar/games/`,
   ver `ags/CLAUDE.md`). Deferred work marks nothing, so
   it's picked up when the gate clears. The size cap is `dlMaxScanGB` (default 1 GB), also live.
+
+  **`/sys/class/power_supply/` NO lista solo la batería del equipo, y creerlo rompía la pausa por
+  batería en un sobremesa.** El ratón inalámbrico aparece ahí (aquí un Logitech G305 →
+  `hidpp_battery_0`) y reporta `status=Discharging` **siempre**: un ratón sin cable siempre tira de
+  su pila. `_on_battery`/`_battery_pct` recorrían el directorio entero y se quedaban con el primero
+  que casara, así que este sobremesa se creía **"a batería" de forma permanente** y el % era el del
+  **ratón**. Con `dlPauseOnBattery` activado eso habría pausado el escáner de descargas **para
+  siempre**, en silencio y sin nada en la UI que lo delatara (no llegó a saltar solo porque esa
+  pausa está en `false`). El kernel ya lo distingue y `_is_system_battery()` lo usa: fuera
+  `scope=Device` (así marca las pilas de periféricos; la del equipo es `scope=System` o **no trae
+  `scope`**, como los `BAT0` de portátil) y fuera `type != Battery` (el adaptador es `type=Mains`).
+  Verificado con A/B (viejo: "con batería" = sí; nuevo: no) y con un BAT0 simulado para no romper
+  el portátil. Mismo patrón en el `HAS_BATTERY` de `boot-healthcheck.sh`, que hace `grep -i bat`
+  sobre esa lista y **también** casa con el ratón — ahí sale inofensivo de milagro, porque el bucle
+  que va detrás globa `BAT*` y no encuentra nada.
+  **Un `clamscan` que FALLA no es un `clamscan` limpio — y darlo por limpio era un agujero real.**
+  El lote va a `2>/dev/null` y solo se leían las líneas `FOUND`, sin mirar el código de salida
+  (0 = limpio, 1 = virus, **2 = ERROR**: sin base de firmas, permisos, fichero ilegible). Con la
+  DB vacía —ClamAV recién instalado y `freshclam` **sin ejecutar nunca**, que es como se encontró
+  esta máquina: `/var/lib/clamav` a 0 ficheros— `clamscan` salía con 2 y cero `FOUND`, así que el
+  lote caía en la rama de "terminó bien" y **se marcaba como analizado**. Y como el memo va por
+  **hash de contenido y es permanente**, esos ficheros no se volverían a analizar **nunca**, ni
+  después de instalar las firmas: el escáner era un sello de "analizado" que no analizaba nada
+  (medido aquí: **747 hashes** sellados con 0 firmas cargadas). Hoy `rc == 2` → `engine_ok=false`
+  → **no se marca `_idx` ni `_scanned`** (el lote se reintenta solo cuando haya motor) + un aviso
+  crítico **una vez por proceso** (`_dl_warned_engine`, mismo patrón que `warned_perm` en
+  `monitor_smart`; sin el freno sería un aviso por barrido). Un `rc=1` **sí** marca: el análisis
+  ocurrió y el hallazgo ya se notificó. Al arreglarlo aparece un efecto de segundo orden que
+  obliga a `_alerted`: si no se marca `_idx`, el mismo ejecutable vuelve a entrar en `new_exec`
+  en **cada** barrido (uno cada 5 min por la red de seguridad de inotify), así que
+  `_alerted` (solo RAM, clave `ruta` → firma `mtime|tamaño`) da **un aviso por fichero y sesión**,
+  y vuelve a avisar si el fichero cambia. En el camino sano `_alerted` no hace nada: allí `_idx`
+  ya salta el fichero. **Lo ya sellado en falso NO se reevalúa solo**: tras instalar las firmas hay que borrar
+  **los dos** ficheros de caché, `~/.cache/gigios/download-index` **y** `download-hashes` (se
+  reconstruyen). Borrar solo `download-hashes` **no sirve** y es un error fácil: la primera guarda
+  del barrido es `_idx` (`download-index`, memo `mtime|tamaño`) y hace `continue` **antes** de
+  llegar a hashear, así que el fichero se saltaría igual. La alternativa sin borrar nada es el
+  escaneo forzado de Ajustes (`scan-downloads.sh`), que ignora el memo — pero tampoco lo
+  actualiza, así que el escáner automático los seguirá dando por analizados. Verificado con A/B sobre un `clamscan` simulado (rc 0/1/2) y con 3 barridos
+  seguidos para el spam.
+
   **Interruptible scan**: `clamscan` reloads its ~200 MB signature DB on *every* invocation (~13 s
   here), so the batch is **not** chunked — one `clamscan --file-list` over the whole batch runs in the
   background while a `_dl_paused` poll (every 2 s) `kill`s it if a gate activates mid-scan (latency

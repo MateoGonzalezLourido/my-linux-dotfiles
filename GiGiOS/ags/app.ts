@@ -83,15 +83,39 @@ app.start({
     }
     try { app.get_monitors().map(CalendarPanel) } catch(e) { console.error("[app] CalendarPanel failed:", e) }
     app.get_monitors().map(SettingsPanel)
-    startCleanupEngine()
-    runAppSettingsMigration()
-    initAutoDnd()
-    initTrayApps()
-    initGamingState()
     // Deja el Wake up apagado: es por sesión, y un wakeup.json heredado seguiría
-    // vetando la suspensión sin que ninguna UI lo enseñe.
+    // vetando la suspensión sin que ninguna UI lo enseñe. NO se aparta con los
+    // demás (abajo): su único trabajo es limpiar estado heredado peligroso, y es
+    // un borrado de fichero — retrasar justo eso no tiene sentido.
     initWakeUp()
-    // Después de NotificationPopup: es quien construye el AstalNotifd que reclama el nombre.
-    initNotifDaemonCheck()
+
+    // ── Trabajo de fondo, apartado del pintado inicial ────────────────────────
+    // Nada de esto se ve: son vigilantes y un barrido de limpieza. Corriendo aquí
+    // competían con la construcción de las ventanas (una por monitor) justo cuando
+    // el escritorio se está pintando, y alguno no es gratis — initAutoDnd e
+    // initGamingState consultan `isGameClient`, que puede acabar parseando los ~161
+    // .desktop del sistema (Gio.AppInfo.get_all) para decidir si una ventana es un
+    // juego. Es el mismo gesto que el resumen de OSD de arriba.
+    //
+    // Apartarlos es seguro porque NINGUNO depende de eventos ocurridos mientras
+    // esperan: initTrayApps e initGamingState SIEMBRAN de lo que haya vivo al
+    // arrancar (`tray.get_items()` / `hypr.get_clients()`) antes de suscribirse, así
+    // que a los 4 s ven un superconjunto de lo que verían ahora; initAutoDnd adopta
+    // el estado del DND al empezar; e initNotifDaemonCheck va suscrito a
+    // NameOwnerChanged (y de hecho gana fiabilidad: a los pocos ms del arranque el
+    // dueño del nombre de notificaciones aún se está resolviendo).
+    //
+    // Sobre initGamingState: escribe runtime-state.json para que bash lo lea. Su
+    // único consumidor es la pausa del escáner de descargas de oom-monitor.sh, que
+    // ahora ni siquiera barre hasta el segundo 60 — el flag lleva ahí mucho antes.
+    setTimeout(() => {
+      startCleanupEngine()
+      runAppSettingsMigration()
+      initAutoDnd()
+      initTrayApps()
+      initGamingState()
+      // Después de NotificationPopup: es quien construye el AstalNotifd que reclama el nombre.
+      initNotifDaemonCheck()
+    }, 4000)
   },
 })

@@ -47,6 +47,26 @@ if command -v jq >/dev/null 2>&1 && [[ -f "$SEC_CONFIG" ]]; then
     done < <(jq -r 'to_entries[] | "\(.key)=\(.value)"' "$SEC_CONFIG" 2>/dev/null)
 fi
 
+# ── Escalonado de arranque (ver hypr/autostart.conf) ──────────────────────────
+# Este script NO se retrasa entero desde autostart.conf, y esa asimetría es el
+# diseño: sus 6 sub-monitores no corren el mismo riesgo si empiezan tarde.
+#
+#   - kernel/system/files → SIN retardo. Siguen el journal con `-n 0` (que salta el
+#     backlog a propósito, para no reenviar eventos viejos en cada login) e inotify,
+#     que tampoco guarda lo pasado. Un OOM, un `sudo` fallido o un cambio en
+#     /etc/shadow ocurridos durante un retardo NO se recuperan después: serían una
+#     ventana ciega de seguridad, justo lo que este script existe para evitar.
+#   - smart/units/downloads → SÍ. Son SONDEOS: leen un estado que sigue ahí cuando
+#     los mires, así que retrasarlos no pierde nada, solo los aparta del pico de
+#     arranque. Son además los caros (smartctl a cada disco; hash + ClamAV a las
+#     descargas, que recarga ~200 MB de firmas por invocación).
+#
+# Segundos, relativos al arranque del script. Se aplican DENTRO de cada función y
+# después de sus guardas, para no dejar un `sleep` colgando por un monitor apagado.
+DELAY_UNITS=25      # primera pasada solo siembra: no notifica nada, retrasarla es invisible
+DELAY_SMART=45      # un disco muriéndose lo sigue estando 45 s después
+DELAY_DOWNLOADS=60  # el más caro del script; nada se descarga en el primer minuto de sesión
+
 # ── Escaladas de confianza (allowlist de privEsc) ─────────────────────────────
 # GameMode (Feral) escala por pkexec CADA VEZ que un juego arranca y otra vez
 # cuando termina: cambia el governor de la CPU (cpugovctl), el split_lock
@@ -100,18 +120,42 @@ is_runnable() {
 }
 
 # ── Estado de energía (leído del kernel, sin depender de AGS) ──────────────────
+# La pila de un PERIFÉRICO no es "el PC va con batería", y confundirlas rompía esto
+# en un sobremesa. `/sys/class/power_supply/` no lista solo la batería del portátil:
+# aquí el ratón inalámbrico (Logitech G305) aparece como `hidpp_battery_0` y reporta
+# `status=Discharging` SIEMPRE — un ratón sin cable siempre tira de su pila. Como las
+# dos funciones de abajo recorrían el directorio entero y se quedaban con la primera
+# que casara, este sobremesa se creía "a batería" de forma permanente y `_battery_pct`
+# devolvía la carga del RATÓN. Con `dlPauseOnBattery` activado eso habría pausado el
+# escáner de descargas para siempre, en silencio y sin nada que lo delatara en la UI.
+#
+# El kernel ya lo distingue: publica `scope=Device` para las pilas de periféricos
+# (ratón, teclado, cascos) y `scope=System` —o ningún `scope`, como los BAT0 de
+# portátil— para la del equipo. Se filtra también por `type=Battery` para no contar
+# el adaptador de corriente (`type=Mains`).
+_is_system_battery() {   # $1 = directorio del power_supply
+    local dir=$1 scope="" type=""
+    [[ -r "$dir/scope" ]] && scope=$(<"$dir/scope")
+    [[ "$scope" == Device ]] && return 1          # pila de periférico → no cuenta
+    [[ -r "$dir/type" ]] && type=$(<"$dir/type")
+    [[ -n "$type" && "$type" != Battery ]] && return 1   # Mains/USB → no es batería
+    return 0
+}
 _on_battery() {   # 0 = con batería (descargando)
     local s
     for s in /sys/class/power_supply/*/status; do
         [[ -r "$s" ]] || continue
+        _is_system_battery "${s%/status}" || continue
         [[ "$(<"$s")" == Discharging ]] && return 0
     done
     return 1
 }
-_battery_pct() {  # imprime el % de la primera batería legible (100 si no hay)
+_battery_pct() {  # imprime el % de la primera batería DEL SISTEMA legible (100 si no hay)
     local c
     for c in /sys/class/power_supply/*/capacity; do
-        [[ -r "$c" ]] && { cat "$c"; return; }
+        [[ -r "$c" ]] || continue
+        _is_system_battery "${c%/capacity}" || continue
+        cat "$c"; return
     done
     echo 100
 }
@@ -449,6 +493,10 @@ monitor_smart() {
     command -v smartctl >/dev/null 2>&1 || return
     command -v lsblk >/dev/null 2>&1 || return
 
+    # Consultar SMART a cada disco despierta el hardware y no corre prisa: el sondeo
+    # es horario, así que llegar 45 s tarde solo desplaza el primero. Ver DELAY_*.
+    sleep "$DELAY_SMART"
+
     local warned_perm=false
     declare -A _smart_notified
     local disk dev report
@@ -486,6 +534,11 @@ monitor_smart() {
 monitor_units() {
     [[ "$sec_serviceHealth" == false ]] && return
     command -v systemctl >/dev/null 2>&1 || return
+
+    # La primera pasada SOLO siembra `_known` (no notifica, para no avisar de fallos
+    # preexistentes), así que retrasarla no retrasa ni un aviso: lo que se aparta del
+    # arranque es literalmente trabajo que no informa de nada. Ver DELAY_*.
+    sleep "$DELAY_UNITS"
 
     declare -A _known
     local seeded=false unit scope flag current
@@ -583,6 +636,14 @@ monitor_downloads() {
     [[ "$sec_downloadScan" == false ]] && return
     command -v find >/dev/null 2>&1 || return
 
+    # El más caro del arranque: el primer `_dl_sweep` recorre Descargas entera y, ante
+    # cualquier fichero nuevo, lo hashea y lo pasa por ClamAV — que recarga ~200 MB de
+    # firmas en CADA invocación. Con el estado ya sembrado de sesiones anteriores el
+    # barrido acierta en el memo y sale barato, pero el caso malo (una descarga nueva
+    # desde el último login) coincidía de lleno con la carga del escritorio. No se
+    # pierde nada: `find` ve el fichero igual dentro de un minuto. Ver DELAY_*.
+    sleep "$DELAY_DOWNLOADS"
+
     # Carpeta de descargas locale-aware (aquí es ~/Descargas, no ~/Downloads).
     # xdg-user-dir devuelve $HOME si no está configurada → lo tratamos como vacío.
     local dir="" cand
@@ -634,6 +695,17 @@ monitor_downloads() {
 
     declare -A _idx      # ruta -> "mtime|tamaño"  (memo barato, persiste entre barridos)
     declare -A _scanned  # hash -> 1              (contenido ya analizado, persistente)
+    # ruta -> "mtime|tamaño" del último aviso de "ejecutable nuevo" dado por ESTE
+    # proceso. Solo en RAM y a propósito. Hace falta porque cuando clamscan sale con
+    # error NO se marca `_idx` —para que el análisis se reintente en cuanto haya
+    # firmas— y, sin freno, el mismo .exe volvería a caer en `new_exec` en CADA
+    # barrido: un aviso cada 5 min (la red de seguridad de inotify), para siempre.
+    # En el camino sano no hace nada: ahí `_idx` ya salta el fichero. Va por firma,
+    # no por ruta, para que un fichero MODIFICADO sí vuelva a avisar.
+    declare -A _alerted
+    # Persistente ENTRE barridos (lo ve _dl_sweep por ámbito dinámico, como `seeded`):
+    # el aviso de "sin firmas" se da una vez por proceso, no una por descarga.
+    local _dl_warned_engine=false
     local seeded=false line mtime rest sz f
 
     # Cargar estado. Índice: formato mtime|tamaño|ruta (la ruta puede llevar '|',
@@ -685,6 +757,7 @@ monitor_downloads() {
         _dl_paused && return
 
         local -a scan_batch=() big_files=() new_exec=() all=() present=()
+        local rc=0 engine_ok=true   # rc/estado del clamscan del lote (ver Fase B)
         local -A _now _bhash tempbase
         local changed=false f sig sz h mtime now mb lf out pid killed line vfile vsig
         now=$(date +%s)
@@ -714,7 +787,11 @@ monitor_downloads() {
                     continue
                 fi
                 scan_batch+=("$f"); [[ -n "$h" ]] && _bhash["$f"]="$h"
-                [[ "$seeded" == true ]] && is_runnable "$f" && new_exec+=("$f")
+                # Un aviso por fichero y proceso (ver `_alerted`): este es el único
+                # camino que puede repetirse, porque con el motor roto no se marca _idx.
+                if [[ "$seeded" == true ]] && is_runnable "$f" && [[ "${_alerted[$f]:-}" != "$sig" ]]; then
+                    _alerted["$f"]="$sig"; new_exec+=("$f")
+                fi
             elif (( ${#clam[@]} && sz >= clam_max )); then
                 _idx["$f"]="$sig"; changed=true           # grande: avisar y marcar (no cada vez)
                 [[ "$seeded" == true ]] && big_files+=("$f")
@@ -774,7 +851,31 @@ monitor_downloads() {
                 if _dl_paused; then kill "$pid" 2>/dev/null; killed=true; break; fi
                 sleep 2
             done
-            wait "$pid" 2>/dev/null
+            wait "$pid" 2>/dev/null; rc=$?
+            # ── El motor, ¿ha analizado algo siquiera? ────────────────────────
+            # Códigos de clamscan: 0 = limpio, 1 = virus encontrado, 2 = ERROR (sin
+            # base de firmas, permisos, fichero ilegible). Un 2 NO es "limpio", y
+            # tratarlo como tal era un agujero de verdad: `2>/dev/null` se come el
+            # "No supported database files found", no hay líneas FOUND que leer, y el
+            # lote caía en la rama de "terminó bien" → se marcaba como analizado. Como
+            # el memo va por hash de CONTENIDO y es PERMANENTE, esos ficheros no se
+            # volverían a analizar NUNCA — ni después de instalar las firmas. Con la
+            # DB vacía (recién instalado ClamAV, `freshclam` sin ejecutar) eso convertía
+            # el escáner en un sello de "analizado" que no analiza nada. Ahora un 2 no
+            # marca: el lote se reintenta cuando haya motor. Se avisa UNA vez por
+            # proceso (mismo patrón que `warned_perm` en monitor_smart): esto se dispara
+            # en cada barrido y sin el freno sería una notificación por descarga.
+            if (( rc == 2 )); then
+                engine_ok=false
+                if [[ "$_dl_warned_engine" == false ]]; then
+                    _dl_warned_engine=true
+                    notify-send -h string:x-gigios-source:system -u critical \
+                        "🛡️ Antivirus sin base de firmas" \
+                        "ClamAV no puede analizar las descargas. Ejecuta 'sudo freshclam' (o activa clamav-freshclam.service). Hasta entonces NO se dan por analizadas." -t 0
+                fi
+            else
+                engine_ok=true
+            fi
             # Avisar de lo detectado (aunque se cortara: lo ya escaneado cuenta).
             while IFS= read -r line; do
                 [[ "$line" == *" FOUND" ]] || continue     # "/ruta: Firma FOUND"
@@ -783,10 +884,11 @@ monitor_downloads() {
                 notify-send -h string:x-gigios-source:system -u critical "🦠 Malware detectado en Descargas" \
                     "$(basename "$vfile"): $vsig — NO lo ejecutes. Ruta: $vfile" -t 0
             done < "$out"
-            # Marcar índice + hash del CONTENIDO SOLO si terminó (no cortado): un
-            # infectado que se queda avisa UNA vez y recrear el mismo contenido no se
-            # re-analiza; si se cortó, nada se marca → el lote se reescanea al reanudar.
-            if [[ "$killed" == false ]]; then
+            # Marcar índice + hash del CONTENIDO SOLO si terminó (no cortado) Y el motor
+            # funcionaba: un infectado que se queda avisa UNA vez y recrear el mismo
+            # contenido no se re-analiza; si se cortó —o si clamscan salió con error—
+            # nada se marca → el lote se reescanea al reanudar (o al haber firmas).
+            if [[ "$killed" == false && "$engine_ok" == true ]]; then
                 for f in "${present[@]}"; do
                     sig=$(stat -c '%Y|%s' "$f" 2>/dev/null) || continue
                     _idx["$f"]="$sig"; changed=true
@@ -857,6 +959,9 @@ monitor_downloads() {
 }
 
 # ── Run in parallel ───────────────────────────────────────────────────────────
+# Los tres primeros enganchan YA (journal/inotify no guardan lo pasado: llegar tarde
+# = ventana ciega). Los tres de sondeo se apartan del pico de arranque por dentro,
+# cada uno con su DELAY_* — ver el bloque "Escalonado de arranque" arriba.
 monitor_kernel &
 monitor_system &
 monitor_files &

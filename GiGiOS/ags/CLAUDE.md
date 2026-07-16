@@ -26,6 +26,22 @@ Run the full suite or a single file. Tests live alongside their implementation f
 
 `app.ts` is the entry point. Inside `app.start({ css, main })`, every top-level window is instantiated **once per monitor** via `app.get_monitors().map(Component)` (Bar uses `.flatMap`). Adding a new top-level window means importing it in `app.ts` and adding a `.map(...)` line. `CalendarPanel` is wrapped in try/catch as the pattern for windows that may fail to construct.
 
+**Los `init*` de fondo van en un `setTimeout(…, 4000)`, no sueltos en `main()`.** Ninguno se ve
+(son vigilantes y un barrido de limpieza) y corriendo a pelo competían con la construcción de las
+ventanas —una por monitor— justo mientras se pinta el escritorio; `initAutoDnd`/`initGamingState`
+además consultan `isGameClient`, que puede acabar parseando los ~161 `.desktop` del sistema
+(`Gio.AppInfo.get_all`) para decidir si una ventana es un juego. Apartarlos es seguro porque
+**ninguno depende de eventos ocurridos mientras esperan**: `initTrayApps` e `initGamingState`
+**siembran** de lo vivo (`tray.get_items()` / `hypr.get_clients()`) *antes* de suscribirse, así
+que a los 4 s ven un superconjunto; `initAutoDnd` adopta el DND al empezar; e
+`initNotifDaemonCheck` va suscrito a `NameOwnerChanged` y de hecho **gana** fiabilidad (a los
+pocos ms el dueño del nombre aún se resuelve). Un `init*` nuevo va ahí **salvo que siembre de un
+evento en vez de del estado**. La excepción es **`initWakeUp()`, que sigue a t=0**: su único
+trabajo es limpiar estado heredado peligroso (un `wakeup.json` con `active:true` vetando la
+suspensión sin UI que lo enseñe), y es un borrado de fichero — retrasar justo eso no tiene
+sentido. Parte del escalonado de arranque del sistema; el calendario completo está en
+`hypr/autostart.conf`.
+
 ### State and reactivity
 
 - Reactive state comes from `createState` in the `ags` module: `const [value, setValue] = createState(initial)`.
