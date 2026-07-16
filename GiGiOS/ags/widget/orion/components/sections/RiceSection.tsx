@@ -87,6 +87,7 @@ export function RiceSection() {
 
   // path -> botón, para resaltar el fondo actual reactivamente
   const btnByPath = new Map<string, Gtk.Button>()
+  const viewportByPath = new Map<string, Gtk.Box>()
   const syncHighlight = () => {
     const cur = currentWallpaper.get()
     for (const [path, btn] of btnByPath) {
@@ -103,6 +104,7 @@ export function RiceSection() {
   const rebuild = () => {
     const mine = ++generation
     btnByPath.clear()
+    viewportByPath.clear()
     flow.remove_all()
 
     const paths = listWallpapers()
@@ -114,10 +116,18 @@ export function RiceSection() {
       const placeholder = new Gtk.Box({ cssClasses: ["rice-thumb-placeholder"], hexpand: true })
       placeholder.set_size_request(THUMB_W, THUMB_H)
 
+      // El viewport conserva el tamaño de la tarjeta y recorta la imagen cuando
+      // el hover la amplía; así la rejilla y el borde nunca se desplazan.
+      const viewport = new Gtk.Box({ cssClasses: ["rice-thumb-viewport"], hexpand: true })
+      viewport.set_overflow(Gtk.Overflow.HIDDEN)
+      viewport.set_size_request(THUMB_W, THUMB_H)
+      viewport.append(placeholder)
+
       const btn = new Gtk.Button({ cssClasses: ["rice-thumb"], hexpand: true })
-      btn.set_child(placeholder)
+      btn.set_child(viewport)
       btn.connect("clicked", () => applyWallpaper(path))
       btnByPath.set(path, btn)
+      viewportByPath.set(path, viewport)
       flow.append(btn)
     }
     syncHighlight()
@@ -128,7 +138,11 @@ export function RiceSection() {
       pic.set_paintable(tex)
       pic.content_fit = Gtk.ContentFit.COVER
       pic.set_size_request(THUMB_W, THUMB_H)
-      btnByPath.get(path)?.set_child(pic)
+      const viewport = viewportByPath.get(path)
+      const anterior = viewport?.get_first_child()
+      if (!viewport || !anterior) return
+      viewport.remove(anterior)
+      viewport.append(pic)
     })
   }
 

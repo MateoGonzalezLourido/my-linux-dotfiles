@@ -1160,6 +1160,7 @@ popover.background {
   min-width: 168px;
   min-height: 96px;
   box-shadow: none;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 .rice-thumb:hover {
   background: rgba(255, 255, 255, 0.1);
@@ -1185,9 +1186,18 @@ popover.background {
   box-shadow: none;
 }
 
+.rice-thumb-viewport,
 .rice-thumb-img,
 .rice-thumb-placeholder {
   border-radius: 14px;
+}
+
+.rice-thumb-img {
+  transition: transform 140ms ease-out;
+}
+
+.rice-thumb:hover .rice-thumb-img {
+  transform: scale(1.02);
 }
 
 .np-panel button, popover.upd-popover-container > contents, .qs-wifi-list-scroll scrollbar,
