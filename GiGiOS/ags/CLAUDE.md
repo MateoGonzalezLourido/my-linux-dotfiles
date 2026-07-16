@@ -69,6 +69,41 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
   2. **Recreación de nodos.** La señal se emite otra vez cada vez que un nodo se recrea, y el nodo HDMI/DP se destruye y se recrea al reconfigurar los monitores (**`hyprctl reload`**, DPMS, apagar la pantalla) — llega indistinguible de unos cascos recién puestos, y el id cambia (visto: 86 → 71 → 86). Remedio: **una salida de pantalla nunca es destino** (`isDisplayOutput`). El gate de (1) no cubre esto (la recreación llega mucho después de arrancar) ni al revés: hacen falta los dos.
 
   El tipo se decide por el **nombre de nodo** (`wpctl inspect <id>` → `node.name`, `…hdmi-stereo` vs `…analog-stereo`): `Endpoint.name` viene a **null** y el `icon` es el mismo (`audio-card-analog-pci`) en ambos, y la `description` sí se traduce, así que buscar "(HDMI)" ahí dependería del locale. El jack de auriculares **no** pasa por aquí: enchufarlo no crea un sink, cambia la *ruta* del mismo nodo analógico (por eso `bar/Volume.tsx` escucha `notify::route`). Un `set-default` por ráfaga (debounce) y por id de endpoint — no parseando `pactl` con awk.
+
+  **Bluetooth — el "apagado" del usuario lo borraba el propio BlueZ, y el tile mentía.** Dos bugs
+  distintos con la misma raíz: *nadie puede distinguir "lo encendió el usuario" de "lo encendió
+  BlueZ" si no se le da tiempo al adaptador*.
+  1. **`AutoEnable` (activado por defecto en `/etc/bluetooth/main.conf`) enciende el controlador él
+     solo en cuanto lo encuentra — y lo hace DESPUÉS de registrar el adaptador.** Queda una ventana
+     en la que el adaptador ya existe y sigue apagado, indistinguible de "el usuario lo dejó
+     apagado". `resolverRestauracionBluetooth` (`bluetooth/estadoInicio.ts`) daba la restauración
+     por terminada ahí mismo, solo porque el estado coincidía con el objetivo; el power-on de BlueZ
+     llegaba justo después, nadie lo corregía, y `guardarEstadoSistema` lo **adoptaba como decisión
+     del usuario** reescribiendo `bluetooth: true` en `system_state.json`. Resultado medido con un
+     A/B: con la lógica vieja, arrancar con el BT apagado y guardado como apagado terminaba con
+     `Powered: yes` **y el `false` del disco pisado a `true`** — o sea que el apagado no sobrevivía
+     ni a ese arranque, y menos al siguiente. Hoy "coincide con el objetivo" **no basta** para
+     cerrar: hace falta el parámetro `asentado`, que se arma con `BT_SETTLE_MS` (5 s) contados
+     **desde que el adaptador aparece**, no desde que arranca AGS — es un dongle USB (RTL8761 aquí)
+     y puede tardar en enumerarse, así que una gracia contada desde el shell expiraría antes de que
+     BlueZ llegue a verlo (mismo razonamiento que el gate de audio de arriba). Mientras no está
+     asentado no se actúa, pero la restauración **sigue viva** y corrige el encendido automático.
+     **Una acción explícita del usuario cierra la restauración en el acto**
+     (`finalizarRestauracionBluetooth()` desde `toggleBluetoothPower`): sin eso, encender el BT
+     dentro de esos 5 s haría que la restauración se lo volviera a apagar en la cara. Un encendido
+     externo *pasada* la ventana sí se adopta y se guarda, como siempre.
+  2. **El tile tenía dos fuentes de verdad para el mismo hecho.** El CSS salía de
+     `createComputed(() => btSupported() && btPowered())` sobre un `createBinding(bt, "isPowered")`,
+     y el texto de un `createState` que escribía `syncBtInfo`. Los dos cuelgan de
+     `notify::is-powered`, pero son **handlers distintos** y GObject los invoca en orden de
+     conexión: `syncBtInfo` se conecta al construir el componente y el del binding al renderizar,
+     o sea después — el CSS iba un handler por detrás y los dos se contradecían (medido:
+     `CSS=ACTIVE` con `TEXTO="Desactivado"`). Ahora `getBluetoothTileInfo` devuelve también
+     **`active`**, y el icono, el texto y el CSS salen del **mismo objeto y del mismo setter**:
+     contradecirse es imposible por construcción (hay test). De paso se fue `btDevices`, que era
+     código muerto. Y se escucha **`notify::is-connected`**: conectar unos cascos **ya emparejados**
+     no cambia la lista, así que `notify::devices` no salta y el tile se quedaba en "Desconectado"
+     con los cascos puestos.
 - `widget/display/` — cola de pantallas compartida por QuickSettings y Ajustes > Pantalla. `modes.ts` es la lógica pura (testeada con node); `service.ts` tiene el poller, `applyPatch` (aplica en vivo con `hyprctl keyword monitor`) y la persistencia. **Persiste por partida doble**: `~/.config/gigios/display.json` (fuente de verdad de AGS) **y** `~/.config/hypr/monitor-settings.conf`, un volcado generado que Hyprland sourcea. Lo segundo no es redundante: Hyprland no lee el JSON, así que sin ese `.conf` un **`hyprctl reload`** releía `monitors.conf` — cuya única regla es la comodín `preferred/escala 1` — y tiraba la pantalla de 240 Hz a 60 y de escala 1.25 a 1, sin que AGS pudiera enterarse (no hay señal de recarga; el poller solo observa). Ojo: un `source =` a un fichero ausente es **error duro** en Hyprland (saca el overlay), así que el `.conf` se versiona en el repo aunque se regenere solo. Detalle en el `CLAUDE.md` raíz.
   - **Franjas horarias (`schedule.ts`, puro y testeado) — dos canales independientes, no uno.** Las reglas
     de `global.nightRules` (Ajustes > Pantalla > "Programar por franjas horarias") son **franjas**
@@ -99,8 +134,28 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
     sobremesa el sondeo DDC tarda ~1 s, así que `applyScheduledBrightness()` no marca la franja como
     aplicada mientras `brightnessSupported` sea falso, y `initDisplayService` reintenta al confirmarse (si
     no, el primer intento se perdería en el vacío). En la UI las filas de brillo se ocultan con
-    `brightnessSupported`, como el slider. Limitación conocida: reiniciar AGS *dentro* de una franja pierde
-    el brillo previo (el "antes" pasa a ser el ya programado), así que al salir no restaura nada.
+    `brightnessSupported`, como el slider.
+  - **(3) Las dos mitades se PERSISTEN (`brightnessWindow` en `display.json`), porque la transición cruza
+    apagados.** `lastBrightnessKey`/`brightnessBeforeWindow` eran solo-RAM, y el brillo es lo único aquí que
+    deja **residuo físico**: la franja lo graba en la firmware del monitor por DDC y ahí se queda. Una franja
+    nocturna (el caso real: `00:00→07:00`, brillo 80) **se sale casi siempre con el PC apagado** —estás
+    durmiendo—, así que la restauración del punto (2) no llegaba a ejecutarse **nunca**: el 80 se quedaba
+    grabado en el monitor y, al arrancar, `detectDdc()` lo leía de vuelta y lo publicaba como si fuera la
+    elección del usuario; `brightness.subscribe(saveDisplayConfig)` lo escribía en `display.json` y el brillo
+    real quedaba **borrado**. Reproducido con un A/B: brillo 73 → la franja aplica 80 → apagar dentro →
+    arrancar fuera = monitor a 80 y `"brightness":0.8` en disco, cada vez ("el brillo vuelve obligatoriamente
+    a 80"). Es el mismo patrón que el bug de Bluetooth de arriba: **estado que debe sobrevivir al proceso
+    viviendo en RAM, y un valor impuesto por el sistema adoptado como si lo hubiera elegido el usuario.**
+    Con el apunte en disco la restauración pendiente **se cobra en el siguiente arranque**, y de paso se cae
+    la limitación conocida (reiniciar AGS *dentro* de una franja ya no pierde el brillo previo ni re-aplica
+    la franja encima de un ajuste manual: la `key` ya coincide). Ojo al tocar la rama de salida: va **detrás
+    de `brightnessSupported`**, porque sin backend la restauración se perdería en el vacío *y* borraría el
+    apunte, que es lo único que recuerda el brillo real.
+  - **La luz nocturna NO comparte este fallo, y no es casualidad**: no deja residuo. Es un proceso
+    (`hyprsunset`) que al apagar el PC simplemente deja de existir, así que "restaurar" es no arrancarlo —
+    por eso su canal no tiene estado "Apagar" ni necesita apunte. La franja tampoco pisa `nightLightTemp`
+    (son canales separados en `baseTemp()`). Si algún día se persiste algo suyo, el candidato sería
+    `nightDismissed`, que hoy es por sesión a propósito.
   - **La UI enseña qué franja rige ahora** (`sp-rule-active-chip` + tarjeta `.active` + la línea
     `Ahora (HH:MM) · luz nocturna: … · brillo: …`), movida por un reloj de 30 s ref-contado que solo vive
     mientras la sección está montada. No es adorno: "¿por qué se ha encendido?" no se respondía en ningún

@@ -27,10 +27,17 @@ export interface GlobalDisplay {
   nightRules: NightRule[]     // reglas hora→{luz nocturna, brillo}
 }
 
+/** Franja de brillo en curso, persistida. NO es configuración del usuario: es el apunte
+ *  de "estoy dentro de esta franja y el brillo que había antes de entrar era este".
+ *  Vive en disco porque la restauración al salir **cruza apagados**: una franja nocturna
+ *  (00:00→07:00) se sale casi siempre con el PC apagado. Ver `applyScheduledBrightness`. */
+type BrightnessWindow = { key: string; before: number }
+
 interface DisplayConfig {
   brightness: number
   nightLightActive: boolean
   nightLightTemp: number
+  brightnessWindow: BrightnessWindow | null
   monitors: Record<string, MonitorPref>
   global: GlobalDisplay
 }
@@ -46,10 +53,15 @@ export function loadDisplayConfig(): DisplayConfig {
     if (ok) {
       const c = JSON.parse(new TextDecoder().decode(content))
       const g = c.global ?? {}
+      const w = c.brightnessWindow
       return {
         brightness: c.brightness ?? 0.5,
         nightLightActive: c.nightLightActive ?? false,
         nightLightTemp: c.nightLightTemp ?? 4500,
+        brightnessWindow:
+          w && typeof w.key === "string" && typeof w.before === "number"
+            ? { key: w.key, before: w.before }
+            : null,
         monitors: c.monitors ?? {},
         global: {
           ...DEFAULT_GLOBAL, ...g,
@@ -59,7 +71,10 @@ export function loadDisplayConfig(): DisplayConfig {
       }
     }
   } catch (e) { /* fichero ausente o corrupto → defaults */ }
-  return { brightness: 0.5, nightLightActive: false, nightLightTemp: 4500, monitors: {}, global: { ...DEFAULT_GLOBAL } }
+  return {
+    brightness: 0.5, nightLightActive: false, nightLightTemp: 4500,
+    brightnessWindow: null, monitors: {}, global: { ...DEFAULT_GLOBAL },
+  }
 }
 
 const config = loadDisplayConfig()
@@ -87,6 +102,10 @@ export function saveDisplayConfig() {
         brightness: brightness.get(),
         nightLightActive: nightLightActive.get(),
         nightLightTemp: nightLightTemp.get(),
+        brightnessWindow:
+          lastBrightnessKey !== null && brightnessBeforeWindow !== null
+            ? { key: lastBrightnessKey, before: brightnessBeforeWindow }
+            : null,
         monitors: monitorPrefs,
         global: {
           vrrMode: globalVrrMode.get(),
@@ -306,18 +325,35 @@ function baseTemp(): number | null {
 //     franja de 10 a 11 seguiría "notándose" a la 1 de la tarde: nadie devolvería el brillo
 //     a su sitio, porque el brillo es un ajuste físico que no vuelve solo (a diferencia de
 //     la luz nocturna, que simplemente deja de forzarse y vuelve al manual).
-let lastBrightnessKey: string | null = null
-let brightnessBeforeWindow: number | null = null   // 0..1, el de justo antes de entrar
+// (3) Y las dos mitades viven EN DISCO, no en RAM, porque la transición cruza apagados.
+//     El brillo es lo único aquí que deja **residuo físico**: la franja lo escribe en la
+//     firmware del monitor (DDC) y ahí se queda. Con una franja nocturna (00:00→07:00) la
+//     salida ocurre casi siempre con el PC apagado, así que el "restaurar al salir" no
+//     llegaba a ejecutarse NUNCA: el valor programado se quedaba grabado en el monitor, y
+//     al arrancar `detectDdc()` lo leía de vuelta y lo publicaba como si fuera la elección
+//     del usuario — `brightness.subscribe(saveDisplayConfig)` lo escribía en display.json y
+//     el brillo real quedaba borrado. Medido: brillo 73 → franja aplica 80 → apagar dentro
+//     → arrancar fuera = monitor a 80 y `"brightness":0.8` en disco, cada vez. Guardarlas
+//     hace que la restauración pendiente sobreviva al apagado y se cobre en el siguiente
+//     arranque; y de paso reiniciar AGS *dentro* de una franja ya no pierde el brillo previo
+//     (era limitación conocida) ni re-aplica la franja encima de un ajuste manual.
+let lastBrightnessKey: string | null = config.brightnessWindow?.key ?? null
+let brightnessBeforeWindow: number | null = config.brightnessWindow?.before ?? null   // 0..1
 
 function applyScheduledBrightness() {
   const r = rulesOn() ? activeRuleFor(nowHM(), nightRules.get(), "brightness") : null
 
   if (!r || r.brightness == null) {          // fuera de toda franja con brillo
-    if (lastBrightnessKey !== null && brightnessBeforeWindow !== null) {
+    if (lastBrightnessKey === null) return   // no hay franja en curso: nada que restaurar
+    // Sin backend la restauración se perdería en el vacío Y borraría el apunte, que es lo
+    // único que recuerda el brillo real. Se espera: `brightnessSupported.subscribe` reintenta.
+    if (!brightnessSupported.get()) return
+    if (brightnessBeforeWindow !== null) {
       applyBrightness(brightnessBeforeWindow)   // se acabó la franja: devuélvelo a su sitio
     }
     lastBrightnessKey = null
     brightnessBeforeWindow = null
+    saveDisplayConfig()                         // franja saldada: olvídala también en disco
     return
   }
 
@@ -332,6 +368,7 @@ function applyScheduledBrightness() {
   if (lastBrightnessKey === null) brightnessBeforeWindow = brightness.get()
   lastBrightnessKey = key
   applyBrightness(r.brightness / 100)   // persiste solo: brightness.subscribe(saveDisplayConfig)
+  saveDisplayConfig()                   // recuerda la franja + el brillo previo por si apagas dentro
 }
 
 // Reconcilia los dos canales. Lo llaman el arranque, el tick de 60 s y todo cambio en

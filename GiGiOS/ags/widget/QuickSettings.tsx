@@ -482,6 +482,10 @@ async function setBluetoothPower(powered: boolean, notifyOnError = true) {
 }
 
 function toggleBluetoothPower(bt: any) {
+  // Una acción explícita del usuario cierra la restauración de arranque: manda lo que
+  // acaba de pedir, no lo que había guardado. Sin esto, encender el BT dentro de la
+  // ventana de asentamiento haría que la restauración se lo volviera a apagar en la cara.
+  finalizarRestauracionBluetooth()
   return setBluetoothPower(!bt.isPowered)
 }
 
@@ -510,6 +514,39 @@ const objetivoBluetoothInicial = typeof estadoSistemaGuardado.bluetooth === "boo
 let ultimoEstadoBluetoothConfirmado = objetivoBluetoothInicial
 let restauracionBluetoothCompletada = objetivoBluetoothInicial === null
 let restauracionBluetoothEnCurso = false
+
+// Ventana de asentamiento del adaptador. BlueZ registra el adaptador y solo DESPUÉS lo
+// enciende por su cuenta (`AutoEnable`); entre las dos cosas el adaptador existe y está
+// apagado, que es indistinguible de "el usuario lo dejó apagado". Sin esta espera la
+// restauración se cerraba ahí y el power-on posterior de BlueZ se guardaba como decisión
+// del usuario: el "apagado" se perdía en cada arranque. Ver `resolverRestauracionBluetooth`.
+// Se cuenta desde que el adaptador APARECE, no desde que arranca AGS —igual que el gate de
+// audio de arriba—: es un dongle USB y puede tardar en enumerarse, así que una gracia
+// contada desde el arranque del shell expiraría antes de que BlueZ llegue siquiera a verlo.
+const BT_SETTLE_MS = 5000
+let bluetoothAsentado = false
+let temporizadorAsentadoBt: number | null = null
+
+function armarAsentadoBluetooth() {
+  if (bluetoothAsentado || temporizadorAsentadoBt !== null) return
+  if (!AstalBluetooth.get_default()?.adapter) return
+  temporizadorAsentadoBt = GLib.timeout_add(GLib.PRIORITY_DEFAULT, BT_SETTLE_MS, () => {
+    temporizadorAsentadoBt = null
+    bluetoothAsentado = true
+    // Reevalúa: si el estado ya coincidía y solo faltaba asentarse, esto la cierra.
+    void restaurarEstadoInicialBluetooth()
+    return GLib.SOURCE_REMOVE
+  })
+}
+
+function finalizarRestauracionBluetooth() {
+  bluetoothAsentado = true
+  if (temporizadorAsentadoBt !== null) {
+    GLib.source_remove(temporizadorAsentadoBt)
+    temporizadorAsentadoBt = null
+  }
+  restauracionBluetoothCompletada = true
+}
 
 let temporizadorGuardadoSistema: number | null = null
 function programarGuardadoEstadoSistema(demora: number) {
@@ -566,6 +603,7 @@ async function restaurarEstadoInicialBluetooth() {
     objetivoBluetoothInicial,
     !!bluetooth?.adapter,
     bluetooth?.isPowered ?? false,
+    bluetoothAsentado,
   )
   if (estado.completada) {
     restauracionBluetoothCompletada = true
@@ -583,6 +621,7 @@ async function restaurarEstadoInicialBluetooth() {
       objetivoBluetoothInicial,
       !!bluetoothActual?.adapter,
       bluetoothActual?.isPowered ?? false,
+      bluetoothAsentado,
     )
     if (estadoActual.completada) {
       restauracionBluetoothCompletada = true
@@ -600,6 +639,7 @@ try {
   if (network?.wifi) network.wifi.connect("notify::enabled", guardarEstadoSistema)
   if (bt) {
     const sincronizarEstadoBluetooth = () => {
+      armarAsentadoBluetooth()
       void restaurarEstadoInicialBluetooth()
       registrarEstadoBluetoothConfirmado()
       guardarEstadoSistemaAhora()
@@ -628,6 +668,7 @@ try {
 // los ya disponibles y las señales de arriba reintentan cuando BlueZ registra uno;
 // hasta entonces las demás escrituras conservan el valor Bluetooth leído del disco.
 GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+  armarAsentadoBluetooth()
   void restaurarEstadoInicialBluetooth()
   registrarEstadoBluetoothConfirmado()
   try {
@@ -948,19 +989,24 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   })
   const wifiStrength = wifi ? createBinding(wifi, "strength") : null
 
-  const btPowered = createBinding(bt, "isPowered")
-  const btDevices = createBinding(bt, "devices")
-  const [btSupported, setBtSupported] = createState(!!bt.adapter)
-  const btActive = createComputed(() => btSupported() && btPowered())
-
-  // Bluetooth Info Unified State
-  const [btInfoState, setBtInfoState] = createState(getBluetoothTileInfo(!!bt.adapter, bt.isPowered, bt.get_devices()))
-  const syncBtInfo = () => {
-    const supported = !!bt.adapter
-    setBtSupported(supported)
-    setBtInfoState(getBluetoothTileInfo(supported, bt.isPowered, bt.get_devices()))
-  }
+  // Estado ÚNICO del tile de Bluetooth: icono, texto y CSS (`active`) salen del
+  // mismo objeto y del mismo setter. Antes el CSS venía por su cuenta de un
+  // `createComputed` sobre `createBinding(bt, "isPowered")` mientras el texto
+  // salía de aquí: dos lecturas del mismo hecho actualizadas por handlers
+  // distintos de `notify::is-powered`, que GObject invoca en orden de conexión.
+  // El del texto se conecta aquí (construcción del componente) y el del binding
+  // al renderizar, o sea después, así que el CSS iba un handler por detrás y los
+  // dos se contradecían — medido: `CSS=ACTIVE` con `TEXTO="Desactivado"`. Con una
+  // sola fuente no hay dos relojes que sincronizar.
+  const leerBtInfo = () => getBluetoothTileInfo(!!bt.adapter, bt.isPowered, bt.get_devices())
+  const [btInfoState, setBtInfoState] = createState(leerBtInfo())
+  const syncBtInfo = () => setBtInfoState(leerBtInfo())
   bt.connect("notify::is-powered", syncBtInfo)
+  // Conectar/desconectar un dispositivo YA emparejado no toca la lista, así que
+  // `notify::devices` no salta y el tile se quedaba en "Desconectado" con los
+  // cascos puestos. `is-connected` ("true si alguno de los devices está
+  // conectado") es justo esa señal.
+  bt.connect("notify::is-connected", syncBtInfo)
   bt.connect("notify::devices", syncBtInfo)
   bt.connect("notify::adapter", syncBtInfo)
   bt.connect("adapter-added", syncBtInfo)
@@ -1058,7 +1104,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           icon={btInfoState((i) => i.icon)}
           label="Bluetooth"
           subtitle={btInfoState((i) => i.label)}
-          active={btActive}
+          active={btInfoState((i) => i.active)}
           onToggle={onBluetoothClick}
           onRightClick={() => { void toggleBluetoothPower(bt) }}
         />
