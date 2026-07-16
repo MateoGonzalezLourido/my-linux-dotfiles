@@ -78,10 +78,10 @@ elif command -v jq >/dev/null 2>&1; then
     "$app_icons" >/dev/null 2>&1 \
     || warn "ags/config/app_icons.json no es un mapa válido (se usarán iconos gráficos)"
 fi
-if [[ -e "$GIGIOS/assets/face.png" ]]; then
+if [[ -e "$HOME/.local/share/gigios/face.png" ]]; then
   ok "avatar opcional presente"
 else
-  warn "sin assets/face.png (se usarán iniciales)"
+  warn "sin foto de perfil (se usarán iniciales; se pone en Ajustes > Cuenta)"
 fi
 
 if [[ "$mode" == "--installed" ]]; then

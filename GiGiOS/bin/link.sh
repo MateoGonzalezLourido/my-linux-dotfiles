@@ -178,22 +178,23 @@ for entry in "${LINKS[@]}"; do
 done
 
 # ── Foto de perfil ───────────────────────────────────────────────────────────
-# Copia única de runtime en el cache XDG (~/.cache/gigios/face.png); la leen tanto
-# AGS (QuickSettings) como hyprlock. El master versionado es assets/face.png; el
-# cache es desechable y no se versiona. Se copia (no symlink) para desacoplar el
-# runtime del repo.
-face_src="$GIGIOS/assets/face.png"
-face_dst="$HOME/.cache/gigios/face.png"
-if [[ ! -e "$face_src" ]]; then
-  echo "OPCIONAL $face_src no existe; AGS mostrará iniciales y hyprlock omitirá el avatar"
-elif [[ -f "$face_dst" ]] && cmp -s "$face_src" "$face_dst"; then
+# Copia única en el data dir XDG (~/.local/share/gigios/face.png); la leen AGS
+# (widget/settings/avatar.ts) y hyprlock. Fuera del repo y sin versionar, porque es
+# personal — pero tampoco en ~/.cache: se elige desde Ajustes > Cuenta y no se
+# regenera desde ningún master, así que un limpiador de cache la borraría para
+# siempre. Aquí solo se migra la ubicación vieja; ponerla es cosa de Ajustes.
+face_dst="$HOME/.local/share/gigios/face.png"
+face_old="$HOME/.cache/gigios/face.png"
+if [[ -e "$face_dst" ]]; then
   echo "OK    $face_dst"
+elif [[ ! -e "$face_old" ]]; then
+  echo "OPCIONAL $face_dst no existe; AGS mostrará iniciales y hyprlock omitirá el avatar"
 elif [[ "$mode" == check ]]; then
-  echo "DIFIERE $face_dst (esperado copia de $face_src)"; status=1
+  echo "MIGRAR $face_old -> $face_dst"; status=1
 else
   mkdir -p "$(dirname "$face_dst")"
-  cp -f "$face_src" "$face_dst"
-  echo "COPY  $face_dst <- $face_src"
+  mv -f "$face_old" "$face_dst"
+  echo "MOVE  $face_dst <- $face_old"
 fi
 
 # ── Migración: ajustes de AGS -> ~/.config/gigios ────────────────────────────

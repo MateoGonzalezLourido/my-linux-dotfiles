@@ -40,8 +40,11 @@ bin/link.sh --check  # report status only (exit 0 if everything OK)
 bin/link.sh --force  # back up whatever is in the way (to ~/.dotfiles-backup-<date>) then link
 ```
 
-`link.sh` is idempotent and data-safe. Beyond symlinking it also: copies `assets/face.png`
-(versioned master) → `~/.cache/gigios/face.png` (runtime copy, read by both AGS and hyprlock);
+`link.sh` is idempotent and data-safe. Beyond symlinking it also: migrates the profile photo
+from its old home (`~/.cache/gigios/face.png`) to `~/.local/share/gigios/face.png` — the single
+copy, read by both AGS and hyprlock, set from Ajustes > Cuenta and never versioned (it's personal).
+It lives in `XDG_DATA_HOME`, **not** the cache, because nothing regenerates it: there is no master
+in the repo, so a cache cleaner would delete it for good. It also
 migrates leftover AGS JSON from the old `~/.config/ags/config/` into `~/.config/gigios/`;
 and re-applies `core.hooksPath`. `install.sh` is the fresh-machine path: it clones the bare
 dotfiles repo, checks out into `$HOME` (backing up conflicts), then runs `link.sh --force`.

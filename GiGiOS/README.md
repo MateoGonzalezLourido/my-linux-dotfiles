@@ -19,7 +19,6 @@ archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 - `cache/power-save/` — flag de ahorro de energía, runtime git-ignored  (symlink: `~/.config/power-save`)
 - `Wallpapers/`     — fondos  (usados directo por `wallpaper.sh`, sin symlink)
 - `state/orion/`    — datos del launcher  (symlink: `~/.local/share/orion`)
-- `assets/face.png` — foto personal opcional e ignorada por Git (copia de runtime: `~/.cache/gigios/face.png`)
 - `_legacy/`        — copias archivadas sin uso
 - `bin/link.sh`     — crea/repara/valida los symlinks
 - `bin/kitty-profile.sh` — selecciona el perfil de Kitty de esta máquina
@@ -84,5 +83,6 @@ real (sin migrar), avisa y no la toca.
 ## Datos privados
 
 `~/.config/gigios/spotify-creds.json` nunca se versiona. Restáuralo desde una
-copia segura o ejecuta `~/.config/ags/scripts/spotify-auth.sh`. La foto
-`assets/face.png` también es opcional: sin ella AGS muestra las iniciales.
+copia segura o ejecuta `~/.config/ags/scripts/spotify-auth.sh`. La foto de perfil
+(`~/.local/share/gigios/face.png`, fuera del repo) también es opcional: se pone desde
+Ajustes > Cuenta y sin ella AGS muestra las iniciales.

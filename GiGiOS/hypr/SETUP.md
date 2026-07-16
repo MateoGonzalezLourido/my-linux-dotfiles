@@ -127,7 +127,7 @@ retirarlas. Verifica después con
 `Hyprland --verify-config -c ~/.config/hypr/hyprland.conf`.
 
 - `hypridle` gestiona apagar pantalla / bloquear / suspender (`hypridle.conf`).
-- `hyprlock` es la pantalla de bloqueo (`hyprlock.conf`, usa `~/.cache/gigios/face.png`
+- `hyprlock` es la pantalla de bloqueo (`hyprlock.conf`, usa `~/.local/share/gigios/face.png`
   y el label `$USER` — no hace falta nada extra).
 - `hyprpolkitagent` se lanza en `autostart.conf` desde la ruta fija
   `/usr/lib/hyprpolkitagent/hyprpolkitagent`; si el paquete instala el binario en otro
@@ -561,10 +561,9 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
   (`monitor = , preferred, auto, 1`), adecuado para el monitor 2560×1440 de 27 pulgadas.
   Después puedes ajustar resolución, frecuencia, posición o escala desde AGS; usa
   `hyprctl monitors` para comprobar el descriptor y los valores aplicados.
-- **Foto de perfil**: el archivo local opcional es `assets/face.png`; `bin/link.sh` lo copia a
-  `~/.cache/gigios/face.png`, la única copia de runtime que leen tanto `hyprlock` como el
-  avatar de AGS. Está ignorado por Git para no publicar una foto personal: cópialo por
-  separado o configura el avatar desde AGS. Sin foto, AGS muestra las iniciales.
+- **Foto de perfil**: opcional y personal. Vive en `~/.local/share/gigios/face.png` (fuera del
+  repo, nunca versionada para no publicar una foto tuya) y la leen tanto `hyprlock` como el
+  avatar de AGS. Se pone desde Ajustes > Cuenta. Sin foto, AGS muestra las iniciales.
 - **`~/.config/jarvis/git-repos.json`** (Orion → sección Git) tiene rutas de repos locales
   de esta máquina (ej. `~/Documentos/Github/Ravage`); si esas rutas no existen en el PC
   nuevo, la sección Git de Orion simplemente no los mostrará — no es un error, solo revisa
@@ -630,8 +629,8 @@ for f in \
 done
 ```
 
-El preflight falla si falta código obligatorio. `assets/face.png` es deliberadamente
-opcional y está ignorado para no publicar una foto personal; sin él se muestran iniciales.
+El preflight falla si falta código obligatorio. La foto de perfil es deliberadamente
+opcional y vive fuera del repo para no publicar una foto personal; sin ella se muestran iniciales.
 
 ### Resumen de la instalación
 
@@ -691,25 +690,29 @@ Los fondos están dentro de GiGiOS, por lo que viajan con un clon completo del r
 
 ## 13. Cómo poner tu foto de perfil
 
-La foto de perfil es opcional y privada. Puedes colocarla primero en
-`assets/face.png` y dejar que `bin/link.sh` la copie a `~/.cache/gigios/face.png`, o
-seleccionarla desde Ajustes de AGS, que escribe directamente la copia de runtime.
-`assets/face.png` está ignorado por Git y no viaja a otro PC.
+La foto de perfil es opcional y privada. Vive en **una sola ruta**,
+`~/.local/share/gigios/face.png`, fuera del repo y sin versionar: no viaja a otro PC.
+La forma normal de ponerla es **Ajustes > Cuenta**, que escribe ahí directamente.
+
+Está en `XDG_DATA_HOME` y **no** en `~/.cache` a propósito: no hay master del que
+regenerarla, así que un limpiador de caché (o un `rm -rf ~/.cache`) te la borraría para
+siempre. `bin/link.sh` solo **migra** la ubicación antigua (`~/.cache/gigios/face.png`)
+si todavía la tienes ahí; no crea ni gestiona la foto.
+
+La leen dos sitios, y ninguno se rompe si el archivo no existe:
 
 1. **Pantalla de bloqueo (`hyprlock`)** — `hyprlock.conf`, bloque `image` con
-   `path = ~/.cache/gigios/face.png`.
-2. **Footer de QuickSettings de AGS** (el avatar) — `widget/QuickSettings.tsx`, función
-   `getAvatarPath`, lee `~/.cache/gigios/face.png`. Si el archivo no existe, AGS cae a
-   mostrar las iniciales del usuario (no rompe nada).
+   `path = ~/.local/share/gigios/face.png`. Sin archivo, omite el avatar.
+2. **AGS** — `widget/settings/avatar.ts` exporta `AVATAR_PATH`, que consumen
+   `ProfileAvatar.tsx` (el avatar) y `AccountSection.tsx` (el selector). Sin archivo,
+   AGS cae a mostrar las iniciales del usuario.
 
-Para cambiar la foto:
+Para cambiarla desde una terminal, en vez de por Ajustes:
 ```sh
-cp /ruta/a/tu/foto.png ~/GiGiOS/assets/face.png   # copia privada local
-bin/link.sh                                        # refresca ~/.cache/gigios/face.png
+mkdir -p ~/.local/share/gigios
+cp /ruta/a/tu/foto.png ~/.local/share/gigios/face.png
 ```
-Alternativa rápida (temporal): copiar tu imagen directamente sobre
-`~/.cache/gigios/face.png` — la próxima corrida de `link.sh` la vuelve a sincronizar
-desde el master.
+AGS la recarga al reiniciar el shell (Ajustes > Cuenta la refresca en el acto).
 
 ## 14. Inventario de rutas — qué es tuyo y qué no
 
@@ -737,7 +740,7 @@ migrar y qué se regenera solo.
 | `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
 | `~/.local/share/orion/profiles/*.json` | sesiones guardadas de Orion (`ProfileManager.ts`) |
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `widget/power/powerState.ts`) |
-| `~/GiGiOS/assets/face.png` | foto privada opcional, ignorada por Git; `link.sh` la copia al caché (§13) |
+| `~/.local/share/gigios/face.png` | foto privada opcional, fuera del repo; se pone desde Ajustes > Cuenta (§13) |
 | `~/GiGiOS/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
 | `~/.config/gigios/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
 
