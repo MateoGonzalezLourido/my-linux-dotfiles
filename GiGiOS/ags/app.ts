@@ -20,7 +20,7 @@ import { initNotifDaemonCheck } from "./widget/notifications/daemonCheck"
 import { initTrayApps } from "./widget/settings/trayApps"
 import { initGamingState } from "./widget/power/gamingState"
 import { initWakeUp } from "./widget/bar/functions/wakeup"
-import { showBrightnessOSD, stepBrightness } from "./widget/state"
+import { alternarBarPorTecla, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness } from "./widget/state"
 
 app.start({
   css: style,
@@ -55,6 +55,21 @@ app.start({
     }
     if (argv.includes("toggle-orion")) {
       alternarPanelOrion()
+      response("ok")
+      return
+    }
+    if (argv.includes("toggle-bar")) {
+      alternarBarPorTecla()
+      response("ok")
+      return
+    }
+    if (argv.includes("toggle-quicksettings")) {
+      alternarQuickSettings()
+      response("ok")
+      return
+    }
+    if (argv.includes("toggle-notifications")) {
+      alternarPanelNotificaciones()
       response("ok")
       return
     }

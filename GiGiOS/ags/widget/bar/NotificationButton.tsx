@@ -1,8 +1,8 @@
 import { createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import AstalNotifd from "gi://AstalNotifd"
-import { notifications, notifPanelVisible, openNotifPanel, closeNotifPanel } from "../notifications/store"
-import { closeAllPanels } from "../state"
+import { notifications, notifPanelVisible } from "../notifications/store"
+import { alternarPanelNotificaciones } from "../state"
 
 export default function NotificationButton() {
   const notifd = AstalNotifd.get_default()
@@ -40,14 +40,7 @@ export default function NotificationButton() {
       visible={hasNotifs((hn) => hn)}
       cssClasses={["bar-pill-btn"]}
       tooltipText={unread((u) => String(u))}
-      onClicked={() => {
-        if (notifPanelVisible.get()) {
-          closeNotifPanel()
-        } else {
-          closeAllPanels()
-          openNotifPanel()
-        }
-      }}
+      onClicked={alternarPanelNotificaciones}
     >
       <Gtk.GestureClick
         button={3}

@@ -1,7 +1,6 @@
 import { createState } from "ags"
-import { notifPanelVisible, closeNotifPanel } from "./notifications/store"
+import { notifPanelVisible, openNotifPanel, closeNotifPanel } from "./notifications/store"
 import GLib from "gi://GLib"
-import Gio from "gi://Gio"
 
 export const [calendarVisible, setCalendarVisible] = createState(false)
 export function toggleCalendar() { setCalendarVisible(!calendarVisible.get()) }
@@ -149,6 +148,22 @@ export function closeAllPanels() {
   closeNotifPanel()
 }
 
+/** Abre Quick Settings cerrando los demás paneles, o lo cierra si ya está abierto. */
+export function alternarQuickSettings() {
+  if (quickSettingsVisible.get()) closeAllPanels()
+  else openQuickSettings()
+}
+
+/** Abre las notificaciones cerrando los demás paneles, o las cierra si ya están abiertas. */
+export function alternarPanelNotificaciones() {
+  if (notifPanelVisible.get()) {
+    closeNotifPanel()
+  } else {
+    closeAllPanels()
+    openNotifPanel()
+  }
+}
+
 // ── Teclado del bar (solo durante el renumerado de workspaces) ───────────────
 // El bar es una capa layer-shell siempre mapeada; pedir teclado (keymode
 // ON_DEMAND) permite al compositor darle el foco y, al arrancar sesión, quedárselo
@@ -168,18 +183,17 @@ export function endBarKeyboard() {
   if (_barKbCount === 0) setBarKeyboardActive(false)
 }
 
-// ── Bar Pin (keybind toggle) ─────────────────────────────────────────────────
+// ── Toggle manual de la barra ────────────────────────────────────────────────
 export const [barPinnedByKey, setBarPinnedByKey] = createState(false)
-export function toggleBarPin() {
-  setBarPinnedByKey(!barPinnedByKey.get())
-}
+export const [barOcultaPorTecla, setBarOcultaPorTecla] = createState(false)
 
-// Monitorea /tmp/ags-bar-toggle — el keybind de Hyprland escribe en ese archivo
-try {
-  const _barToggleFile = Gio.file_new_for_path("/tmp/ags-bar-toggle")
-  const _barToggleMonitor = _barToggleFile.monitor(Gio.FileMonitorFlags.NONE, null)
-  _barToggleMonitor.connect("changed", () => toggleBarPin())
-} catch (e) { console.error("[bar-toggle] monitor error:", e) }
+/** Invierte la visibilidad real: muestra y fija la barra si estaba oculta, o la
+ * oculta aunque el auto-ocultado esté desactivado si estaba visible. */
+export function alternarBarPorTecla() {
+  const ocultar = barVisible.get()
+  setBarPinnedByKey(!ocultar)
+  setBarOcultaPorTecla(ocultar)
+}
 
 // ── Brillo ───────────────────────────────────────────────────────────────────
 // El brillo vive en `display/brightness.ts` (dos backends: panel interno vía sysfs, o

@@ -361,10 +361,6 @@ los conflictos de extensiones `.ts` y `.tsx`, y da a `.conf`, `.cfg` e `.ini`
 un tipo de configuración propio; así Dolphin muestra iconos de código en vez de
 iconos de traducción Qt, vídeo, mapas de Tiled o archivos vacíos.
 
-**Menú de apagado** — `keybinds.conf` intenta `hyprshutdown` y si no existe cae a
-`hyprctl dispatch exit`. `hyprshutdown` **no está instalado en esta máquina tampoco**
-(es opcional, de AUR si lo quieres: `paru -S hyprshutdown` o equivalente).
-
 ## 5. Wallpaper
 
 ```sh
@@ -783,7 +779,6 @@ Las fuentes manuales son las únicas entradas de esta tabla que hay que copiar p
 
 | Ruta | Para qué es |
 |---|---|
-| `/tmp/ags-bar-toggle` | fichero señal para el toggle manual del bar (`CTRL+SUPER+SPACE`) |
 | `/tmp/ags-ws-preview-*.png` | capturas de `grim` para el preview de workspace al clic-derecho |
 | `$XDG_RUNTIME_DIR/gigios-gaps-disabled` | marca si el toggle está en modo "sin gaps" |
 | `~/.cache/ags/media` | carátulas de álbum cacheadas por el reproductor multimedia |

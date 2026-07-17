@@ -1,6 +1,6 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState, With } from "ags"
+import { createComputed, createState, With } from "ags"
 import { cpuRamEnabled } from "./bar/functions/state"
 
 import Clock from "./bar/Clock"
@@ -21,7 +21,7 @@ import UpdatesButton from "./bar/UpdatesButton"
 import PowerButton from "./bar/PowerButton"
 import SpotifyNowPlaying from "./bar/SpotifyNowPlaying"
 import { barAutoHideEnabled, batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "./settings/preferences"
-import { anyPanelVisible, setBarVisible, setWidgetsRefresh, openQuickSettings, quickSettingsVisible, closeAllPanels, isWsDragging, barPinnedByKey, setBarPinnedByKey, barKeyboardActive } from "./state";
+import { anyPanelVisible, setBarVisible, setWidgetsRefresh, alternarQuickSettings, isWsDragging, barPinnedByKey, setBarPinnedByKey, barOcultaPorTecla, barKeyboardActive } from "./state";
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
@@ -79,6 +79,16 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     setVisible(true)
   }
 
+  // Ocultado explícito por teclado: no depende del auto-ocultado, del hover ni
+  // de los guards de salida, porque debe prevalecer sobre la preferencia de bar fijo.
+  function hideNow() {
+    if (showTimer) { clearTimeout(showTimer); showTimer = null }
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+    setVisible(false)
+    setWidgetsRefresh(false)
+    setBarVisible(false)
+  }
+
   function handleHide() {
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (!visible()) return
@@ -98,7 +108,9 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
 
   // Unified visibility logic
   const checkVisibility = () => {
-    if (!barAutoHideEnabled.get()) {
+    if (barOcultaPorTecla.get()) {
+      hideNow()
+    } else if (!barAutoHideEnabled.get()) {
       showNow()
     } else if (isHovered() || anyPanelVisible.get()) {
       handleShow()
@@ -115,6 +127,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     if (pinned) showNow()
     else checkVisibility()
   })
+  barOcultaPorTecla.subscribe(checkVisibility)
 
   // Auto-ocultado desactivado en Personalización → el bar baja al instante y ya
   // no vuelve a ocultarse; al reactivarlo, checkVisibility decide (se retraerá si
@@ -163,7 +176,12 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
     // exclusiva para una superficie que se retrae dejaría un hueco muerto de 38px.
     // Sin auto-ocultado es un bar fijo clásico, así que pasa a EXCLUSIVE y Hyprland
     // le reserva su altura en vez de taparles el borde superior a las ventanas.
-    exclusivity={barAutoHideEnabled((on) => on ? Astal.Exclusivity.NORMAL : Astal.Exclusivity.EXCLUSIVE)}
+    exclusivity={createComputed(
+      [barAutoHideEnabled, barOcultaPorTecla],
+      (autoOcultar, ocultaPorTecla) => autoOcultar || ocultaPorTecla
+        ? Astal.Exclusivity.NORMAL
+        : Astal.Exclusivity.EXCLUSIVE,
+    )}
     focusable={true}
     anchor={TOP | LEFT | RIGHT}
     application={app}
@@ -220,7 +238,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           <With value={notificationBarEnabled}>{(on: boolean) => on && <NotificationButton />}</With>
           <button
             cssClasses={["bar-pill-btn"]}
-            onClicked={() => quickSettingsVisible.get() ? closeAllPanels() : openQuickSettings()}
+            onClicked={alternarQuickSettings}
           >
             <box cssClasses={["bar-pill", "qs-system-pill"]}>
               <Bluetooth />

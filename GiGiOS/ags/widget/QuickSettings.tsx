@@ -19,6 +19,7 @@ import cairo from "gi://cairo"
 import {
   quickSettingsVisible,
   closeAllPanels,
+  alternarPanelNotificaciones,
   nightLightTemp,
   qsView,
   setQsView,
@@ -29,7 +30,6 @@ import {
   brightness
 } from "./state"
 import { applyBrightness, brightnessSupported } from "./display/brightness"
-import { openNotifPanel } from "./notifications/store"
 import { clipWindowInputToContent } from "./inputRegion"
 import * as Spotify from "./services/spotify/SpotifyService"
 import {
@@ -693,6 +693,17 @@ GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
 function getTime() { return GLib.DateTime.new_now_local().format("%H:%M") ?? "" }
 function getDate() { return GLib.DateTime.new_now_local().format("%A, %-d %B") ?? "" }
 function clamp(v: number, lo = 0, hi = 1) { return Math.max(lo, Math.min(hi, v)) }
+
+// Techo de volumen de ENTRADA (micrófono), en fracción cruda de PipeWire (0-1).
+// En este equipo (Realtek ALC897, mic frontal) PipeWire combina "Capture" +
+// "Front Mic Boost" en una única curva cúbica cuyo 100% ronda +60dB de ganancia
+// analógica total — mucho más de lo que necesita un micro de sobremesa a
+// distancia normal, y la causa medida de la saturación al subir el slider.
+// Se remapea el 0-100% que ve el usuario a 0-MIC_SAFE_MAX de esa curva real,
+// calibrado grabando voz real y midiendo el pico en dBFS (ver GiGiOS/CLAUDE.md).
+// Así el 100% de la UI es siempre "el máximo seguro medido", nunca el máximo
+// físico del hardware.
+export const MIC_SAFE_MAX = 0.40
 function toDb(v: number) {
   if (v <= 0.0001) return "-∞"
   // PulseAudio/Pipewire use a cubic curve for perceived volume
@@ -727,12 +738,13 @@ function makeScale(
   getValue: () => number,
   setValue: (v: number) => void,
   subscribe?: (cb: () => void) => void,
-  layout: { hexpand?: boolean; heightRequest?: number; widthRequest?: number } = {},
+  layout: { hexpand?: boolean; heightRequest?: number; widthRequest?: number; max?: number } = {},
 ): Gtk.Scale {
-  const adj = new Gtk.Adjustment({ lower: 0, upper: 1, stepIncrement: 0.01 })
-  adj.value = clamp(getValue())
+  const max = layout.max ?? 1
+  const adj = new Gtk.Adjustment({ lower: 0, upper: max, stepIncrement: 0.01 })
+  adj.value = clamp(getValue(), 0, max)
   if (subscribe) {
-    subscribe(() => { adj.value = clamp(getValue()) })
+    subscribe(() => { adj.value = clamp(getValue(), 0, max) })
   }
   const scale = new Gtk.Scale({
     orientation: Gtk.Orientation.HORIZONTAL,
@@ -746,7 +758,7 @@ function makeScale(
   scale.cssClasses = classes
 
   scale.connect("change-value", (_self, _scroll, val) => {
-    setValue(clamp(val))
+    setValue(clamp(val, 0, max))
     return false
   })
   return scale
@@ -789,10 +801,7 @@ function QsHeader() {
       <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} cssClasses={["qs-header-actions"]}>
         <button
           cssClasses={["bar-pill", "nb-pill"]}
-          onClicked={() => {
-            closeAllPanels()
-            openNotifPanel()
-          }}
+          onClicked={alternarPanelNotificaciones}
         >
           <label
             cssClasses={notifs((n) => n.length > 0 ? ["nb-icon", "has-notifs"] : ["nb-icon"])}
@@ -2095,15 +2104,25 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                       ? ["qs-audio-item", "active"]
                       : ["qs-audio-item"])
 
-                  // Apply device preset if new
+                  // Apply device preset if new.
+                  // `ep.name` viene a null en el perfil ALSA clásico (altavoces/mic
+                  // comparten sink/source genérico); sin fallback, la clave colapsaba
+                  // literalmente a "dev:mic:null" y el guard `ep.name &&` de abajo
+                  // impedía releerla, así que el preset se guardaba pero nunca se
+                  // restauraba. `ep.description` sí se puebla en ese caso (ver Volume.tsx).
                   const devTag = isSpk ? "spk" : "mic"
-                  const devKey = `dev:${devTag}:${ep.name}`
-                  if (ep.name && !handledDevices.has(`${devTag}:${ep.name}`)) {
+                  const stableId = ep.name || ep.description || `id:${ep.id}`
+                  const devKey = `dev:${devTag}:${stableId}`
+                  // El micro remapea 0-100% a 0-MIC_SAFE_MAX de la curva real de PipeWire
+                  // (ver la constante). El clamp al restaurar protege contra un preset
+                  // guardado antes de este techo (p.ej. un 100% viejo, que saturaba).
+                  const maxVol = isSpk ? 1 : MIC_SAFE_MAX
+                  if (!handledDevices.has(`${devTag}:${stableId}`)) {
                     const p = presets.get()[devKey]
                     if (p !== undefined) {
-                      ep.volume = p
+                      ep.volume = clamp(p, 0, maxVol)
                     }
-                    handledDevices.add(`${devTag}:${ep.name}`)
+                    handledDevices.add(`${devTag}:${stableId}`)
                   }
 
                   const scale = makeScale(
@@ -2117,7 +2136,7 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                       saveAudioPresets(p)
                     },
                     (cb) => { ep.connect("notify::volume", cb) },
-                    { heightRequest: 4 },
+                    { heightRequest: 4, max: maxVol },
                   )
 
                   const activate = async () => {
@@ -2164,11 +2183,12 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                             {scale}
                           </box>
                           <InlineEditableValue
-                            display={vol((v) => `${Math.round(v * 100)}`)}
-                            getValue={() => ep.volume * 100}
+                            display={vol((v) => `${Math.round((v / maxVol) * 100)}`)}
+                            getValue={() => (ep.volume / maxVol) * 100}
                             onCommit={(value) => {
-                              ep.volume = value / 100
-                              const p = { ...presets.get(), [devKey]: value / 100 }
+                              const v = clamp((value / 100) * maxVol, 0, maxVol)
+                              ep.volume = v
+                              const p = { ...presets.get(), [devKey]: v }
                               setPresets(p)
                               saveAudioPresets(p)
                             }}

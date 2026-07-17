@@ -23,7 +23,7 @@ import {
 import { ingest } from "./ingest.ts"
 import { canFitPopup } from "./popupLayout.ts"
 import { PopupBurstGuard } from "./popupBurst.ts"
-import { barVisible, anyPanelVisible } from "../state"
+import { barVisible, powerMenuVisible, quickSettingsVisible } from "../state"
 import { barAutoHideEnabled } from "../settings/preferences"
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -53,6 +53,13 @@ const panelOffset = (): number => (barAutoHideEnabled.get() ? PANEL_MARGIN_TOP :
 // justo debajo en lugar de usar un offset fijo.
 
 const PANEL_NAMES = ["notification-panel", "quick-settings", "power-menu"]
+// No usar anyPanelVisible: también incluye superficies que no se solapan con el
+// popup (Orion, calendario, menús de la izquierda...) y activaría el fallback
+// vertical de 260 px aunque ninguna ocupe esta esquina.
+const panelesQueDesplazanPopup = [notifPanelVisible, quickSettingsVisible, powerMenuVisible]
+
+const hayPanelQueDesplazaPopup = (): boolean =>
+  panelesQueDesplazanPopup.some((estado) => estado.get())
 
 function getOpenPanelBottom(): number {
   for (const name of PANEL_NAMES) {
@@ -67,7 +74,7 @@ function getOpenPanelBottom(): number {
 }
 
 const computeMargin = (): number => {
-  if (!anyPanelVisible.get()) {
+  if (!hayPanelQueDesplazaPopup()) {
     return barVisible.get() ? panelOffset() + 16 : 16
   }
   const bottom = getOpenPanelBottom()
@@ -81,7 +88,7 @@ function scheduleMarginUpdate() {
   // Si el panel de notificaciones acaba de abrirse, eliminar popups visibles
   if (notifPanelVisible.get()) dismissAll()
 
-  if (anyPanelVisible.get()) {
+  if (hayPanelQueDesplazaPopup()) {
     GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
       setPopupMargin(computeMargin())
       drainQueue()
@@ -93,7 +100,7 @@ function scheduleMarginUpdate() {
   }
 }
 
-anyPanelVisible.subscribe(scheduleMarginUpdate)
+panelesQueDesplazanPopup.forEach((estado) => estado.subscribe(scheduleMarginUpdate))
 barVisible.subscribe(scheduleMarginUpdate)
 barAutoHideEnabled.subscribe(scheduleMarginUpdate)
 

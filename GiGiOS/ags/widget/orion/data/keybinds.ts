@@ -75,7 +75,8 @@ const EXEC_PATTERNS: [RegExp, string][] = [
   [/playerctl previous/, "Pista anterior"],
   [/playerctl play-pause/, "Play / Pausa"],
   [/toggle-orion|ags toggle orion/, "Mostrar/ocultar panel Orion"],
-  [/ags-bar-toggle/, "Mostrar/ocultar barra"],
+  [/toggle-bar|ags-bar-toggle/, "Mostrar/ocultar barra"],
+  [/toggle-quicksettings/, "Mostrar/ocultar ajustes rápidos"],
 ]
 
 function describeExec(cmd: string): string {

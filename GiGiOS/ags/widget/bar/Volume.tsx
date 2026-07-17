@@ -172,7 +172,7 @@ export default function Volume() {
         flags={Gtk.EventControllerScrollFlags.VERTICAL}
         onScroll={(_self, _dx, dy) => {
           if (!speaker) return
-          speaker.volume = Math.max(0, Math.min(1.5, speaker.volume - dy * 0.05))
+          speaker.volume = Math.max(0, Math.min(1.0, speaker.volume - dy * 0.05))
         }}
       />
     </button>
