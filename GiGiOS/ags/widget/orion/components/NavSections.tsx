@@ -1,6 +1,9 @@
 import { Gtk } from "ags/gtk4"
 import { activeSection, onSectionChange } from "../state"
 import { SECTION_COMPONENTS } from "./sections"
+import { ALTURA_FRANJA_SISTEMA } from "./sections/HomeSection"
+
+const ALTURA_VIEWPORT_ORION = 458
 
 export default function NavSections() {
   const widgets: Record<string, Gtk.Widget> = {}
@@ -9,7 +12,6 @@ export default function NavSections() {
   const scroll = new Gtk.ScrolledWindow({ cssClasses: ["orion-content-scroll"], vexpand: true })
   // EXTERNAL mantiene rueda/touchpad pero no crea una barra visible o pulsable.
   scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.EXTERNAL)
-  scroll.height_request = 458
   scroll.set_child(outer)
 
   for (const [id, Component] of Object.entries(SECTION_COMPONENTS)) {
@@ -21,6 +23,9 @@ export default function NavSections() {
 
   function show(id: string) {
     for (const [wid, w] of Object.entries(widgets)) w.visible = wid === id
+    scroll.height_request = id === "inicio"
+      ? ALTURA_VIEWPORT_ORION - ALTURA_FRANJA_SISTEMA
+      : ALTURA_VIEWPORT_ORION
     scroll.get_vadjustment().set_value(0)
   }
 

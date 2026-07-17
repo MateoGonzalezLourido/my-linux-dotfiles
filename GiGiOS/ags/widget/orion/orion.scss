@@ -211,10 +211,9 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 }
 
 // Único viewport vertical de Orion. Las páginas aportan contenido normal y
-// este contenedor desplaza la página activa completa.
+// este contenedor desplaza la página activa completa. NavSections asigna su
+// altura para descontar la franja fija de métricas en Inicio.
 .orion-content-scroll {
-  min-height: 458px;
-
   // Respaldo visual para temas GTK que ignoren PolicyType.EXTERNAL.
   scrollbar,
   scrollbar slider,
@@ -233,41 +232,31 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 // ── Apps grid ────────────────────────────────────────────────
 .section-home { padding: 5px 5px 2px; }
 
-.apps-grid {
-  padding: 4px 8px 7px;
-}
+.apps-grid,
+.apps-all-grid { padding: 0 11px 4px; }
 
 // Gtk.FlowBox envuelve cada botón en un flowboxchild. El wrapper queda totalmente
-// neutro para que cada acceso tenga una sola superficie, igual que las pills del bar.
-.apps-grid flowboxchild {
+// neutro para que cada acceso tenga una sola superficie.
+.apps-grid flowboxchild,
+.apps-all-grid flowboxchild {
   background: transparent;
   border: none;
+  border-radius: 12px;
   box-shadow: none;
   outline: none;
   padding: 0;
-  border-radius: 10px;
 }
 
 .apps-grid flowboxchild:hover,
-.apps-grid flowboxchild:selected {
+.apps-grid flowboxchild:selected,
+.apps-all-grid flowboxchild:hover,
+.apps-all-grid flowboxchild:selected {
   background: transparent;
   border: none;
   box-shadow: none;
 }
 
-.Orion .app-item {
-  padding: 6px 4px 5px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.018);
-  min-width: 56px;
-  background: fondo-control-opaco(rgba(255, 255, 255, 0.024));
-  &:hover {
-    @include hover-con-profundidad;
-  }
-}
-.app-item-img { color: $j-text-primary; }
 .app-dragging { opacity: 0.35; }
-.app-label { font-size: 9px; font-weight: 600; color: $j-text-secondary; }
 
 .j-hdiv { background: $j-border-subtle; min-height: 1px; margin: 3px 10px; }
 
@@ -281,12 +270,13 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   background: fondo-control-opaco(rgba(255, 255, 255, 0.018));
   border: 1px solid $j-border-subtle;
   border-radius: 8px;
+  margin: 1px 2px;
   padding: 4px 7px 5px;
 }
 .sys-label { font-size: 7px; color: $j-text-muted; font-family: $j-font-mono; letter-spacing: 0.3px; }
 .sys-val   { font-size: 10px; font-weight: 600; color: $j-text-secondary; font-family: $j-font-mono; padding: 0 0 2px; }
-.sys-bar   { background: rgba(255, 255, 255, 0.045); border-radius: 99px; min-height: 2px; }
-.sys-fill  { border-radius: 99px; min-height: 2px; }
+.sys-bar   { min-width: 0; min-height: 2px; border-radius: 99px; background: rgba(255, 255, 255, 0.045); }
+.sys-fill  { min-width: 0; min-height: 2px; border-radius: 99px; }
 .sf-blue   { background: rgba($j-accent, 0.55); }
 .sf-pink   { background: rgba($j-accent-red, 0.55); }
 .sf-teal   { background: rgba($j-accent-teal, 0.55); }
@@ -563,26 +553,6 @@ popover.background {
 }
 
 .Orion .apps-mode-toggle { padding: 2px 5px; }
-
-.apps-all-grid {
-  padding: 0 11px 4px;
-}
-
-.apps-all-grid flowboxchild {
-  background: transparent;
-  border: none;
-  border-radius: 12px;
-  box-shadow: none;
-  outline: none;
-  padding: 0;
-}
-
-.apps-all-grid flowboxchild:hover,
-.apps-all-grid flowboxchild:selected {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
 
 .apps-tile {
   min-height: 82px;

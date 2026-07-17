@@ -259,7 +259,7 @@ export default function SpotifyNowPlaying() {
         lastAdTrackId = rawTrackId
       }
       setTitle(`Anuncio · ${adIndex}`)
-      setArtist("Spotify")
+      setArtist("")
     } else {
       adIndex = 0
       lastAdTrackId = null

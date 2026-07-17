@@ -1,11 +1,12 @@
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import { readFile } from "ags/file"
-import { createState } from "ags"
+import { createState, type Accessor } from "ags"
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import Gdk from "gi://Gdk"
 import GObject from "gi://GObject"
+import Pango from "gi://Pango"
 import {
   showAppContext, orionVisible, activeSection,
   hidePanel,
@@ -62,6 +63,8 @@ const [nGpuActive, setNGpuActive] = createState(false)
 const [nGpuPct,    setNGpuPct]    = createState(0)
 const [nVramUsed,  setNVramUsed]  = createState("0M")
 const [nVramPct,   setNVramPct]   = createState(0)
+
+export const ALTURA_FRANJA_SISTEMA = 58
 
 // ── CPU (delta) ───────────────────────────────────────────────────────────────
 
@@ -192,52 +195,129 @@ activeSection.subscribe(syncPolling)
 
 // Pie de métricas fijo: Orion lo monta fuera del viewport desplazable y sólo
 // aparece en Inicio, donde también vive el polling que alimenta estos datos.
+interface TarjetaMetricaProps {
+  titulo: string
+  valor: Accessor<string>
+  progreso: Accessor<number>
+  color: string
+  visible?: Accessor<boolean>
+}
+
+const ANCHO_TARJETA_METRICA = 120
+const ContenedorTarjetaMetrica = GObject.registerClass(
+  class ContenedorTarjetaMetrica extends Gtk.Widget {
+    private contenido: Gtk.Widget | null = null
+
+    establecerContenido(contenido: Gtk.Widget) {
+      this.contenido?.unparent()
+      this.contenido = contenido
+      contenido.set_parent(this)
+    }
+
+    vfunc_measure(orientation: Gtk.Orientation, _forSize: number) {
+      if (orientation === Gtk.Orientation.HORIZONTAL) {
+        return [ANCHO_TARJETA_METRICA, ANCHO_TARJETA_METRICA, -1, -1]
+      }
+      return this.contenido?.measure(Gtk.Orientation.VERTICAL, -1) ?? [0, 0, -1, -1]
+    }
+
+    vfunc_size_allocate(width: number, height: number, baseline: number) {
+      this.contenido?.allocate(width, height, baseline, null)
+    }
+
+    vfunc_dispose() {
+      this.contenido?.unparent()
+      this.contenido = null
+      super.vfunc_dispose()
+    }
+  },
+)
+
+function TarjetaMetrica({ titulo, valor, progreso, color, visible }: TarjetaMetricaProps) {
+  const contenido = (
+    <box
+      cssClasses={["sys-card"]}
+      orientation={Gtk.Orientation.VERTICAL}
+      hexpand
+    >
+      <label label={titulo} cssClasses={["sys-label"]} halign={Gtk.Align.START} />
+      <label
+        cssClasses={["sys-val"]}
+        halign={Gtk.Align.START}
+        maxWidthChars={8}
+        ellipsize={Pango.EllipsizeMode.END}
+        label={valor}
+      />
+      <box cssClasses={["sys-bar"]}>
+        <box
+          cssClasses={["sys-fill", color]}
+          hexpand
+          css={progreso(valorActual => {
+            const fraccion = Math.max(0, Math.min(1, valorActual))
+            return `.sys-fill { transform-origin: left center; transform: scaleX(${fraccion}); }`
+          })}
+        />
+      </box>
+    </box>
+  ) as unknown as Gtk.Widget
+
+  const limite = new ContenedorTarjetaMetrica({ hexpand: true })
+  limite.establecerContenido(contenido)
+  if (visible) {
+    const sincronizarVisibilidad = () => { limite.visible = visible.get() }
+    sincronizarVisibilidad()
+    visible.subscribe(sincronizarVisibilidad)
+  }
+  return limite
+}
+
 export function SystemStats() {
+  const grid = new Gtk.Grid({
+    columnHomogeneous: true,
+    columnSpacing: 5,
+    hexpand: true,
+  })
+  grid.attach(TarjetaMetrica({
+    titulo: "CPU",
+    valor: cpuPct(valor => `${valor}%`),
+    progreso: cpuPct(valor => valor / 100),
+    color: "sf-blue",
+  }), 0, 0, 1, 1)
+  grid.attach(TarjetaMetrica({
+    titulo: "iGPU",
+    valor: iGpu(valor => `${valor.pct}%·${valor.freq}M`),
+    progreso: iGpu(valor => valor.pct / 100),
+    color: "sf-pink",
+  }), 1, 0, 1, 1)
+  grid.attach(TarjetaMetrica({
+    titulo: "RAM",
+    valor: ramUsed(valor => `${valor}G`),
+    progreso: ramPct(valor => valor / 100),
+    color: "sf-teal",
+  }), 2, 0, 1, 1)
+  grid.attach(TarjetaMetrica({
+    titulo: "GPU·NV",
+    valor: nGpuPct(valor => `${valor}%`),
+    progreso: nGpuPct(valor => valor / 100),
+    color: "sf-pink",
+    visible: nGpuActive(valor => valor),
+  }), 3, 0, 1, 1)
+  grid.attach(TarjetaMetrica({
+    titulo: "VRAM·NV",
+    valor: nVramUsed(valor => valor),
+    progreso: nVramPct(valor => valor / 100),
+    color: "sf-amber",
+    visible: nGpuActive(valor => valor),
+  }), 4, 0, 1, 1)
+
   return (
     <box
       cssClasses={["sys-strip", "sys-strip-fixed"]}
-      spacing={5}
+      hexpand
+      heightRequest={ALTURA_FRANJA_SISTEMA}
       visible={activeSection(section => section === "inicio")}
     >
-      <box cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-        <label label="CPU" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={cpuPct(v => `${v}%`)} />
-        <box cssClasses={["sys-bar"]}>
-          <box cssClasses={["sys-fill", "sf-blue"]} widthRequest={cpuPct(v => Math.round((v / 100) * 90))} />
-        </box>
-      </box>
-
-      <box cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-        <label label="iGPU" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={iGpu(v => `${v.pct}%·${v.freq}M`)} />
-        <box cssClasses={["sys-bar"]}>
-          <box cssClasses={["sys-fill", "sf-pink"]} widthRequest={iGpu(v => Math.round((v.pct / 100) * 90))} />
-        </box>
-      </box>
-
-      <box cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-        <label label="RAM" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={ramUsed(v => `${v}G`)} />
-        <box cssClasses={["sys-bar"]}>
-          <box cssClasses={["sys-fill", "sf-teal"]} widthRequest={ramPct(v => Math.round((v / 100) * 90))} />
-        </box>
-      </box>
-
-      <box visible={nGpuActive(v => v)} cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-        <label label="GPU·NV" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={nGpuPct(v => `${v}%`)} />
-        <box cssClasses={["sys-bar"]}>
-          <box cssClasses={["sys-fill", "sf-pink"]} widthRequest={nGpuPct(v => Math.round((v / 100) * 90))} />
-        </box>
-      </box>
-
-      <box visible={nGpuActive(v => v)} cssClasses={["sys-card"]} orientation={Gtk.Orientation.VERTICAL} hexpand>
-        <label label="VRAM·NV" cssClasses={["sys-label"]} halign={Gtk.Align.START} />
-        <label cssClasses={["sys-val"]} halign={Gtk.Align.START} label={nVramUsed(v => `${v}`)} />
-        <box cssClasses={["sys-bar"]}>
-          <box cssClasses={["sys-fill", "sf-amber"]} widthRequest={nVramPct(v => Math.round((v / 100) * 90))} />
-        </box>
-      </box>
+      {grid as unknown as any}
     </box>
   )
 }
@@ -245,25 +325,46 @@ export function SystemStats() {
 // ── Component ────────────────────────────────────────────────────────────────
 
 function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
-  const btn = new Gtk.Button({ cssClasses: ["app-item"] })
+  const btn = new Gtk.Button({ cssClasses: ["apps-tile"] })
   btn.tooltip_text = app.name
   let suppressClick = false
 
   const execName = app.exec.split(" ")[0].split("/").pop() ?? app.exec
   const gicon = lookupGioIcon(app.id, execName)
 
-  const inner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 4, halign: Gtk.Align.CENTER })
+  const inner = new Gtk.Box({
+    orientation: Gtk.Orientation.VERTICAL,
+    cssClasses: ["apps-tile-inner"],
+    spacing: 6,
+    halign: Gtk.Align.CENTER,
+  })
+  const iconBox = new Gtk.Box({
+    cssClasses: ["apps-tile-icon"],
+    halign: Gtk.Align.CENTER,
+    valign: Gtk.Align.CENTER,
+  })
   if (gicon) {
     const img = Gtk.Image.new_from_gicon(gicon)
-    img.pixel_size = 28
-    img.set_css_classes(["app-item-img"])
-    inner.append(img)
+    img.pixel_size = 38
+    iconBox.append(img)
   } else {
-    const img = new Gtk.Image({ iconName: app.iconName, cssClasses: ["app-item-img"] })
-    img.pixel_size = 28
-    inner.append(img)
+    const img = new Gtk.Image({ iconName: app.iconName })
+    img.pixel_size = 38
+    iconBox.append(img)
   }
-  inner.append(new Gtk.Label({ label: app.name, cssClasses: ["app-label"], maxWidthChars: 8, ellipsize: 3 }))
+  inner.append(iconBox)
+  inner.append(new Gtk.Label({
+    label: app.name,
+    cssClasses: ["apps-tile-label"],
+    wrap: true,
+    wrapMode: Pango.WrapMode.WORD_CHAR,
+    lines: 2,
+    ellipsize: Pango.EllipsizeMode.END,
+    maxWidthChars: 12,
+    halign: Gtk.Align.CENTER,
+    justify: Gtk.Justification.CENTER,
+    xalign: 0.5,
+  }))
   btn.set_child(inner)
 
   btn.connect("clicked", () => {
@@ -302,12 +403,12 @@ function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
     return Gdk.ContentProvider.new_for_value(app.id)
   })
   src.connect("drag-begin", (self: any) => {
-    btn.set_css_classes(["app-item", "app-dragging"])
+    btn.set_css_classes(["apps-tile", "app-dragging"])
     const pic = new Gtk.WidgetPaintable({ widget: btn })
     self.set_icon(pic, 20, 20)
   })
   src.connect("drag-end", () => {
-    btn.set_css_classes(["app-item"])
+    btn.set_css_classes(["apps-tile"])
     if (_draggedId) {
       // Drag cancelled — restore original order without saving
       _workOrder = [..._origOrder]
@@ -352,9 +453,13 @@ export function HomeSection() {
   _appsFlow = appsFlow
   appsFlow.set_css_classes(["apps-grid"])
   appsFlow.selection_mode = Gtk.SelectionMode.NONE
-  appsFlow.column_spacing = 2
-  appsFlow.row_spacing = 2
-  appsFlow.max_children_per_line = 99
+  appsFlow.homogeneous = true
+  appsFlow.column_spacing = 6
+  appsFlow.row_spacing = 6
+  // Igual que el catálogo, limitar la fila evita que el tamaño natural de
+  // FlowBox ensanche Orion más allá de su columna de 660 px.
+  appsFlow.min_children_per_line = 6
+  appsFlow.max_children_per_line = 6
 
   // Mantiene el orden editable de las aplicaciones visibles.
   appsFlow.set_sort_func((c1: any, c2: any) => {

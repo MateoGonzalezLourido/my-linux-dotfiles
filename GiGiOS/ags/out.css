@@ -181,9 +181,6 @@
   border-top: 1px solid rgba(255, 255, 255, 0.025);
 }
 
-.orion-content-scroll {
-  min-height: 458px;
-}
 .orion-content-scroll scrollbar,
 .orion-content-scroll scrollbar slider,
 .orion-content-scroll scrollbar button {
@@ -201,51 +198,32 @@
   padding: 5px 5px 2px;
 }
 
-.apps-grid {
-  padding: 4px 8px 7px;
+.apps-grid,
+.apps-all-grid {
+  padding: 0 11px 4px;
 }
 
-.apps-grid flowboxchild {
+.apps-grid flowboxchild,
+.apps-all-grid flowboxchild {
   background: transparent;
   border: none;
+  border-radius: 12px;
   box-shadow: none;
   outline: none;
   padding: 0;
-  border-radius: 10px;
 }
 
 .apps-grid flowboxchild:hover,
-.apps-grid flowboxchild:selected {
+.apps-grid flowboxchild:selected,
+.apps-all-grid flowboxchild:hover,
+.apps-all-grid flowboxchild:selected {
   background: transparent;
   border: none;
   box-shadow: none;
-}
-
-.Orion .app-item {
-  padding: 6px 4px 5px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.018);
-  min-width: 56px;
-  background: rgb(13.928, 13.928, 17.832);
-}
-.Orion .app-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-}
-
-.app-item-img {
-  color: #e2e2e2;
 }
 
 .app-dragging {
   opacity: 0.35;
-}
-
-.app-label {
-  font-size: 9px;
-  font-weight: 600;
-  color: rgba(226, 226, 226, 0.62);
 }
 
 .j-hdiv {
@@ -267,6 +245,7 @@
   background: rgb(12.446, 12.446, 16.374);
   border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: 8px;
+  margin: 1px 2px;
   padding: 4px 7px 5px;
 }
 
@@ -286,14 +265,16 @@
 }
 
 .sys-bar {
-  background: rgba(255, 255, 255, 0.045);
-  border-radius: 99px;
+  min-width: 0;
   min-height: 2px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.045);
 }
 
 .sys-fill {
-  border-radius: 99px;
+  min-width: 0;
   min-height: 2px;
+  border-radius: 99px;
 }
 
 .sf-blue {
@@ -607,26 +588,6 @@ popover.background {
 
 .Orion .apps-mode-toggle {
   padding: 2px 5px;
-}
-
-.apps-all-grid {
-  padding: 0 11px 4px;
-}
-
-.apps-all-grid flowboxchild {
-  background: transparent;
-  border: none;
-  border-radius: 12px;
-  box-shadow: none;
-  outline: none;
-  padding: 0;
-}
-
-.apps-all-grid flowboxchild:hover,
-.apps-all-grid flowboxchild:selected {
-  background: transparent;
-  border: none;
-  box-shadow: none;
 }
 
 .apps-tile {
