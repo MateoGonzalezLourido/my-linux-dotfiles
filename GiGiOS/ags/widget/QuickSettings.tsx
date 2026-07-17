@@ -1737,6 +1737,11 @@ function QsMedia() {
   const CARD_H = 94
   // 70% del ancho útil: (panel 330 - padding panel 20 - padding media 28) × 0.7.
   const MEDIA_SOURCE_MAX_W = 197
+  const MEDIA_SOURCE_MAX_CHARS = 32
+  // El contenido útil de la tarjeta son 282 px. Sin este tope, el tamaño natural
+  // de una etiqueta larga se propaga al Overlay antes de que `ellipsize` actúe.
+  const MEDIA_METADATA_MAX_CHARS = 42
+  const MEDIA_TIME_MAX_CHARS = 10
   const bgCap = new Gtk.ScrolledWindow()
   bgCap.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
   bgCap.set_propagate_natural_height(false)
@@ -1866,6 +1871,7 @@ function QsMedia() {
           widthRequest={MEDIA_SOURCE_MAX_W}
           xalign={0}
           ellipsize={3}
+          maxWidthChars={MEDIA_SOURCE_MAX_CHARS}
         />
         <box hexpand />
         <box spacing={0} valign={Gtk.Align.CENTER} visible={numPlayers((n) => n > 1)}>
@@ -1892,6 +1898,7 @@ function QsMedia() {
             halign={Gtk.Align.FILL}
             xalign={0}
             ellipsize={3}
+            maxWidthChars={MEDIA_METADATA_MAX_CHARS}
           />
           <label
             cssClasses={["qs-media-artist"]}
@@ -1900,6 +1907,7 @@ function QsMedia() {
             halign={Gtk.Align.FILL}
             xalign={0}
             ellipsize={3}
+            maxWidthChars={MEDIA_METADATA_MAX_CHARS}
           />
         </box>
       </box>
@@ -1914,6 +1922,8 @@ function QsMedia() {
             halign={Gtk.Align.START}
             hexpand
             marginEnd={10}
+            ellipsize={3}
+            maxWidthChars={MEDIA_TIME_MAX_CHARS}
           />
           <box
             spacing={2}
@@ -1965,6 +1975,8 @@ function QsMedia() {
             halign={Gtk.Align.END}
             hexpand
             marginStart={10}
+            ellipsize={3}
+            maxWidthChars={MEDIA_TIME_MAX_CHARS}
           />
         </box>
       </box>
