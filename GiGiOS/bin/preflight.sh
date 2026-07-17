@@ -97,7 +97,7 @@ if [[ "$mode" == "--installed" ]]; then
     notify-send:libnotify nmcli:networkmanager
     nm-connection-editor:nm-connection-editor bluetoothctl:bluez-utils
     blueman-manager:blueman bc:bc inotifywait:inotify-tools
-    dbus-monitor:dbus busctl:systemd udevadm:systemd rfkill:util-linux pkexec:polkit
+    dbus-monitor:dbus busctl:systemd udevadm:systemd rfkill:util-linux flock:util-linux pkexec:polkit
     udisksctl:udisks2 lsof:lsof ntfsfix:ntfsprogs fsck.fat:dosfstools fsck.exfat:exfatprogs
     modprobe:kmod btop:btop kitty:kitty firefox:firefox
     zsh:zsh stty:util-linux fzf:fzf eza:eza bat:bat duf:duf

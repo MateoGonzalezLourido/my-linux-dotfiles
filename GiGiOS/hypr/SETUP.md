@@ -279,7 +279,9 @@ Qué usa cada cosa:
   sudo pacman -S libpulse pipewire pipewire-audio pipewire-pulse pipewire-alsa \
     wireplumber gst-plugin-pipewire
   ```
-- **`wf-recorder`** — grabación de una región con `SUPER+SHIFT+P` vía `slurp`.
+- **`wf-recorder`** — grabación del monitor activo con audio del sistema como toggle
+  con `CTRL+SHIFT+F`, o de una ventana elegida con `CTRL+SHIFT+S`; también permite
+  grabar una región con `SUPER+SHIFT+P` vía `slurp`.
 - **`qalculate-gtk`** — calculadora (`XF86Calculator`).
 - **`nm-connection-editor`** / **`blueman-manager`** — los abre AGS desde QuickSettings
   para "más opciones" de red/bluetooth.
