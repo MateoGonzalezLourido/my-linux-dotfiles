@@ -44,10 +44,32 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
           <button
             cssClasses={section((cur) => cur === s.id ? ["sp-nav-item", "active"] : ["sp-nav-item"])}
             onClicked={() => setSection(s.id)}
+            valign={Gtk.Align.CENTER}
+            overflow={Gtk.Overflow.VISIBLE}
           >
-            <box spacing={10} valign={Gtk.Align.CENTER}>
-              <label cssClasses={["sp-nav-icon"]} label={s.icon} />
-              <label label={s.label} hexpand halign={Gtk.Align.START} />
+            <box
+              cssClasses={["sp-nav-content"]}
+              spacing={10}
+              valign={Gtk.Align.CENTER}
+              heightRequest={24}
+              overflow={Gtk.Overflow.VISIBLE}
+            >
+              <label
+                cssClasses={["sp-nav-icon"]}
+                label={s.icon}
+                valign={Gtk.Align.CENTER}
+                heightRequest={22}
+                overflow={Gtk.Overflow.VISIBLE}
+              />
+              <label
+                cssClasses={["sp-nav-label"]}
+                label={s.label}
+                hexpand
+                halign={Gtk.Align.START}
+                valign={Gtk.Align.CENTER}
+                heightRequest={22}
+                overflow={Gtk.Overflow.VISIBLE}
+              />
             </box>
           </button>
         ))}

@@ -166,6 +166,16 @@ export { updatesPeriodicEnabled }
 const [updatesIntervalHours, _setUpdatesIntervalHours] = createState(3)
 export { updatesIntervalHours }
 
+// Congelar tareas de fondo mientras juegas. Lo leen los scripts bash a través de
+// hypr/scripts/lib/gaming-gate.sh, que retiene el sondeo PRESCINDIBLE (monitor de
+// actualizaciones, SMART y unidades systemd) mientras haya un juego delante y lo
+// reanuda al cerrarlo. Se lee EN VIVO (con caché de 30 s), no una sola vez al
+// arrancar como los toggles de evento: es un control de recursos, así que apagarlo
+// descongela sin reiniciar nada. NO afecta a los seguidores de eventos de seguridad
+// ni al termómetro — ver la cabecera de gaming-gate.sh. Default: activado.
+const [gamingFreezeEnabled, _setGamingFreezeEnabled] = createState(true)
+export { gamingFreezeEnabled }
+
 // No molestar automático: cuando está activo, un watcher en el shell
 // (widget/notifications/autoDnd) enciende notifd.dontDisturb mientras haya un
 // juego corriendo o una app de la lista de abajo en pantalla completa. Silencia
@@ -247,6 +257,7 @@ function load() {
     if (typeof saved.updatesIntervalHours === "number" && saved.updatesIntervalHours >= 1) {
       _setUpdatesIntervalHours(Math.floor(saved.updatesIntervalHours))
     }
+    if (typeof saved.gamingFreeze === "boolean") _setGamingFreezeEnabled(saved.gamingFreeze)
     if (typeof saved.autoDnd === "boolean") _setAutoDndEnabled(saved.autoDnd)
     if (Array.isArray(saved.autoDndFullscreenApps)) {
       _setAutoDndFullscreenApps(sanitizeApps(saved.autoDndFullscreenApps))
@@ -286,6 +297,7 @@ function save() {
       updatesMonitor: updatesMonitorEnabled.get(),
       updatesPeriodic: updatesPeriodicEnabled.get(),
       updatesIntervalHours: updatesIntervalHours.get(),
+      gamingFreeze: gamingFreezeEnabled.get(),
       autoDnd: autoDndEnabled.get(),
       autoDndFullscreenApps: autoDndFullscreenApps.get(),
       timeFormat: timeFormat.get(),
@@ -437,6 +449,13 @@ export function setTimeFormat(fmt: TimeFormat) {
 }
 export function setAutoDndEnabled(on: boolean) {
   _setAutoDndEnabled(on)
+  save()
+}
+// No hay setter "maestro" que relance nada: los scripts releen `gamingFreeze` del
+// JSON en vivo, así que basta con persistirlo. Apagarlo descongela en <=30 s (el TTL
+// de la caché del gate) sin reiniciar ningún monitor.
+export function setGamingFreezeEnabled(on: boolean) {
+  _setGamingFreezeEnabled(on)
   save()
 }
 /** Añade una clase a la lista de apps fullscreen. Normaliza y evita duplicados. */

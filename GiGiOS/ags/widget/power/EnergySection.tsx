@@ -7,6 +7,7 @@ import {
   powerSaveThreshold, setPowerSaveThreshold,
   suspendNotifFilters, setSuspendNotifFilters,
   pauseWsPreviewInPowerSave, setPauseWsPreviewInPowerSave,
+  hideSpotifyBarInPowerSave, setHideSpotifyBarInPowerSave,
   powerSaveActive, batteryStatusText,
 } from "./powerState.ts"
 
@@ -97,6 +98,25 @@ export default function EnergySection() {
           >
             <box cssClasses={["qs-toggle-track"]}>
               <box cssClasses={pauseWsPreviewInPowerSave((v) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+            </box>
+          </button>
+        </box>
+      </box>
+
+      {/* ocultar la pastilla de Spotify en ahorro */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+            <label cssClasses={["sp-field-label"]} label="Ocultar Spotify de la barra en ahorro" halign={Gtk.Align.START} />
+            <label cssClasses={["sp-field-hint"]} label="Quita carátula, título y las barritas animadas mientras dure el ahorro; al salir vuelven. Es el único widget de la barra que se redibuja de forma continua." halign={Gtk.Align.START} wrap={true} />
+          </box>
+          <button
+            cssClasses={hideSpotifyBarInPowerSave((v) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => setHideSpotifyBarInPowerSave(!hideSpotifyBarInPowerSave.get())}
+          >
+            <box cssClasses={["qs-toggle-track"]}>
+              <box cssClasses={hideSpotifyBarInPowerSave((v) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
             </box>
           </button>
         </box>

@@ -4477,17 +4477,33 @@ window.cal-panel > box {
   margin: 2px 8px 10px;
 }
 .sp-nav-item {
+  min-height: 38px;
   background: transparent;
   border: none;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 5px 10px;
   color: rgba($text, 0.6);
   font-family: $font-icon;
   font-size: 12px;
   transition: all 120ms ease;
   &:hover { background: rgba(255, 255, 255, 0.05); color: $text; }
   &.active { background: rgba(203, 166, 247, 0.15); color: $violet; }
-  .sp-nav-icon { font-family: $font-icon; font-size: 14px; }
+  .sp-nav-content {
+    min-height: 24px;
+    padding: 2px 0;
+  }
+  .sp-nav-label {
+    line-height: 1.3;
+    min-height: 22px;
+    padding: 2px 0;
+  }
+  .sp-nav-icon {
+    min-width: 18px;
+    min-height: 22px;
+    padding: 2px 0;
+    font-family: $font-icon;
+    font-size: 14px;
+  }
 }
 
 .sp-content {

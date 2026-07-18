@@ -234,7 +234,23 @@ wait_next() {
 }
 
 # ── Bucle principal ───────────────────────────────────────────────────────────
+# El gate de juego va ENTRE la espera y la comprobación, no envolviendo la espera:
+# bloqueado en `inotifywait` este script no cuesta nada, así que se le deja esperar
+# normalmente y solo se retiene el `run_check`, que es lo caro (toca RED y sincroniza
+# una BD temporal de pacman). Un evento de la BD que llegue mientras juegas no se
+# pierde: se atiende en cuanto cierras el juego. Ver lib/gaming-gate.sh.
+#
+# GAMING_GATE_SLEEP=blocking es obligatorio aquí y no un detalle: un `sleep` en
+# primer plano DIFERIRÍA el SIGTERM del toggle maestro de AGS y el script
+# sobreviviría a su propio apagado (mismo motivo que `blocking()`, arriba).
+GAMING_GATE_SLEEP="blocking sleep"
+# shellcheck source=lib/gaming-gate.sh
+if ! source "$HOME/.config/hypr/scripts/lib/gaming-gate.sh" 2>/dev/null; then
+    gaming_gate_wait() { :; }   # sin la librería, el monitor sigue como siempre
+fi
+
 while true; do
+    gaming_gate_wait updates
     run_check
     wait_next || break
 done

@@ -7,6 +7,7 @@ import {
   updatesMonitorEnabled, setUpdatesMonitorEnabled,
   updatesPeriodicEnabled, setUpdatesPeriodicEnabled,
   updatesIntervalHours, setUpdatesIntervalHours,
+  gamingFreezeEnabled, setGamingFreezeEnabled,
   barAutoHideEnabled, setBarAutoHideEnabled,
   wsPreviewEnabled, setWsPreviewEnabled,
   spotifyBarEnabled, setSpotifyBarEnabled,
@@ -782,6 +783,33 @@ export default function PersonalizationSection() {
 
       {/* No molestar automático (juegos / apps en pantalla completa) */}
       <AutoDndSetting />
+
+      {/* Congelar sondeos de fondo mientras juegas — la otra mitad del "modo juego":
+          el auto-DND calla las notificaciones, esto quita la CARGA. Va justo detrás
+          porque los dispara la misma detección (widget/bar/games). */}
+      <box spacing={8} valign={Gtk.Align.CENTER}>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+          <label cssClasses={["sp-field-label"]} label="Congelar tareas de fondo al jugar" halign={Gtk.Align.START} />
+          <label
+            cssClasses={["sp-field-hint"]}
+            label={"Pausa los sondeos prescindibles (actualizaciones, SMART, servicios) mientras haya un juego.\nSe reanudan al cerrarlo. No afecta a la vigilancia de seguridad ni a la temperatura."}
+            halign={Gtk.Align.START}
+            wrap={true}
+            lines={2}
+            maxWidthChars={62}
+            xalign={0}
+          />
+        </box>
+        <button
+          cssClasses={gamingFreezeEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
+          valign={Gtk.Align.CENTER}
+          onClicked={() => setGamingFreezeEnabled(!gamingFreezeEnabled.get())}
+        >
+          <box cssClasses={["qs-toggle-track"]}>
+            <box cssClasses={gamingFreezeEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+          </box>
+        </button>
+      </box>
     </box>
   )
 }

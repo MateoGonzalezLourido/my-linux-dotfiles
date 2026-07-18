@@ -1,4 +1,4 @@
-import { createState } from "ags"
+import { createState, onCleanup } from "ags"
 import { execAsync } from "ags/process"
 import { Gdk, Gtk } from "ags/gtk4"
 import AstalHyprland from "gi://AstalHyprland"
@@ -26,6 +26,27 @@ const ATTACK_TAU = 0.045  // sube de golpe…
 const RELEASE_TAU = 0.19  // …y cae despacio, como un vúmetro
 const WAVE_BPM = 112
 const WAVE_FPS_SAVE = 24  // en ahorro de energía se dibuja a menos frames
+// Tope normal. `add_tick_callback` va al ritmo del MONITOR, así que sin tope (el
+// umbral era literalmente 0) este adorno se dibujaba a la tasa de refresco: en un panel
+// de 240 Hz, 240 pasadas por segundo de 13 bandas × 3 senos más un repintado de cairo,
+// y cuatro de cada cinco no las ve nadie — un vúmetro de 13 barritas no se ve más
+// fluido a 240 que a 60.
+//
+// MEDIDO en esta máquina (2560x1440@240, 12 hilos), y el número honesto es modesto: la
+// animación entera cuesta ~2,7 puntos de un core (AGS sonando ~7,8% vs ~5,0% en pausa),
+// y este tope se lleva ~0,6, no los ~2 que cabría esperar de dividir los frames por
+// cuatro. El motivo es que el callback lo sigue invocando GTK 240 veces por segundo
+// aunque salgamos temprano: lo que se ahorra es el dibujo, no la llamada. Bajarlo a
+// 1 fps solo llegaba a ~1,5 puntos, o sea que ni siquiera destruyendo la animación se
+// recupera mucho más. Se deja en 60 porque es gratis y no se nota, no porque arregle
+// nada gordo: el ruido entre medidas ya es de ~1 punto.
+//
+// Contexto para no volver a perseguir esto: AGS entero ronda el 7% de UN core, ~0,6%
+// del CPU total. No es lo que cuesta frames en un juego. En fullscreen real, además, el
+// compositor deja de mandar frames y la animación se para sola (medido: 9,5% → 3,5%);
+// el caso que de verdad paga es un juego en ventana SIN bordes, donde la barra sigue
+// visible y el reloj de frames vivo.
+const WAVE_FPS_MAX = 60
 
 /** Ruido determinista: da a cada banda su propia fase y ganancia. */
 function hash01(n: number): number {
@@ -169,7 +190,10 @@ export default function SpotifyNowPlaying() {
     lastFrameUs = nowUs
     // Un salto largo (bar oculto, suspensión) no debe teletransportar las barras.
     carry += Math.min(0.1, raw)
-    if (carry < (powerSaveActive.get() ? 1 / WAVE_FPS_SAVE : 0)) return true
+    // `carry` NO se resetea al saltar: sigue acumulando, así que el frame que sí se
+    // dibuja recibe el dt real y la animación avanza a la misma velocidad de siempre.
+    // Bajar el ritmo aquí cambia cuántas veces se dibuja, no lo rápido que se mueve.
+    if (carry < 1 / (powerSaveActive.get() ? WAVE_FPS_SAVE : WAVE_FPS_MAX)) return true
     const dt = carry
     carry = 0
     clockT += dt
@@ -356,18 +380,31 @@ export default function SpotifyNowPlaying() {
     return GLib.SOURCE_CONTINUE
   })
 
+  // Limpieza al DESMONTAR. Va con `onCleanup` (el hook de ags) y no con un
+  // `connect("destroy")` en el box, que es lo que había y NO funcionaba: en GTK4 no
+  // existe `gtk_widget_destroy()`, la señal sale de `dispose`, y al desmontar con
+  // <With> el widget solo se desparenta — los closures de JS siguen referenciándolo,
+  // así que nunca se libera y el handler no llega a correr.
+  //
+  // MEDIDO antes de arreglarlo, con el ahorro oscilando cada 15 s: tres montajes
+  // seguidos dejaban las TRES instancias haciendo tick a la vez (74/44/14 ticks) y
+  // ni un solo "destroy". O sea que cada ciclo fugaba este timer de 1 s, el tick
+  // callback del waveform (que es el reloj de FRAMES) y la suscripción a barVisible.
+  // Ya pasaba al apagar Spotify desde Ajustes; el ajuste de ahorro solo lo convertía
+  // en automático y repetido. Mismo patrón que `CpuRam.tsx`, que ya lo documenta.
+  onCleanup(() => {
+    destroyed = true
+    if (pollTimer !== null) { GLib.source_remove(pollTimer); pollTimer = null }
+    if (tickId !== null) { waveform.remove_tick_callback(tickId); tickId = null }
+    unsubBar()
+  })
+
   return (
     <box
       visible={visible}
       cssClasses={["bar-spotify"]}
       spacing={3}
       valign={Gtk.Align.CENTER}
-      $={(self: Gtk.Box) => self.connect("destroy", () => {
-        destroyed = true
-        if (pollTimer !== null) GLib.source_remove(pollTimer)
-        if (tickId !== null) { waveform.remove_tick_callback(tickId); tickId = null }
-        unsubBar()
-      })}
     >
       <box spacing={7}>
         <box cssClasses={["bar-spotify-art"]} overflow={Gtk.Overflow.HIDDEN}>

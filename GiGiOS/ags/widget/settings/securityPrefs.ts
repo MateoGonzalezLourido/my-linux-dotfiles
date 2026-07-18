@@ -66,10 +66,26 @@ export const DL_PAUSE_ITEMS: { key: DlPauseKey; label: string; hint: string }[] 
 ]
 const DL_PAUSE_KEYS = DL_PAUSE_ITEMS.map((i) => i.key)
 
-// Default de las pausas = false (NO pausar: mismo comportamiento actual, el
-// usuario las activa). Tope de tamaño en GB (default 1 GB).
+// Defaults POR CLAVE, no uno común, porque no significan lo mismo.
+//
+// `dlPauseWhileGaming` viene ACTIVADA: es la mitad más cara del "modo juego"
+// (clamscan recarga ~200 MB de firmas POR invocación, y el barrido además hashea),
+// justo el pico de E/S y CPU que arruina una partida. Lo aplazado no se pierde: el
+// barrido se reanuda al cerrar el juego. Va en la misma dirección que el gate
+// compartido de hypr/scripts/lib/gaming-gate.sh, que congela el resto del sondeo
+// prescindible — sin él, activar la congelación dejaba fuera precisamente al
+// consumidor más caro de todos.
+//
+// Las otras dos siguen en false: pausar por batería o por ahorro sacrifica
+// seguridad por autonomía, y esa es una decisión que debe tomar el usuario.
+// Tope de tamaño en GB (default 1 GB).
+const DL_PAUSE_DEFAULTS: Record<DlPauseKey, boolean> = {
+  dlPauseInPowerSave: false,
+  dlPauseOnBattery: false,
+  dlPauseWhileGaming: true,
+}
 const dlPauseStates = {} as Record<DlPauseKey, ReturnType<typeof createState<boolean>>>
-for (const k of DL_PAUSE_KEYS) dlPauseStates[k] = createState(false)
+for (const k of DL_PAUSE_KEYS) dlPauseStates[k] = createState(DL_PAUSE_DEFAULTS[k])
 
 const DL_MAX_GB_DEFAULT = 1
 const [dlMaxScanGBState, _setDlMaxScanGB] = createState(DL_MAX_GB_DEFAULT)

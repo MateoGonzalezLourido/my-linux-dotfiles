@@ -201,7 +201,7 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
     if (!wsPreviewActive()) return
     if (_preview) { _preview.popdown(); return }
 
-    const path = `/tmp/ags-ws-preview-${ws.id}.png`
+    const path = `/tmp/ags-ws-preview-${ws.id}.jpg`
     const PW = 280, PH = 158
 
     const outer = new Gtk.Box()
@@ -664,11 +664,33 @@ export default function Workspaces() {
 
   // Capture a screenshot whenever a workspace is focused so the preview
   // shows real content. 400ms delay lets Hyprland finish rendering the switch.
+  // Se captura para una miniatura de 280×158, así que el PNG SIN PÉRDIDA a resolución
+  // completa que había aquí era absurdo: 11 MB por workspace, y `/tmp` es **tmpfs**, o
+  // sea RAM — 85 MB de capturas medidos en esta máquina, que además nadie borra nunca.
+  // Con JPEG q75 son ~324 KB (34× menos) y la captura tarda lo mismo (28 ms vs 25 ms).
+  //
+  // NO se escala con `-s`: grim reescala en CPU y eso dispara la captura a ~152 ms.
+  // Saldría a cuenta si el cuello fuera el hover (decodificar 512×288 son 2 ms frente a
+  // 25 ms), pero la captura ocurre en CADA cambio de workspace y el hover solo cuando
+  // vas a espiar, así que encarecer 6× la ruta frecuente para abaratar la rara es mal
+  // negocio. Con JPEG a resolución completa el decode cuesta lo mismo que antes
+  // (25,5 vs 25,1 ms): mejora estricta, sin regresión por ningún lado.
+  //
+  // NO se filtra por `barVisible`, y es a propósito — se intentó y estaba MAL.
+  // Parece desperdicio capturar con la barra oculta (fork + 28 ms por una imagen que
+  // nadie puede ver en ese momento), pero `grim` captura **la pantalla actual**: el
+  // único instante en que existe el contenido del workspace N es mientras ESTÁS en él.
+  // Saltarse la captura ahí no la aplaza, la PIERDE: al reaparecer la barra ya no hay
+  // forma de capturar los workspaces que atravesaste, porque Hyprland no deja
+  // fotografiar un workspace que no estás usando. El resultado eran previews vacías o
+  // rancias de forma permanente para cualquier workspace visitado con la barra oculta
+  // (recapturar al mostrarse solo arregla el workspace actual, no los demás).
+  // La captura con la barra oculta no es gasto inútil: es el peaje del propio invento.
   const captureWorkspace = (id: number) => {
     if (!wsPreviewActive()) return
     if (id <= 0 || id >= 9000) return
     setTimeout(() => {
-      execAsync(["grim", "-t", "png", "-l", "0", `/tmp/ags-ws-preview-${id}.png`]).catch(() => {})
+      execAsync(["grim", "-t", "jpeg", "-q", "75", `/tmp/ags-ws-preview-${id}.jpg`]).catch(() => {})
     }, 400)
   }
   hypr.connect("notify::focused-workspace", () => {
@@ -683,6 +705,9 @@ export default function Workspaces() {
   const recaptureCurrent = () => captureWorkspace(hypr.focusedWorkspace?.id ?? -1)
   wsPreviewEnabled.subscribe(recaptureCurrent)
   wsPreviewSuspended.subscribe(recaptureCurrent)
+  // Aquí NO va `barVisible`: como la captura ya no se salta nunca, las imágenes están
+  // siempre al día y recapturar al mostrar la barra sería un grim de más por cada vez
+  // que asomas el ratón al borde.
   workspaceVisibleLimit.subscribe(update)
 
   update()

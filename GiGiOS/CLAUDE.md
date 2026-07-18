@@ -222,6 +222,90 @@ se ve. Ojo al leerlo en AGS: se saca con `hints.lookup_value()` de la clave suel
 `image-data` trae los píxeles en crudo; hoy solo se libra de ese coste porque únicamente corre
 cuando una regla reescribe texto.
 
+### Congelar tareas de fondo al jugar (`lib/gaming-gate.sh`)
+
+**El "modo juego" tiene dos mitades, y antes solo existía una.** El auto-DND ya callaba las
+notificaciones mientras juegas, pero nada quitaba la CARGA: los sondeos de mantenimiento seguían
+despertando discos, forkeando y tocando la red en mitad de una partida. `hypr/scripts/lib/gaming-gate.sh`
+es la otra mitad — se **sourcea** (no se ejecuta) y expone `gaming_active` / `gaming_gate_wait`.
+
+**No detecta nada nuevo**: reutiliza el flag que ya escribía AGS en `runtime-state.json`
+(`widget/power/gamingState.ts`, que a su vez reutiliza el `isGameClient` de la barra). Bash no
+sabría detectar un juego mejor que el shell.
+
+**Qué se congela** — solo sondeo de mantenimiento, caro y sin nada urgente que mirar:
+`updates-monitor.sh` (red + BD temporal de pacman), `monitor_smart` (smartctl **despierta cada
+disco físico**) y `monitor_units` (4 forks de `systemctl` + awk cada 120 s). `monitor_downloads`
+conserva su propia pausa `dlPauseWhileGaming` — más específica y ya tiene UI —, que es **la más cara
+de todas** (clamscan recarga ~200 MB de firmas por invocación) y por eso **viene ACTIVADA por
+defecto**, al revés que sus dos hermanas (`dlPauseOnBattery`/`dlPauseInPowerSave` siguen en `false`:
+sacrificar seguridad por autonomía lo decide el usuario). De ahí que los defaults sean **por clave**
+en `securityPrefs.ts` y no uno común. En bash **no puede leerse con `.dlPauseWhileGaming // true`**:
+el operador `//` de jq trata un `false` literal como ausente, así que apagar la pausa desde la UI no
+habría servido de nada — va con la forma `if has(…)`, el mismo tropiezo ya documentado en
+`battery-monitor.sh`.
+
+**Qué NO se congela, y no es un olvido.** Los tres **seguidores** de eventos (`monitor_kernel`,
+`monitor_system`, `monitor_files`) leen con `-n 0` a propósito y **no recuperan el pasado**:
+congelarlos convertiría un OOM, un `sudo` fallido o un cambio en `/etc/shadow` en una **ventana
+ciega**, y encima no ahorraría nada — bloqueados en `journalctl -f`/`inotifywait` ya cuestan ~0 %
+de CPU. `temp-monitor.sh` tampoco: jugar es exactamente cuando la CPU y la GPU se cuecen, así que
+congelar el termómetro apagaría la alarma en el único momento que importa. `ram-monitor` y
+`battery-monitor` son bucles de builtins puros (cero forks por tick) y vigilan cosas que importan
+MÁS con un juego delante. `usb`/`bt`/`wifi`/`screencast` son event-driven y de cara al usuario.
+`disk-monitor` es one-shot: para cuando juegas ya salió.
+
+**El gate BLOQUEA, no SALTA**: el trabajo aplazado se hace al descongelar, no se pierde. Por eso
+va justo **antes del cuerpo del sondeo y después de la espera** — así `updates-monitor` sigue
+bloqueado en su `inotifywait` (que no cuesta nada) y solo se retiene el `run_check`.
+
+**"Juego abierto" no es "estás jugando", y confundirlos congelaba el mantenimiento el día entero.**
+`gaming` vive hasta que la ventana **cierra** —a propósito: irte a otro workspace 30 s no es dejar de
+jugar—, así que con eso solo, dejar un juego aparcado en el ws9 mientras trabajas bloqueaba
+updates/SMART/units **indefinidamente y en silencio**. Por eso `gamingState.ts` publica además
+`gameFocused` y `lastGameFocus` (epoch **absoluto**, por lo mismo que el `until` de `wakeup.json`:
+la gracia se resuelve contra el reloj de pared sin que nadie reescriba el fichero, y no se desfasa
+tras una suspensión). El gate congela si el juego **tiene el foco**, o si lo perdió hace menos de
+`GAMING_FOCUS_GRACE` (5 min). La gracia evita el fallo contrario, que sería peor: descongelar en
+cada alt-tab haría que un vistazo de 10 s a Discord lanzara `smartctl` y `clamscan` con el juego
+cargado y a punto de recuperar el foco. Se escribe solo en la **transición** (el juego coge o pierde
+el foco), no en cada cambio de ventana. Un fichero de un AGS anterior, sin esas claves, conserva el
+comportamiento de antes (congelar mientras el juego viva) y se auto-corrige al reescribirse.
+Verificado en vivo con eventos reales: abrir → congela; cambiar de workspace → sigue congelado
+dentro de la gracia y descongela fuera de ella; volver al juego → **vuelve a congelar**; cerrar → libera.
+
+**Al descongelar espera `GAMING_GATE_RESUME_DELAY` (5 s) antes de trabajar.** Al cerrar un juego el
+sistema todavía está devolviendo RAM y VRAM y bajando relojes, y arrancar ahí mismo un `smartctl` o
+un `clamscan` es justo el tirón que se nota al volver al escritorio. No le importa a nada de lo que
+hay detrás del gate (el sondeo más frecuente es de 120 s) y **solo se paga si hubo congelación**: el
+camino sin juego sale antes, sin dormir ni forkear.
+
+**En `monitor_units` el gate se salta la PRIMERA pasada, y esa condición no sobra.**
+`systemctl --failed` es estado de **nivel**, no de flanco: una unidad que caiga durante la partida
+sigue en la lista al reanudar y se avisa entonces. Pero si el gate atrapara la pasada de **siembra**,
+todo lo que hubiera fallado durante esas horas se sembraría como "preexistente" y no se notificaría
+**nunca**. La siembra son 4 forks una sola vez: congelarla no ahorra nada y cuesta avisos.
+
+**Fail-open, igual que la puerta del Wake up.** Sin fichero, con JSON corrupto, sin `pid` o con el
+pid muerto, el gate responde "no estoy jugando" y **el trabajo se hace**. Un fallo aquí debe
+degradar a "la congelación no funciona" —visible, y lo peor es un tirón en el juego— y nunca a "los
+escáneres no vuelven a correr jamás", que es silencioso, permanente y no tiene UI donde notarse.
+De ahí que `gamingState.ts` escriba ahora **también el pid de AGS**: mientras el flag solo pausaba
+las descargas (opcional y por defecto apagado) que se quedara pegado en `true` daba casi igual;
+ahora congela tres monitores más. La otra mitad de la cadena es que `initGamingState()` reescribe el
+fichero al arrancar el shell, necesaria porque los pid **se reciclan**.
+
+**Sin forks en el camino caliente**: el flag se lee con un redirect builtin + regex, no con `jq` —
+un `jq` cada 10 s durante una partida de tres horas sería justo el coste que este gate existe para
+quitar. El ajuste (`gamingFreeze` en `preferences.json`, ausente = activado) sí usa `jq`, pero
+cacheado 30 s; se lee **en vivo**, no una vez al arrancar, porque es un control de recursos:
+apagarlo descongela en ≤30 s sin reiniciar ningún monitor, incluso a mitad de partida.
+
+**`GAMING_GATE_SLEEP` no es decorativo.** `updates-monitor` lo pone a `blocking sleep` porque bash
+**difiere las señales** mientras espera a un hijo en primer plano: con un `sleep` normal, el `pkill`
+del toggle maestro de AGS no mataría el script hasta acabar la espera. En `oom-monitor` los
+sub-monitores ya duermen en primer plano, así que ahí `sleep` a secas es lo coherente.
+
 ### Update monitor (`updates-monitor.sh`)
 
 Checks for pending updates and surfaces the **important** ones as bar icons (AGS

@@ -15,8 +15,14 @@ interface PowerConfig {
   thresholdPct: number         // battery % at/under which power-save turns on (0..100)
   suspendNotifFilters: boolean // when true, notification filter timers pause during power-save
   pauseWsPreview: boolean      // when true, the workspace preview (grim capture) pauses during power-save
+  hideSpotifyBar: boolean      // when true, the Spotify pill is unmounted during power-save
 }
-const DEFAULTS: PowerConfig = { thresholdPct: 15, suspendNotifFilters: false, pauseWsPreview: true }
+const DEFAULTS: PowerConfig = {
+  thresholdPct: 15,
+  suspendNotifFilters: false,
+  pauseWsPreview: true,
+  hideSpotifyBar: true,
+}
 
 function loadConfig(): PowerConfig {
   try {
@@ -27,6 +33,7 @@ function loadConfig(): PowerConfig {
         thresholdPct: typeof data.thresholdPct === "number" ? clampPct(data.thresholdPct) : DEFAULTS.thresholdPct,
         suspendNotifFilters: !!data.suspendNotifFilters,
         pauseWsPreview: typeof data.pauseWsPreview === "boolean" ? data.pauseWsPreview : DEFAULTS.pauseWsPreview,
+        hideSpotifyBar: typeof data.hideSpotifyBar === "boolean" ? data.hideSpotifyBar : DEFAULTS.hideSpotifyBar,
       }
     }
   } catch (_) {}
@@ -41,6 +48,7 @@ const initial = loadConfig()
 export const [powerSaveThreshold, _setThreshold] = createState(initial.thresholdPct)
 export const [suspendNotifFilters, _setSuspend] = createState(initial.suspendNotifFilters)
 export const [pauseWsPreviewInPowerSave, _setPauseWsPreview] = createState(initial.pauseWsPreview)
+export const [hideSpotifyBarInPowerSave, _setHideSpotifyBar] = createState(initial.hideSpotifyBar)
 
 let saveTimer: number | null = null
 function persist() {
@@ -53,6 +61,7 @@ function persist() {
         thresholdPct: powerSaveThreshold.get(),
         suspendNotifFilters: suspendNotifFilters.get(),
         pauseWsPreview: pauseWsPreviewInPowerSave.get(),
+        hideSpotifyBar: hideSpotifyBarInPowerSave.get(),
       }))
     } catch (e) {
       console.error("[power] save failed:", e)
@@ -77,6 +86,11 @@ export function setPauseWsPreviewInPowerSave(v: boolean) {
   recompute()
   persist()
 }
+export function setHideSpotifyBarInPowerSave(v: boolean) {
+  _setHideSpotifyBar(v)
+  recompute()
+  persist()
+}
 
 // ── Derived power state ─────────────────────────────────────────────────────────
 // powerSaveActive: on battery and at/under the threshold.
@@ -85,6 +99,12 @@ export const [powerSaveActive, _setPowerSaveActive] = createState(false)
 export const [notifProcessingSuspended, _setSuspended] = createState(false)
 // wsPreviewSuspended: powerSaveActive AND the user opted in to pausing the workspace preview.
 export const [wsPreviewSuspended, _setWsPreviewSuspended] = createState(false)
+// spotifyBarSuspended: powerSaveActive AND the user opted in to hiding the Spotify pill.
+// Bar.tsx lo usa para DESMONTAR el widget (no solo ocultarlo): la pastilla trae un timer
+// de 1 s y el waveform engancha el reloj de FRAMES del monitor (240 Hz en este equipo,
+// medido), y un widget meramente invisible seguiría pagando ambos. Al desmontarlo, su
+// handler de "destroy" quita el timer, suelta el tick callback y cancela la suscripción.
+export const [spotifyBarSuspended, _setSpotifyBarSuspended] = createState(false)
 // Pre-composed human label so the UI doesn't have to combine three states in one binding.
 export const [batteryStatusText, _setBatteryStatusText] = createState("Sin batería detectada")
 
@@ -101,6 +121,7 @@ function recompute() {
   _setPowerSaveActive(active)
   _setSuspended(active && suspendNotifFilters.get())
   _setWsPreviewSuspended(active && pauseWsPreviewInPowerSave.get())
+  _setSpotifyBarSuspended(active && hideSpotifyBarInPowerSave.get())
 }
 
 if (bat) {

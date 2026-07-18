@@ -20,6 +20,7 @@ import NotificationButton from "./bar/NotificationButton"
 import UpdatesButton from "./bar/UpdatesButton"
 import PowerButton from "./bar/PowerButton"
 import SpotifyNowPlaying from "./bar/SpotifyNowPlaying"
+import { spotifyBarSuspended } from "./power/powerState"
 import { barAutoHideEnabled, batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "./settings/preferences"
 import { anyPanelVisible, setBarVisible, setWidgetsRefresh, alternarQuickSettings, isWsDragging, barPinnedByKey, setBarPinnedByKey, barOcultaPorTecla, barKeyboardActive } from "./state";
 
@@ -217,7 +218,14 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
       </box>
 
       <box $type="center" halign={Gtk.Align.CENTER} spacing={8}>
-        <With value={spotifyBarEnabled}>{(on: boolean) => on && <SpotifyNowPlaying />}</With>
+        {/* Dos condiciones: la preferencia del usuario y la suspensión por ahorro de
+            energía. Va con <With> a propósito, o sea DESMONTANDO: la pastilla trae un
+            timer de 1 s y el waveform engancha el reloj de frames del monitor, y
+            limitarse a ocultarla los dejaría a los dos corriendo. Su handler de
+            "destroy" hace la limpieza. */}
+        <With value={createComputed(() => spotifyBarEnabled() && !spotifyBarSuspended())}>
+          {(show: boolean) => show && <SpotifyNowPlaying />}
+        </With>
       </box>
 
       <box $type="end" halign={Gtk.Align.END} spacing={10} cssClasses={["bar-end-box"]}>

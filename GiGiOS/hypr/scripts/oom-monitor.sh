@@ -107,6 +107,17 @@ SCAN_FILE="$HOME/.config/hypr/scripts/scan-file.sh"
 RUNTIME_STATE="$HOME/.config/gigios/runtime-state.json"
 POWER_CONFIG="$HOME/.config/power-save/config.json"
 
+# Gate compartido de "estoy jugando" (lee ese mismo RUNTIME_STATE). Lo usan los dos
+# sub-monitores de SONDEO —monitor_smart y monitor_units— para no competir con un
+# juego. Los tres SEGUIDORES de eventos (kernel/system/files) NO lo usan a propósito:
+# congelarlos dejaría una ventana ciega de seguridad y no ahorraría nada, porque
+# bloqueados en journalctl/inotifywait ya cuestan ~0 % de CPU. monitor_downloads
+# mantiene su propia pausa (dlPauseWhileGaming), que es más específica y ya tiene UI.
+# Ver lib/gaming-gate.sh para el razonamiento completo.
+if ! source "$HOME/.config/hypr/scripts/lib/gaming-gate.sh" 2>/dev/null; then
+    gaming_gate_wait() { :; }   # sin la librería, los monitores siguen como siempre
+fi
+
 # ¿Es "lanzable"? Bit de ejecución, tipo de instalador conocido o binario ELF.
 # Se usa en monitor_downloads para avisar solo de lo que podrías ejecutar.
 is_runnable() {
@@ -502,6 +513,11 @@ monitor_smart() {
     local disk dev report
 
     while :; do
+        # Consultar SMART DESPIERTA cada disco físico; con un juego delante eso es un
+        # tirón por nada, y la salud de un disco es exactamente igual de mala 20 min
+        # después. Retiene, no salta: la pasada se hace al cerrar el juego.
+        gaming_gate_wait smart
+
         while read -r disk; do
             [[ -z "$disk" ]] && continue
             dev="/dev/$disk"
@@ -544,6 +560,16 @@ monitor_units() {
     local seeded=false unit scope flag current
 
     while :; do
+        # Se congela mientras juegas, pero SOLO una vez sembrado, y esa condición no
+        # sobra: `systemctl --failed` es estado de NIVEL, no de flanco, así que una
+        # unidad que caiga durante la partida sigue estando en la lista al reanudar y
+        # se avisa entonces (solo se pierde la que caiga Y se recupere dentro del
+        # juego). Pero si el gate atrapara la PRIMERA pasada, todo lo que hubiera
+        # fallado durante esas horas se sembraría como "preexistente" y no se
+        # notificaría NUNCA. La siembra son 4 forks una sola vez: congelarla no
+        # ahorra nada y cuesta avisos.
+        [[ "$seeded" == true ]] && gaming_gate_wait units
+
         current=""
         for scope in system user; do
             flag=""
@@ -740,7 +766,12 @@ monitor_downloads() {
         if command -v jq >/dev/null 2>&1 && [[ -f "$SEC_CONFIG" ]]; then
             dl_pause_ahorro=$(jq -r '.dlPauseInPowerSave // false' "$SEC_CONFIG" 2>/dev/null)
             dl_pause_bateria=$(jq -r '.dlPauseOnBattery // false'  "$SEC_CONFIG" 2>/dev/null)
-            dl_pause_juego=$(jq -r '.dlPauseWhileGaming // false'  "$SEC_CONFIG" 2>/dev/null)
+            # Esta viene ACTIVADA por defecto (las otras dos no): es la mitad más cara
+            # del modo juego. Y NO puede escribirse `// true`: el operador // de jq
+            # trata un `false` literal como ausente, así que apagar la pausa desde la
+            # UI no habría servido de nada — el script la seguiría leyendo activada.
+            dl_pause_juego=$(jq -r 'if has("dlPauseWhileGaming") then (.dlPauseWhileGaming|tostring) else "true" end' \
+                                                                   "$SEC_CONFIG" 2>/dev/null)
             maxgb=$(jq -r '.dlMaxScanGB // 1'                      "$SEC_CONFIG" 2>/dev/null)
         fi
         local scan_max
