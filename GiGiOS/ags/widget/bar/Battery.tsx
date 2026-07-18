@@ -97,11 +97,29 @@ export default function Battery() {
 
   // AstalBattery/UPower puede mantener energyRate cacheado durante bastante
   // tiempo. Leer power_now directamente fuerza una muestra nueva del kernel.
-  const tooltipTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 4000, () => {
-    instantPower = readInstantPower()
-    setTooltip(getTooltip())
-    return GLib.SOURCE_CONTINUE
-  })
+  // Solo corre con la barra visible: el único consumidor de `instantPower` es el
+  // tooltip, y un tooltip exige hover, que exige barra visible. Con la barra
+  // oculta esto era una lectura de /sys cada 4 s cuyo resultado no podía verse.
+  // Al reaparecer, el `sync()` de widgetsRefresh (abajo) refresca el valor, así
+  // que no se enseña una muestra rancia.
+  let tooltipTimer: number | null = null
+
+  const startTooltipTimer = () => {
+    if (tooltipTimer !== null) return
+    tooltipTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 4000, () => {
+      instantPower = readInstantPower()
+      setTooltip(getTooltip())
+      return GLib.SOURCE_CONTINUE
+    })
+  }
+
+  const stopTooltipTimer = () => {
+    if (tooltipTimer === null) return
+    GLib.source_remove(tooltipTimer)
+    tooltipTimer = null
+  }
+
+  if (widgetsRefresh.get()) startTooltipTimer()
 
   const sync = () => {
     setBodyClass(["battery-body", statusClass()])
@@ -123,7 +141,16 @@ export default function Battery() {
   // Al volver visible, sincronizar con el estado real del hardware.
   // gnim invoca el callback sin argumentos → hay que leer .get().
   widgetsRefresh.subscribe(() => {
-    if (widgetsRefresh.get()) sync()
+    if (widgetsRefresh.get()) {
+      // Muestra fresca ANTES de sync(): getTooltip() lee `instantPower`, así que
+      // sin esto el primer tooltip tras reaparecer enseñaría el valor de cuando
+      // se ocultó la barra.
+      instantPower = readInstantPower()
+      sync()
+      startTooltipTimer()
+    } else {
+      stopTooltipTimer()
+    }
   })
 
   return (
@@ -134,7 +161,7 @@ export default function Battery() {
       halign={Gtk.Align.CENTER}
       valign={Gtk.Align.CENTER}
       tooltipText={tooltip}
-      $={(self: Gtk.Box) => self.connect("destroy", () => GLib.source_remove(tooltipTimer))}
+      $={(self: Gtk.Box) => self.connect("destroy", stopTooltipTimer)}
     >
       <box
         cssClasses={bodyClass}

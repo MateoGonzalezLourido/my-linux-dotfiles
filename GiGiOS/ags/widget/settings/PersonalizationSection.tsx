@@ -23,6 +23,7 @@ import {
   trayBarEnabled, setTrayBarEnabled,
   notificationBarEnabled, setNotificationBarEnabled,
   workspacesBarEnabled, setWorkspacesBarEnabled,
+  titulosAppsWorkspaceActivos, setTitulosAppsWorkspaceActivos,
   workspaceAppLimit, setWorkspaceAppLimit,
   WORKSPACE_APP_LIMIT_MIN, WORKSPACE_APP_LIMIT_MAX,
   workspaceVisibleLimit, setWorkspaceVisibleLimit,
@@ -588,6 +589,32 @@ export default function PersonalizationSection() {
           spacing={6}
           visible={workspacesBarEnabled((enabled: boolean) => enabled)}
         >
+          <box spacing={8} valign={Gtk.Align.CENTER} marginBottom={4}>
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
+              <label
+                cssClasses={["sp-field-label"]}
+                label="Títulos de apps al pasar el ratón"
+                halign={Gtk.Align.START}
+              />
+              <label
+                cssClasses={["sp-field-hint"]}
+                label="Muestra el nombre de la app y el título de su ventana tras mantener el puntero sobre su icono."
+                halign={Gtk.Align.START}
+                wrap={true}
+                maxWidthChars={62}
+                xalign={0}
+              />
+            </box>
+            <button
+              cssClasses={titulosAppsWorkspaceActivos((activos: boolean) => activos ? ["qs-toggle", "on"] : ["qs-toggle"])}
+              valign={Gtk.Align.CENTER}
+              onClicked={() => setTitulosAppsWorkspaceActivos(!titulosAppsWorkspaceActivos.get())}
+            >
+              <box cssClasses={["qs-toggle-track"]}>
+                <box cssClasses={titulosAppsWorkspaceActivos((activos: boolean) => activos ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
+              </box>
+            </button>
+          </box>
           <box spacing={8} valign={Gtk.Align.CENTER}>
             <label
               cssClasses={["sp-field-label"]}

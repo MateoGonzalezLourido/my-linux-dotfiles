@@ -4,12 +4,17 @@ import GdkPixbuf from "gi://GdkPixbuf"
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import Graphene from "gi://Graphene"
-import { createState, For } from "ags"
+import { createComputed, createState, For } from "ags"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 
 import { barVisible, setIsWsDragging, setIsWsPreview, panelAutoClose, beginBarKeyboard, endBarKeyboard } from "../state.tsx"
-import { workspaceAppLimit, workspaceVisibleLimit, wsPreviewEnabled } from "../settings/preferences"
+import {
+  titulosAppsWorkspaceActivos,
+  workspaceAppLimit,
+  workspaceVisibleLimit,
+  wsPreviewEnabled,
+} from "../settings/preferences"
 import { wsPreviewSuspended } from "../power/powerState"
 import { getIcon } from "./appIcons"
 import { appIconName, appOriginalIcon, describeGame, genericIconName, GAME_GLYPH } from "./games/icon"
@@ -286,7 +291,9 @@ function WsButton({ ws, focusedId, focusedAddress, onSwap, onShift, onRenumber, 
       ])}
       widthRequest={clientsB((c: ClientIcon[]) => c[i]?.isGlyph ? 16 : 24)}
       visible={clientsB((c: ClientIcon[]) => i < c.length)}
-      tooltipText={clientsB((c: ClientIcon[]) => c[i]?.tooltip ?? "")}
+      tooltipText={createComputed(() =>
+        titulosAppsWorkspaceActivos() ? (clientsB()[i]?.tooltip ?? null) : null
+      )}
     >
       <Gtk.GestureClick
         button={3}

@@ -82,6 +82,12 @@ export { notificationBarEnabled }
 const [workspacesBarEnabled, _setWorkspacesBarEnabled] = createState(true)
 export { workspacesBarEnabled }
 
+// Títulos emergentes de las aplicaciones en el selector de workspaces. Al
+// desactivarlos, pasar el ratón por un icono no crea el tooltip nativo de GTK.
+// Valor predeterminado: activados para conservar el comportamiento existente.
+const [titulosAppsWorkspaceActivos, _setTitulosAppsWorkspaceActivos] = createState(true)
+export { titulosAppsWorkspaceActivos }
+
 // Máximo de iconos de aplicaciones que muestra cada workspace en la barra.
 // Cuatro conserva el comportamiento histórico; el tope evita que una sola
 // pastilla pueda ocupar la barra completa en workspaces muy cargados.
@@ -240,6 +246,9 @@ function load() {
     if (typeof saved.trayBar === "boolean") _setTrayBarEnabled(saved.trayBar)
     if (typeof saved.notificationBar === "boolean") _setNotificationBarEnabled(saved.notificationBar)
     if (typeof saved.workspacesBar === "boolean") _setWorkspacesBarEnabled(saved.workspacesBar)
+    if (typeof saved.titulosAppsWorkspace === "boolean") {
+      _setTitulosAppsWorkspaceActivos(saved.titulosAppsWorkspace)
+    }
     if (typeof saved.workspaceAppLimit === "number" && Number.isFinite(saved.workspaceAppLimit)) {
       _setWorkspaceAppLimit(clampWorkspaceAppLimit(saved.workspaceAppLimit))
     }
@@ -286,6 +295,7 @@ function save() {
       trayBar: trayBarEnabled.get(),
       notificationBar: notificationBarEnabled.get(),
       workspacesBar: workspacesBarEnabled.get(),
+      titulosAppsWorkspace: titulosAppsWorkspaceActivos.get(),
       workspaceAppLimit: workspaceAppLimit.get(),
       workspaceVisibleLimit: workspaceVisibleLimit.get(),
       barAutoHide: barAutoHideEnabled.get(),
@@ -378,6 +388,10 @@ export function setNotificationBarEnabled(on: boolean) {
 }
 export function setWorkspacesBarEnabled(on: boolean) {
   _setWorkspacesBarEnabled(on)
+  save()
+}
+export function setTitulosAppsWorkspaceActivos(activos: boolean) {
+  _setTitulosAppsWorkspaceActivos(activos)
   save()
 }
 export function setWorkspaceAppLimit(value: number) {
