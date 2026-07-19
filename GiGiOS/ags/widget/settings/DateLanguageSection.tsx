@@ -4,6 +4,8 @@
 // sistema vive en ./datetime.ts; el teclado se reutiliza de ../devices/service
 // (mismo escritor de input-settings.conf, para no duplicarlo).
 import { Gtk } from "ags/gtk4"
+import Interruptor from "../Interruptor"
+import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TituloAjuste, TituloSeccion } from "./componentes"
 import { createState, For, With } from "ags"
 import { DisplaySelect } from "../display/controls"
 import { timeFormat, setTimeFormat, type TimeFormat } from "./preferences"
@@ -52,41 +54,6 @@ function localeLabel(locale: string): string {
   return country ? `${name} (${country})` : name
 }
 
-// ── Piezas reutilizables ───────────────────────────────────────────────────────
-function Card({ title, icon, children }: { title: string, icon: string, children: any }) {
-  return (
-    <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["dev-card"]}>
-      <box spacing={8} cssClasses={["dev-card-header"]}>
-        <label cssClasses={["dev-card-icon"]} label={icon} />
-        <label cssClasses={["sp-subsection-title"]} label={title} halign={Gtk.Align.START} />
-      </box>
-      {children}
-    </box>
-  )
-}
-
-function Row({ label, hint, children }: { label: string, hint?: any, children: any }) {
-  return (
-    <box cssClasses={["dev-row"]} spacing={14} valign={Gtk.Align.CENTER}>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
-        <label cssClasses={["sp-field-label"]} label={label} halign={Gtk.Align.START} />
-        {hint != null ? <label cssClasses={["sp-field-hint"]} label={hint} halign={Gtk.Align.START} wrap xalign={0} maxWidthChars={52} /> : <box />}
-      </box>
-      {children}
-    </box>
-  )
-}
-
-function Toggle({ active, onToggle }: { active: any, onToggle: () => void }) {
-  return (
-    <button cssClasses={active((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])} valign={Gtk.Align.CENTER} onClicked={onToggle}>
-      <box cssClasses={["qs-toggle-track"]}>
-        <box cssClasses={active((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-      </box>
-    </button>
-  )
-}
-
 // Control segmentado (2+ opciones exclusivas) para elecciones binarias.
 function Segmented({ options, current, onSelect }: {
   options: { value: string, label: string }[], current: any, onSelect: (v: string) => void,
@@ -124,14 +91,11 @@ export default function DateLanguageSection() {
   return (
     <overlay cssClasses={["display-select-host"]}>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-          <label cssClasses={["sp-section-title"]} label="✦ Fecha e idioma" halign={Gtk.Align.START} />
-          <label cssClasses={["sp-field-hint"]} label={snapshot(s => s.localTime || "Idioma, teclado, hora y ubicación")} halign={Gtk.Align.START} />
-        </box>
+        <TituloSeccion titulo="Fecha e idioma" />
 
         {/* ── Idioma ─────────────────────────────────────────────────── */}
-        <Card title="Idioma" icon="󰗊">
-          <Row label="Idioma del sistema" hint="Idioma que usarán las apps. Se aplica al reiniciar la sesión; si el idioma no está generado, pedirá contraseña para instalarlo.">
+        <TarjetaAjustes titulo="Idioma" icono="󰗊">
+          <FilaAjuste titulo="Idioma del sistema" informacion="Idioma que usarán las apps. Se aplica al reiniciar la sesión; si el idioma no está generado, pedirá contraseña para instalarlo.">
             <box cssClasses={["dev-select"]}>
               <DisplaySelect
                 current={snapshot(s => localeLabel(s.locale))}
@@ -139,12 +103,12 @@ export default function DateLanguageSection() {
                 onSelect={(v) => applyLocale(v)}
               />
             </box>
-          </Row>
-        </Card>
+          </FilaAjuste>
+        </TarjetaAjustes>
 
         {/* ── Teclado (reutiliza el servicio de Dispositivos) ─────────── */}
-        <Card title="Teclado" icon="󰌌">
-          <Row label="Distribución" hint="Idioma del teclado. Se aplica al instante.">
+        <TarjetaAjustes titulo="Teclado" icono="󰌌">
+          <FilaAjuste titulo="Distribución" informacion="Idioma del teclado. Se aplica al instante.">
             <box cssClasses={["dev-select"]}>
               <DisplaySelect
                 current={deviceSettings(s => KB_LAYOUTS.find(l => l.value === s.kbLayout)?.label ?? s.kbLayout)}
@@ -152,8 +116,8 @@ export default function DateLanguageSection() {
                 onSelect={(v) => updateDeviceSettings({ kbLayout: v })}
               />
             </box>
-          </Row>
-          <Row label="Variante" hint="Variante de la distribución seleccionada.">
+          </FilaAjuste>
+          <FilaAjuste titulo="Variante" informacion="Variante de la distribución seleccionada.">
             <box cssClasses={["dev-select"]}>
               <DisplaySelect
                 current={deviceSettings(s => KB_VARIANTS.find(l => l.value === s.kbVariant)?.label ?? s.kbVariant)}
@@ -161,27 +125,27 @@ export default function DateLanguageSection() {
                 onSelect={(v) => updateDeviceSettings({ kbVariant: v })}
               />
             </box>
-          </Row>
-        </Card>
+          </FilaAjuste>
+        </TarjetaAjustes>
 
         {/* ── Fecha y hora ────────────────────────────────────────────── */}
-        <Card title="Fecha y hora" icon="󰥔">
-          <Row label="Formato de hora" hint="Cómo se muestra el reloj de la barra.">
+        <TarjetaAjustes titulo="Fecha y hora" icono="󰥔">
+          <FilaAjuste titulo="Formato de hora" informacion="Cómo se muestra el reloj de la barra.">
             <Segmented
               options={[{ value: "24h", label: "24 h" }, { value: "12h", label: "12 h" }]}
               current={timeFormat}
               onSelect={(v) => setTimeFormat(v as TimeFormat)}
             />
-          </Row>
-          <Row label="Sincronización automática (NTP)" hint="Ajusta la hora por red. Pide contraseña.">
-            <Toggle active={snapshot(s => s.ntp)} onToggle={() => setNtp(!snapshot.get().ntp)} />
-          </Row>
-          <Row label="Zona horaria automática" hint="Usa tu ubicación para elegir la zona horaria.">
-            <Toggle active={prefs(p => p.autoTimezone)} onToggle={() => setAutoTimezone(!prefs.get().autoTimezone)} />
-          </Row>
+          </FilaAjuste>
+          <FilaAjuste titulo="Sincronización automática (NTP)" informacion="Ajusta la hora por red. Pide contraseña.">
+            <Interruptor activo={snapshot(s => s.ntp)} alAlternar={() => setNtp(!snapshot.get().ntp)} />
+          </FilaAjuste>
+          <FilaAjuste titulo="Zona horaria automática" informacion="Usa tu ubicación para elegir la zona horaria.">
+            <Interruptor activo={prefs(p => p.autoTimezone)} alAlternar={() => setAutoTimezone(!prefs.get().autoTimezone)} />
+          </FilaAjuste>
           <With value={prefs(p => p.autoTimezone)}>
             {(auto: boolean) => auto ? <box /> : (
-              <Row label="Zona horaria" hint="Selecciónala manualmente. Pide contraseña.">
+              <FilaAjuste titulo="Zona horaria" informacion="Selecciónala manualmente. Pide contraseña.">
                 <box cssClasses={["dev-select", "dl-tz-select"]}>
                   <DisplaySelect
                     current={snapshot(s => s.timezone || "—")}
@@ -189,51 +153,51 @@ export default function DateLanguageSection() {
                     onSelect={(v) => applyTimezone(v)}
                   />
                 </box>
-              </Row>
+              </FilaAjuste>
             )}
           </With>
           <With value={snapshot(s => s.ntp)}>
             {(ntp: boolean) => ntp ? <box /> : (
-              <Row label="Ajustar hora manualmente" hint="Formato: AAAA-MM-DD HH:MM. Pide contraseña.">
+              <FilaAjuste titulo="Ajustar hora manualmente" informacion="Formato: AAAA-MM-DD HH:MM. Pide contraseña.">
                 <box spacing={8} valign={Gtk.Align.CENTER}>
-                  <Gtk.Entry cssClasses={["account-entry"]} placeholderText="2026-07-10 14:30"
+                  <EntradaTextoAjustes placeholderText="2026-07-10 14:30"
                     onChanged={(e: Gtk.Entry) => setManualTimeInput(e.get_text())}
                     onActivate={() => setManualTime(manualTime.get())} />
-                  <button cssClasses={["account-secondary-btn"]} label="Aplicar" onClicked={() => setManualTime(manualTime.get())} />
+                  <BotonAjustes label="Aplicar" onClicked={() => setManualTime(manualTime.get())} />
                 </box>
-              </Row>
+              </FilaAjuste>
             )}
           </With>
-        </Card>
+        </TarjetaAjustes>
 
         {/* ── Ubicación ───────────────────────────────────────────────── */}
-        <Card title="Ubicación" icon="󰍎">
-          <Row
-            label="Permitir ubicación a las apps"
-            hint={snapshot(s => s.geoclueAvailable
+        <TarjetaAjustes titulo="Ubicación" icono="󰍎">
+          <FilaAjuste
+            titulo="Permitir ubicación a las apps"
+            informacion={snapshot(s => s.geoclueAvailable
               ? "Controla el servicio del sistema (GeoClue). Pide contraseña."
               : "GeoClue no está instalado: solo afecta a los widgets de GiGiOS.")}
           >
-            <Toggle active={snapshot(s => !s.geoclueBlocked)} onToggle={() => setLocationBlocked(!snapshot.get().geoclueBlocked)} />
-          </Row>
+            <Interruptor activo={snapshot(s => !s.geoclueBlocked)} alAlternar={() => setLocationBlocked(!snapshot.get().geoclueBlocked)} />
+          </FilaAjuste>
 
-          <Row label="Origen de la ubicación" hint="Automática (por IP) o elegida manualmente.">
+          <FilaAjuste titulo="Origen de la ubicación" informacion="Automática (por IP) o elegida manualmente.">
             <Segmented
               options={[{ value: "auto", label: "Auto" }, { value: "manual", label: "Manual" }]}
               current={prefs(p => p.source)}
               onSelect={(v) => setLocationSource(v as any)}
             />
-          </Row>
+          </FilaAjuste>
 
           <box cssClasses={["dev-row"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
             <box spacing={10} valign={Gtk.Align.CENTER}>
               <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
-                <label cssClasses={["sp-field-label"]} label="Ubicación actual" halign={Gtk.Align.START} />
+                <TituloAjuste label="Ubicación actual" halign={Gtk.Align.START} />
                 <label cssClasses={["account-notice"]} label={prefs(p => p.location.name || "Sin determinar")} halign={Gtk.Align.START} wrap xalign={0} maxWidthChars={48} />
               </box>
               <With value={prefs(p => p.source)}>
                 {(src: string) => src === "auto"
-                  ? <button cssClasses={["account-secondary-btn"]} label={busy(b => b ? "…" : "Actualizar")} onClicked={() => refreshAutoLocation()} />
+                  ? <BotonAjustes label={busy(b => b ? "…" : "Actualizar")} onClicked={() => refreshAutoLocation()} />
                   : <box />}
               </With>
             </box>
@@ -242,10 +206,10 @@ export default function DateLanguageSection() {
               {(src: string) => src !== "manual" ? <box /> : (
                 <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
                   <box spacing={8}>
-                    <Gtk.Entry cssClasses={["account-entry"]} placeholderText="Buscar ciudad…" hexpand
+                    <EntradaTextoAjustes placeholderText="Buscar ciudad…" hexpand
                       onChanged={(e: Gtk.Entry) => setCityQuery(e.get_text())}
                       onActivate={doSearch} />
-                    <button cssClasses={["account-secondary-btn"]} label="Buscar" onClicked={doSearch} />
+                    <BotonAjustes label="Buscar" onClicked={doSearch} />
                   </box>
                   <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
                     <For each={results}>
@@ -260,7 +224,7 @@ export default function DateLanguageSection() {
               )}
             </With>
           </box>
-        </Card>
+        </TarjetaAjustes>
       </box>
     </overlay>
   )

@@ -4,6 +4,7 @@ import { createState, With } from "ags"
 import AppsTab from "./AppsTab.tsx"
 import HistoryTab from "./HistoryTab.tsx"
 import RulesTab from "./RulesTab.tsx"
+import { TituloSeccion } from "../../settings/componentes"
 
 type TabId = "apps" | "history" | "rules"
 const TABS: { id: TabId; label: string }[] = [
@@ -16,7 +17,7 @@ export default function SettingsTabs() {
   const [tab, setTab] = createState<TabId>("apps")
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section"]} hexpand vexpand>
-      <label cssClasses={["sp-section-title"]} label="✦ Notificaciones" halign={Gtk.Align.START} />
+      <TituloSeccion titulo="Notificaciones" />
       <box cssClasses={["st-tabbar"]} spacing={4} hexpand>
         {TABS.map(t => (
           <button

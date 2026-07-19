@@ -9,6 +9,7 @@ export interface DeviceSettings {
   repeatDelay: number
   numlock: boolean
   followMouse: number
+  tamanoCursor: number
   sensitivity: number
   accelProfile: "adaptive" | "flat"
   forceNoAccel: boolean
@@ -27,7 +28,7 @@ export interface DeviceSettings {
 
 export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
   kbLayout: "es", kbVariant: "", repeatRate: 25, repeatDelay: 600,
-  numlock: true, followMouse: 1,
+  numlock: true, followMouse: 1, tamanoCursor: 24,
   sensitivity: 0, accelProfile: "adaptive", forceNoAccel: false,
   leftHanded: false, mouseNaturalScroll: false, mouseScrollFactor: 1,
   touchpadNaturalScroll: true, touchpadScrollFactor: 0.4,
@@ -52,6 +53,7 @@ function normalize(raw: Partial<DeviceSettings> = {}): DeviceSettings {
     repeatRate: Math.round(clamp(raw.repeatRate, 1, 100, d.repeatRate)),
     repeatDelay: Math.round(clamp(raw.repeatDelay, 100, 2000, d.repeatDelay)),
     followMouse: Math.round(clamp(raw.followMouse, 0, 3, d.followMouse)),
+    tamanoCursor: Math.round(clamp(raw.tamanoCursor, 16, 64, d.tamanoCursor)),
     sensitivity: clamp(raw.sensitivity, -1, 1, d.sensitivity),
     mouseScrollFactor: clamp(raw.mouseScrollFactor, 0.1, 5, d.mouseScrollFactor),
     touchpadScrollFactor: clamp(raw.touchpadScrollFactor, 0.1, 5, d.touchpadScrollFactor),
@@ -77,7 +79,8 @@ export { deviceSettings }
 
 const yes = (v: boolean) => v ? "true" : "false"
 export function renderHyprInput(s: DeviceSettings): string {
-  return `# Generado por AGS · Ajustes > Dispositivos. No editar a mano.\ninput {\n` +
+  return `# Generado por AGS · Ajustes > Dispositivos. No editar a mano.\n` +
+    `env = XCURSOR_SIZE,${s.tamanoCursor}\nenv = HYPRCURSOR_SIZE,${s.tamanoCursor}\n\ninput {\n` +
     `    kb_layout = ${s.kbLayout}\n    kb_variant = ${s.kbVariant}\n` +
     `    repeat_rate = ${s.repeatRate}\n    repeat_delay = ${s.repeatDelay}\n` +
     `    numlock_by_default = ${yes(s.numlock)}\n    follow_mouse = ${s.followMouse}\n` +
@@ -111,11 +114,60 @@ export function updateDeviceSettings(patch: Partial<DeviceSettings>, reload = fa
   if (sameSettings(deviceSettings.get(), next)) return
   _setDeviceSettings(next)
   write(next)
+  if (patch.tamanoCursor !== undefined) aplicarTamanoCursor(next.tamanoCursor)
   if (reload) execAsync(["hyprctl", "reload"]).catch(() => {})
   else Object.entries(patch).forEach(([key]) => {
     const keyword = LIVE_KEYWORDS[key as keyof DeviceSettings]
     if (keyword) execAsync(["hyprctl", "keyword", keyword, keywordValue(key as keyof DeviceSettings, next)]).catch(() => {})
   })
+}
+
+const RUTAS_ICONOS = [
+  `${GLib.get_user_data_dir()}/icons`,
+  `${GLib.get_home_dir()}/.icons`,
+  ...GLib.get_system_data_dirs().map((ruta) => `${ruta}/icons`),
+]
+
+function leerHerenciasTema(nombre: string): string[] {
+  for (const ruta of RUTAS_ICONOS) {
+    try {
+      const [ok, bytes] = GLib.file_get_contents(`${ruta}/${nombre}/index.theme`)
+      if (!ok) continue
+      const herencias = new TextDecoder().decode(bytes).match(/^Inherits\s*=\s*(.+)$/m)?.[1]
+      if (herencias) return herencias.split(/[;,]/).map((tema) => tema.trim()).filter(Boolean)
+    } catch (_) { /* probar la siguiente ruta */ }
+  }
+  return []
+}
+
+function resolverTemaHyprcursor(nombre: string, visitados = new Set<string>()): string | null {
+  const tema = nombre.trim()
+  if (!/^[A-Za-z0-9._+-]+$/.test(tema) || visitados.has(tema)) return null
+  visitados.add(tema)
+
+  if (RUTAS_ICONOS.some((ruta) => GLib.file_test(`${ruta}/${tema}/manifest.hl`, GLib.FileTest.EXISTS))) return tema
+  for (const heredado of leerHerenciasTema(tema)) {
+    const resuelto = resolverTemaHyprcursor(heredado, visitados)
+    if (resuelto) return resuelto
+  }
+  return null
+}
+
+function aplicarTamanoCursor(tamano: number) {
+  // GTK no sigue `hyprctl setcursor`; GSettings cubre GTK y persiste por su lado.
+  execAsync(["gsettings", "set", "org.gnome.desktop.interface", "cursor-size", String(tamano)]).catch(() => {})
+
+  // Hyprland solo acepta temas hyprcursor. Resolvemos también el alias `default`
+  // para no fijar un tema concreto que pueda no existir en otra máquina.
+  const candidatos = [GLib.getenv("HYPRCURSOR_THEME"), GLib.getenv("XCURSOR_THEME"), "default"]
+  const tema = candidatos.reduce<string | null>((encontrado, candidato) =>
+    encontrado ?? resolverTemaHyprcursor(candidato ?? ""), null)
+  const comandos = [
+    `keyword env XCURSOR_SIZE,${tamano}`,
+    `keyword env HYPRCURSOR_SIZE,${tamano}`,
+  ]
+  if (tema) comandos.push(`setcursor ${tema} ${tamano}`)
+  execAsync(["hyprctl", "--batch", comandos.join(" ; ")]).catch(() => {})
 }
 
 const LIVE_KEYWORDS: Partial<Record<keyof DeviceSettings, string>> = {
@@ -138,6 +190,7 @@ export function resetDeviceSettings() {
   const next = { ...DEFAULT_DEVICE_SETTINGS }
   _setDeviceSettings(next)
   write(next)
+  aplicarTamanoCursor(next.tamanoCursor)
   execAsync(["hyprctl", "reload"]).catch(() => {})
 }
 

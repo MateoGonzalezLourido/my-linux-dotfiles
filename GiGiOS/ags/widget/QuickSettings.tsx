@@ -5,6 +5,7 @@ import { createBinding } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import ProfileAvatar from "./settings/ProfileAvatar"
+import Interruptor from "./Interruptor"
 import { barTopMargin } from "./settings/preferences"
 import AstalWp from "gi://AstalWp"
 import AstalNetwork from "gi://AstalNetwork"
@@ -45,6 +46,7 @@ import {
 } from "./display/service"
 import { DisplaySelect } from "./display/controls"
 import { InlineEditableValue } from "./InlineEditableValue"
+import { conectarCambioDeslizador } from "./deslizador"
 import { getIcon } from "./bar/appIcons"
 import {
   resolverRestauracionBluetooth,
@@ -757,10 +759,7 @@ function makeScale(
   if (layout.widthRequest !== undefined) scale.widthRequest = layout.widthRequest
   scale.cssClasses = classes
 
-  scale.connect("change-value", (_self, _scroll, val) => {
-    setValue(clamp(val, 0, max))
-    return false
-  })
+  conectarCambioDeslizador(scale, (val) => setValue(clamp(val, 0, max)))
   return scale
 }
 
@@ -921,16 +920,6 @@ function QsMenuHeader({ title, onBack, titleHexpand = true, children }: {
       <button cssClasses={["qs-icon-btn"]} onClicked={onBack}><label label="󰅁" /></button>
       <label cssClasses={["qs-section-label"]} label={title} hexpand={titleHexpand} halign={Gtk.Align.START} />
       {children}
-    </box>
-  )
-}
-
-// Track+dot visual de un toggle (Luz nocturna, Bluetooth, Wi-Fi). El `<button>`
-// que lo envuelve se queda en cada caller porque su `onClicked` varía.
-function ToggleSwitch({ active }: { active: any }) {
-  return (
-    <box cssClasses={["qs-toggle-track"]}>
-      <box cssClasses={active((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
     </box>
   )
 }
@@ -2467,16 +2456,14 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
         <box spacing={6} visible={createComputed(() => monitors().length > 1)}>
           <label cssClasses={["qs-section-icon"]} label="󰍹" />
           <label cssClasses={["qs-section-label"]} label="Encendido" hexpand halign={Gtk.Align.START} />
-          <button
-            cssClasses={createComputed(() => { const s = selected(); return s && !s.disabled ? ["qs-toggle", "on"] : ["qs-toggle"] })}
-            onClicked={() => {
+          <Interruptor
+            activo={createComputed(() => { const s = selected(); return s ? !s.disabled : false })}
+            alAlternar={() => {
               const s = selected(); if (!s) return
               if (!s.disabled && !canDisable(s)) return // guarda: no apagar el último activo
               applyPatch(s, { enabled: s.disabled })
             }}
-          >
-            <ToggleSwitch active={createComputed(() => { const s = selected(); return s ? !s.disabled : false })} />
-          </button>
+          />
         </box>
 
         {/* Controles (ocultos si el monitor está apagado) */}
@@ -2644,12 +2631,7 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
             >
               <Gtk.EventControllerFocus onLeave={commitTemp} />
             </Gtk.Entry>
-            <button
-              cssClasses={nightOn((n) => n ? ["qs-toggle", "on"] : ["qs-toggle"])}
-              onClicked={() => toggleNightNow()}
-            >
-              <ToggleSwitch active={nightOn} />
-            </button>
+            <Interruptor activo={nightOn} alAlternar={() => toggleNightNow()} />
           </box>
           {tempScale}
         </box>
@@ -2950,14 +2932,12 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
           sensitive={createComputed(() => btSupported() && btPowered())}
           onClicked={() => scan()}
         ><label label="󰑐" /></button>
-        <button
-          cssClasses={btPowered((p) => p ? ["qs-toggle", "qs-header-toggle", "on"] : ["qs-toggle", "qs-header-toggle"])}
+        <Interruptor
+          activo={btPowered}
+          clasesAdicionales={["qs-header-toggle"]}
           visible={btSupported}
-          valign={Gtk.Align.CENTER}
-          onClicked={() => { void toggleBluetoothPower(bt) }}
-        >
-          <ToggleSwitch active={btPowered} />
-        </button>
+          alAlternar={() => { void toggleBluetoothPower(bt) }}
+        />
       </QsMenuHeader>
 
       <Gtk.ScrolledWindow
@@ -3191,12 +3171,10 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
           cssClasses={scanning((s) => s ? ["qs-icon-btn", "scanning"] : ["qs-icon-btn"])}
           onClicked={() => rescan(true)}
         ><label label="󰑐" /></button>
-        <button
-          cssClasses={wifiEnabled((e) => e ? ["qs-toggle", "on"] : ["qs-toggle"])}
-          onClicked={() => execAsync(["bash", "-c", wifi.enabled ? "nmcli radio wifi off" : "nmcli radio wifi on"])}
-        >
-          <ToggleSwitch active={wifiEnabled} />
-        </button>
+        <Interruptor
+          activo={wifiEnabled}
+          alAlternar={() => execAsync(["bash", "-c", wifi.enabled ? "nmcli radio wifi off" : "nmcli radio wifi on"])}
+        />
       </QsMenuHeader>
 
       <Gtk.ScrolledWindow

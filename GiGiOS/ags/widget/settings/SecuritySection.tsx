@@ -5,10 +5,12 @@
 // bash lee los toggles de EVENTOS una sola vez al arrancar (solo surten efecto
 // tras reiniciar — de ahí el aviso destacado arriba); en cambio los ajustes de
 // "recursos del escáner de descargas" (DownloadResourcesSection) los relee en
-// cada barrido y se aplican en vivo. Mismo estilo de toggle que EnergySection.
+// cada barrido y se aplican en vivo. Usa el Interruptor compartido del shell.
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
+import Interruptor from "../Interruptor"
+import { EncabezadoAjuste, TextoInformativo, TituloAjuste, TituloSeccion, TituloSubseccion } from "./componentes"
 import {
   SECURITY_ITEMS, securityEnabled, setSecurityEnabled, type SecurityKey,
   DL_PAUSE_ITEMS, dlPauseEnabled, setDlPauseEnabled,
@@ -29,26 +31,13 @@ function SwitchRow({ label, hint, state, onToggle }: {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
       <box spacing={8} valign={Gtk.Align.CENTER}>
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
-          <label cssClasses={["sp-field-label"]} label={label} halign={Gtk.Align.START} />
-          <label
-            cssClasses={["sp-field-hint"]}
-            label={hint}
-            halign={Gtk.Align.START}
-            wrap={true}
-            maxWidthChars={62}
-            xalign={0}
-          />
-        </box>
-        <button
-          cssClasses={state((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
-          valign={Gtk.Align.CENTER}
-          onClicked={onToggle}
-        >
-          <box cssClasses={["qs-toggle-track"]}>
-            <box cssClasses={state((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-          </box>
-        </button>
+        <EncabezadoAjuste
+          titulo={label}
+          informacion={hint}
+          halign={Gtk.Align.START}
+          propiedadesInformacion={{ wrap: true, maxWidthChars: 62, xalign: 0 }}
+        />
+        <Interruptor activo={state} alAlternar={onToggle} />
       </box>
     </box>
   )
@@ -83,9 +72,8 @@ function DownloadResourcesSection() {
       hexpand
       visible={securityEnabled("downloadScan")((v: boolean) => v)}
     >
-      <label cssClasses={["sp-subsection-title"]} label="Escáner de descargas: recursos" halign={Gtk.Align.START} />
-      <label
-        cssClasses={["sp-field-hint"]}
+      <TituloSubseccion label="Escáner de descargas: recursos" halign={Gtk.Align.START} />
+      <TextoInformativo
         label={"El análisis va siempre a prioridad baja (nice+ionice). Aquí pausas cuándo se ejecuta y hasta qué tamaño. Se aplica sin reiniciar."}
         halign={Gtk.Align.START}
         wrap={true}
@@ -98,7 +86,7 @@ function DownloadResourcesSection() {
           onToggle={() => setDlPauseEnabled(it.key, !st.get())} />
       })}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-        <label cssClasses={["sp-field-label"]} label="No analizar archivos ≥ (GB)" halign={Gtk.Align.START} />
+        <TituloAjuste label="No analizar archivos ≥ (GB)" halign={Gtk.Align.START} />
         <box spacing={6} valign={Gtk.Align.CENTER}>
           <entry
             cssClasses={["sp-num-input"]}
@@ -138,9 +126,8 @@ function SandboxLaunchRow() {
       hexpand
       visible={securityEnabled("sandboxLaunch")((v: boolean) => v)}
     >
-      <label cssClasses={["sp-subsection-title"]} label="Lanzar un archivo aislado" halign={Gtk.Align.START} />
-      <label
-        cssClasses={["sp-field-hint"]}
+      <TituloSubseccion label="Lanzar un archivo aislado" halign={Gtk.Align.START} />
+      <TextoInformativo
         label={"Escribe la ruta de un ejecutable y se lanzará en una jaula Firejail\n(tras analizarlo con ClamAV si está instalado)."}
         halign={Gtk.Align.START}
         wrap={true}
@@ -183,9 +170,8 @@ function ScanFileRow() {
       hexpand
       visible={securityEnabled("downloadScan")((v: boolean) => v)}
     >
-      <label cssClasses={["sp-subsection-title"]} label="Analizar un archivo con ClamAV" halign={Gtk.Align.START} />
-      <label
-        cssClasses={["sp-field-hint"]}
+      <TituloSubseccion label="Analizar un archivo con ClamAV" halign={Gtk.Align.START} />
+      <TextoInformativo
         label={"Escribe la ruta de un archivo (o carpeta) y se analizará con ClamAV,\nsin límite de tamaño. Útil para lo que el escaneo automático se salta por grande."}
         halign={Gtk.Align.START}
         wrap={true}
@@ -211,17 +197,7 @@ function ScanFileRow() {
 export default function SecuritySection() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-        <label cssClasses={["sp-section-title"]} label="✦ Seguridad" halign={Gtk.Align.START} />
-        <label
-          cssClasses={["sp-field-hint"]}
-          label={"Cada opción controla un tipo de evento que vigila el monitor de seguridad.\nLos cambios se aplican al reiniciar el sistema."}
-          halign={Gtk.Align.START}
-          wrap={true}
-          maxWidthChars={70}
-          xalign={0}
-        />
-      </box>
+      <TituloSeccion titulo="Seguridad" />
       {SECURITY_ITEMS.map((item) => <ToggleRow item={item} />)}
       <DownloadResourcesSection />
       <SandboxLaunchRow />

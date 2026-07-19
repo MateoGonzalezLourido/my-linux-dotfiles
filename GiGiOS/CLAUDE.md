@@ -425,10 +425,67 @@ la carcasa, no el medio) y se habrían quedado fuera justo los que más datos mu
 
 `usb-monitor.sh` escucha **dos subsistemas en un solo stream** (`usb` + `block`). Un pendrive genera
 eventos de ambos, así que sin cuidado saldrían **dos popups** por enchufe: si el dispositivo es de
-clase *mass storage* (`ID_USB_INTERFACES` contiene `:08` — las entradas son de 6 dígitos entre `:`,
-así que `":08"` solo puede casar al principio de una) el aviso genérico **se calla** y habla el
-evento de bloque, que sabe el modelo y puede ofrecer botón. Si la propiedad no viniera, degrada al
-aviso genérico de siempre en vez de perder la notificación.
+clase *mass storage* el aviso genérico **se calla** y habla el evento de bloque, que sabe el modelo
+y puede ofrecer botón.
+
+**Deducir la clase del evento del `usb_device` no basta, y cuando falla salen los DOS popups.** Se
+miraba solo `ID_USB_INTERFACES` (contiene `:08` — las entradas son de 6 dígitos entre `:`, así que
+`":08"` solo puede casar al principio de una). Esa heurística falla en dos direcciones: hay bloques
+de evento que llegan **con las propiedades a medias** (de ahí el "USB conectado — *dispositivo
+desconocido*", que además delata que tampoco venía `ID_MODEL`), y hay dispositivos que se enganchan
+a `usb-storage` por una interfaz de clase **propietaria** (`ff…`: lectores de tarjetas, algunas
+carcasas) sin ningún `:08` que mirar. En ambos casos salta el genérico y **acto seguido** el de
+almacenamiento con el nombre bueno.
+
+Hoy la señal no es la clase declarada sino el hecho **observado** de que el dispositivo acabe
+exponiendo un dispositivo de bloque — que solo se sabe unos instantes después. El aviso genérico se
+**retiene 3 s** (`DEFER_SECS`) y se **cancela** si en esa ventana llega un evento de bloque de *ese*
+dispositivo. El enlace entre ambos es `DEVPATH`: el del bloque cuelga del árbol del `usb_device`
+(`…/usb1/1-5` → `…/usb1/1-5/1-5:1.0/host…/block/sdb`), o sea que el del padre es **prefijo** del
+hijo. Es una relación exacta, **no una correlación por tiempo**: dos dispositivos enchufados a la
+vez no se cancelan el uno al otro (verificado). El diferido también cubre el caso de tirar del
+pendrive antes de los 3 s, que antes sacaba un "conectado" **después** del "desconectado".
+
+Los pendientes son un fichero por aviso en `$XDG_RUNTIME_DIR/gigios-usb-pending/` (con su `DEVPATH`
+dentro), y el subshell **reclama el suyo con un `mv`** antes de notificar: el rename es atómico y
+falla si ya no está, así que no hay ventana entre "compruebo que sigue vivo" y "notifico" por la que
+una cancelación pueda colarse. El directorio se **borra al arrancar** el script porque un proceso
+anterior muerto a mitad deja huérfanos que nadie reclamaría.
+
+**Al DESCONECTAR el duplicado tiene la misma raíz, pero se arregla al revés.** Un dispositivo
+compuesto o detrás de un hub expone **varios `usb_device` anidados**, y el kernel emite un `remove`
+por cada uno; como el aviso colgaba de ese evento, salían dos popups por un solo tirón — y el del
+nodo padre no suele traer `ID_MODEL`, de ahí el "dispositivo desconocido" que acompañaba al bueno.
+(Es también la otra mitad de la causa en la conexión: ahí el que se cuela es el padre, y el
+diferido ya lo cancela porque el `DEVPATH` del bloque cuelga de él.) En la desconexión no hay
+ningún evento posterior que sirva de prueba, así que en vez de cancelar se **fusiona**: el aviso se
+retiene `DEFER_SECS` y los removes emparentados por `DEVPATH` colapsan en uno solo con el mejor
+nombre disponible.
+
+La regla de fusión es **asimétrica a propósito**, y esa asimetría es lo que la hace correcta llegue
+el padre antes o después que los hijos (el kernel suele emitir hijo→padre, pero no se depende de
+ello): si el entrante **desciende** de un pendiente lo absorbe y se queda con **su** `DEVPATH` —el
+más profundo, que es la función real y la que tiene nombre—; si el entrante es **antecesor** de un
+pendiente se **descarta**, porque el hijo ya cubre ese tirón, y solo le cede su etiqueta si el hijo
+venía sin nombre. Guardar el `DEVPATH` **más profundo** es justo lo que evita colapsar **hermanos**:
+al retirar un hub con tres pendrives, los tres son hermanos entre sí (ninguno desciende de otro) →
+**tres** avisos, y el remove del hub se descarta; si se guardara el del hub, los tres se fundirían
+en uno. Verificado con A/B sobre seis escenarios (anidado en los dos órdenes, hub con 3 discos,
+hijo sin nombre y padre con él, suelto, y dos dispositivos a la vez): el original saca 13 avisos,
+el nuevo 9 — uno por dispositivo físico.
+
+Los pendientes de conexión (`c.*`) y de desconexión (`r.*`) **comparten directorio pero no glob**, y
+un aviso ya reclamado se renombra a `.fired.*` —fuera de ambos globs— para que no pueda reaparecer
+como pendiente vivo y falsear una cancelación o una fusión. `GIGIOS_USB_PENDING_DIR` permite
+apuntar el directorio a otro sitio: es la costura para probar el script sin pisarle los pendientes
+al monitor que está corriendo (que además los **borra al arrancar**).
+
+`ID_USB_INTERFACES` y una lectura de `bInterfaceClass` en sysfs siguen ahí, pero **degradados a
+atajos**: solo sirven para ahorrarse la espera cuando la respuesta ya se sabe (un pendrive normal se
+calla al instante). Si dicen que no, **no se concluye nada** — se difiere. El coste aceptado es que
+un teclado tarda 3 s en anunciarse; es un popup pasivo, y se prefiere eso a un falso "dispositivo
+desconocido". El sysfs es atajo y no garantía porque las interfaces **no siempre existen todavía**
+cuando llega el `add` del `usb_device`.
 
 - **Expulsar** (botón en el aviso de conexión) → `usb-eject.sh <disco>`: desmonta todas las
   particiones y hace `power-off`. El unmount de udisks **hace el flush y espera**: cuando vuelve, los

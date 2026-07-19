@@ -6,6 +6,8 @@
 import { For } from "ags"
 import { Gtk } from "ags/gtk4"
 import AstalHyprland from "gi://AstalHyprland"
+import Interruptor from "../Interruptor"
+import { EncabezadoAjuste, TextoInformativo, TituloSubseccion } from "./componentes"
 import {
   autoDndEnabled, setAutoDndEnabled,
   autoDndFullscreenApps, addAutoDndApp, removeAutoDndApp,
@@ -55,27 +57,16 @@ export default function AutoDndSetting() {
     <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["sp-field"]} hexpand>
       {/* Toggle maestro */}
       <box spacing={8} valign={Gtk.Align.CENTER}>
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
-          <label cssClasses={["sp-field-label"]} label="No molestar automático" halign={Gtk.Align.START} />
-          <label
-            cssClasses={["sp-field-hint"]}
-            label={"Silencia los popups mientras juegas o con una app en pantalla completa.\nLas notificaciones se siguen guardando en el historial."}
-            halign={Gtk.Align.START}
-            wrap={true}
-            lines={2}
-            maxWidthChars={62}
-            xalign={0}
-          />
-        </box>
-        <button
-          cssClasses={autoDndEnabled((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
-          valign={Gtk.Align.CENTER}
-          onClicked={() => setAutoDndEnabled(!autoDndEnabled.get())}
-        >
-          <box cssClasses={["qs-toggle-track"]}>
-            <box cssClasses={autoDndEnabled((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-          </box>
-        </button>
+        <EncabezadoAjuste
+          titulo="No molestar automático"
+          informacion={"Silencia los popups mientras juegas o con una app en pantalla completa.\nLas notificaciones se siguen guardando en el historial."}
+          halign={Gtk.Align.START}
+          propiedadesInformacion={{ wrap: true, lines: 2, maxWidthChars: 62, xalign: 0 }}
+        />
+        <Interruptor
+          activo={autoDndEnabled}
+          alAlternar={() => setAutoDndEnabled(!autoDndEnabled.get())}
+        />
       </box>
 
       {/* Lista de apps que silencian en pantalla completa (sólo si está activo) */}
@@ -85,8 +76,7 @@ export default function AutoDndSetting() {
         cssClasses={["adnd-apps"]}
         visible={autoDndEnabled((v: boolean) => v)}
       >
-        <label
-          cssClasses={["sp-subsection-title"]}
+        <TituloSubseccion
           label="Apps que silencian en pantalla completa"
           halign={Gtk.Align.START}
         />
@@ -97,8 +87,7 @@ export default function AutoDndSetting() {
           </For>
         </box>
 
-        <label
-          cssClasses={["sp-field-hint"]}
+        <TextoInformativo
           label="Sin apps: sólo los juegos activan el No molestar."
           halign={Gtk.Align.START}
           visible={autoDndFullscreenApps((a: string[]) => a.length === 0)}

@@ -3,6 +3,9 @@
 // suspends notification-filter timers while in power-save.
 import { Gtk } from "ags/gtk4"
 import { InlineEditableValue } from "../InlineEditableValue"
+import { conectarCambioDeslizador } from "../deslizador"
+import Interruptor from "../Interruptor"
+import { EncabezadoAjuste, TextoInformativo, TituloAjuste, TituloSeccion } from "../settings/componentes"
 import {
   powerSaveThreshold, setPowerSaveThreshold,
   suspendNotifFilters, setSuspendNotifFilters,
@@ -17,7 +20,7 @@ function ThresholdSlider(): Gtk.Scale {
   powerSaveThreshold.subscribe(() => { if (adj.value !== powerSaveThreshold.get()) adj.value = powerSaveThreshold.get() })
   const scale = new Gtk.Scale({ orientation: Gtk.Orientation.HORIZONTAL, adjustment: adj, drawValue: false, hexpand: true })
   scale.cssClasses = ["qs-slider", "brightness"]
-  scale.connect("change-value", (_s, _scroll, val) => { setPowerSaveThreshold(val); return false })
+  conectarCambioDeslizador(scale, setPowerSaveThreshold)
   return scale
 }
 
@@ -31,7 +34,7 @@ export default function EnergySection() {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
-      <label cssClasses={["sp-section-title"]} label="✦ Energía" halign={Gtk.Align.START} />
+      <TituloSeccion titulo="Energía" />
 
       {/* estado actual */}
       <box spacing={6} halign={Gtk.Align.START}>
@@ -46,7 +49,7 @@ export default function EnergySection() {
       {/* umbral de ahorro */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["sp-field-label"]} label="Entrar en ahorro al bajar de" hexpand halign={Gtk.Align.START} />
+          <TituloAjuste label="Entrar en ahorro al bajar de" hexpand halign={Gtk.Align.START} />
           <InlineEditableValue
             display={powerSaveThreshold((v) => `${Math.round(v)}`)}
             getValue={() => powerSaveThreshold.get()}
@@ -57,8 +60,7 @@ export default function EnergySection() {
           />
         </box>
         {ThresholdSlider() as unknown as any}
-        <label
-          cssClasses={["sp-field-hint"]}
+        <TextoInformativo
           label="Se activa con la batería en o por debajo de este nivel (y sin cargar)."
           halign={Gtk.Align.START}
           wrap={true}
@@ -68,57 +70,48 @@ export default function EnergySection() {
       {/* suspender filtros de notificaciones */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
-            <label cssClasses={["sp-field-label"]} label="Pausar filtros de notificaciones en ahorro" halign={Gtk.Align.START} />
-            <label cssClasses={["sp-field-hint"]} label="Detiene los temporizadores de limpieza mientras dure el ahorro; al salir limpia y reanuda." halign={Gtk.Align.START} wrap={true} />
-          </box>
-          <button
-            cssClasses={suspendNotifFilters((v) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
-            valign={Gtk.Align.CENTER}
-            onClicked={() => setSuspendNotifFilters(!suspendNotifFilters.get())}
-          >
-            <box cssClasses={["qs-toggle-track"]}>
-              <box cssClasses={suspendNotifFilters((v) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-            </box>
-          </button>
+          <EncabezadoAjuste
+            titulo="Pausar filtros de notificaciones en ahorro"
+            informacion="Detiene los temporizadores de limpieza mientras dure el ahorro; al salir limpia y reanuda."
+            halign={Gtk.Align.START}
+            propiedadesInformacion={{ wrap: true }}
+          />
+          <Interruptor
+            activo={suspendNotifFilters}
+            alAlternar={() => setSuspendNotifFilters(!suspendNotifFilters.get())}
+          />
         </box>
       </box>
 
       {/* pausar preview de workspace en ahorro */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
-            <label cssClasses={["sp-field-label"]} label="Pausar preview de workspace en ahorro" halign={Gtk.Align.START} />
-            <label cssClasses={["sp-field-hint"]} label="Deja de capturar el workspace con grim mientras dure el ahorro; al salir vuelve a capturar." halign={Gtk.Align.START} wrap={true} />
-          </box>
-          <button
-            cssClasses={pauseWsPreviewInPowerSave((v) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
-            valign={Gtk.Align.CENTER}
-            onClicked={() => setPauseWsPreviewInPowerSave(!pauseWsPreviewInPowerSave.get())}
-          >
-            <box cssClasses={["qs-toggle-track"]}>
-              <box cssClasses={pauseWsPreviewInPowerSave((v) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-            </box>
-          </button>
+          <EncabezadoAjuste
+            titulo="Pausar preview de workspace en ahorro"
+            informacion="Deja de capturar el workspace con grim mientras dure el ahorro; al salir vuelve a capturar."
+            halign={Gtk.Align.START}
+            propiedadesInformacion={{ wrap: true }}
+          />
+          <Interruptor
+            activo={pauseWsPreviewInPowerSave}
+            alAlternar={() => setPauseWsPreviewInPowerSave(!pauseWsPreviewInPowerSave.get())}
+          />
         </box>
       </box>
 
       {/* ocultar la pastilla de Spotify en ahorro */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
-            <label cssClasses={["sp-field-label"]} label="Ocultar Spotify de la barra en ahorro" halign={Gtk.Align.START} />
-            <label cssClasses={["sp-field-hint"]} label="Quita carátula, título y las barritas animadas mientras dure el ahorro; al salir vuelven. Es el único widget de la barra que se redibuja de forma continua." halign={Gtk.Align.START} wrap={true} />
-          </box>
-          <button
-            cssClasses={hideSpotifyBarInPowerSave((v) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
-            valign={Gtk.Align.CENTER}
-            onClicked={() => setHideSpotifyBarInPowerSave(!hideSpotifyBarInPowerSave.get())}
-          >
-            <box cssClasses={["qs-toggle-track"]}>
-              <box cssClasses={hideSpotifyBarInPowerSave((v) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-            </box>
-          </button>
+          <EncabezadoAjuste
+            titulo="Ocultar Spotify de la barra en ahorro"
+            informacion="Quita carátula, título y las barritas animadas mientras dure el ahorro; al salir vuelven. Es el único widget de la barra que se redibuja de forma continua."
+            halign={Gtk.Align.START}
+            propiedadesInformacion={{ wrap: true }}
+          />
+          <Interruptor
+            activo={hideSpotifyBarInPowerSave}
+            alAlternar={() => setHideSpotifyBarInPowerSave(!hideSpotifyBarInPowerSave.get())}
+          />
         </box>
       </box>
     </box>

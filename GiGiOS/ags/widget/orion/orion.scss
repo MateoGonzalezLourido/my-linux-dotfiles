@@ -920,7 +920,7 @@ popover.background {
   margin-bottom: 10px;
 }
 
-// La regla compartida de Quick Settings se compila después de Orion. Esta
+// La regla compartida del interruptor se compila después de Orion. Esta
 // especificidad mantiene sólido el interruptor sin duplicar su geometría.
 .Orion button.qs-toggle {
   background: $j-bg-shell-opaco;

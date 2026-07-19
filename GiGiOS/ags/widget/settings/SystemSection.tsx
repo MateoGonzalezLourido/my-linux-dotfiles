@@ -4,6 +4,7 @@ import { Gtk } from "ags/gtk4"
 import { With, createState } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
+import { TituloSeccion, TituloSubseccion } from "./componentes"
 
 interface InfoItem { label: string; value: string }
 interface InfoGroup { title: string; icon: string; items: InfoItem[] }
@@ -142,7 +143,7 @@ function InfoGroupView({ group }: { group: InfoGroup }) {
     <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["sys-card"]}>
       <box spacing={8} cssClasses={["sys-card-header"]}>
         <label cssClasses={["sys-card-icon"]} label={group.icon} />
-        <label cssClasses={["sp-subsection-title", "sys-card-title"]} label={group.title} hexpand halign={Gtk.Align.START} />
+        <TituloSubseccion cssClasses={["sys-card-title"]} label={group.title} hexpand halign={Gtk.Align.START} />
       </box>
       {group.items.map((item, i) => (
         <box cssClasses={i ? ["sys-row", "bordered"] : ["sys-row"]} spacing={20}>
@@ -161,10 +162,7 @@ export default function SystemSection() {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "sys-section"]} hexpand>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-        <label cssClasses={["sp-section-title"]} label="✦ Sistema" halign={Gtk.Align.START} />
-        <label cssClasses={["sp-field-hint"]} label="Hardware, controladores y entorno de escritorio detectados" halign={Gtk.Align.START} />
-      </box>
+      <TituloSeccion titulo="Sistema" />
       <With value={snapshot}>
         {(data: SystemSnapshot) => data.groups.length
           ? <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>

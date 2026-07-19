@@ -44,7 +44,6 @@ export interface DateTimeSnapshot {
   locale: string           // LANG efectivo, p. ej. "es_ES.UTF-8"
   timezone: string         // "Europe/Madrid"
   ntp: boolean             // sincronización automática por NTP
-  localTime: string        // hora legible ya formateada (solo informativo)
   geoclueAvailable: boolean
   geoclueBlocked: boolean  // true = las apps NO pueden leer la ubicación
 }
@@ -65,7 +64,7 @@ const DEFAULT_PREFS: LocationPrefs = {
 }
 
 const EMPTY_SNAPSHOT: DateTimeSnapshot = {
-  locale: "", timezone: "", ntp: false, localTime: "",
+  locale: "", timezone: "", ntp: false,
   geoclueAvailable: false, geoclueBlocked: false,
 }
 
@@ -137,10 +136,9 @@ function readManagedLocale(): string {
 }
 
 export async function refresh() {
-  const [tz, ntp, localTime, geocluePath, geoclueMasked] = await Promise.all([
+  const [tz, ntp, geocluePath, geoclueMasked] = await Promise.all([
     sh("timedatectl show -p Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null"),
     sh("timedatectl show -p NTP --value 2>/dev/null"),
-    sh("date '+%A, %d %B %Y · %H:%M'"),
     sh("{ command -v geoclue >/dev/null 2>&1 || systemctl list-unit-files geoclue.service 2>/dev/null | grep -q geoclue; } && echo yes"),
     sh("systemctl is-enabled geoclue.service 2>/dev/null"),
   ])
@@ -150,7 +148,6 @@ export async function refresh() {
     locale,
     timezone: tz,
     ntp: ntp === "yes",
-    localTime,
     geoclueAvailable,
     geoclueBlocked: geoclueAvailable ? geoclueMasked === "masked" : !prefs.get().locationAllowed,
   })

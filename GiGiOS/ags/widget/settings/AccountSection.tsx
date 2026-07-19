@@ -4,6 +4,7 @@ import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import ProfileAvatar from "./ProfileAvatar"
 import { AVATAR_PATH, refreshAvatar } from "./avatar"
+import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloSeccion } from "./componentes"
 
 type Notice = { kind: "idle" | "working" | "ok" | "error"; text: string }
 
@@ -91,81 +92,91 @@ export default function AccountSection() {
   }
 
   const passwordEntry = (placeholder: string, setter: (v: string) => void) => (
-    <Gtk.Entry cssClasses={["account-entry"]} placeholderText={placeholder} visibility={false}
-      onChanged={(entry) => setter(entry.get_text())} />
+    <EntradaTextoAjustes placeholderText={placeholder} visibility={false}
+      onChanged={(entry) => setter(entry.get_text())} hexpand />
   )
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "account-section"]} hexpand>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-        <label cssClasses={["sp-section-title"]} label="✦ Cuenta" halign={Gtk.Align.START} />
-        <label cssClasses={["sp-field-hint"]} label="Perfil, nombre de usuario y credenciales del sistema" halign={Gtk.Align.START} />
-      </box>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section", "account-section"]} hexpand>
+      <TituloSeccion titulo="Cuenta" />
 
-      <box cssClasses={["account-profile-card"]} spacing={14} valign={Gtk.Align.CENTER}>
-        <ProfileAvatar
-          size={58}
-          fallbackLabel={currentUser.slice(0, 2).toUpperCase()}
-          fallbackCssClasses={["account-avatar", "fallback"]}
-          borderWidth={2}
-          borderRgba={[203 / 255, 166 / 255, 247 / 255, 0.45]}
-        />
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={7} hexpand>
-          <label cssClasses={["account-current-user"]} label={currentUser} halign={Gtk.Align.START} />
-          <label cssClasses={["sp-field-hint"]} label={`@${GLib.get_host_name()}`} halign={Gtk.Align.START} />
-          <box spacing={8}>
-            <Gtk.Entry cssClasses={["account-entry"]} placeholderText="~/Imágenes/perfil.png"
-              onChanged={(entry) => setAvatarInput(entry.get_text())}
-              onActivate={applyAvatar} hexpand />
-            <button cssClasses={["account-secondary-btn"]} label="Cambiar foto" onClicked={applyAvatar} />
+      <TarjetaAjustes titulo="Perfil" icono="󰀄" cssClasses={["account-card"]}>
+        <box cssClasses={["dev-row", "account-profile-summary"]} spacing={14} valign={Gtk.Align.CENTER}>
+          <ProfileAvatar
+            size={46}
+            fallbackLabel={currentUser.slice(0, 2).toUpperCase()}
+            fallbackCssClasses={["account-avatar", "fallback"]}
+            borderWidth={2}
+            borderRgba={[203 / 255, 166 / 255, 247 / 255, 0.45]}
+          />
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={3} hexpand valign={Gtk.Align.CENTER}>
+            <label cssClasses={["account-current-user"]} label={currentUser} halign={Gtk.Align.START} />
+            <TextoInformativo label={`@${GLib.get_host_name()}`} halign={Gtk.Align.START} />
           </box>
         </box>
-      </box>
+        <FilaAjuste titulo="Foto de perfil" informacion="Elige una imagen mediante su ruta local."
+          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+          <box cssClasses={["account-controls"]} spacing={8} valign={Gtk.Align.CENTER}>
+            <EntradaTextoAjustes placeholderText="~/Imágenes/perfil.png"
+              onChanged={(entry) => setAvatarInput(entry.get_text())}
+              onActivate={applyAvatar} hexpand />
+            <BotonAjustes label="Cambiar foto" onClicked={applyAvatar} />
+          </box>
+        </FilaAjuste>
+      </TarjetaAjustes>
 
-      <label cssClasses={["sp-subsection-title"]} label="Datos personales" halign={Gtk.Align.START} />
-      <box cssClasses={["account-grid"]} orientation={Gtk.Orientation.VERTICAL} spacing={10}>
-        <box spacing={12}><label cssClasses={["account-form-label"]} label="Nombre de usuario" halign={Gtk.Align.START} />
-          <Gtk.Entry cssClasses={["account-entry"]} text={currentUser} onChanged={(entry) => setLoginName(entry.get_text())} hexpand /></box>
-        <box spacing={12}><label cssClasses={["account-form-label"]} label="Nombre completo" halign={Gtk.Align.START} />
-          <Gtk.Entry cssClasses={["account-entry"]} placeholderText="Opcional" onChanged={(entry) => setFullName(entry.get_text())} hexpand /></box>
-      </box>
+      <TarjetaAjustes titulo="Datos personales" icono="󰓝" cssClasses={["account-card"]}>
+        <FilaAjuste titulo="Nombre de usuario" informacion="Identificador usado para iniciar sesión."
+          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+          <box cssClasses={["account-controls"]}>
+            <EntradaTextoAjustes text={currentUser}
+              onChanged={(entry) => setLoginName(entry.get_text())} hexpand />
+          </box>
+        </FilaAjuste>
+        <FilaAjuste titulo="Nombre completo" informacion="Nombre visible asociado a la cuenta."
+          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+          <box cssClasses={["account-controls"]}>
+            <EntradaTextoAjustes placeholderText="Opcional"
+              onChanged={(entry) => setFullName(entry.get_text())} hexpand />
+          </box>
+        </FilaAjuste>
+      </TarjetaAjustes>
 
-      <button
-        cssClasses={passwordExpanded((open: boolean) => open
-          ? ["account-expand-btn", "open"] : ["account-expand-btn"])}
-        onClicked={() => {
-          const open = !passwordExpanded.get()
-          setPasswordExpanded(open)
-          if (!open) { setNewPassword(""); setConfirmPassword("") }
-        }}
-      >
-        <box spacing={8}>
-          <label cssClasses={["account-expand-icon"]} label="󰌾" />
-          <label label="Cambiar contraseña" hexpand halign={Gtk.Align.START} />
-          <label cssClasses={["account-expand-arrow"]}
-            label={passwordExpanded((open: boolean) => open ? "󰅀" : "󰅂")} />
+      <TarjetaAjustes titulo="Seguridad" icono="󰌾" cssClasses={["account-card"]}>
+        <FilaAjuste titulo="Contraseña" informacion="Cambia la contraseña de inicio de sesión."
+          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+          <BotonAjustes
+            activo={passwordExpanded}
+            onClicked={() => {
+              const open = !passwordExpanded.get()
+              setPasswordExpanded(open)
+              if (!open) { setNewPassword(""); setConfirmPassword("") }
+            }}
+            label={passwordExpanded((open: boolean) => open ? "Ocultar" : "Cambiar")}
+          />
+        </FilaAjuste>
+        <box visible={passwordExpanded} cssClasses={["account-password-fields"]} orientation={Gtk.Orientation.VERTICAL}>
+          <FilaAjuste titulo="Nueva contraseña" informacion="Debe tener al menos 8 caracteres."
+            cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+            <box cssClasses={["account-controls"]}>{passwordEntry("Nueva contraseña", setNewPassword)}</box>
+          </FilaAjuste>
+          <FilaAjuste titulo="Confirmar contraseña" informacion="Vuelve a escribir la nueva contraseña."
+            cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+            <box cssClasses={["account-controls"]}>{passwordEntry("Repetir nueva contraseña", setConfirmPassword)}</box>
+          </FilaAjuste>
         </box>
-      </button>
-      <box
-        visible={passwordExpanded}
-        cssClasses={["account-password-fields"]}
-        orientation={Gtk.Orientation.VERTICAL}
-        spacing={8}
-      >
-        {passwordEntry("Nueva contraseña", setNewPassword)}
-        {passwordEntry("Repetir nueva contraseña", setConfirmPassword)}
-      </box>
+        <FilaAjuste titulo="Autorización administrativa" informacion="Se envía directamente a sudo y no se guarda."
+          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+          <box cssClasses={["account-controls"]}>{passwordEntry("Contraseña de administrador", setAdminPassword)}</box>
+        </FilaAjuste>
+      </TarjetaAjustes>
 
-      <box cssClasses={["account-auth-card"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-        <label cssClasses={["sp-field-label"]} label="Autorización administrativa" halign={Gtk.Align.START} />
-        <label cssClasses={["sp-field-hint"]} label="La contraseña se envía directamente a sudo y no se guarda." halign={Gtk.Align.START} />
-        {passwordEntry("Contraseña de administrador (root/sudo)", setAdminPassword)}
+      <box cssClasses={["account-actions"]} spacing={12} valign={Gtk.Align.CENTER}>
+        <With value={notice}>{(state: Notice) => state.text
+          ? <label cssClasses={["account-notice", state.kind]} label={`~ ${state.text}`} halign={Gtk.Align.START} wrap xalign={0} hexpand />
+          : <box hexpand />}</With>
+        <BotonAjustes variante="principal" label="Guardar cambios" onClicked={applyChanges} />
       </box>
-
-      <With value={notice}>{(state: Notice) => state.text
-        ? <label cssClasses={["account-notice", state.kind]} label={`~ ${state.text}`} halign={Gtk.Align.START} wrap xalign={0} />
-        : <box />}</With>
-      <button cssClasses={["account-save-btn"]} label="Guardar cambios" onClicked={applyChanges} halign={Gtk.Align.END} />
     </box>
   )
 }

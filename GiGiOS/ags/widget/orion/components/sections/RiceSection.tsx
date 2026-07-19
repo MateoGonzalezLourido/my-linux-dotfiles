@@ -21,6 +21,8 @@ import {
   randomOnStart, setRandomOnStart, currentWallpaper, WALLPAPER_DIR,
 } from "../../wallpaperConfig"
 import { loadThumbnails, THUMB_W, THUMB_H } from "../../wallpaperThumbs"
+import Interruptor from "../../../Interruptor"
+import { TextoInformativo, TituloAjuste } from "../../../settings/componentes"
 
 export function RiceSection() {
   const root = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["rice-content"] })
@@ -48,30 +50,19 @@ export function RiceSection() {
   // ── Fila del toggle "aleatorio al iniciar" ─────────────────────────────────
   const toggleRow = new Gtk.Box({ cssClasses: ["rice-toggle-row"], spacing: 8 })
   const tText = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, hexpand: true, halign: Gtk.Align.START })
-  tText.append(new Gtk.Label({
-    label: "Fondo aleatorio al iniciar Hyprland",
-    cssClasses: ["sp-field-label"], halign: Gtk.Align.START,
-  }))
-  tText.append(new Gtk.Label({
+  tText.append(TituloAjuste({ label: "Fondo aleatorio al iniciar Hyprland" }))
+  tText.append(TextoInformativo({
     label: "Si lo apagas, al arrancar se mantiene el último fondo elegido.",
-    cssClasses: ["sp-field-hint"], halign: Gtk.Align.START,
-    wrap: true, maxWidthChars: 54, xalign: 0,
+    wrap: true,
+    maxWidthChars: 54,
+    xalign: 0,
   }))
   toggleRow.append(tText)
 
-  const toggleBtn = new Gtk.Button({ valign: Gtk.Align.CENTER })
-  const track = new Gtk.Box({ cssClasses: ["qs-toggle-track"] })
-  const dot   = new Gtk.Box()
-  track.append(dot)
-  toggleBtn.set_child(track)
-  const syncToggle = (on: boolean) => {
-    toggleBtn.set_css_classes(on ? ["qs-toggle", "on"] : ["qs-toggle"])
-    dot.set_css_classes(on ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])
-  }
-  syncToggle(randomOnStart.get())
-  randomOnStart.subscribe(() => syncToggle(randomOnStart.get()))
-  toggleBtn.connect("clicked", () => setRandomOnStart(!randomOnStart.get()))
-  toggleRow.append(toggleBtn)
+  toggleRow.append(Interruptor({
+    activo: randomOnStart,
+    alAlternar: () => setRandomOnStart(!randomOnStart.get()),
+  }))
   root.append(toggleRow)
 
   // ── Rejilla de miniaturas ──────────────────────────────────────────────────

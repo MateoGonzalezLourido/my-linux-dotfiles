@@ -4,6 +4,8 @@
 // deja decidir cuáles se muestran en el bar. Los datos viven en trayApps.ts.
 import { Gtk } from "ags/gtk4"
 import { For } from "ags"
+import Interruptor from "../Interruptor"
+import { EncabezadoAjuste, TextoInformativo, TituloSeccion } from "./componentes"
 import {
   knownTrayApps, hiddenTrayApps, trayOverflowAt,
   hideTrayApp, showTrayApp, forgetTrayApp, setTrayOverflowAt,
@@ -16,23 +18,19 @@ function AppRow(app: TrayAppInfo) {
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
       <box spacing={10} valign={Gtk.Align.CENTER}>
         {app.iconName ? <image iconName={app.iconName} pixelSize={22} /> : <label cssClasses={["sp-nav-icon"]} label={"󰀻"} />}
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
-          <label cssClasses={["sp-field-label"]} label={app.title} halign={Gtk.Align.START} />
-          <label cssClasses={["sp-field-hint"]} label={visible((v: boolean) => v ? "Se muestra en segundo plano" : "Oculta del bar")} halign={Gtk.Align.START} />
-        </box>
+        <EncabezadoAjuste
+          titulo={app.title}
+          informacion={visible((v: boolean) => v ? "Se muestra en segundo plano" : "Oculta del bar")}
+          halign={Gtk.Align.START}
+        />
         {/* Olvidar: quita la app del registro (reaparecerá si vuelve a salir en el tray). */}
         <button cssClasses={["sp-rule-del"]} valign={Gtk.Align.CENTER} tooltipText="Olvidar esta app" onClicked={() => forgetTrayApp(app.id)}>
           <label label={"󰆴"} />
         </button>
-        <button
-          cssClasses={visible((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
-          valign={Gtk.Align.CENTER}
-          onClicked={() => (visible.get() ? hideTrayApp(app.id) : showTrayApp(app.id))}
-        >
-          <box cssClasses={["qs-toggle-track"]}>
-            <box cssClasses={visible((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-          </box>
-        </button>
+        <Interruptor
+          activo={visible}
+          alAlternar={() => (visible.get() ? hideTrayApp(app.id) : showTrayApp(app.id))}
+        />
       </box>
     </box>
   )
@@ -41,32 +39,17 @@ function AppRow(app: TrayAppInfo) {
 export default function AppsSection() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
-      <label cssClasses={["sp-section-title"]} label="✦ Apps en segundo plano" halign={Gtk.Align.START} />
-      <label
-        cssClasses={["sp-field-hint"]}
-        label={"Estas apps ponen un icono en el bar mientras corren en segundo plano.\nDesactiva las que no quieras ver."}
-        halign={Gtk.Align.START}
-        wrap={true}
-        lines={2}
-        maxWidthChars={62}
-        xalign={0}
-      />
+      <TituloSeccion titulo="Apps en segundo plano" />
 
       {/* umbral de agrupación: a partir de N iconos, todos se recogen en la flecha */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
         <box spacing={8} valign={Gtk.Align.CENTER}>
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
-            <label cssClasses={["sp-field-label"]} label="Agrupar en un menú" halign={Gtk.Align.START} />
-            <label
-              cssClasses={["sp-field-hint"]}
-              label={"A partir de este número de iconos, todos se recogen en un menú\ndesplegable (la flecha) en vez de mostrarse sueltos en el bar."}
-              halign={Gtk.Align.START}
-              wrap={true}
-              lines={2}
-              maxWidthChars={62}
-              xalign={0}
-            />
-          </box>
+          <EncabezadoAjuste
+            titulo="Agrupar en un menú"
+            informacion={"A partir de este número de iconos, todos se recogen en un menú\ndesplegable (la flecha) en vez de mostrarse sueltos en el bar."}
+            halign={Gtk.Align.START}
+            propiedadesInformacion={{ wrap: true, lines: 2, maxWidthChars: 62, xalign: 0 }}
+          />
           <box spacing={6} valign={Gtk.Align.CENTER}>
             <button cssClasses={["sp-step-btn"]} onClicked={() => setTrayOverflowAt(trayOverflowAt.get() - 1)}><label label="−" /></button>
             <label cssClasses={["sp-step-val"]} label={trayOverflowAt((n: number) => `${n} apps`)} />
@@ -76,8 +59,7 @@ export default function AppsSection() {
       </box>
 
       {/* placeholder cuando el registro está vacío */}
-      <label
-        cssClasses={["sp-field-hint"]}
+      <TextoInformativo
         label="Aún no ha aparecido ninguna app en segundo plano."
         halign={Gtk.Align.START}
         visible={knownTrayApps((k: TrayAppInfo[]) => k.length === 0)}

@@ -8,6 +8,9 @@ import { createState, createComputed, createMemo, For, onCleanup, Accessor } fro
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import { DisplaySelect } from "../display/controls"
+import { conectarCambioDeslizador } from "../deslizador"
+import Interruptor from "../Interruptor"
+import { TextoInformativo, TituloAjuste, TituloSeccion, TituloSubseccion } from "./componentes"
 import {
   monitors, monitorPrefs, monitorCaps, applyPatch, acquirePoll, releasePoll,
   globalVrrMode, applyGlobalVrr, allowTearing, applyAllowTearing,
@@ -57,7 +60,7 @@ function makeScale(classes: string[], getValue: () => number, setValue: (v: numb
   if (subscribe) subscribe(() => { adj.value = clamp(getValue()) })
   const scale = new Gtk.Scale({ orientation: Gtk.Orientation.HORIZONTAL, adjustment: adj, drawValue: false, hexpand: true, valign: Gtk.Align.CENTER })
   scale.cssClasses = classes
-  scale.connect("change-value", (_s, _scroll, val) => { setValue(clamp(val)); return false })
+  conectarCambioDeslizador(scale, (val) => setValue(clamp(val)))
   return scale
 }
 
@@ -244,11 +247,11 @@ function RuleRow({ rule, index }: { rule: NightRule, index: any }) {
       <box spacing={5} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
         <label cssClasses={["sp-rule-chan", "narrow"]} label="de" halign={Gtk.Align.START} />
         <NumberField value={startH} min={0} max={23} onCommit={(v) => setTimePart("start", 0, v)} />
-        <label cssClasses={["sp-field-hint"]} label=":" />
+        <TextoInformativo label=":" />
         <NumberField value={startM} min={0} max={59} onCommit={(v) => setTimePart("start", 1, v)} />
-        <label cssClasses={["sp-field-hint"]} label="a" />
+        <TextoInformativo label="a" />
         <NumberField value={endH} min={0} max={23} onCommit={(v) => setTimePart("end", 0, v)} />
-        <label cssClasses={["sp-field-hint"]} label=":" />
+        <TextoInformativo label=":" />
         <NumberField value={endM} min={0} max={59} onCommit={(v) => setTimePart("end", 1, v)} />
         <label
           cssClasses={["sp-rule-active-chip"]}
@@ -269,7 +272,7 @@ function RuleRow({ rule, index }: { rule: NightRule, index: any }) {
           patch({ temp: v === "keep" ? null : temp.get() }))}
         <box spacing={4} valign={Gtk.Align.CENTER} visible={nightMode((m) => m === "on")}>
           <NumberField value={temp} min={1000} max={6500} chars={4} pad={0} onCommit={(v) => patch({ temp: v })} />
-          <label cssClasses={["sp-field-hint"]} label="K" />
+          <TextoInformativo label="K" />
         </box>
       </box>
 
@@ -280,7 +283,7 @@ function RuleRow({ rule, index }: { rule: NightRule, index: any }) {
           patch({ brightness: v === "keep" ? null : bright.get() }))}
         <box spacing={4} valign={Gtk.Align.CENTER} visible={brightMode((m) => m === "set")}>
           <NumberField value={bright} min={1} max={100} chars={3} pad={0} onCommit={(v) => patch({ brightness: v })} />
-          <label cssClasses={["sp-field-hint"]} label="%" />
+          <TextoInformativo label="%" />
         </box>
       </box>
     </box>
@@ -318,21 +321,14 @@ function IdleRow({ label, mins, setMins, on, setOn, commit }: {
 }) {
   return (
     <box spacing={8} valign={Gtk.Align.CENTER}>
-      <label cssClasses={["sp-field-label"]} label={label} hexpand halign={Gtk.Align.START} />
+      <TituloAjuste label={label} hexpand halign={Gtk.Align.START} />
       <label cssClasses={["sp-step-val", "off"]} label="Nunca" visible={on((v) => !v)} />
       {/* `visible` y no `<With>`: un With se remonta al final de su caja y mandaría
           el stepper detrás del interruptor cada vez que se enciende la fila. */}
       <box visible={on}>
         <MinuteStepper value={mins} onChange={(v) => { setMins(v); commit() }} />
       </box>
-      <button
-        cssClasses={on((v) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
-        onClicked={() => { setOn(!on.get()); commit() }}
-      >
-        <box cssClasses={["qs-toggle-track"]}>
-          <box cssClasses={on((v) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-        </box>
-      </button>
+      <Interruptor activo={on} alAlternar={() => { setOn(!on.get()); commit() }} />
     </box>
   )
 }
@@ -482,10 +478,10 @@ export default function DisplaySection() {
     <overlay cssClasses={["display-select-host"]}>
     <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section"]} hexpand
       $={(self: any) => self.connect("destroy", cleanup)}>
-      <label cssClasses={["sp-section-title"]} label="✦ Pantalla" halign={Gtk.Align.START} />
+      <TituloSeccion titulo="Pantalla" />
 
       {/* Selector de monitor */}
-      <label cssClasses={["sp-field-hint", "sp-display-detected-title"]} label="PANTALLAS DETECTADAS" halign={Gtk.Align.START} />
+      <TextoInformativo cssClasses={["sp-display-detected-title"]} label="PANTALLAS DETECTADAS" halign={Gtk.Align.START} />
       <box cssClasses={["qs-display-monitor-tabs"]} spacing={6}>
         <For each={monitors}>
           {(m: any) => (
@@ -507,7 +503,7 @@ export default function DisplaySection() {
         visible={createComputed(() => { const s = selected(); return !!s && !s.disabled })}>
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-          <label cssClasses={["sp-field-label"]} label="Resolución" halign={Gtk.Align.START} />
+          <TituloAjuste label="Resolución" halign={Gtk.Align.START} />
           <DisplaySelect
             current={createComputed(() => { const s = selected(); return s ? `${s.width}×${s.height}` : "—" })}
             options={createComputed(() => {
@@ -519,7 +515,7 @@ export default function DisplaySection() {
         </box>
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-          <label cssClasses={["sp-field-label"]} label="Frecuencia" halign={Gtk.Align.START} />
+          <TituloAjuste label="Frecuencia" halign={Gtk.Align.START} />
           <DisplaySelect
             current={createComputed(() => { const s = selected(); return s ? `${Math.round(s.refreshRate)} Hz` : "—" })}
             options={createComputed(() => {
@@ -531,7 +527,7 @@ export default function DisplaySection() {
         </box>
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-          <label cssClasses={["sp-field-label"]} label="Escala" halign={Gtk.Align.START} />
+          <TituloAjuste label="Escala" halign={Gtk.Align.START} />
           <DisplaySelect
             current={createComputed(() => { const s = selected(); return s ? matchScalePreset(s.scale).toFixed(2) : "—" })}
             options={createComputed(() => {
@@ -544,7 +540,7 @@ export default function DisplaySection() {
         </box>
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-          <label cssClasses={["sp-field-label"]} label="Rotación" halign={Gtk.Align.START} />
+          <TituloAjuste label="Rotación" halign={Gtk.Align.START} />
           <DisplaySelect
             current={createComputed(() => { const s = selected(); const t = s ? (s.transform ?? 0) : 0; return (TRANSFORMS.find(x => x.value === t) || TRANSFORMS[0]).label })}
             options={createComputed(() => {
@@ -556,7 +552,7 @@ export default function DisplaySection() {
         </box>
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0} visible={capOf("bitdepth10")}>
-          <label cssClasses={["sp-field-label"]} label="Profundidad de color" halign={Gtk.Align.START} />
+          <TituloAjuste label="Profundidad de color" halign={Gtk.Align.START} />
           <DisplaySelect
             current={createComputed(() => `${curBitdepth(selected())}-bit`)}
             options={createComputed(() => { const bd = curBitdepth(selected()); return [
@@ -568,7 +564,7 @@ export default function DisplaySection() {
         </box>
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0} visible={capOf("hdr")}>
-          <label cssClasses={["sp-field-label"]} label="Gestión de color" halign={Gtk.Align.START} />
+          <TituloAjuste label="Gestión de color" halign={Gtk.Align.START} />
           <DisplaySelect
             current={createComputed(() => { const cm = curCm(selected()); return (CM_MODES.find(c => c.value === cm) || CM_MODES[0]).label })}
             options={createComputed(() => { const cm = curCm(selected()); return CM_MODES.map(c => ({ label: c.label, value: c.value, active: c.value === cm })) })}
@@ -578,7 +574,7 @@ export default function DisplaySection() {
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}
           visible={createComputed(() => monitors().length > 1)}>
-          <label cssClasses={["sp-field-label"]} label="Posición (relativa a otro)" halign={Gtk.Align.START} />
+          <TituloAjuste label="Posición (relativa a otro)" halign={Gtk.Align.START} />
           <DisplaySelect
             current="Colocar…"
             options={createComputed(() => {
@@ -608,20 +604,16 @@ export default function DisplaySection() {
         </box>
 
         <box spacing={8} valign={Gtk.Align.CENTER} visible={capOf("vrr")}>
-          <label cssClasses={["sp-field-label"]} label="VRR / FreeSync" hexpand halign={Gtk.Align.START} />
-          <button
-            cssClasses={createComputed(() => { const s = selected(); return s && s.vrr ? ["qs-toggle", "on"] : ["qs-toggle"] })}
-            onClicked={() => { const s = selected(); if (s) applyPatch(s, { vrr: !s.vrr }) }}
-          >
-            <box cssClasses={["qs-toggle-track"]}>
-              <box cssClasses={createComputed(() => { const s = selected(); return s && s.vrr ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"] })} />
-            </box>
-          </button>
+          <TituloAjuste label="VRR / FreeSync" hexpand halign={Gtk.Align.START} />
+          <Interruptor
+            activo={createComputed(() => Boolean(selected()?.vrr))}
+            alAlternar={() => { const s = selected(); if (s) applyPatch(s, { vrr: !s.vrr }) }}
+          />
         </box>
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}
           visible={createComputed(() => monitors().length > 1)}>
-          <label cssClasses={["sp-field-label"]} label="Duplicar en" halign={Gtk.Align.START} />
+          <TituloAjuste label="Duplicar en" halign={Gtk.Align.START} />
           <DisplaySelect
             current={createComputed(() => { const s = selected(); return s && s.mirrorOf && s.mirrorOf !== "none" ? s.mirrorOf : "Ninguno" })}
             options={createComputed(() => {
@@ -639,9 +631,9 @@ export default function DisplaySection() {
       {/* ── Brillo ── (solo si hay backend: ver `display/brightness.ts`) */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["sp-field"]} visible={brightnessSupported}>
         <box spacing={6}>
-          <label cssClasses={["sp-field-label"]} label="Brillo" hexpand halign={Gtk.Align.START} />
+          <TituloAjuste label="Brillo" hexpand halign={Gtk.Align.START} />
           <button cssClasses={["qs-inline-value-btn"]} visible={editingBrightness((v) => !v)} onClicked={editBrightness}>
-            <label cssClasses={["sp-field-hint"]} label={brightness((v: number) => `${Math.round(v * 100)}`)} />
+            <TextoInformativo label={brightness((v: number) => `${Math.round(v * 100)}`)} />
           </button>
           <Gtk.Entry
             cssClasses={["qs-inline-number-input"]} visible={editingBrightness}
@@ -657,9 +649,9 @@ export default function DisplaySection() {
       {/* ── Luz nocturna: manual (ahora) ── */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["sp-field"]}>
         <box spacing={6} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["sp-field-label"]} label="Luz nocturna" hexpand halign={Gtk.Align.START} />
+          <TituloAjuste label="Luz nocturna" hexpand halign={Gtk.Align.START} />
           <button cssClasses={["qs-inline-value-btn"]} visible={editingTemp((v) => !v)} onClicked={editTemp}>
-            <label cssClasses={["sp-field-hint"]} label={nightLightTemp((t: number) => `${t}K`)} />
+            <TextoInformativo label={nightLightTemp((t: number) => `${t}K`)} />
           </button>
           <Gtk.Entry
             cssClasses={["qs-inline-number-input"]} visible={editingTemp}
@@ -668,14 +660,10 @@ export default function DisplaySection() {
             $={(self: Gtk.Entry) => { tempEntry = self; self.text = String(nightLightTemp.get()) }}
             onActivate={commitTemp}
           ><Gtk.EventControllerFocus onLeave={commitTemp} /></Gtk.Entry>
-          <button
-            cssClasses={nightLightActive((n) => n ? ["qs-toggle", "on"] : ["qs-toggle"])}
-            onClicked={() => setNightLightManual(!nightLightActive.get())}
-          >
-            <box cssClasses={["qs-toggle-track"]}>
-              <box cssClasses={nightLightActive((n) => n ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-            </box>
-          </button>
+          <Interruptor
+            activo={nightLightActive}
+            alAlternar={() => setNightLightManual(!nightLightActive.get())}
+          />
         </box>
         {tempScale}
       </box>
@@ -683,18 +671,13 @@ export default function DisplaySection() {
       {/* ── Franjas horarias: luz nocturna y/o brillo (independiente del manual) ── */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["sp-field"]}>
         <box spacing={6} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["sp-field-label"]} label="Programar por franjas horarias" hexpand halign={Gtk.Align.START} />
-          <button
-            cssClasses={nightRulesEnabled((n) => n ? ["qs-toggle", "on"] : ["qs-toggle"])}
-            onClicked={() => setNightRulesEnabled(!nightRulesEnabled.get())}
-          >
-            <box cssClasses={["qs-toggle-track"]}>
-              <box cssClasses={nightRulesEnabled((n) => n ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-            </box>
-          </button>
+          <TituloAjuste label="Programar por franjas horarias" hexpand halign={Gtk.Align.START} />
+          <Interruptor
+            activo={nightRulesEnabled}
+            alAlternar={() => setNightRulesEnabled(!nightRulesEnabled.get())}
+          />
         </box>
-        <label
-          cssClasses={["sp-field-hint"]}
+        <TextoInformativo
           label={"Cada regla vale SOLO dentro de su franja: al terminar, la luz nocturna vuelve al ajuste manual y el brillo, al valor que tenía antes de entrar. Una franja puede cruzar la medianoche (22:00 → 07:00).\nLos dos canales son independientes: lo que dejes en «No cambiar» no lo toca esa franja. Menos K = más cálido (3500 ≈ cálido).\nEl brillo se fija al entrar: dentro de la franja puedes seguir ajustándolo a mano sin que te lo pise."}
           halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0}
         />
@@ -723,10 +706,10 @@ export default function DisplaySection() {
 
       {/* ── Globales ── */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-field"]}>
-        <label cssClasses={["sp-subsection-title"]} label="✦ Ajustes globales" halign={Gtk.Align.START} />
+        <TituloSubseccion label="✦ Ajustes globales" halign={Gtk.Align.START} />
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={anyVrr}>
-          <label cssClasses={["sp-field-hint"]} label="Modo VRR global (misc:vrr)" halign={Gtk.Align.START} />
+          <TextoInformativo label="Modo VRR global (misc:vrr)" halign={Gtk.Align.START} />
           <DisplaySelect
             current={globalVrrMode((v: number) => v === 0 ? "Desactivado" : v === 1 ? "Activado" : "Solo pantalla completa")}
             options={globalVrrMode((v: number) => [
@@ -739,22 +722,18 @@ export default function DisplaySection() {
         </box>
 
         <box spacing={8} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["sp-field-label"]} label="Permitir tearing (juegos)" hexpand halign={Gtk.Align.START} />
-          <button
-            cssClasses={allowTearing((v: boolean) => v ? ["qs-toggle", "on"] : ["qs-toggle"])}
-            onClicked={() => applyAllowTearing(!allowTearing.get())}
-          >
-            <box cssClasses={["qs-toggle-track"]}>
-              <box cssClasses={allowTearing((v: boolean) => v ? ["qs-toggle-dot", "on"] : ["qs-toggle-dot"])} />
-            </box>
-          </button>
+          <TituloAjuste label="Permitir tearing (juegos)" hexpand halign={Gtk.Align.START} />
+          <Interruptor
+            activo={allowTearing}
+            alAlternar={() => applyAllowTearing(!allowTearing.get())}
+          />
         </box>
       </box>
 
       {/* ── Suspensión de pantalla (hypridle) ── */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-field"]}>
-        <label cssClasses={["sp-subsection-title"]} label="✦ Suspensión de pantalla" halign={Gtk.Align.START} />
-        <label cssClasses={["sp-field-hint"]} label="Tiempos de inactividad. Apaga el interruptor para que algo no ocurra nunca; se conserva el tiempo por si lo vuelves a encender. Se guardan en hypridle.conf y reinician hypridle." halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
+        <TituloSubseccion label="✦ Suspensión de pantalla" halign={Gtk.Align.START} />
+        <TextoInformativo label="Tiempos de inactividad. Apaga el interruptor para que algo no ocurra nunca; se conserva el tiempo por si lo vuelves a encender. Se guardan en hypridle.conf y reinician hypridle." halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
         <IdleRow label="Apagar pantalla" mins={dpmsMin} setMins={setDpmsMin} on={dpmsOn} setOn={setDpmsOn} commit={commitHypridle} />
         <IdleRow label="Bloquear" mins={lockMin} setMins={setLockMin} on={lockOn} setOn={setLockOn} commit={commitHypridle} />
         <IdleRow label="Suspender" mins={suspMin} setMins={setSuspMin} on={suspOn} setOn={setSuspOn} commit={commitHypridle} />

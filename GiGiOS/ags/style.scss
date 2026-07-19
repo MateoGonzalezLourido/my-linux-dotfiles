@@ -2354,7 +2354,7 @@ scale.qs-slider {
   }
 }
 
-// ── Quick settings toggle ─────────────────────────────────────────────────────
+// ── Interruptor compartido ─────────────────────────────────────────────────────
 button.qs-toggle {
   @extend %chrome-reset;
   background: $qs-bg-opaco;
@@ -4493,11 +4493,11 @@ window.cal-panel > box {
   margin: 2px 8px 10px;
 }
 .sp-nav-item {
-  min-height: 38px;
+  min-height: 32px;
   background: transparent;
   border: none;
   border-radius: 8px;
-  padding: 5px 10px;
+  padding: 2px 10px;
   color: rgba($text, 0.6);
   font-family: $font-icon;
   font-size: 12px;
@@ -4679,48 +4679,45 @@ button.dl-city-result {
 
 // ── Cuenta ──────────────────────────────────────────────────────────────────
 .account-section { padding-bottom: 10px; }
-.account-profile-card, .account-auth-card {
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.065);
-  border-radius: 10px;
+.account-card { border-radius: 11px; }
+.account-card .dev-card-header { padding: 8px 12px 6px; }
+.account-card .dev-row {
+  min-height: 38px;
+  padding: 6px 12px;
 }
+.account-profile-summary { padding-top: 8px; padding-bottom: 8px; }
 .account-avatar {
-  min-width: 58px; min-height: 58px;
+  min-width: 46px; min-height: 46px;
   border-radius: 999px;
   border: 2px solid rgba($violet, 0.45);
   background-size: cover; background-position: center; background-repeat: no-repeat;
   &.fallback { background: rgba($violet, 0.18); color: $violet; font-size: 15px; font-weight: 700; }
 }
 .account-current-user { color: $text; font-size: 14px; font-weight: 700; }
-.account-form-label { min-width: 130px; color: rgba($text, 0.72); font-size: 11px; }
+.account-controls { min-width: 0; }
 .account-entry {
-  min-height: 34px; padding: 0 10px; border-radius: 7px;
+  min-height: 0; padding: 0 9px; border-radius: 7px;
   color: $text; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08);
   &:focus { border-color: rgba($violet, .6); }
 }
 .account-secondary-btn, .account-save-btn {
-  min-height: 32px; padding: 0 14px; border-radius: 7px; font-size: 11px; font-weight: 600;
+  min-height: 0; padding: 0 12px; border-radius: 7px; font-size: 11px; font-weight: 600;
 }
 .account-secondary-btn { color: $violet; background: rgba($violet,.12); border: 1px solid rgba($violet,.22); }
-.account-save-btn { color: #0b0910; background: $violet; border: none; }
-.account-expand-btn {
-  min-height: 38px;
-  padding: 0 12px;
-  color: rgba($text, .78);
-  background: rgba(255, 255, 255, .025);
-  border: 1px solid rgba(255, 255, 255, .065);
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  &:hover, &.open { color: $violet; background: rgba($violet, .09); border-color: rgba($violet, .2); }
+.account-secondary-btn:hover, .account-secondary-btn.open {
+  color: $text;
+  background: rgba($violet, .2);
+  border-color: rgba($violet, .34);
 }
-.account-expand-icon, .account-expand-arrow { color: $violet; font-family: $font-icon; }
-.account-password-fields { padding: 0 4px 2px; }
+.account-save-btn { color: #0b0910; background: $violet; border: none; }
+.account-password-fields { border-bottom: 1px solid rgba(255, 255, 255, 0.045); }
+.account-actions { min-height: 34px; }
 .account-notice {
   color: $blue;
   font-size: 10.5px;
   font-weight: 600;
+  &.ok { color: #a6e3a1; }
+  &.error { color: #ff8fa7; }
 }
 
 // ── Información del sistema ──────────────────────────────────────────────────
