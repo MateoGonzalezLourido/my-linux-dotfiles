@@ -140,6 +140,19 @@ normalidad.
 que la app arrancó, un `urgent` posterior es de otra cosa (una notificación entrante) y
 moverla sería robar una ventana ajena.
 
+### `NEVER_APP`: los diálogos del portal, ignorados siempre
+
+Un selector de archivos (`xdg-desktop-portal-gtk`, y las variantes gnome/kde) **nunca**
+es lo que lanzaste desde rofi: lo abre una app que ya estaba corriendo, al pulsar un
+botón. Se ignora por completo — ni fija identidad ni se ancla.
+
+Hace falta **aparte** de la guarda de "flotante y de clase ya vista", porque no la
+activa: el portal no deja ninguna ventana abierta entre usos, así que su clase nunca
+está en `before_classes`. Sin la lista, abrir un Abrir/Guardar dentro de la ventana de
+observación convertía el diálogo en la identidad de la app lanzada — se anclaba el
+diálogo y la app de verdad quedaba suelta. Verificado en vivo con un portal real
+disparado por D-Bus llegando **antes** que la ventana de la app.
+
 ### Verificación
 
 `observe()` está separado de `main()` para poder ejercitarlo con eventos reales de
@@ -154,17 +167,25 @@ Hyprland sin pasar por rofi, que es interactivo. Probado en vivo con dos escenar
 
 - Si una app single-instance **no** emite `urgent` al relanzarse, no hay señal que
   detectar y el script no hace nada.
-- La identidad la fija la primera ventana nueva no descartada por la guarda. Una ventana
-  ajena **tiled** y de clase nueva que se cuele antes que la app lanzada seguiría
-  fijando la identidad; no hay forma de distinguirla sin señal de rofi.
+- La identidad la fija la primera ventana nueva no descartada por las guardas. Una
+  ventana ajena **tiled**, de clase nueva y fuera de `NEVER_APP` que se cuele antes que
+  la app lanzada seguiría fijando la identidad; no hay forma de distinguirla sin señal
+  de rofi. Los sospechosos habituales (diálogos del portal) ya están cubiertos.
 - Un juego lanzado desde Steam/Heroic que tarde más de `TIMEOUT` en abrir ventana no se
   ancla: aparece donde estés. Es el comportamiento preferido frente a arrastrarlo.
 
 ## Configuración
 
 Variables al inicio del script:
-- `TIMEOUT` (def. 30): segundos máximos de observación del socket de eventos. Subió de
-  5 a 30 al añadirse el filtro por app, que es lo que hace inofensiva la espera larga.
+- `TIMEOUT` (def. 15): segundos máximos de observación del socket de eventos. Medido el
+  retardo exec→`openwindow` en esta máquina: kitty 0,1 s, firefox 0,5 s y **Steam 3,1 /
+  6,8 / 10,0 s (tres ventanas)**. Steam manda por ser lo más lento que se lanza desde
+  rofi; los juegos no cuentan porque no hay `steam_app_*.desktop` que lanzar. Los 5 s
+  originales cortaban a Steam por la mitad. 15 s da 50 % de margen sobre el peor caso.
+  **El coste de este número es de corrección, no de consumo**: alargarlo solo amplía la
+  ventana en la que una ventana ajena puede fijar la identidad. En CPU es gratis —
+  medido, 0 wakeups y 0 ms con el escritorio quieto, porque el bucle está bloqueado en
+  `recv()` y no sondea.
 - `PID_MAX_DEPTH` (def. 12): niveles de ancestros a recorrer al emparentar ventanas.
 
 Rofi se lanza con `drun-use-desktop-cache` desactivado explícitamente. Con el volumen

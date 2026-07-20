@@ -36,11 +36,20 @@ solo anclaba una de las dos y la otra quedaba donde naciera: la app acababa
 PARTIDA entre dos workspaces, que es peor que no anclar nada. Ahora se siguen
 anclando todas las de esa identidad hasta agotar el timeout.
 
-Por eso TIMEOUT puede subir a 30 s sin riesgo. Con el filtro por app el falso
-positivo desaparece (una ventana ajena en el segundo 20 ya no roba el ancla), y
-5 s dejaban fuera justo lo que más tarda —juegos, Electron pesado—, con el efecto
-peor de todos: anclaje inconsistente, unas veces sí y otras no, según lo que
-tardara ese arranque en concreto.
+EL TIMEOUT SALE DE UNA MEDICIÓN, no de una corazonada. Medido en esta máquina el
+retardo entre el exec y cada `openwindow`: kitty 0,1 s, firefox 0,5 s y **Steam
+3,1 / 6,8 / 10,0 s — tres ventanas**. Steam manda porque es lo más lento que se
+lanza desde rofi (los juegos NO se lanzan desde aquí: no hay `steam_app_*.desktop`).
+
+Los 5 s originales cortaban a Steam por la mitad: se anclaba su primera ventana
+—el splash, que además llega con la clase vacía— y las otras dos quedaban donde
+nacieran. 15 s cubre el peor caso real con 50 % de margen.
+
+No se deja más alto porque el único coste del número es de CORRECCIÓN, no de
+consumo: cuanto más dura la observación, más rato hay para que una ventana ajena
+fije la identidad. En consumo es gratis — medido, el proceso hace **0 wakeups y
+0 ms de CPU** con el escritorio quieto, porque está bloqueado en `recv()` y no
+sondea. Acortarlo por batería no ahorraría nada.
 
 Ver diseño: docs/superpowers/specs/2026-06-13-rofi-single-instance-move-design.md
 """
@@ -52,8 +61,27 @@ import subprocess
 import time
 
 # --- Configuración ---
-TIMEOUT = 30.0      # segundos máximos de observación tras lanzar
+TIMEOUT = 15.0      # segundos máximos de observación tras lanzar
 PID_MAX_DEPTH = 12  # niveles de ancestros a recorrer al emparentar ventanas
+
+# Clases que NUNCA pueden ser la app que lanzaste: diálogos del portal
+# (Abrir/Guardar archivo). No se lanzan desde rofi — los abre una app que ya
+# estaba corriendo, al pulsar un botón. Se ignoran por completo: ni fijan
+# identidad ni se anclan.
+#
+# Hacen falta aparte de la guarda de "flotante y de clase ya vista" porque no la
+# activan: el portal no deja ninguna ventana abierta entre usos, así que su clase
+# nunca está en `before_classes`. Sin esta lista, abrir un selector de archivos
+# dentro de la ventana de observación lo convertía en la identidad de la app
+# lanzada — se anclaba el diálogo y la app de verdad quedaba suelta.
+NEVER_APP = {
+    "xdg-desktop-portal-gtk",
+    "xdg-desktop-portal-gnome",
+    "xdg-desktop-portal-kde",
+    "org.freedesktop.impl.portal.desktop.gtk",
+    "org.freedesktop.impl.portal.desktop.gnome",
+    "org.freedesktop.impl.portal.desktop.kde",
+}
 
 
 def hypr_j(*args):
@@ -65,6 +93,27 @@ def hypr_j(*args):
 def dispatch(*args):
     subprocess.run(["hyprctl", "dispatch", *args],
                    capture_output=True, text=True)
+
+
+def anclaje_activado():
+    """Lee `anclarVentanasRofi` de preferences.json (Ajustes > Personalización).
+
+    Se lee en CADA invocación y no hace falta reiniciar nada: este script no es
+    un daemon, lo lanza el bind de cero en cada SUPER+SPACE. Por eso su setter en
+    AGS no necesita el pkill + re-exec de los monitores.
+
+    Ausente o ilegible = activado, que es la convención del repo y además el
+    fallo seguro: degradar a "el ajuste no se aplica" es visible y arreglable;
+    degradar a "el anclaje se apagó solo" sería mudo.
+    """
+    ruta = os.path.join(
+        os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")),
+        "gigios", "preferences.json")
+    try:
+        with open(ruta, "rb") as f:
+            return json.load(f).get("anclarVentanasRofi", True) is not False
+    except (OSError, ValueError):
+        return True
 
 
 def event_socket_path():
@@ -127,7 +176,13 @@ def main():
         return
 
     # --- Foto previa ---
-    before = {c["address"] for c in hypr_j("clients")}
+    # Direcciones y clases salen de la MISMA consulta: `observe` necesita ambas y
+    # pedirlas por separado eran dos forks de hyprctl por cada SUPER+SPACE. Además
+    # es más fiel: si una ventana se cierra mientras rofi está abierto, su clase
+    # sigue contando como "ya existía al lanzar", que es lo que se quiere saber.
+    clientes = hypr_j("clients")
+    before = {c["address"] for c in clientes}
+    before_classes = {c.get("initialClass", "") for c in clientes}
     target_ws = hypr_j("activeworkspace")["id"]
 
     # --- Lanzar rofi (bloquea hasta selección o cancelación) ---
@@ -152,10 +207,12 @@ def main():
     # --- Observación vía socket de eventos ---
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect(event_socket_path())
-    observe(sock, before, target_ws)
+    observe(sock, before, target_ws, anclar=anclaje_activado(),
+            before_classes=before_classes)
 
 
-def observe(sock, before, target_ws, timeout=TIMEOUT):
+def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
+            before_classes=None):
     """Bucle de eventos: ancla las ventanas de la app lanzada a `target_ws`.
 
     Está separado de main() para poder ejercitarlo contra eventos reales sin
@@ -166,8 +223,11 @@ def observe(sock, before, target_ws, timeout=TIMEOUT):
     app_pid = None
 
     # Clases que ya existían al lanzar, para reconocer diálogos de apps vivas.
-    before_classes = {c.get("initialClass", "") for c in hypr_j("clients")
-                      if c["address"] in before}
+    # Normalmente las pasa main() desde su foto previa; se recalculan solo si se
+    # llama a observe() suelto (las pruebas).
+    if before_classes is None:
+        before_classes = {c.get("initialClass", "") for c in hypr_j("clients")
+                          if c["address"] in before}
 
     limite = time.monotonic() + timeout
     buf = b""
@@ -202,6 +262,9 @@ def observe(sock, before, target_ws, timeout=TIMEOUT):
 
                 cls, pid = cli.get("initialClass", ""), cli.get("pid", 0)
 
+                if cls in NEVER_APP:
+                    continue
+
                 if app_class is None:
                     # Primera ventana nueva: ella define qué es "la app lanzada".
                     # Salvo que sea un diálogo de algo que YA estaba corriendo:
@@ -222,7 +285,11 @@ def observe(sock, before, target_ws, timeout=TIMEOUT):
 
                 # Anclar al workspace donde lancé. Si me cambié mientras cargaba,
                 # la traigo en silencio (silent = no me arrastra de vuelta).
-                if cli["workspace"]["id"] != target_ws:
+                #
+                # El ajuste apaga SOLO esto. La rama `urgent` de abajo (traerte una
+                # app ya abierta al relanzarla) es otra función, no da problemas y
+                # el interruptor no la nombra, así que sigue activa.
+                if anclar and cli["workspace"]["id"] != target_ws:
                     dispatch("movetoworkspacesilent",
                              f"{target_ws},address:{addr}")
 

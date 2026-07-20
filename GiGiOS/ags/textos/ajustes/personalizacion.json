@@ -11,6 +11,7 @@
       "titulo": "Funciones del shell",
       "sonidoInicio": "Sonido al iniciar sesión",
       "indicadores": "Respuesta a las teclas multimedia",
+      "ventanas": "Ventanas y escritorios",
       "orion": "Comportamiento de Orion",
       "portapapeles": "Historial de copias"
     },
@@ -120,6 +121,12 @@
     "brillo": {
       "titulo": "Widget flotante de brillo",
       "descripcion": "Aparece al cambiar el brillo con las teclas multimedia."
+    }
+  },
+  "ventanas": {
+    "anclaje": {
+      "titulo": "Anclar ventanas al escritorio de lanzamiento",
+      "descripcion": "Al abrir una app desde el buscador (SUPER+ESPACIO), su ventana aparece en el escritorio donde la lanzaste aunque te hayas cambiado mientras cargaba.\nAl desactivarlo, cada ventana aparece en el escritorio en el que estés."
     }
   },
   "orion": {

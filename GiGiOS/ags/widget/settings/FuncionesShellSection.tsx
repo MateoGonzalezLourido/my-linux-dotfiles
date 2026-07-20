@@ -10,6 +10,7 @@ import {
   orionEnabled, setOrionEnabled,
   orionAppsDefault, setOrionAppsDefault,
   orionRecordarUltimaSeccion, setOrionRecordarUltimaSeccion,
+  anclarVentanasRofi, setAnclarVentanasRofi,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
   limpiezaPortapapelesAlIniciar, setLimpiezaPortapapelesAlIniciar,
 } from "./preferences"
@@ -31,6 +32,10 @@ export default function FuncionesShellSection({ vista }: { vista: VistaFunciones
         <AjusteInterruptor titulo={textos.osd.volumen.titulo} informacion={textos.osd.volumen.descripcion} activo={volumeOsdEnabled} alAlternar={() => setVolumeOsdEnabled(!volumeOsdEnabled.get())} />
         <AjusteInterruptor titulo={textos.osd.microfono.titulo} informacion={textos.osd.microfono.descripcion} activo={micOsdEnabled} alAlternar={() => setMicOsdEnabled(!micOsdEnabled.get())} />
         <AjusteInterruptor titulo={textos.osd.brillo.titulo} informacion={textos.osd.brillo.descripcion} activo={brightnessOsdEnabled} alAlternar={() => setBrightnessOsdEnabled(!brightnessOsdEnabled.get())} />
+      </TarjetaAjustes>}
+
+      {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.ventanas} icono="󰖯">
+        <AjusteInterruptor titulo={textos.ventanas.anclaje.titulo} informacion={textos.ventanas.anclaje.descripcion} activo={anclarVentanasRofi} alAlternar={() => setAnclarVentanasRofi(!anclarVentanasRofi.get())} />
       </TarjetaAjustes>}
 
       {vista === "orion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.orion} icono="󰆍">

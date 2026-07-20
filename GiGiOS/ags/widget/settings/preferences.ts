@@ -150,6 +150,14 @@ export { clipboardHistoryEnabled }
 const [limpiezaPortapapelesAlIniciar, _setLimpiezaPortapapelesAlIniciar] = createState(false)
 export { limpiezaPortapapelesAlIniciar }
 
+// Anclaje de ventanas al escritorio de lanzamiento (scripts/rofi-launch.py).
+// Lo consume el script, que NO es un daemon: el bind lo lanza de cero en cada
+// SUPER+SPACE, así que lee esta clave al arrancar y el cambio se aplica en el
+// siguiente atajo — sin pkill ni re-exec, al revés que los monitores.
+// Default: activado.
+const [anclarVentanasRofi, _setAnclarVentanasRofi] = createState(true)
+export { anclarVentanasRofi }
+
 // Menú Orion. app.ts consulta este valor antes de importar el módulo: cuando
 // está desactivado no se crea su ventana ni se cargan watchers/servicios de
 // Orion. El cambio se aplica en el siguiente arranque o recarga de AGS.
@@ -281,6 +289,9 @@ function load() {
     if (typeof saved.limpiezaPortapapelesAlIniciar === "boolean") {
       _setLimpiezaPortapapelesAlIniciar(saved.limpiezaPortapapelesAlIniciar)
     }
+    if (typeof saved.anclarVentanasRofi === "boolean") {
+      _setAnclarVentanasRofi(saved.anclarVentanasRofi)
+    }
     if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
     if (typeof saved.orionAppsDefault === "boolean") _setOrionAppsDefault(saved.orionAppsDefault)
     if (typeof saved.orionRecordarUltimaSeccion === "boolean") {
@@ -329,6 +340,7 @@ function save() {
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
       limpiezaPortapapelesAlIniciar: limpiezaPortapapelesAlIniciar.get(),
+      anclarVentanasRofi: anclarVentanasRofi.get(),
       orion: orionEnabled.get(),
       orionAppsDefault: orionAppsDefault.get(),
       orionRecordarUltimaSeccion: orionRecordarUltimaSeccion.get(),
@@ -457,6 +469,10 @@ export function setClipboardHistoryEnabled(on: boolean) {
 }
 export function setLimpiezaPortapapelesAlIniciar(activa: boolean) {
   _setLimpiezaPortapapelesAlIniciar(activa)
+  save()
+}
+export function setAnclarVentanasRofi(on: boolean) {
+  _setAnclarVentanasRofi(on)
   save()
 }
 export function setOrionEnabled(on: boolean) {
