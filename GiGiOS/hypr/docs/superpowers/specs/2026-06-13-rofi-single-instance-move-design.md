@@ -95,24 +95,77 @@ adivina por clase.
 | Situación al lanzar desde rofi | Resultado |
 |---|---|
 | App multi-instancia / primer arranque (aparece ventana nueva) | Se ancla al workspace de lanzamiento (si me cambié, la trae en silencio) |
+| La app abre varias ventanas (splash + principal) | **Se anclan todas**, no solo la primera |
+| Otra app abre una ventana mientras observo (diálogo de un botón, popup) | **Se ignora**: no es la app lanzada |
 | App single-instance, ventana en otro workspace, reenfoca la suya | Mueve esa ventana al workspace actual y la enfoca |
 | App single-instance ya en el workspace actual | El movimiento es no-op |
 | Cancelo rofi (Esc) | Sale inmediatamente y no abre el socket de eventos |
+
+## Revisión 2026-07-20: el anclaje se limita a la app lanzada
+
+La versión original anclaba **cualquier** ventana nacida en la ventana de observación
+y **salía en la primera**. Los dos síntomas reales:
+
+- Ventanas ajenas secuestradas — un diálogo abierto al pulsar un botón en otra app, o
+  un popup de Steam/Heroic, se iba solo al workspace de lanzamiento.
+- Apps multiventana **partidas** entre dos workspaces: se anclaba el splash y la
+  ventana principal quedaba donde naciera (o al revés).
+
+`TIMEOUT` era además 5 s, lo que dejaba fuera justo lo que más tarda (juegos, Electron
+pesado) con el peor efecto posible: anclaje **inconsistente** según lo que tardara ese
+arranque concreto.
+
+### Identidad de la app (por qué se deduce y no se pregunta)
+
+**rofi no puede decir qué se eligió.** `-run-command` es solo del modo `run`; en `drun`
+rofi ejecuta el `Exec` del `.desktop` por su cuenta y no imprime nada. Verificado
+también que rofi 2.0.0 **no** lanza vía `systemd-run` (no aparece en el binario) y que
+la app queda en el cgroup genérico de la sesión (`session-1.scope`), así que tampoco hay
+identidad por cgroup. No queda señal externa.
+
+Por tanto la identidad se deduce de la **primera ventana nueva**: su `initialClass`
+(no `class`, que puede cambiar en marcha) y su `pid`. Después se ancla todo lo que
+coincida en clase **o** cuelgue de ese mismo árbol de procesos — la vía del pid cubre
+splashes cuya clase difiere de la ventana principal (lanzadores Java, instaladores).
+
+**Guarda contra el orden inverso.** Si una ventana ajena llega *antes* que la de la app,
+fijaría la identidad y se anclaría ella mientras la app real queda suelta — el mismo
+fallo con otro disfraz, y más probable ahora que se esperan 30 s. Por eso una candidata
+a identidad que sea **flotante y de una clase ya presente antes de lanzar** se descarta:
+no puede ser lo que acaba de abrir rofi, porque relanzar algo ya abierto va por la rama
+`urgent`, no por `openwindow`. Un segundo terminal (tiled) sí fija identidad con
+normalidad.
+
+`urgent` solo se atiende **si aún no se ha abierto ninguna ventana nueva**: sabiendo ya
+que la app arrancó, un `urgent` posterior es de otra cosa (una notificación entrante) y
+moverla sería robar una ventana ajena.
+
+### Verificación
+
+`observe()` está separado de `main()` para poder ejercitarlo con eventos reales de
+Hyprland sin pasar por rofi, que es interactivo. Probado en vivo con dos escenarios:
+
+- App lanzada con dos ventanas + una app ajena → las dos primeras ancladas, la ajena
+  intacta.
+- Diálogo flotante ajeno **primero** y la app lenta después → el diálogo se ignora y se
+  ancla la app.
 
 ## Limitaciones conocidas
 
 - Si una app single-instance **no** emite `urgent` al relanzarse, no hay señal que
   detectar y el script no hace nada.
-- El relanzamiento debe emitir `urgent` dentro de `TIMEOUT`. Apps muy pesadas cuyo
-  segundo proceso tarde más en arrancar podrían perderse; subir `TIMEOUT` lo soluciona.
-- Falso positivo posible: si durante la ventana de observación (~5 s tras lanzar) otra
-  app marca `urgent` por una razón ajena (p. ej. notificación entrante), se movería esa
-  ventana. La ventana de observación es corta para minimizarlo.
+- La identidad la fija la primera ventana nueva no descartada por la guarda. Una ventana
+  ajena **tiled** y de clase nueva que se cuele antes que la app lanzada seguiría
+  fijando la identidad; no hay forma de distinguirla sin señal de rofi.
+- Un juego lanzado desde Steam/Heroic que tarde más de `TIMEOUT` en abrir ventana no se
+  ancla: aparece donde estés. Es el comportamiento preferido frente a arrastrarlo.
 
 ## Configuración
 
-Variable al inicio del script:
-- `TIMEOUT` (def. 5): segundos máximos de observación del socket de eventos.
+Variables al inicio del script:
+- `TIMEOUT` (def. 30): segundos máximos de observación del socket de eventos. Subió de
+  5 a 30 al añadirse el filtro por app, que es lo que hace inofensiva la espera larga.
+- `PID_MAX_DEPTH` (def. 12): niveles de ancestros a recorrer al emparentar ventanas.
 
 Rofi se lanza con `drun-use-desktop-cache` desactivado explícitamente. Con el volumen
 actual de entradas `.desktop`, se evita una caché persistente adicional sin un beneficio
