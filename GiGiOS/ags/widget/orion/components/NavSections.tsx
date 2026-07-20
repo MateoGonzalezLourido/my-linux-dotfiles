@@ -2,10 +2,15 @@ import { Gtk } from "ags/gtk4"
 import { activeSection, onSectionChange } from "../state"
 import { SECTION_COMPONENTS } from "./sections"
 import { ALTURA_FRANJA_SISTEMA } from "./sections/HomeSection"
+import type { NavegacionBusqueda } from "./NavegacionBusqueda"
 
 const ALTURA_VIEWPORT_ORION = 458
 
-export default function NavSections() {
+interface NavSectionsProps {
+  navegacion: NavegacionBusqueda
+}
+
+export default function NavSections({ navegacion }: NavSectionsProps) {
   const widgets: Record<string, Gtk.Widget> = {}
 
   const outer = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["section-content"] })
@@ -15,7 +20,7 @@ export default function NavSections() {
   scroll.set_child(outer)
 
   for (const [id, Component] of Object.entries(SECTION_COMPONENTS)) {
-    const w = Component() as unknown as Gtk.Widget
+    const w = Component(navegacion) as unknown as Gtk.Widget
     w.visible = false
     widgets[id] = w
     outer.append(w)

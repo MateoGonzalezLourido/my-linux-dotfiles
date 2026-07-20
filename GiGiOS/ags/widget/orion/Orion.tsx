@@ -9,6 +9,7 @@ import {
   hidePanel,
   preparePanelOpen,
   finalizarCierrePanel,
+  activeSection,
 } from "./state"
 import CentroComandos from "./components/CentroComandos"
 import { focusSearchAndType } from "./components/SearchBar"
@@ -17,6 +18,7 @@ import { SystemStats } from "./components/sections/HomeSection"
 import CornerCurve from "./components/CornerCurve"
 import RightPanel from "./components/RightPanel"
 import { clipWindowInputToContent } from "../inputRegion"
+import { NavegacionBusqueda } from "./components/NavegacionBusqueda"
 
 export default function Orion(gdkmonitor: Gdk.Monitor) {
   const { BOTTOM } = Astal.WindowAnchor
@@ -39,28 +41,34 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
   let temporizadorFinEntrada: number | null = null
   let idFrameSalida: number | null = null
   let refVentana: any = null
+  const navegacion = new NavegacionBusqueda()
   // El transform de entrada altera temporalmente compute_bounds(); el recorte
   // debe repetirse cuando el panel vuelve a su posición definitiva.
   let recalcularRegionEntrada: (() => void) | null = null
 
-  // Panel shell: [orion-main][separator?][right?]
-  // overflow:hidden clips all columns to shared border-radius.
-  // A balance spacer outside the left curve keeps orion-main centred while the
-  // contextual panel is visible on the right.
+  // Panel shell: [orion-main][separator?][right?]. Las reservas exteriores
+  // conservan siempre la misma anchura total: al abrir el panel contextual, su
+  // ancho sustituye a la reserva derecha en vez de redimensionar y recentrar la
+  // superficie completa de Orion.
   const panelInner = (
     <box cssClasses={["orion-panel"]}>
       <box cssClasses={["orion-main"]} orientation={Gtk.Orientation.VERTICAL}>
         <CentroComandos />
-        <NavSections />
+        <NavSections navegacion={navegacion} />
         <SystemStats />
       </box>
       <box cssClasses={["orion-panel-sep"]} visible={rightPanelVisible(v => v)} />
-      <RightPanel />
+      <RightPanel navegacion={navegacion} />
     </box>
   ) as unknown as Gtk.Widget
 
-  // Mirrors the contextual panel on the opposite side of the main content.
-  const balanceL = (<box cssClasses={["orion-balance"]} visible={rightPanelVisible(v => v)} />) as unknown as Gtk.Widget
+  // La izquierda compensa el panel contextual; la derecha ocupa ese mismo
+  // espacio mientras está cerrado. Separarlas de `.orion-panel` mantiene la
+  // reserva transparente y evita mostrar una columna vacía dentro del shell.
+  const reservaIzquierda = (<box cssClasses={["orion-balance"]} />) as unknown as Gtk.Widget
+  const reservaDerecha = (
+    <box cssClasses={["orion-balance"]} visible={rightPanelVisible(visible => !visible)} />
+  ) as unknown as Gtk.Widget
 
   const panelContainer = (
     <box
@@ -70,10 +78,11 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
       halign={Gtk.Align.CENTER}
       valign={Gtk.Align.END}
     >
-      {balanceL}
+      {reservaIzquierda}
       {CornerCurve({ left: true })}
       {panelInner}
       {CornerCurve({ left: false })}
+      {reservaDerecha}
     </box>
   ) as unknown as Gtk.Widget
 
@@ -263,6 +272,42 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
       $={(self: any) => { refVentana = self }}
     >
       <Gtk.EventControllerKey
+        $={(controlador: Gtk.EventControllerKey) => {
+          controlador.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        }}
+        onKeyPressed={(_controlador, keyval, _keycode, state) => {
+          if (activeSection.get() !== "reactivo") return false
+
+          const modificadores = state as unknown as number
+          const CTRL = 4, ALT = 8, SUPER = 0x4000000
+          if ((modificadores & CTRL) || (modificadores & ALT) || (modificadores & SUPER)) {
+            return false
+          }
+
+          if (keyval === Gdk.KEY_Tab || keyval === Gdk.KEY_ISO_Left_Tab) {
+            const retroceder = keyval === Gdk.KEY_ISO_Left_Tab || (modificadores & 1) !== 0
+            return navegacion.moverResultados(retroceder ? -1 : 1)
+          }
+          if (keyval === Gdk.KEY_Up) {
+            return navegacion.moverVertical(-1)
+          }
+          if (keyval === Gdk.KEY_Down) {
+            return navegacion.moverVertical(1)
+          }
+          if (keyval === Gdk.KEY_Right) {
+            return navegacion.entrarSubmenu()
+          }
+          if (keyval === Gdk.KEY_Left) {
+            return navegacion.salirSubmenu()
+          }
+          if (keyval === Gdk.KEY_Return || keyval === Gdk.KEY_KP_Enter) {
+            return navegacion.activarSeleccionado()
+          }
+          return false
+        }}
+      />
+
+      <Gtk.EventControllerKey
         onKeyPressed={(_self, keyval, _keycode, state) => {
           if (keyval === Gdk.KEY_Escape) { hidePanel(); return true }
           const s = state as unknown as number
@@ -321,8 +366,8 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
   recalcularRegionEntrada = clipWindowInputToContent(win, panelInner, {
     radioCurvasInferioresLaterales: RADIO_CURVAS_LATERALES,
   })
-  // El panel contextual cambia la anchura y la posición de `.orion-panel` sin
-  // redimensionar la superficie anclada a ambos lados de la pantalla.
+  // El panel contextual cambia la anchura de `.orion-panel`, pero sustituye una
+  // reserva exterior de igual tamaño y no redimensiona la superficie de Orion.
   rightPanelVisible.subscribe(() => recalcularRegionEntrada?.())
 
   return win

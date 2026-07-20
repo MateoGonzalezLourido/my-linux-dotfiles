@@ -18,10 +18,10 @@ export default function SearchBar() {
   entry.connect("changed", () => setQuery(entry.text))
   _entry = entry
 
-  orionVisible.subscribe(v => {
+  orionVisible.subscribe(() => {
     // La búsqueda se conserva durante la salida para que el contenido no cambie
     // mientras Orion baja. Se limpia al comenzar la siguiente apertura.
-    if (!v) return
+    if (!orionVisible.get()) return
     entry.text = ""
     entry.grab_focus()
   })

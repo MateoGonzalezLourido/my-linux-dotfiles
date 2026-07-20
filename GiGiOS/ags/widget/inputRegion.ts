@@ -90,19 +90,23 @@ function anadirCurvasInferioresLaterales(
 // Devuelve una función para volver a medir y aplicar la región. Hay que llamarla
 // al terminar una animación CSS con `transform`: `compute_bounds()` devuelve la
 // posición transformada y, sin esa segunda medición, el recorte quedaría desplazado.
-// Los cambios de tamaño de la superficie se observan automáticamente más abajo.
+// Los cambios de tamaño de la superficie y de visibilidad de los contenidos se
+// observan automáticamente más abajo. Si cambia la geometría interna sin cambiar
+// la superficie, el llamador debe invocar la función devuelta.
 export function clipWindowInputToContent(
   win: any,
   contenido: any,
   opciones: OpcionesRecorteEntrada = {},
 ): () => void {
   let surfaceHandlers: { surface: any; ids: number[] } | null = null
+  let framePendiente: number | null = null
+  let aplicacionPendiente: number | null = null
+  const contenidos = Array.isArray(contenido) ? contenido : [contenido]
 
   const apply = () => {
     try {
       const surface = win.get_surface?.()
       if (!surface) return
-      const contenidos = Array.isArray(contenido) ? contenido : [contenido]
       const region = new (cairo as any).Region()
       let contenidosValidos = 0
 
@@ -145,9 +149,40 @@ export function clipWindowInputToContent(
     }
   }
 
-  // Esperar a idle permite medir después de que GTK asigne el tamaño definitivo.
+  function programarAplicacionIdle(): void {
+    if (aplicacionPendiente !== null) return
+    aplicacionPendiente = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+      aplicacionPendiente = null
+      apply()
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  // Un idle pedido directamente desde el cambio reactivo puede ejecutarse antes
+  // del siguiente layout. El tick entra en la fase de actualización; el idle que
+  // deja programado se ejecuta cuando GTK ya ha asignado y pintado ese frame.
+  // Así `compute_bounds()` ve el ancho nuevo de contenidos que crecen dentro de
+  // una superficie constante, como el submenú derecho de Orion.
   const scheduleApply = () => {
-    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => { apply(); return GLib.SOURCE_REMOVE })
+    if (framePendiente !== null || aplicacionPendiente !== null) return
+    try {
+      framePendiente = win.add_tick_callback(() => {
+        framePendiente = null
+        programarAplicacionIdle()
+        return false
+      })
+    } catch (_) {
+      // Fail-open para superficies todavía sin reloj de frames.
+      programarAplicacionIdle()
+    }
+  }
+
+  // Gtk.Widget no publica la asignación como `notify::width/height` en GTK4.
+  // La visibilidad sí es una propiedad observable y debe retirar o añadir el
+  // widget a la región cuando el helper recibe varios contenidos.
+  for (const elemento of contenidos) {
+    if (!elemento?.connect) continue
+    try { elemento.connect("notify::visible", scheduleApply) } catch (_) {}
   }
 
   const hookSurface = () => {

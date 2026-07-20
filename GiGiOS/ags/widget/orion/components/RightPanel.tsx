@@ -6,6 +6,14 @@ import {
   type AppContextItem,
 } from "../state"
 import { addFavorite, removeFavorite, isFavorite, favorites } from "../data/favorites"
+import type {
+  ElementoNavegacionBusqueda,
+  NavegacionBusqueda,
+} from "./NavegacionBusqueda"
+
+interface PropiedadesPanelDerecho {
+  navegacion: NavegacionBusqueda
+}
 
 function guessConfigPath(execName: string, appId: string): string | null {
   const home = GLib.get_home_dir()
@@ -19,24 +27,50 @@ function guessConfigPath(execName: string, appId: string): string | null {
   return null
 }
 
-export default function RightPanel() {
+export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
   const inner = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["rp-inner"] })
+  let accionesActuales: ElementoNavegacionBusqueda[] = []
 
-  function action(icon: string, label: string, cb: () => void): Gtk.Button {
-    const btn = new Gtk.Button({ cssClasses: ["rp-action"] })
-    const row = new Gtk.Box({ spacing: 9, cssClasses: ["rp-action-row"] })
-    row.append(new Gtk.Image({ iconName: icon, pixelSize: 14, cssClasses: ["rp-action-ico"] }))
-    row.append(new Gtk.Label({ label, halign: Gtk.Align.START, hexpand: true, cssClasses: ["rp-action-label"] }))
-    btn.set_child(row)
-    btn.connect("clicked", cb)
-    return btn
+  function sincronizarAcciones(): void {
+    navegacion.establecerAcciones(rightPanelVisible.get() ? accionesActuales : [])
+  }
+
+  function crearAccion(
+    icono: string,
+    etiqueta: string,
+    alActivar: () => void,
+  ): { boton: Gtk.Button; navegable: ElementoNavegacionBusqueda } {
+    const boton = new Gtk.Button({ cssClasses: ["rp-action"] })
+    const fila = new Gtk.Box({ spacing: 9, cssClasses: ["rp-action-row"] })
+    fila.append(new Gtk.Image({ iconName: icono, pixelSize: 14, cssClasses: ["rp-action-ico"] }))
+    fila.append(new Gtk.Label({ label: etiqueta, halign: Gtk.Align.START, hexpand: true, cssClasses: ["rp-action-label"] }))
+    boton.set_child(fila)
+    const navegable: ElementoNavegacionBusqueda = {
+      marcarSeleccionado: (seleccionado) => {
+        if (seleccionado) boton.add_css_class("seleccionado")
+        else boton.remove_css_class("seleccionado")
+      },
+      activar: alActivar,
+    }
+    boton.connect("notify::has-focus", () => {
+      if (boton.has_focus) navegacion.seleccionarAccion(navegable)
+    })
+    boton.connect("clicked", () => {
+      navegacion.seleccionarAccion(navegable)
+      alActivar()
+    })
+    return { boton, navegable }
   }
 
   function rebuild() {
     const app = rightPanelApp.get()
     let child = inner.get_first_child()
     while (child) { const next = child.get_next_sibling(); inner.remove(child); child = next }
-    if (!app) return
+    accionesActuales = []
+    if (!app) {
+      sincronizarAcciones()
+      return
+    }
 
     // ── Header ───────────────────────────────────────────────────────────────
     const header = new Gtk.Box({ cssClasses: ["rp-header"], spacing: 10 })
@@ -58,23 +92,28 @@ export default function RightPanel() {
 
     // ── Actions ───────────────────────────────────────────────────────────────
     const acts = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["rp-actions"] })
+    const agregarAccion = (icono: string, etiqueta: string, alActivar: () => void) => {
+      const { boton, navegable } = crearAccion(icono, etiqueta, alActivar)
+      acts.append(boton)
+      accionesActuales.push(navegable)
+    }
 
-    acts.append(action("media-playback-start-symbolic", "Abrir", () => {
+    agregarAccion("media-playback-start-symbolic", "Abrir", () => {
       app.launch()
       hidePanel()
-    }))
+    })
 
-    acts.append(action("document-edit-symbolic", "Editar config", () => {
+    agregarAccion("document-edit-symbolic", "Editar config", () => {
       const p = guessConfigPath(app.execName, app.appId)
       execAsync(p
         ? ["xdg-open", p]
         : ["kitty", "--", "bash", "-c", `echo 'No config para ${app.execName}'; sleep 3`]
       ).catch(() => {})
       hidePanel()
-    }))
+    })
 
     const pinned = isFavorite(app.appId)
-    acts.append(action(
+    agregarAccion(
       pinned ? "starred-symbolic" : "non-starred-symbolic",
       pinned ? "Desfijar" : "Fijar en inicio",
       () => {
@@ -82,12 +121,14 @@ export default function RightPanel() {
         else addFavorite({ id: app.appId, name: app.name, exec: app.execName, iconName: app.iconName })
         rebuild()
       }
-    ))
+    )
 
     inner.append(acts)
+    sincronizarAcciones()
   }
 
   rightPanelApp.subscribe(rebuild)
+  rightPanelVisible.subscribe(sincronizarAcciones)
   favorites.subscribe(rebuild)
   rebuild()
 

@@ -74,7 +74,9 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 // Main content column — inherits border/bg/radius from .orion-panel
 .orion-main { min-width: 660px; }
 
-// Mirrors the contextual panel plus separator to keep orion-main centred.
+// Reserva exactamente el ancho del panel contextual y su separador. Orion
+// conserva esta medida a cada lado para que mostrar el submenú no cambie la
+// geometría de la superficie ni desplace el contenido principal.
 .orion-balance {
   min-width: 221px;
 }
@@ -344,6 +346,13 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   &:hover {
     @include hover-con-profundidad;
   }
+  &.seleccionado {
+    background: $j-bg-item-active;
+    border-color: $j-border-active;
+    box-shadow:
+      inset 0 -1px rgba(0, 0, 0, 0.12),
+      0 5px 14px rgba($j-accent-purple, 0.14);
+  }
   &:active {
     background: $j-bg-item-active;
   }
@@ -450,6 +459,18 @@ popover.background {
     @include hover-con-profundidad;
 
     .rp-action-ico {
+      color: $j-text-primary;
+    }
+  }
+
+  &.seleccionado {
+    background: $j-bg-item-active;
+    box-shadow:
+      inset 0 0 0 1px $j-border-active,
+      0 5px 14px rgba($j-accent-purple, 0.14);
+
+    .rp-action-ico,
+    .rp-action-label {
       color: $j-text-primary;
     }
   }

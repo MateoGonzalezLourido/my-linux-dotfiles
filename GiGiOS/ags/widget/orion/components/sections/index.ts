@@ -5,8 +5,11 @@ import { KeybindsSection } from "./KeybindsSection"
 import { ReactiveSection } from "./ReactiveSection"
 import { GitSection } from "./GitSection"
 import { RiceSection } from "./RiceSection"
+import type { NavegacionBusqueda } from "../NavegacionBusqueda"
 
-export const SECTION_COMPONENTS: Partial<Record<SectionId, () => any>> = {
+type FabricaSeccion = (navegacion: NavegacionBusqueda) => any
+
+export const SECTION_COMPONENTS: Partial<Record<SectionId, FabricaSeccion>> = {
   inicio:   HomeSection,
   apps:     AppsSection,
   keybinds: KeybindsSection,

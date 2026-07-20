@@ -1,102 +1,160 @@
 import { Gtk } from "ags/gtk4"
 import GLib from "gi://GLib"
-import { searchResults, setSection, hidePanel, showAppContext } from "../../state"
+import {
+  searchResults,
+  setSection,
+  hidePanel,
+  showAppContext,
+  hideRightPanel,
+} from "../../state"
 import type { SearchResult } from "../../search"
+import type {
+  ElementoNavegacionBusqueda,
+  NavegacionBusqueda,
+} from "../NavegacionBusqueda"
 
-function buildRow(result: SearchResult): Gtk.Box {
-  const isApp = !!result.meta?.exec
+function mostrarContextoApp(resultado: SearchResult): void {
+  const nombreEjecutable = resultado.meta?.execName ?? ""
+  showAppContext({
+    id: resultado.id,
+    name: resultado.title,
+    iconName: resultado.iconName ?? "application-x-executable",
+    gicon: resultado.icon ?? null,
+    execRaw: resultado.meta?.exec ?? "",
+    execName: nombreEjecutable,
+    appId: resultado.meta?.appId ?? resultado.id,
+    launch: () => resultado.action(),
+  })
+}
 
-  const outer = new Gtk.Box({ cssClasses: ["rx-result-row"] })
-  const btn = new Gtk.Button({ cssClasses: ["rx-item"], hexpand: true })
-  const row = new Gtk.Box({ cssClasses: ["rx-row"], spacing: 12 })
+function activarResultado(resultado: SearchResult): void {
+  if (resultado.navigateTo) {
+    setSection(resultado.navigateTo)
+    return
+  }
+  resultado.action()
+  hidePanel()
+}
 
-  // Icon
-  const iconBox = new Gtk.Box({ cssClasses: ["rx-icon-wrap"], valign: Gtk.Align.CENTER })
-  if (result.icon) {
-    const img = Gtk.Image.new_from_gicon(result.icon)
-    img.pixel_size = 26
-    iconBox.append(img)
+function crearFila(
+  resultado: SearchResult,
+  navegacion: NavegacionBusqueda,
+): { contenedor: Gtk.Box; navegable: ElementoNavegacionBusqueda } {
+  const esApp = !!resultado.meta?.exec
+
+  const contenedor = new Gtk.Box({ cssClasses: ["rx-result-row"] })
+  const boton = new Gtk.Button({ cssClasses: ["rx-item"], hexpand: true })
+  const fila = new Gtk.Box({ cssClasses: ["rx-row"], spacing: 12 })
+
+  // Icono
+  const contenedorIcono = new Gtk.Box({ cssClasses: ["rx-icon-wrap"], valign: Gtk.Align.CENTER })
+  if (resultado.icon) {
+    const imagen = Gtk.Image.new_from_gicon(resultado.icon)
+    imagen.pixel_size = 26
+    contenedorIcono.append(imagen)
   } else {
-    iconBox.append(new Gtk.Image({ iconName: result.iconName ?? "application-x-executable", pixelSize: 26 }))
+    contenedorIcono.append(new Gtk.Image({ iconName: resultado.iconName ?? "application-x-executable", pixelSize: 26 }))
   }
-  row.append(iconBox)
+  fila.append(contenedorIcono)
 
-  // Text
-  const textCol = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, valign: Gtk.Align.CENTER, hexpand: true })
-  textCol.append(new Gtk.Label({ label: result.title, cssClasses: ["rx-title"], halign: Gtk.Align.START, ellipsize: 3 }))
-  if (result.subtitle) {
-    textCol.append(new Gtk.Label({ label: result.subtitle, cssClasses: ["rx-subtitle"], halign: Gtk.Align.START, ellipsize: 3 }))
+  // Texto
+  const columnaTexto = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, valign: Gtk.Align.CENTER, hexpand: true })
+  columnaTexto.append(new Gtk.Label({ label: resultado.title, cssClasses: ["rx-title"], halign: Gtk.Align.START, ellipsize: 3 }))
+  if (resultado.subtitle) {
+    columnaTexto.append(new Gtk.Label({ label: resultado.subtitle, cssClasses: ["rx-subtitle"], halign: Gtk.Align.START, ellipsize: 3 }))
   }
-  row.append(textCol)
-  btn.set_child(row)
+  fila.append(columnaTexto)
+  boton.set_child(fila)
 
-  let suppressClick = false
-  btn.connect("clicked", () => {
-    if (suppressClick) { suppressClick = false; return }
-    if (result.navigateTo) {
-      setSection(result.navigateTo)
-    } else if (!isApp) {
-      result.action()
+  const navegable: ElementoNavegacionBusqueda = {
+    marcarSeleccionado: (seleccionado) => {
+      if (seleccionado) boton.add_css_class("seleccionado")
+      else boton.remove_css_class("seleccionado")
+    },
+    previsualizar: () => {
+      if (esApp) mostrarContextoApp(resultado)
+      else hideRightPanel()
+    },
+    activar: () => activarResultado(resultado),
+  }
+
+  // Ratón y accesibilidad también entran por el modelo único; el foco de
+  // GTK nunca pinta una selección paralela por su cuenta.
+  boton.connect("notify::has-focus", () => {
+    if (boton.has_focus) navegacion.seleccionarResultado(navegable, false)
+  })
+
+  let suprimirClic = false
+  boton.connect("clicked", () => {
+    navegacion.seleccionarResultado(navegable)
+    if (suprimirClic) { suprimirClic = false; return }
+    if (resultado.navigateTo) {
+      setSection(resultado.navigateTo)
+    } else if (!esApp) {
+      resultado.action()
       hidePanel()
     } else {
-      const execName = result.meta?.execName ?? ""
-      showAppContext({
-        id: result.id,
-        name: result.title,
-        iconName: result.iconName ?? "application-x-executable",
-        gicon: result.icon ?? null,
-        execRaw: result.meta?.exec ?? "",
-        execName,
-        appId: result.meta?.appId ?? result.id,
-        launch: () => result.action(),
-      })
+      mostrarContextoApp(resultado)
     }
   })
 
-  if (isApp) {
-    const gesture = new Gtk.GestureClick()
-    gesture.set_button(1)
-    gesture.propagation_phase = Gtk.PropagationPhase.CAPTURE
-    gesture.connect("pressed", (_gesture, presses) => {
-      if (presses !== 2) return
-      suppressClick = true
-      // The window hides on launch, so GTK may omit the final "clicked" signal.
-      // Clear the guard independently to preserve the next normal click.
+  if (esApp) {
+    const gesto = new Gtk.GestureClick()
+    gesto.set_button(1)
+    gesto.propagation_phase = Gtk.PropagationPhase.CAPTURE
+    gesto.connect("pressed", (_gesto, pulsaciones) => {
+      if (pulsaciones !== 2) return
+      navegacion.seleccionarResultado(navegable, false)
+      suprimirClic = true
+      // Al ocultarse la ventana, GTK puede omitir la señal "clicked" final.
+      // Soltar la guarda por separado conserva el siguiente clic normal.
       GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
-        suppressClick = false
+        suprimirClic = false
         return GLib.SOURCE_REMOVE
       })
-      result.action()
+      resultado.action()
       hidePanel()
     })
-    btn.add_controller(gesture)
+    boton.add_controller(gesto)
   }
 
-  outer.append(btn)
-  return outer
+  contenedor.append(boton)
+  return { contenedor, navegable }
 }
 
-export function ReactiveSection() {
-  const content = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["rx-content"] })
+export function ReactiveSection(
+  navegacion: NavegacionBusqueda,
+) {
+  const contenido = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["rx-content"] })
 
-  const emptyLabel = new Gtk.Label({ label: "Sin resultados", cssClasses: ["rx-empty"] })
-  emptyLabel.visible = false
-  content.append(emptyLabel)
+  const etiquetaVacia = new Gtk.Label({ label: "Sin resultados", cssClasses: ["rx-empty"] })
+  etiquetaVacia.visible = false
+  contenido.append(etiquetaVacia)
 
-  function rebuild(results: SearchResult[]) {
-    let child = content.get_first_child()
-    while (child) {
-      const next = child.get_next_sibling()
-      if (child !== emptyLabel) content.remove(child)
-      child = next
+  function reconstruir(resultados: SearchResult[]) {
+    let hijo = contenido.get_first_child()
+    while (hijo) {
+      const siguiente = hijo.get_next_sibling()
+      if (hijo !== etiquetaVacia) contenido.remove(hijo)
+      hijo = siguiente
     }
-    if (results.length === 0) { emptyLabel.visible = true; return }
-    emptyLabel.visible = false
-    for (const result of results) content.append(buildRow(result))
+    if (resultados.length === 0) {
+      navegacion.establecerResultados([])
+      etiquetaVacia.visible = true
+      return
+    }
+    etiquetaVacia.visible = false
+    const navegables: ElementoNavegacionBusqueda[] = []
+    for (const resultado of resultados) {
+      const { contenedor, navegable } = crearFila(resultado, navegacion)
+      contenido.append(contenedor)
+      navegables.push(navegable)
+    }
+    navegacion.establecerResultados(navegables)
   }
 
-  searchResults.subscribe(() => rebuild(searchResults.get()))
-  rebuild(searchResults.get())
+  searchResults.subscribe(() => reconstruir(searchResults.get()))
+  reconstruir(searchResults.get())
 
-  return content
+  return contenido
 }
