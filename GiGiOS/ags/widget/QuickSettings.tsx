@@ -1702,13 +1702,26 @@ function QsMedia() {
     execAsync(["hyprctl", "dispatch", "focuswindow", `address:${normalized}`]).catch(() => {})
   }
 
-  // Initial update and interval — skip when panel is closed
+  // El sondeo de posición solo corre con el panel abierto: al cerrar se REMUEVE el
+  // timer, no basta con saltarse el cuerpo. Antes se armaba una vez y vivía toda la
+  // sesión comprobando la visibilidad — 86.400 despertares del bucle principal al día
+  // (y por monitor) para no hacer nada. Mismo patrón que clockTimer/netSpeedTimer.
   update()
-  const interval = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-    if (quickSettingsVisible.get()) update()
-    return GLib.SOURCE_CONTINUE
+  let mediaTimer: number | null = null
+  quickSettingsVisible.subscribe(() => {
+    if (quickSettingsVisible.get()) {
+      update()
+      if (mediaTimer === null) {
+        mediaTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+          update()
+          return GLib.SOURCE_CONTINUE
+        })
+      }
+    } else if (mediaTimer !== null) {
+      GLib.source_remove(mediaTimer)
+      mediaTimer = null
+    }
   })
-  quickSettingsVisible.subscribe(() => { if (quickSettingsVisible.get()) update() })
 
   const curTheme = themeIdx((i) => MEDIA_THEMES[i])
 

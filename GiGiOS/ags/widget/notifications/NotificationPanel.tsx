@@ -34,8 +34,27 @@ import DaemonConflictBanner from "./DaemonConflictBanner"
 
 function PanelHeader() {
   const notifd = AstalNotifd.get_default()
-  const unread = notifications((ns) => ns?.filter(n => !n.read).length ?? 0)
-  const hasNotifs = notifications((ns) => (ns?.length ?? 0) > 0)
+
+  // Los contadores NO se recalculan con el panel cerrado: se ponen al día al abrir.
+  // Antes eran dos derivados sueltos de `notifications`, o sea dos recorridos O(n) en
+  // CADA notificación entrante aunque nadie estuviera mirando. Mismo patrón que
+  // AppFilterChips, y de paso un solo recorrido en vez de dos. Sólo alimentan `visible`
+  // de tres botones, así que quedarse rancios mientras el panel no se ve es invisible:
+  // `notifPanelVisible` pasa a true ANTES de que se pinte nada (la animación de entrada
+  // la gobierna `panelRendered`, que va detrás).
+  const readCounts = () => {
+    const ns = notifications.get() ?? []
+    let unreadCount = 0
+    for (const n of ns) if (!n.read) unreadCount++
+    return { unread: unreadCount, has: ns.length > 0 }
+  }
+  const [counts, setCounts] = createState(readCounts())
+  const refreshCounts = () => { if (notifPanelVisible.get()) setCounts(readCounts()) }
+  notifications.subscribe(refreshCounts)
+  notifPanelVisible.subscribe(refreshCounts)
+
+  const unread = counts((c) => c.unread)
+  const hasNotifs = counts((c) => c.has)
   const [dnd, setDnd] = createState(notifd.dontDisturb)
   const [confirmClear, setConfirmClear] = createState(false)
   let confirmTimer: number | null = null
@@ -191,6 +210,92 @@ function NotificationList({
   const empty = notifications((ns) => (ns?.length ?? 0) === 0)
   let scrollRef: Gtk.ScrolledWindow | null = null
 
+  // ── Montaje incremental ─────────────────────────────────────────────────────
+  // Abrir el panel construía los N items DE GOLPE. Con el cap actual (NOTIF_CAP=200)
+  // eso es ~31 MB y todo el árbol de widgets en el frame de apertura; el techo crece
+  // lineal si algún día se sube el cap. Ahora se monta un primer tramo y se amplía al
+  // acercarse al final del scroll.
+  //
+  // Es montaje incremental, NO reciclado: lo que se acota es el coste de APERTURA (y de
+  // los ~99% de aperturas en las que sólo miras lo de arriba), no el máximo si bajas del
+  // todo. Se eligió así a propósito frente a un Gtk.ListView con SignalListItemFactory:
+  // el reciclado obligaría a partir NotificationItem en bind/unbind y a destruir widgets
+  // bajo el puntero mientras se hace scroll — justo la clase de destrucción-en-caliente
+  // que ya provocó un SIGSEGV en las filas de franjas horarias (ver ags/CLAUDE.md). Aquí
+  // todo lo montado es real, así que la geometría de la barra de scroll siempre es
+  // correcta y no hay que estimar alturas (que además varían: cuerpo largo, desplegados).
+  const CHUNK = 20
+  // Colchón de scroll por debajo de lo visible. NO puede acercarse a la altura del
+  // viewport (~1032 px medidos aquí): con 600 px, `value + page_size >= upper - margen`
+  // seguía siendo cierto con el scroll ARRIBA DEL TODO, así que el panel se auto-ampliaba
+  // solo hasta montarlo casi todo — la optimización quedaba anulada en silencio. Medido.
+  const GROW_MARGIN_PX = 300
+  const [limit, setLimit] = createState(CHUNK)
+  let growing = false
+
+  /** Total montable en la vista activa: items en lista, grupos en agrupado. */
+  const mountableTotal = (): number => {
+    const ns = notifications.get() ?? []
+    if (!groupByApp.get()) return ns.length
+    const apps = new Set<string>()
+    ns.forEach((n) => apps.add(n.appName))
+    return apps.size
+  }
+
+  // Crece si el usuario está cerca del final O si lo montado todavía no llena el
+  // viewport. Sin la segunda condición, un tramo más corto que la ventana no generaría
+  // NINGÚN evento de scroll y el resto quedaría inalcanzable para siempre.
+  function maybeGrow(): void {
+    if (growing || !rendered.get()) return
+    const adj = scrollRef?.get_vadjustment()
+    if (!adj) return
+    if (limit.get() >= mountableTotal()) return
+
+    // `scrollable` es la guarda que faltaba: mientras el contenido no desborda, el
+    // ScrolledWindow crece con él (propagateNaturalHeight) y page_size sube a la par que
+    // upper, así que "estoy cerca del final" es trivialmente cierto y no significa nada.
+    // Sólo hay un final al que acercarse cuando ya hay algo que scrollear.
+    const scrollable = adj.get_upper() > adj.get_page_size() + 1
+    const doesNotFill = !scrollable
+    const nearBottom = scrollable
+      && adj.get_value() + adj.get_page_size() >= adj.get_upper() - GROW_MARGIN_PX
+    if (!nearBottom && !doesNotFill) return
+
+    // Fuera del handler: ampliar reconstruye el <For> y GTK está a mitad de layout.
+    growing = true
+    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+      setLimit(limit.get() + CHUNK)
+      growing = false
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  function watchScroll(self: Gtk.ScrolledWindow): void {
+    scrollRef = self
+    const adj = self.get_vadjustment()
+    if (!adj) return
+    adj.connect("value-changed", maybeGrow)  // el usuario baja
+    adj.connect("changed", maybeGrow)        // cambia el contenido o el tamaño
+  }
+
+  // Cada apertura vuelve a empezar por el primer tramo: si no, reabrir el panel tras
+  // haber bajado hasta el fondo reconstruiría las 200 de una vez, que es exactamente el
+  // coste que esto viene a quitar. Cambiar de vista también reinicia (las unidades que
+  // cuenta `limit` pasan a ser otras: items ↔ grupos).
+  // El scroll vuelve ARRIBA con el tramo, y las dos mitades son necesarias. El
+  // ScrolledWindow sobrevive a las aperturas (sólo se remonta su contenido), así que
+  // conservaba el valor de la sesión anterior: reabrir un panel que dejaste bajado
+  // restauraba value≈700 sobre una lista recién recortada a CHUNK, `nearBottom` salía
+  // cierto de inmediato y volvía a montarlo casi todo — el reset quedaba deshecho
+  // (medido: crecía a 80 de 81 en la segunda apertura). Y es además lo que uno espera de
+  // un panel ordenado de más nueva a más vieja: al abrir, arriba.
+  const resetLimit = () => {
+    setLimit(CHUNK)
+    scrollRef?.get_vadjustment()?.set_value(0)
+  }
+  rendered.subscribe(resetLimit)
+  groupByApp.subscribe(resetLimit)
+
   // <For> vuelve a insertar los widgets cuando cambia el array, incluso si solo
   // se ha marcado una notificación como leída. Restaurar el ajuste evita que GTK
   // lleve el viewport al primer elemento enfocable después de esa reinserción.
@@ -224,7 +329,7 @@ function NotificationList({
       propagateNaturalHeight={true}
       maxContentHeight={maxContentHeight}
       vexpand
-      $={(self: Gtk.ScrolledWindow) => { scrollRef = self }}
+      $={watchScroll}
     >
       <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
         {/* "Sin notificaciones" es mentira si lo que pasa es que otro daemon nos ha quitado
@@ -261,9 +366,9 @@ function NotificationList({
             dejarlos residentes. Al reabrir se reconstruyen (iconos ya cacheados). */}
         <With value={view}>
           {(v) => v === "flat"
-            ? <FlatList preserveScroll={preserveScrollPosition} />
+            ? <FlatList preserveScroll={preserveScrollPosition} limit={limit} />
             : v === "grouped"
-              ? <GroupedList preserveScroll={preserveScrollPosition} />
+              ? <GroupedList preserveScroll={preserveScrollPosition} limit={limit} />
               : null}
         </With>
       </box>
@@ -271,7 +376,10 @@ function NotificationList({
   )
 }
 
-function FlatList({ preserveScroll }: { preserveScroll: (update: () => void) => void }) {
+function FlatList({ preserveScroll, limit }: {
+  preserveScroll: (update: () => void) => void
+  limit: Accessor<number>
+}) {
   // Este componente solo existe mientras el panel está abierto en modo lista (lo controla
   // <With>), así que basta con seguir a `notifications` para actualizarse en vivo. La
   // suscripción se cancela al desmontar via onCleanup para no fugarse entre reaperturas.
@@ -282,9 +390,13 @@ function FlatList({ preserveScroll }: { preserveScroll: (update: () => void) => 
     preserveScroll(() => setList(notifications.get().slice().reverse()))
   }))
 
+  // `slice` conserva la IDENTIDAD de cada objeto notificación, que es por lo que <For>
+  // indexa: recortar la cola no reconstruye las filas ya montadas.
+  const mounted = createComputed([list, limit], (l, n) => l.slice(0, n))
+
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-      <For each={list}>
+      <For each={mounted}>
         {(n: StoredNotification) => (
           <box visible={activeAppFilter((f) => f === "all" || f === n.appName)}>
             <NotificationItem notif={n} />
@@ -297,7 +409,10 @@ function FlatList({ preserveScroll }: { preserveScroll: (update: () => void) => 
 
 type GroupEntry = { appName: string; notifs: StoredNotification[] }
 
-function GroupedList({ preserveScroll }: { preserveScroll: (update: () => void) => void }) {
+function GroupedList({ preserveScroll, limit }: {
+  preserveScroll: (update: () => void) => void
+  limit: Accessor<number>
+}) {
   // Igual que FlatList: solo existe mientras el panel está abierto en modo agrupado
   // (lo controla <With>). El filtro solo hace show/hide del grupo completo.
   const getGroups = (): GroupEntry[] => {
@@ -315,9 +430,14 @@ function GroupedList({ preserveScroll }: { preserveScroll: (update: () => void) 
     preserveScroll(() => setGroups(getGroups()))
   }))
 
+  // Aquí `limit` cuenta GRUPOS, no items: es la unidad que se monta de golpe en esta
+  // vista. Un grupo suelto puede seguir siendo grande, pero eso lo acota el <With> de
+  // AppGroup en cuanto está plegado.
+  const mounted = createComputed([groups, limit], (g, n) => g.slice(0, n))
+
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-      <For each={groups}>
+      <For each={mounted}>
         {({ appName, notifs }: GroupEntry) => (
           <box visible={activeAppFilter((f) => f === "all" || f === appName)}>
             <AppGroup appName={appName} notifs={notifs} />
@@ -350,8 +470,25 @@ function AppGroup({ appName, notifs }: { appName: string; notifs: StoredNotifica
         </box>
       </button>
 
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={collapsed((c) => !c)}>
-        {notifs.map(n => <NotificationItem notif={n} />)}
+      {/* Plegado = DESTRUIDO, no meramente oculto. Con `visible` los items del grupo se
+          construían igual y sólo se escondían, así que plegar no ahorraba nada: un grupo
+          de 150 notificaciones pagaba su árbol entero para no enseñar ni una. El <With>
+          va en su propio <box> porque al remontarse se inserta al FINAL de su contenedor,
+          no en su hueco — sin la caja, expandir un grupo mandaría sus items por debajo del
+          resto de grupos (mismo remedio que CpuRam/ScreencastIndicator en Bar.tsx).
+          El caso plegado devuelve <box />, NO null: <With> no añade nada al fragment ante
+          null y el ciclo de disposición cuelga de iterar sus hijos — sin hijo no correrían
+          los onCleanup de los items que acabamos de tirar (ver ags/CLAUDE.md). */}
+      <box>
+        <With value={collapsed}>
+          {(c: boolean) => c
+            ? <box visible={false} />
+            : (
+              <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+                {notifs.map(n => <NotificationItem notif={n} />)}
+              </box>
+            )}
+        </With>
       </box>
     </box>
   )
