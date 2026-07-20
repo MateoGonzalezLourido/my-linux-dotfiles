@@ -256,7 +256,9 @@ Qué usa cada cosa:
   `widget/bar/Workspaces.tsx`), instálalo igual explícitamente. Opcional: `hyprpicker`
   (congela pantalla durante la captura).
 - **`rofi`** — lanzador de apps (`SUPER+SPACE` → `hypr/scripts/rofi-launch.py`, requiere
-  además `python3`, ya lo trae el sistema base) y selector del portapapeles (`SUPER+V`,
+  además `python3`, ya lo trae el sistema base — que es también lo que necesita
+  `hypr/scripts/lanzar-anclado.py`, el camino por el que Orion abre sus apps; los dos
+  comparten el motor de anclaje `hypr/scripts/anclaje.py`) y selector del portapapeles (`SUPER+V`,
   con `cliphist` + `wl-clipboard`). Ambos comparten el diseño versionado en
   `GiGiOS/rofi/config.rasi`. Las miniaturas de imágenes binarias requieren
   `imagemagick`.

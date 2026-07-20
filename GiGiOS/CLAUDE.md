@@ -384,6 +384,62 @@ es también lo que hace seguro leerlo con `.escanerAppsInicio // false` — el t
 mismo resultado por ambos caminos. `GIGIOS_ESCANER_SEGS` acorta la ventana para probarlo sin
 esperar medio minuto, la misma costura que `GIGIOS_USB_PENDING_DIR` en el monitor de USB.
 
+### Anclar las ventanas al escritorio donde las lanzaste (`anclaje.py` + los dos lanzadores)
+
+Abres una app, te vas a otro escritorio mientras carga, y la ventana aparece **donde estás** en vez
+de donde la abriste. `hypr/scripts/anclaje.py` es el motor que lo corrige, y lo comparten los **dos**
+lanzadores: `rofi-launch.py` (SUPER+SPACE) y `lanzar-anclado.py`, por el que **Orion** abre sus apps
+(`ags/widget/orion/data/launch.ts`). Antes solo lo tenía rofi y Orion hacía `sh -c <exec>` a pelo,
+así que la misma app se comportaba de una forma u otra según por dónde la abrieras.
+
+**Dos mecanismos, no uno, y el orden importa.** `lanzar-anclado.py` lanza con
+**`hyprctl dispatch exec [workspace N silent] <cmd>`**: la ventana **nace** ya en su escritorio. Antes
+se lanzaba a secas y se corregía con un `movetoworkspacesilent` al llegar el `openwindow`; el
+resultado final era el mismo, pero por medio la ventana llegaba a **mapearse en el escritorio
+equivocado** — un parpadeo de un frame, un amago de render que ni siquiera recolocaba las ventanas
+que ya había allí. Con la regla ese instante no existe. Medido con el socket de eventos:
+`openwindow>>…,2` + `movewindow>>…,1` (antes) frente a `openwindow>>…,1` y ningún `movewindow`
+(ahora). El **`silent`** es obligatorio —sin él, lanzar algo destinado a otro escritorio te
+arrastraría allí, justo lo contrario de lo que se busca— y **no rompe el foco** en el caso normal de
+lanzar en el escritorio en el que ya estás (medido).
+
+**La regla solo cubre la PRIMERA ventana**, así que el observador de `anclaje.py` sigue haciendo
+falta y no es redundante. Medido con un comando que abre dos ventanas separadas 2 s: la primera nace
+en el escritorio de la regla, la segunda nace en el activo. O sea que la regla mata el artefacto en
+el caso que pasa siempre (una app, una ventana) y el observador queda como red para splashes y
+multiventana —ahí sí con el parpadeo— y para la rama `urgent`, que trae al escritorio actual una app
+single-instance ya abierta. **Rofi no puede usar la regla**: en modo `drun` ejecuta el `Exec` del
+`.desktop` él mismo, así que no hay dónde interponerla y conserva el parpadeo.
+
+**El observador**: escucha el socket de eventos hasta 15 s, deduce la identidad de la app de la
+**primera ventana nueva** (`initialClass` + pid) y a partir de ahí solo ancla lo que coincida en
+clase o cuelgue de ese árbol de procesos — sin eso se llevaba al escritorio de lanzamiento cualquier
+diálogo o popup ajeno que naciera en esa ventana de tiempo. Los 15 s salen de medir el peor caso
+real (Steam: tres ventanas, la última a los 10 s). El detalle completo del diseño está en el
+docstring de `anclaje.py`.
+
+**Ninguno de los dos es un daemon**, así que se apartan de la advertencia general de los
+`*-monitor.sh`: nacen de cero en cada lanzamiento, leen el ajuste y mueren. No hay que hacerles
+`pkill` + re-exec al cambiar la preferencia.
+
+**Ajuste**: `anclarVentanasRofi` en `~/.config/gigios/preferences.json` (Ajustes > Personalización >
+Ventanas y escritorios), **ausente = activado**. Es **una sola clave para los dos lanzadores** a
+propósito: para quien la usa es una única función, y partirla solo permitiría dejarla a medias. El
+nombre dice "Rofi" por historia —renombrarla apagaría el anclaje en silencio en la máquina que ya
+tiene la clave escrita— y no por alcance. Cuando está **desactivado no se pone la regla** tampoco:
+el ajuste significa "que cada ventana aparezca donde yo esté", y fijarla al escritorio de
+lanzamiento sería justo lo que se apagó.
+
+**Fallos: siempre hacia "se abre sin anclar", nunca hacia "no se abre".** Sin socket, sin Hyprland o
+con un `dispatch` rechazado se relanza por `sh -c`. Ojo con lo último: **`hyprctl` no señala un
+dispatch rechazado en el código de salida**, responde `ok` en el stdout, así que mirar solo el
+`returncode` daría por bueno un fallo y la app no se lanzaría por ningún camino.
+
+**El lado de la barra**: un traslado silencioso **no emite `notify::clients`** (que es de altas y
+bajas, no de movimientos), así que `ags/widget/bar/Workspaces.tsx` escucha además **`client-moved`**.
+Sin eso los iconos de la barra se quedaban en el escritorio donde nació la ventana hasta que otra
+cosa forzara un refresco. Ver `ags/CLAUDE.md`.
+
 ### Update monitor (`updates-monitor.sh`)
 
 Checks for pending updates and surfaces the **important** ones as bar icons (AGS
