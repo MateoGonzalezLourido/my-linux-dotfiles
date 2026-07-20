@@ -1,0 +1,132 @@
+{
+  "seccion": {
+    "titulo": "Pantallas",
+    "pantallasDetectadas": "PANTALLAS DETECTADAS"
+  },
+  "grupos": {
+    "disposicion": "Disposición y modo",
+    "colorMonitor": "Color del monitor",
+    "brilloLuz": "Brillo y luz nocturna",
+    "automatizacion": "Automatización"
+  },
+  "reglas": {
+    "modos": {
+      "noCambiar": "No cambiar",
+      "encenderA": "Encender a",
+      "fijarEn": "Fijar en"
+    },
+    "horario": {
+      "desde": "de",
+      "hasta": "a",
+      "vigente": "vigente",
+      "tooltipVigente": "Rige ahora mismo: {{canales}}",
+      "sinFranjas": "Ahora ({{hora}}) · sin franjas: manda el ajuste manual de arriba",
+      "resumen": "Ahora ({{hora}}) · luz nocturna: {{luz}} · brillo: {{brillo}}"
+    },
+    "canales": {
+      "luzNocturna": "Luz nocturna",
+      "brillo": "Brillo",
+      "luzNocturnaBreve": "luz nocturna",
+      "brilloBreve": "brillo"
+    },
+    "acciones": {
+      "borrar": "Borrar regla",
+      "anadir": "Añadir franja"
+    }
+  },
+  "monitor": {
+    "resolucion": {
+      "titulo": "Resolución",
+      "opcionNativa": "{{resolucion}} (nativa)"
+    },
+    "frecuencia": {
+      "titulo": "Frecuencia",
+      "descripcion": "Una frecuencia mayor hace el movimiento más fluido, pero puede aumentar el consumo."
+    },
+    "escala": {
+      "titulo": "Escala",
+      "descripcion": "Un valor mayor hace más grandes el texto y los elementos de la interfaz."
+    },
+    "rotacion": {
+      "titulo": "Rotación",
+      "opciones": {
+        "normal": "Normal",
+        "grados90": "90°",
+        "grados180": "180°",
+        "grados270": "270°",
+        "volteado": "Volteado",
+        "volteado90": "Volteado 90°",
+        "volteado180": "Volteado 180°",
+        "volteado270": "Volteado 270°"
+      }
+    },
+    "profundidadColor": {
+      "titulo": "Profundidad de color",
+      "descripcion": "Los 10 bits reducen las bandas en degradados, pero algunas aplicaciones de captura de pantalla no los admiten."
+    },
+    "gestionColor": {
+      "titulo": "Gestión de color",
+      "opciones": {
+        "automatico": "Automático",
+        "srgb": "sRGB",
+        "gamaAmplia": "Wide gamut",
+        "hdr": "HDR"
+      }
+    },
+    "posicion": {
+      "titulo": "Posición (relativa a otro)",
+      "seleccionar": "Colocar…",
+      "opciones": {
+        "derecha": "a la derecha de {{monitor}}",
+        "izquierda": "a la izquierda de {{monitor}}",
+        "debajo": "debajo de {{monitor}}",
+        "encima": "encima de {{monitor}}"
+      }
+    },
+    "vrr": {
+      "titulo": "VRR / FreeSync",
+      "descripcion": "Adapta la frecuencia de esta pantalla a los fotogramas para reducir cortes. Este interruptor activa VRR de forma continua."
+    },
+    "duplicar": {
+      "titulo": "Duplicar en",
+      "ninguno": "Ninguno",
+      "descripcion": "Esta pantalla mostrará lo mismo que la elegida. Si tienen proporciones distintas, la imagen puede deformarse."
+    }
+  },
+  "brillo": {
+    "titulo": "Brillo",
+    "descripcion": "Ajusta el panel interno o el primer monitor externo compatible con DDC/CI."
+  },
+  "luzNocturna": {
+    "titulo": "Luz nocturna manual",
+    "descripcion": "Se usa fuera de las franjas programadas. Menos K produce un tono más cálido."
+  },
+  "programacion": {
+    "titulo": "Programar por franjas horarias",
+    "descripcion": "Cada franja puede ajustar la luz nocturna, el brillo o ambos, y puede cruzar la medianoche. Al terminar, la luz vuelve al ajuste manual y el brillo recupera su valor anterior.\n«No cambiar» deja ese canal intacto; el brillo solo se fija al entrar."
+  },
+  "globales": {
+    "titulo": "Fluidez y juegos",
+    "vrr": {
+      "titulo": "Modo VRR global",
+      "descripcion": "Define cuándo usa Hyprland la frecuencia variable en las pantallas compatibles.",
+      "opciones": {
+        "desactivado": "Desactivado",
+        "activado": "Activado",
+        "soloPantallaCompleta": "Solo pantalla completa"
+      }
+    },
+    "tearing": {
+      "titulo": "Permitir tearing (juegos)",
+      "descripcion": "Permite a los juegos compatibles mostrar fotogramas sin esperar a la sincronización vertical. Puede reducir la latencia, pero provocar cortes en la imagen."
+    }
+  },
+  "suspension": {
+    "titulo": "✦ Suspensión de pantalla",
+    "descripcion": "Define qué ocurre tras cada tiempo sin actividad. Al desactivar una acción queda en «Nunca» y conserva su tiempo; cualquier cambio reinicia la cuenta. «Wake up» puede impedirlas temporalmente.",
+    "nunca": "Nunca",
+    "apagarPantalla": "Apagar pantalla",
+    "bloquear": "Bloquear",
+    "suspender": "Suspender"
+  }
+}

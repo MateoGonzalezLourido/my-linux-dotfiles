@@ -1,0 +1,16 @@
+{
+  "seccion": {
+    "titulo": "Iconos y agrupación",
+    "descripcion": "Elige qué iconos pueden aparecer en la barra; la lista conserva las apps detectadas anteriormente."
+  },
+  "app": {
+    "tituloLista": "Su icono se mostrará en la barra",
+    "quitar": "Quitar del listado; volverá cuando reaparezca en la bandeja"
+  },
+  "agrupacion": {
+    "titulo": "Agrupar en un menú",
+    "descripcion": "Con este número de iconos visibles o más, la barra los agrupa bajo una flecha.",
+    "cantidad": "{{cantidad}} apps"
+  },
+  "vacio": "Aún no se ha detectado ningún icono de bandeja."
+}

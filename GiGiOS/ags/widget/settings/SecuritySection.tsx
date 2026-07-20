@@ -1,207 +1,167 @@
-// widget/settings/SecuritySection.tsx
-// Sección "Seguridad" del panel de ajustes general (widget/SettingsPanel.tsx).
-// Un toggle por cada tipo de evento que vigila hypr/scripts/oom-monitor.sh.
-// Los cambios se persisten en security.json (ver securityPrefs.ts). El script
-// bash lee los toggles de EVENTOS una sola vez al arrancar (solo surten efecto
-// tras reiniciar — de ahí el aviso destacado arriba); en cambio los ajustes de
-// "recursos del escáner de descargas" (DownloadResourcesSection) los relee en
-// cada barrido y se aplican en vivo. Usa el Interruptor compartido del shell.
+// Protección del sistema: vigilancia continua y un único destino para escaneos y aislamiento.
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
-import Interruptor from "../Interruptor"
-import { EncabezadoAjuste, TextoInformativo, TituloAjuste, TituloSeccion, TituloSubseccion } from "./componentes"
+import {
+  AjusteInterruptor, TarjetaAjustes, TextoInformativo,
+  TituloAjuste, TituloSeccion, TituloSubseccion,
+} from "./componentes"
 import {
   SECURITY_ITEMS, securityEnabled, setSecurityEnabled, type SecurityKey,
   DL_PAUSE_ITEMS, dlPauseEnabled, setDlPauseEnabled,
   dlMaxScanGB, setDlMaxScanGB,
 } from "./securityPrefs"
+import textos from "../../textos/ajustes/seguridad.json" with { type: "json" }
 
-type Item = { key: SecurityKey; label: string; hint: string }
+type VistaProteccion = "vigilancia" | "escaneos"
+type Elemento = { key: SecurityKey; label: string; hint: string }
 
-// Fila de interruptor presentacional, reutilizada por los toggles de eventos y
-// por las pausas del escáner de descargas: recibe el estado reactivo y el
-// callback de conmutación, sin acoplarse a una fuente concreta.
-function SwitchRow({ label, hint, state, onToggle }: {
-  label: string
-  hint: string
-  state: ReturnType<typeof securityEnabled>
-  onToggle: () => void
-}) {
+const GRUPOS_VIGILANCIA: { titulo: string; icono: string; claves: SecurityKey[] }[] = [
+  { titulo: textos.grupos.kernelMemoria, icono: "󰒋", claves: ["oomKiller", "kernelPanic", "hungTask", "kernelModules"] },
+  { titulo: textos.grupos.hardwareAlmacenamiento, icono: "󰋊", claves: ["hwErrors", "cpuThrottling", "diskError", "diskHealth", "gpuError"] },
+  { titulo: textos.grupos.serviciosAplicaciones, icono: "󰒓", claves: ["serviceFailure", "serviceHealth", "appCrash"] },
+  { titulo: textos.grupos.accesoIntegridad, icono: "󰌾", claves: ["sudoAuth", "privEsc", "ssh", "fileIntegrity"] },
+]
+
+function ElementoProteccion({ item }: { item: Elemento }) {
+  const activo = securityEnabled(item.key)
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
-      <box spacing={8} valign={Gtk.Align.CENTER}>
-        <EncabezadoAjuste
-          titulo={label}
-          informacion={hint}
-          halign={Gtk.Align.START}
-          propiedadesInformacion={{ wrap: true, maxWidthChars: 62, xalign: 0 }}
-        />
-        <Interruptor activo={state} alAlternar={onToggle} />
-      </box>
+    <AjusteInterruptor
+      titulo={item.label}
+      informacion={item.hint}
+      activo={activo}
+      alAlternar={() => setSecurityEnabled(item.key, !activo.get())}
+    />
+  )
+}
+
+function buscarElemento(clave: SecurityKey): Elemento {
+  return SECURITY_ITEMS.find((item) => item.key === clave)!
+}
+
+function Vigilancia() {
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
+      {GRUPOS_VIGILANCIA.map((grupo) => (
+        <TarjetaAjustes titulo={grupo.titulo} icono={grupo.icono}>
+          {grupo.claves.map((clave) => <ElementoProteccion item={buscarElemento(clave)} />)}
+        </TarjetaAjustes>
+      ))}
     </box>
   )
 }
 
-function ToggleRow({ item }: { item: Item }) {
-  const state = securityEnabled(item.key)
-  return <SwitchRow label={item.label} hint={item.hint} state={state}
-    onToggle={() => setSecurityEnabled(item.key, !state.get())} />
-}
-
-// Subsección "recursos" del escáner de descargas: pausas (ahorro/batería/juego),
-// tope de tamaño en GB y botón de escaneo forzado. Solo visible con el escáner de
-// descargas activo. Estos ajustes se aplican en vivo (el bash los relee en cada
-// barrido), no requieren reinicio.
-function DownloadResourcesSection() {
-  let gbRef: Gtk.Entry
-  const applyGb = () => {
-    const raw = (gbRef?.get_text() ?? "").trim().replace(",", ".")
-    const n = parseFloat(raw)
-    if (Number.isFinite(n) && n > 0) setDlMaxScanGB(n)
-    gbRef.set_text(String(dlMaxScanGB.get()))
+function RecursosDescargas() {
+  let entradaGb: Gtk.Entry
+  const guardarGb = () => {
+    const valor = parseFloat((entradaGb?.get_text() ?? "").trim().replace(",", "."))
+    if (Number.isFinite(valor) && valor > 0) setDlMaxScanGB(valor)
+    entradaGb.set_text(String(dlMaxScanGB.get()))
   }
-  const forceScan = () => {
+  const escanearDescargas = () => {
     execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/scan-downloads.sh`]).catch(() => {})
   }
   return (
-    <box
-      orientation={Gtk.Orientation.VERTICAL}
-      spacing={8}
-      cssClasses={["sp-field"]}
-      hexpand
-      visible={securityEnabled("downloadScan")((v: boolean) => v)}
-    >
-      <TituloSubseccion label="Escáner de descargas: recursos" halign={Gtk.Align.START} />
-      <TextoInformativo
-        label={"El análisis va siempre a prioridad baja (nice+ionice). Aquí pausas cuándo se ejecuta y hasta qué tamaño. Se aplica sin reiniciar."}
-        halign={Gtk.Align.START}
-        wrap={true}
-        maxWidthChars={62}
-        xalign={0}
-      />
-      {DL_PAUSE_ITEMS.map((it) => {
-        const st = dlPauseEnabled(it.key)
-        return <SwitchRow label={it.label} hint={it.hint} state={st}
-          onToggle={() => setDlPauseEnabled(it.key, !st.get())} />
+    <box orientation={Gtk.Orientation.VERTICAL} visible={securityEnabled("downloadScan")}>
+      {DL_PAUSE_ITEMS.map((item) => {
+        const activo = dlPauseEnabled(item.key)
+        return <AjusteInterruptor titulo={item.label} informacion={item.hint} activo={activo} alAlternar={() => setDlPauseEnabled(item.key, !activo.get())} />
       })}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-        <TituloAjuste label="No analizar archivos ≥ (GB)" halign={Gtk.Align.START} />
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={5} cssClasses={["dev-row"]}>
+        <TituloAjuste label={textos.recursosDescargas.limite.titulo} halign={Gtk.Align.START} />
+        <TextoInformativo label={textos.recursosDescargas.limite.descripcion} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
         <box spacing={6} valign={Gtk.Align.CENTER}>
-          <entry
-            cssClasses={["sp-num-input"]}
-            hexpand
-            placeholderText="1"
-            $={(self: Gtk.Entry) => { gbRef = self; self.set_text(String(dlMaxScanGB.get())) }}
-            onActivate={applyGb}
-          />
-          <button cssClasses={["sp-add-rule"]} onClicked={applyGb} valign={Gtk.Align.CENTER}>
-            <label label="Guardar" />
-          </button>
+          <entry cssClasses={["sp-num-input"]} hexpand placeholderText={textos.recursosDescargas.limite.placeholder}
+            $={(self: Gtk.Entry) => { entradaGb = self; self.set_text(String(dlMaxScanGB.get())) }} onActivate={guardarGb} />
+          <button cssClasses={["sp-add-rule"]} onClicked={guardarGb}><label label={textos.recursosDescargas.limite.guardar} /></button>
         </box>
       </box>
-      <button cssClasses={["sp-add-rule"]} onClicked={forceScan} halign={Gtk.Align.START}>
-        <label label="🔍 Escanear Descargas ahora" />
-      </button>
-    </box>
-  )
-}
-
-// Campo para lanzar un archivo cualquiera aislado por su ruta. Se ejecuta
-// hypr/scripts/run-untrusted.sh, que analiza (ClamAV) y contiene (Firejail).
-// Solo visible si el "Lanzador aislado" está activado.
-function SandboxLaunchRow() {
-  let entryRef: Gtk.Entry
-  const run = () => {
-    const p = entryRef?.get_text().trim()
-    if (!p) return
-    execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/run-untrusted.sh`, p]).catch(() => {})
-    entryRef.set_text("")
-  }
-  return (
-    <box
-      orientation={Gtk.Orientation.VERTICAL}
-      spacing={6}
-      cssClasses={["sp-field"]}
-      hexpand
-      visible={securityEnabled("sandboxLaunch")((v: boolean) => v)}
-    >
-      <TituloSubseccion label="Lanzar un archivo aislado" halign={Gtk.Align.START} />
-      <TextoInformativo
-        label={"Escribe la ruta de un ejecutable y se lanzará en una jaula Firejail\n(tras analizarlo con ClamAV si está instalado)."}
-        halign={Gtk.Align.START}
-        wrap={true}
-        maxWidthChars={62}
-        xalign={0}
-      />
-      <box spacing={6} valign={Gtk.Align.CENTER}>
-        <entry
-          cssClasses={["sp-num-input"]}
-          hexpand
-          placeholderText="/home/…/Descargas/juego.exe"
-          $={(self: Gtk.Entry) => { entryRef = self }}
-          onActivate={run}
-        />
-        <button cssClasses={["sp-add-rule"]} onClicked={run} valign={Gtk.Align.CENTER}>
-          <label label="🛡️ Lanzar aislado" />
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]}>
+        <button cssClasses={["sp-add-rule"]} onClicked={escanearDescargas} halign={Gtk.Align.START}>
+          <label label={textos.recursosDescargas.escaneoForzado.boton} />
         </button>
+        <TextoInformativo label={textos.recursosDescargas.escaneoForzado.descripcion} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
       </box>
     </box>
   )
 }
 
-// Campo para analizar cualquier archivo (o carpeta) con ClamAV a demanda, sin
-// tope de tamaño. Ejecuta hypr/scripts/scan-file.sh. Pensado para los archivos
-// grandes que el escáner automático de descargas se salta. Solo visible si el
-// "Escaneo de descargas" está activado.
-function ScanFileRow() {
-  let entryRef: Gtk.Entry
-  const run = () => {
-    const p = entryRef?.get_text().trim()
-    if (!p) return
-    execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/scan-file.sh`, p]).catch(() => {})
-    entryRef.set_text("")
-  }
+function Descargas() {
   return (
-    <box
-      orientation={Gtk.Orientation.VERTICAL}
-      spacing={6}
-      cssClasses={["sp-field"]}
-      hexpand
-      visible={securityEnabled("downloadScan")((v: boolean) => v)}
-    >
-      <TituloSubseccion label="Analizar un archivo con ClamAV" halign={Gtk.Align.START} />
-      <TextoInformativo
-        label={"Escribe la ruta de un archivo (o carpeta) y se analizará con ClamAV,\nsin límite de tamaño. Útil para lo que el escaneo automático se salta por grande."}
-        halign={Gtk.Align.START}
-        wrap={true}
-        maxWidthChars={62}
-        xalign={0}
-      />
+    <TarjetaAjustes titulo={textos.tarjetas.descargas} icono="󰇚">
+      <ElementoProteccion item={buscarElemento("downloadScan")} />
+      <RecursosDescargas />
+    </TarjetaAjustes>
+  )
+}
+
+function AccionArchivo({ titulo, descripcion, placeholder, etiquetaBoton, script, visible }: {
+  titulo: string
+  descripcion: string
+  placeholder: string
+  etiquetaBoton: string
+  script: string
+  visible?: any
+}) {
+  let entrada: Gtk.Entry
+  const ejecutar = () => {
+    const ruta = entrada?.get_text().trim()
+    if (!ruta) return
+    execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/${script}`, ruta]).catch(() => {})
+    entrada.set_text("")
+  }
+  const propiedadesVisibilidad = visible === undefined ? {} : { visible }
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} {...propiedadesVisibilidad}>
+      <TituloSubseccion label={titulo} halign={Gtk.Align.START} />
+      <TextoInformativo label={descripcion} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
       <box spacing={6} valign={Gtk.Align.CENTER}>
-        <entry
-          cssClasses={["sp-num-input"]}
-          hexpand
-          placeholderText="/home/…/Descargas/juego.rar"
-          $={(self: Gtk.Entry) => { entryRef = self }}
-          onActivate={run}
-        />
-        <button cssClasses={["sp-add-rule"]} onClicked={run} valign={Gtk.Align.CENTER}>
-          <label label="🔍 Escanear" />
-        </button>
+        <entry cssClasses={["sp-num-input"]} hexpand placeholderText={placeholder}
+          $={(self: Gtk.Entry) => { entrada = self }} onActivate={ejecutar} />
+        <button cssClasses={["sp-add-rule"]} onClicked={ejecutar}><label label={etiquetaBoton} /></button>
       </box>
     </box>
   )
 }
 
-export default function SecuritySection() {
+function Herramientas() {
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
-      <TituloSeccion titulo="Seguridad" />
-      {SECURITY_ITEMS.map((item) => <ToggleRow item={item} />)}
-      <DownloadResourcesSection />
-      <SandboxLaunchRow />
-      <ScanFileRow />
+    <TarjetaAjustes titulo={textos.tarjetas.herramientas} icono="󰒓">
+      <ElementoProteccion item={buscarElemento("sandboxLaunch")} />
+      <AccionArchivo
+        titulo={textos.lanzamientoAislado.titulo}
+        descripcion={textos.lanzamientoAislado.descripcion}
+        placeholder={textos.lanzamientoAislado.placeholder}
+        etiquetaBoton={textos.lanzamientoAislado.boton}
+        script="run-untrusted.sh"
+        visible={securityEnabled("sandboxLaunch")}
+      />
+      <AccionArchivo
+        titulo={textos.analisisManual.titulo}
+        descripcion={textos.analisisManual.descripcion}
+        placeholder={textos.analisisManual.placeholder}
+        etiquetaBoton={textos.analisisManual.boton}
+        script="scan-file.sh"
+      />
+    </TarjetaAjustes>
+  )
+}
+
+function Escaneos() {
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
+      <Descargas />
+      <Herramientas />
+    </box>
+  )
+}
+
+export default function SecuritySection({ vista }: { vista: VistaProteccion }) {
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={12} cssClasses={["sp-section", "dev-section"]} hexpand>
+      <TituloSeccion titulo={textos.vistas[vista]} />
+      <TextoInformativo label={textos.descripciones[vista]} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
+      {vista === "vigilancia" ? <Vigilancia /> : <Escaneos />}
     </box>
   )
 }

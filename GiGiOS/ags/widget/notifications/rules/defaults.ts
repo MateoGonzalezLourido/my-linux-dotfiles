@@ -2,6 +2,7 @@
 // Built-in seed rules. Low priority (<100) so user rules and overrides win.
 // Editing/disabling a builtin is done via overrides in config/notif-rules.json (rulesStore).
 import type { NotifRule } from "./types.ts"
+import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
 
@@ -17,56 +18,56 @@ export const BUILTIN_RULES: NotifRule[] = [
     // (`shouldIndex`: solo se indexa lo que no casa con ninguna). Es el precio de tenerla visible
     // y desactivable desde la UI; el hint por sí solo hacía lo mismo sin ese efecto.
     id: "builtin.system-dunst",
-    name: "Notificaciones del sistema (estilo dunst)",
+    name: textos.predefinidas.sistemaDunst,
     enabled: true, priority: 10, source: "builtin",
     match: { source: { op: "equals", value: "system" } },
     effects: { style: "dunst" },
   },
   {
     id: "builtin.screenshot",
-    name: "Capturas de pantalla (flash)",
+    name: textos.predefinidas.capturas,
     enabled: true, priority: 50, source: "builtin", stopOnMatch: true,
     match: { summary: { op: "contains", value: "captura" } },
     effects: { suppress: true, noHistory: true },
   },
   {
     id: "builtin.app-crash",
-    name: "Crash de apps (limpiar en reinicio)",
+    name: textos.predefinidas.fallosApps,
     enabled: true, priority: 40, source: "builtin",
     match: { summary: { op: "contains", value: "crash" } },
     effects: { clearOnBoot: true },
   },
   {
     id: "builtin.coredump",
-    name: "Coredumps (limpiar en reinicio)",
+    name: textos.predefinidas.volcados,
     enabled: true, priority: 40, source: "builtin",
     match: { body: { op: "contains", value: "coredump" } },
     effects: { clearOnBoot: true },
   },
   {
     id: "builtin.reboot-recommended",
-    name: "Reinicio recomendado (limpiar en reinicio)",
+    name: textos.predefinidas.reinicio,
     enabled: true, priority: 40, source: "builtin",
     match: { summary: { op: "contains", value: "reboot" } },
     effects: { clearOnBoot: true },
   },
   {
     id: "builtin.low-battery",
-    name: "Batería baja (flash, se resuelve al cargar)",
+    name: textos.predefinidas.bateriaBaja,
     enabled: true, priority: 30, source: "builtin",
     match: { summary: { op: "contains", value: "batería" } },
     effects: { lifetime: "flash", conditions: ["battery-resolved"] },
   },
   {
     id: "builtin.battery-app",
-    name: "Batería (limpiar en reinicio)",
+    name: textos.predefinidas.bateria,
     enabled: true, priority: 30, source: "builtin",
     match: { app: { op: "equals", value: "Batería" } },
     effects: { clearOnBoot: true },
   },
   {
     id: "builtin.whatsapp",
-    name: "WhatsApp (expira 2 días)",
+    name: textos.predefinidas.whatsapp,
     enabled: true, priority: 20, source: "builtin",
     match: { app: { op: "contains", value: "whatsapp" } },
     effects: { lifetime: "timed", ttlMs: TWO_DAYS_MS, dedupKey: "app+summary" },

@@ -11,7 +11,7 @@
 //   - hidden: ids de las apps que el usuario NO quiere ver en el bar.
 //
 // El bar (SystemTray) filtra sus items contra `hiddenTrayApps`; la sección de
-// ajustes (AppsSection) lista `knownTrayApps` con un toggle por app. Ambos estados
+// ajustes (BarraEscritoriosSection) lista `knownTrayApps` con un toggle por app. Ambos estados
 // son reactivos, así que ocultar/mostrar se refleja en vivo sin reiniciar.
 
 import GLib from "gi://GLib"

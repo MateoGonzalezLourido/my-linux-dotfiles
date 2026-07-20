@@ -22,6 +22,8 @@ import { createState } from "ags"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
+import textos from "../../textos/ajustes/notificaciones.json" with { type: "json" }
+import { formatearTexto } from "../../textos/formatear.ts"
 
 const NOTIF_NAME = "org.freedesktop.Notifications"
 
@@ -70,18 +72,15 @@ function evaluate(bus: Gio.DBusConnection): DaemonConflict | null {
 /** Aviso por notificación de escritorio: lo pintará el propio daemon intruso, que es el que
  *  funciona. Es el único canal que el usuario ve de verdad (el log de AGS va al hyprland.log). */
 function warnOnce(c: DaemonConflict): void {
-  const who = c.comm || `PID ${c.pid}`
-  console.error(
-    `[notif] ${who} (PID ${c.pid}) es el dueño de ${NOTIF_NAME}: AstalNotifd no recibirá nada.\n` +
-    `[notif] No se guardarán notificaciones (ni popups, ni historial). Arréglalo con:\n` +
-    `[notif]   systemctl --user mask ${c.comm || "<daemon>"}.service && systemctl --user stop ${c.comm || "<daemon>"}.service\n` +
-    `[notif] Ver hypr/SETUP.md §2.`,
-  )
+  const who = c.comm || formatearTexto(textos.conflicto.pid, { pid: c.pid })
+  const daemon = c.comm || textos.conflicto.daemonDesconocido
+  console.error(formatearTexto(textos.conflicto.registro, {
+    proceso: who, pid: c.pid, nombre: NOTIF_NAME, daemon,
+  }))
   execAsync([
     "notify-send", "-u", "critical", "-a", "GiGiOS",
-    `Notificaciones secuestradas por ${who}`,
-    `El shell no recibirá ninguna notificación mientras ${who} tenga el nombre de D-Bus. ` +
-    `Ejecuta: systemctl --user mask ${c.comm || "<daemon>"}.service && systemctl --user stop ${c.comm || "<daemon>"}.service`,
+    formatearTexto(textos.conflicto.notificacionTitulo, { proceso: who }),
+    formatearTexto(textos.conflicto.notificacionCuerpo, { proceso: who, daemon }),
   ]).catch(() => {})
 }
 

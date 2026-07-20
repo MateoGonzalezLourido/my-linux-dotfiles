@@ -53,7 +53,7 @@ test("writeHypridle reactiva quitando el sentinel", () => {
   assert.equal(p.suspend.enabled, true)
 })
 
-// ── Desactivar un listener (interruptor de Ajustes > Pantalla) ───────────────
+// ── Desactivar un listener (interruptor de Ajustes > Energía) ────────────────
 // Por qué comentar y no `timeout = 0`: hypridle 0.1.7 acepta el 0 como listener
 // válido y lo dispara AL INSTANTE (medido: "Registered timeout rule for 0s" + la
 // acción ejecutada) — en "Suspender" eso apaga el PC al guardar. Comentado, avisa
@@ -101,7 +101,7 @@ test("apagar y volver a encender devuelve el fichero EXACTAMENTE al original", (
 
 // ── La puerta del Wake up (hypr/scripts/idle-action.sh) ──────────────────────
 // Los listeners reales ya no llaman a la acción directamente: pasan por el script
-// que consulta el Wake up. Si kindOf() no supiera reconocerlos, Ajustes > Pantalla
+// que consulta el Wake up. Si kindOf() no supiera reconocerlos, Ajustes > Energía
 // dejaría de ver los tres listeners y sus tiempos se volverían ineditables — en
 // silencio, porque parseHypridle degrada a "no encontrado", no a un error.
 const GATED = `listener {

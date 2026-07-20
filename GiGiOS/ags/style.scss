@@ -4480,10 +4480,13 @@ window.cal-panel > box {
 }
 
 .sp-nav {
-  min-width: 190px;
+  min-width: 225px;
   padding: 16px 10px;
   background: rgba(255, 255, 255, 0.02);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+.sp-nav-scroll {
+  min-height: 470px;
 }
 .sp-nav-title {
   font-size: 11px;
@@ -4642,7 +4645,7 @@ button.dev-reset {
   &.confirm { color: #ff8fa7; background: rgba(245, 50, 105, 0.12); border-color: rgba(245, 50, 105, 0.28); }
 }
 
-// ── Fecha e idioma ──────────────────────────────────────────────────────────
+// ── Fecha, idioma y ubicación ───────────────────────────────────────────────
 // Control segmentado (formato de hora, origen de ubicación). Mismo lenguaje
 // visual que las pestañas .st-tab: contenedor sutil, botón activo violeta suave.
 .dl-seg {
@@ -4665,7 +4668,6 @@ button.dl-seg-btn {
   &:hover { color: $text; background: rgba(255, 255, 255, 0.05); }
   &.active { color: $violet; background: rgba(203, 166, 247, 0.15); }
 }
-.dl-tz-select { min-width: 210px; }
 button.dl-city-result {
   min-height: 32px;
   padding: 5px 10px;

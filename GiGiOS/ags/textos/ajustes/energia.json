@@ -1,0 +1,33 @@
+{
+  "seccion": {
+    "titulo": "Energía"
+  },
+  "grupos": {
+    "bateria": "Batería y modo de ahorro",
+    "modoAhorro": "Comportamiento durante el ahorro"
+  },
+  "estado": {
+    "sinBateria": "Sin batería detectada",
+    "bateria": "Batería: {{porcentaje}}%",
+    "bateriaCargando": "Batería: {{porcentaje}}% (cargando)",
+    "ahorroActivo": "Ahorro activo",
+    "ahorroDesactivado": "Ahorro desactivado"
+  },
+  "umbral": {
+    "titulo": "Entrar en ahorro al bajar de",
+    "tooltip": "Editar umbral de ahorro",
+    "descripcion": "Activa las medidas de ahorro de esta sección cuando la batería alcanza este porcentaje y el equipo no está cargando. 0 % las desactiva."
+  },
+  "notificaciones": {
+    "titulo": "Pausar limpieza de notificaciones",
+    "descripcion": "Pausa la eliminación automática y la actualización de tiempos del historial. Al salir, elimina lo vencido y reanuda."
+  },
+  "vistasPrevias": {
+    "titulo": "Pausar vistas previas de espacios de trabajo",
+    "descripcion": "Desactiva las miniaturas de los espacios de trabajo y deja de hacer capturas durante el ahorro. Se recuperan al salir."
+  },
+  "spotify": {
+    "titulo": "Ocultar Spotify de la barra",
+    "descripcion": "Oculta el reproductor de Spotify y detiene sus actualizaciones y animaciones durante el ahorro. Vuelve a mostrarse al salir."
+  }
+}

@@ -9,17 +9,15 @@
 import { Gtk } from "ags/gtk4"
 import type { DaemonConflict } from "./daemonCheck.ts"
 import EmptyState from "../components/EmptyState.tsx"
+import textos from "../../textos/ajustes/notificaciones.json" with { type: "json" }
+import { formatearTexto } from "../../textos/formatear.ts"
 
 export function conflictText(c: DaemonConflict): { title: string; subtitle: string } {
-  const who = c.comm || `PID ${c.pid}`
-  const unit = c.comm ? `${c.comm}.service` : "<daemon>.service"
+  const who = c.comm || formatearTexto(textos.conflicto.pid, { pid: c.pid })
+  const unit = c.comm ? `${c.comm}.service` : textos.conflicto.unidadDesconocida
   return {
-    title: `${who} tiene las notificaciones`,
-    subtitle:
-      `El shell no recibe ninguna notificación mientras otro daemon sea el dueño de\n` +
-      `org.freedesktop.Notifications, así que no hay nada que guardar.\n\n` +
-      `systemctl --user mask ${unit}\n` +
-      `systemctl --user stop ${unit}`,
+    title: formatearTexto(textos.conflicto.titulo, { proceso: who }),
+    subtitle: formatearTexto(textos.conflicto.detalle, { unidad: unit }),
   }
 }
 

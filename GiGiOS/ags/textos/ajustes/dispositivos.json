@@ -1,0 +1,171 @@
+{
+  "seccion": {
+    "titulo": "Entrada y periféricos"
+  },
+  "vistas": {
+    "raton": "Ratón y puntero",
+    "touchpad": "Touchpad",
+    "teclado": "Teclado",
+    "impresoras": "Impresoras"
+  },
+  "tarjetas": {
+    "raton": "Movimiento y botones",
+    "touchpad": "Gestos y clics",
+    "teclado": "Distribución y respuesta",
+    "puntero": "Cursor y foco",
+    "impresoras": "Servicio de impresión"
+  },
+  "raton": {
+    "titulo": "Ratón",
+    "velocidadPuntero": {
+      "titulo": "Velocidad del puntero",
+      "descripcion": "Los valores negativos ralentizan el puntero; los positivos lo aceleran"
+    },
+    "aceleracion": {
+      "titulo": "Aceleración",
+      "descripcion": "Adaptativa acelera según el movimiento; plana mantiene una respuesta uniforme",
+      "opciones": {
+        "adaptativa": "Adaptativa",
+        "plana": "Plana"
+      }
+    },
+    "velocidadDesplazamiento": {
+      "titulo": "Velocidad de desplazamiento",
+      "descripcion": "Multiplicador de la rueda"
+    },
+    "movimientoSinAceleracion": {
+      "titulo": "Movimiento sin aceleración",
+      "descripcion": "Obtiene movimiento casi directo, ignora otros ajustes del puntero y puede causar desincronización"
+    },
+    "modoZurdo": {
+      "titulo": "Modo zurdo",
+      "descripcion": "Intercambia los botones principal y secundario"
+    },
+    "desplazamientoNatural": {
+      "titulo": "Desplazamiento natural",
+      "descripcion": "Invierte el desplazamiento para que el contenido siga el giro de la rueda"
+    }
+  },
+  "touchpad": {
+    "titulo": "Touchpad",
+    "velocidadDesplazamiento": {
+      "titulo": "Velocidad de desplazamiento",
+      "descripcion": "Multiplica la distancia recorrida al desplazar con el touchpad"
+    },
+    "desplazamientoNatural": {
+      "titulo": "Desplazamiento natural",
+      "descripcion": "Mueve el contenido en la dirección de los dedos"
+    },
+    "tocarParaClic": {
+      "titulo": "Tocar para hacer clic",
+      "descripcion": "Un toque equivale al botón principal"
+    },
+    "mapaToques": {
+      "titulo": "Mapa de toques",
+      "opciones": {
+        "derechoMedio": "2: derecho · 3: medio",
+        "medioDerecho": "2: medio · 3: derecho"
+      }
+    },
+    "desactivarMientrasEscribe": {
+      "titulo": "Desactivar mientras se escribe",
+      "descripcion": "Evita movimientos y clics accidentales"
+    },
+    "clicPorDedos": {
+      "titulo": "Clic por número de dedos",
+      "descripcion": "Asigna los clics físicos por dedos en vez de por zonas: uno principal, dos secundario y tres central"
+    },
+    "emularBotonCentral": {
+      "titulo": "Emular botón central",
+      "descripcion": "Pulsa ambos botones a la vez para un clic central"
+    },
+    "bloqueoArrastre": {
+      "titulo": "Bloqueo de arrastre",
+      "descripcion": "Permite levantar el dedo durante un arrastre por toque"
+    }
+  },
+  "teclado": {
+    "titulo": "Teclado",
+    "distribucion": {
+      "titulo": "Distribución",
+      "descripcion": "Determina qué caracteres produce cada tecla; se aplica al instante",
+      "opciones": {
+        "espanol": "Español",
+        "latinoamericano": "Latinoamericano",
+        "inglesEstadosUnidos": "Inglés (EE. UU.)",
+        "inglesReinoUnido": "Inglés (Reino Unido)",
+        "frances": "Francés",
+        "aleman": "Alemán",
+        "portugues": "Portugués",
+        "italiano": "Italiano"
+      }
+    },
+    "variante": {
+      "titulo": "Variante",
+      "opciones": {
+        "predeterminada": "Predeterminada",
+        "sinTeclasMuertas": "Sin teclas muertas",
+        "dvorak": "Dvorak",
+        "colemak": "Colemak"
+      }
+    },
+    "velocidadRepeticion": {
+      "titulo": "Velocidad de repetición"
+    },
+    "esperaRepeticion": {
+      "titulo": "Espera antes de repetir"
+    },
+    "bloqueoNumerico": {
+      "titulo": "Bloqueo numérico al iniciar",
+      "descripcion": "Activa Num Lock de forma predeterminada al detectar los teclados"
+    }
+  },
+  "puntero": {
+    "titulo": "Puntero",
+    "tamano": {
+      "titulo": "Tamaño del puntero"
+    },
+    "foco": {
+      "titulo": "Foco bajo el puntero",
+      "descripcion": "Define si mover o hacer clic cambia la ventana que recibe el puntero y el teclado",
+      "opciones": {
+        "soloClic": "Solo al hacer clic",
+        "seguirPuntero": "Seguir al puntero",
+        "focoLibre": "Foco libre",
+        "seguirSinTeclado": "Seguir sin cambiar teclado"
+      }
+    }
+  },
+  "impresoras": {
+    "titulo": "Impresoras",
+    "servicio": {
+      "titulo": "Servicio de impresión (CUPS)",
+      "descripcionDisponible": "Inicia o detiene CUPS y configura su arranque automático. Pide contraseña.",
+      "descripcionNoInstalado": "CUPS no está instalado en este sistema"
+    },
+    "estado": {
+      "titulo": "Estado",
+      "noInstalado": "No instalado",
+      "activo": "Activo",
+      "inactivo": "Inactivo"
+    },
+    "configuracion": {
+      "titulo": "Configuración de impresoras",
+      "descripcion": "Añade o gestiona impresoras en el panel web local de CUPS",
+      "abrir": "Abrir ↗"
+    }
+  },
+  "restablecer": {
+    "titulo": "Restablecer dispositivos",
+    "descripcion": "Restablece ratón, touchpad, teclado y puntero; no modifica las impresoras",
+    "boton": "Restablecer",
+    "confirmar": "Confirmar"
+  },
+  "formatos": {
+    "sensibilidad": "{{signo}}{{valor}}",
+    "multiplicador": "{{valor}}×",
+    "porSegundo": "{{valor}} /s",
+    "milisegundos": "{{valor}} ms",
+    "pixeles": "{{valor}} px"
+  }
+}

@@ -1,6 +1,7 @@
 import { Gtk } from "ags/gtk4"
 import { createState } from "ags"
 import GLib from "gi://GLib"
+import textos from "../textos/ajustes/general.json" with { type: "json" }
 
 type Props = {
   display: any
@@ -18,7 +19,7 @@ type Props = {
 /** A compact value label that turns into a numeric entry when clicked. */
 export function InlineEditableValue({
   display, getValue, onCommit, min, max, labelClass,
-  tooltip = "Editar valor", suffix = "", maxLength = 3, widthRequest = 28,
+  tooltip = textos.panel.editarValor, suffix = "", maxLength = 3, widthRequest = 28,
 }: Props) {
   const [editing, setEditing] = createState(false)
   let entry: Gtk.Entry

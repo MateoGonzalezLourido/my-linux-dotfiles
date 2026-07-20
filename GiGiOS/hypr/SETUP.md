@@ -404,6 +404,9 @@ Las entradas que apuntan a un archivo de imagen entregan directamente esa ruta a
 sistema de miniaturas de Rofi. Para capturas y otras imágenes binarias,
 `hypr/scripts/miniatura-portapapeles.sh` decodifica por `stdin` y escribe directamente
 en la ruta de caché proporcionada por Rofi, sin archivos intermedios ni una caché propia.
+Desde Ajustes se puede ejecutar una limpieza manual o activar la limpieza al comenzar
+la sesión. Ambas rutas pasan por `hypr/scripts/limpiar-portapapeles.sh`, que vacía la
+selección activa de Wayland con `wl-copy --clear` y borra la base de `cliphist`.
 
 ## 7. Secretos (Spotify, credenciales)
 
@@ -624,6 +627,7 @@ Comprueba además que no falte ningún archivo referenciado por la configuració
 ```sh
 for f in \
   GiGiOS/hypr/scripts/clipboard-history.sh \
+  GiGiOS/hypr/scripts/limpiar-portapapeles.sh \
   GiGiOS/hypr/scripts/miniatura-portapapeles.sh \
   GiGiOS/rofi/config.rasi \
   GiGiOS/hypr/scripts/scan-file.sh \

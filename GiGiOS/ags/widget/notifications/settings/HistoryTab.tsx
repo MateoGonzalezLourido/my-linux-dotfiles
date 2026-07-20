@@ -10,6 +10,7 @@ import AppFilterBar from "./AppFilterBar.tsx"
 import EmptyState from "../../components/EmptyState.tsx"
 import { notifDaemonConflict, type DaemonConflict } from "../daemonCheck.ts"
 import DaemonConflictBanner from "../DaemonConflictBanner.tsx"
+import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 
 export default function HistoryTab() {
   const [editing, setEditing] = createState<NotifRule | null>(null)
@@ -23,7 +24,7 @@ export default function HistoryTab() {
         {(e: NotifRule | null) => e
           ? <RuleEditor rule={e} onClose={() => setEditing(null)} />
           : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
-              <label cssClasses={["st-tab-hint"]} label="Tipos sin regla — crea una para gestionarlos" halign={Gtk.Align.START} />
+              <label cssClasses={["st-tab-hint"]} label={textos.sinReglas.cabecera} halign={Gtk.Align.START} />
 
               <With value={empty}>
                 {(isEmpty: boolean) => isEmpty
@@ -42,7 +43,7 @@ export default function HistoryTab() {
                           })
                         : <EmptyState
                             icon="󰂚"
-                            title="Historial vacío"
+                            title={textos.sinReglas.vacio}
                             wrapClass="ns-empty-state"
                             iconClass="ns-empty-icon"
                             titleClass="ns-empty-label"
@@ -59,11 +60,11 @@ export default function HistoryTab() {
                               <box cssClasses={["re-row"]} spacing={8} valign={Gtk.Align.CENTER} visible={filter((f) => f === "all" || f === entry.app)} hexpand>
                                 <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
                                   <label cssClasses={["re-row-name"]} label={entry.app} halign={Gtk.Align.START} ellipsize={3} />
-                                  <label cssClasses={["re-row-summary"]} label={entry.summary || "(sin título)"} halign={Gtk.Align.START} ellipsize={3} />
+                                  <label cssClasses={["re-row-summary"]} label={entry.summary || textos.sinReglas.sinTitulo} halign={Gtk.Align.START} ellipsize={3} />
                                   {entry.sampleBody && <label cssClasses={["re-row-body"]} label={entry.sampleBody} halign={Gtk.Align.START} ellipsize={3} />}
                                 </box>
                                 <button cssClasses={["st-add-btn"]} onClicked={() => setEditing(ruleFromHistoryEntry(`user.${Date.now()}`, entry))}>
-                                  <label label="󰐕 Regla" />
+                                  <label label={textos.sinReglas.crearRegla} />
                                 </button>
                               </box>
                             )}

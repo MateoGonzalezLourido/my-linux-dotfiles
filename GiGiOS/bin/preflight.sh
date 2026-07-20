@@ -30,7 +30,7 @@ required=(
   hypr/hyprland.conf hypr/monitor-settings.conf
   hypr/gpu/laptop-hibrida.conf hypr/gpu/sobremesa-nvidia.conf
   Wallpapers/sunset.jpg
-  hypr/scripts/clipboard-history.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/scan-file.sh
+  hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
   hypr/scripts/run-untrusted.sh hypr/scripts/compact-workspaces.sh
   hypr/scripts/toggle-gaps-borders.sh

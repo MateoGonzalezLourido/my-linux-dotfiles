@@ -1,0 +1,41 @@
+{
+  "seccion": {
+    "titulo": "Sistema",
+    "cargando": "Detectando componentes del sistema…"
+  },
+  "vistas": {
+    "informacion": "Información del sistema",
+    "supervision": "Supervisor"
+  },
+  "grupos": {
+    "sistema": "Sistema",
+    "componentes": "Componentes",
+    "graficos": "Gráficos y controladores",
+    "entorno": "Entorno gráfico",
+    "controladoresPci": "Controladores PCI"
+  },
+  "etiquetas": {
+    "sistemaOperativo": "Sistema operativo",
+    "kernelArquitectura": "Kernel y arquitectura",
+    "nombreEquipo": "Nombre del equipo",
+    "virtualizacion": "Virtualización",
+    "procesador": "Procesador",
+    "memoria": "Memoria",
+    "placaBase": "Placa base",
+    "firmware": "BIOS / UEFI",
+    "almacenamiento": "Almacenamiento",
+    "gpu": "GPU",
+    "gpuNumerada": "GPU {{numero}}",
+    "controlador": "Controlador",
+    "controladorNumerado": "Controlador {{numero}}",
+    "modulos": "módulos: {{modulos}}",
+    "renderizadorOpenGl": "Renderizador OpenGL",
+    "compositor": "Compositor",
+    "sesion": "Sesión",
+    "ags": "AGS",
+    "gtk": "GTK",
+    "redPci": "Red (PCI)",
+    "audioPci": "Audio (PCI)",
+    "elementoNumerado": "{{etiqueta}} {{numero}}"
+  }
+}

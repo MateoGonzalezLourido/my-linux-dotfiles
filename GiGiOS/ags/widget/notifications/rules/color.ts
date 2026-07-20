@@ -1,15 +1,16 @@
 // widget/notifications/rules/color.ts
 // Pure helpers for the notification accent-color feature. No GTK/GLib imports.
+import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 
 // Theme palette offered as presets in the color picker (catppuccin-inspired, see CLAUDE.md).
 export const COLOR_PRESETS: { hex: string; name: string }[] = [
-  { hex: "#cba6f7", name: "violeta" },
-  { hex: "#89b4fa", name: "azul" },
-  { hex: "#94e2d5", name: "teal" },
-  { hex: "#a6e3a1", name: "verde" },
-  { hex: "#f9e2af", name: "amarillo" },
-  { hex: "#fab387", name: "naranja" },
-  { hex: "#f38ba8", name: "rojo" },
+  { hex: "#cba6f7", name: textos.colores.preajustes.violeta },
+  { hex: "#89b4fa", name: textos.colores.preajustes.azul },
+  { hex: "#94e2d5", name: textos.colores.preajustes.verdeAzulado },
+  { hex: "#a6e3a1", name: textos.colores.preajustes.verde },
+  { hex: "#f9e2af", name: textos.colores.preajustes.amarillo },
+  { hex: "#fab387", name: textos.colores.preajustes.naranja },
+  { hex: "#f38ba8", name: textos.colores.preajustes.rojo },
 ]
 
 /** True if `s` is a valid #rgb or #rrggbb hex color. */

@@ -1,6 +1,6 @@
 // widget/settings/datetime.ts
 //
-// Lógica de la sección "Fecha e idioma" (DateLanguageSection.tsx). Mantiene
+// Lógica de la sección "Región, fecha y hora" (DateLanguageSection.tsx). Mantiene
 // separada la parte de sistema (comandos, ficheros) de la vista JSX.
 //
 // Qué toca y con qué privilegios:

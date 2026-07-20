@@ -5,6 +5,9 @@ import { With, createState } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import { TituloSeccion, TituloSubseccion } from "./componentes"
+import SupervisionSistema from "./SupervisionSistema"
+import textos from "../../textos/ajustes/sistema.json" with { type: "json" }
+import { formatearTexto } from "../../textos/formatear"
 
 interface InfoItem { label: string; value: string }
 interface InfoGroup { title: string; icon: string; items: InfoItem[] }
@@ -61,7 +64,9 @@ function parsePciDevices(raw: string): PciDevice[] {
 function addDevices(items: InfoItem[], label: string, raw: string) {
   raw.split("\n").map(line => line.trim()).filter(Boolean).forEach((device, index, all) => {
     const clean = device.replace(/^(Ethernet controller|Network controller|Audio device):\s*/i, "")
-    add(items, all.length > 1 ? `${label} ${index + 1}` : label, clean)
+    add(items, all.length > 1
+      ? formatearTexto(textos.etiquetas.elementoNumerado, { etiqueta: label, numero: index + 1 })
+      : label, clean)
   })
 }
 
@@ -94,46 +99,52 @@ async function collectSystemInfo(): Promise<SystemSnapshot> {
   } catch (_) { hyprland = firstLine(hyprRaw) }
 
   const system: InfoItem[] = []
-  add(system, "Sistema operativo", os.PRETTY_NAME || os.NAME || "")
-  add(system, "Kernel", [kernel, arch].filter(Boolean).join(" · "))
-  add(system, "Nombre del equipo", GLib.get_host_name())
-  if (virt && virt !== "none") add(system, "Virtualización", virt)
+  add(system, textos.etiquetas.sistemaOperativo, os.PRETTY_NAME || os.NAME || "")
+  add(system, textos.etiquetas.kernelArquitectura, [kernel, arch].filter(Boolean).join(" · "))
+  add(system, textos.etiquetas.nombreEquipo, GLib.get_host_name())
+  if (virt && virt !== "none") add(system, textos.etiquetas.virtualizacion, virt)
 
   const hardware: InfoItem[] = []
-  add(hardware, "Procesador", cpuModel)
-  add(hardware, "Memoria instalada", [memory, memorySpeed].filter(Boolean).join(" · "))
-  add(hardware, "Placa base", board)
-  add(hardware, "BIOS / UEFI", bios)
-  add(hardware, "Almacenamiento", disks)
+  add(hardware, textos.etiquetas.procesador, cpuModel)
+  add(hardware, textos.etiquetas.memoria, [memory, memorySpeed].filter(Boolean).join(" · "))
+  add(hardware, textos.etiquetas.placaBase, board)
+  add(hardware, textos.etiquetas.firmware, bios)
+  add(hardware, textos.etiquetas.almacenamiento, disks)
 
   const graphics: InfoItem[] = []
   gpus.forEach((gpu, index) => {
-    const integrated = /Intel/i.test(gpu.name) || (/AMD|Radeon/i.test(gpu.name) && !/\bRX\b|Radeon Pro/i.test(gpu.name))
-    const kind = gpus.length > 1 ? (integrated ? " integrada" : " dedicada") : ""
-    const fallback = gpus.length > 1 && gpus.filter(g => (/Intel/i.test(g.name) || (/AMD|Radeon/i.test(g.name) && !/\bRX\b|Radeon Pro/i.test(g.name))) === integrated).length > 1
-      ? ` ${index + 1}` : ""
-    add(graphics, `GPU${kind}${fallback}`, gpu.name)
-    add(graphics, `Driver${kind}${fallback}`, [gpu.driver, gpu.modules && gpu.modules !== gpu.driver ? `módulos: ${gpu.modules}` : ""].filter(Boolean).join(" · "))
+    const numero = { numero: index + 1 }
+    const etiquetaGpu = gpus.length > 1
+      ? formatearTexto(textos.etiquetas.gpuNumerada, numero)
+      : textos.etiquetas.gpu
+    const etiquetaControlador = gpus.length > 1
+      ? formatearTexto(textos.etiquetas.controladorNumerado, numero)
+      : textos.etiquetas.controlador
+    const modulos = gpu.modules && gpu.modules !== gpu.driver
+      ? formatearTexto(textos.etiquetas.modulos, { modulos: gpu.modules })
+      : ""
+    add(graphics, etiquetaGpu, gpu.name)
+    add(graphics, etiquetaControlador, [gpu.driver, modulos].filter(Boolean).join(" · "))
   })
-  add(graphics, "Renderizador OpenGL", renderer)
+  add(graphics, textos.etiquetas.renderizadorOpenGl, renderer)
 
   const environment: InfoItem[] = []
-  add(environment, "Compositor", hyprland ? `Hyprland ${hyprland}` : "Hyprland")
-  add(environment, "Sesión", [GLib.getenv("XDG_SESSION_TYPE") || "Wayland", GLib.getenv("XDG_CURRENT_DESKTOP") || "Hyprland"].join(" · "))
-  add(environment, "AGS", firstLine(agsVersion))
-  add(environment, "GTK", `${Gtk.get_major_version()}.${Gtk.get_minor_version()}.${Gtk.get_micro_version()}`)
+  add(environment, textos.etiquetas.compositor, hyprland ? `Hyprland ${hyprland}` : "Hyprland")
+  add(environment, textos.etiquetas.sesion, [GLib.getenv("XDG_SESSION_TYPE") || "Wayland", GLib.getenv("XDG_CURRENT_DESKTOP") || "Hyprland"].join(" · "))
+  add(environment, textos.etiquetas.ags, firstLine(agsVersion))
+  add(environment, textos.etiquetas.gtk, `${Gtk.get_major_version()}.${Gtk.get_minor_version()}.${Gtk.get_micro_version()}`)
 
   const devices: InfoItem[] = []
-  addDevices(devices, "Red", network)
-  addDevices(devices, "Audio", audio)
+  addDevices(devices, textos.etiquetas.redPci, network)
+  addDevices(devices, textos.etiquetas.audioPci, audio)
 
   return {
     groups: [
-      { title: "Sistema", icon: "󰍹", items: system },
-      { title: "Componentes", icon: "󰌢", items: hardware },
-      { title: "Gráficos y drivers", icon: "󰢮", items: graphics },
-      { title: "Entorno gráfico", icon: "󰖯", items: environment },
-      { title: "Dispositivos", icon: "󰓢", items: devices },
+      { title: textos.grupos.sistema, icon: "󰍹", items: system },
+      { title: textos.grupos.componentes, icon: "󰌢", items: hardware },
+      { title: textos.grupos.graficos, icon: "󰢮", items: graphics },
+      { title: textos.grupos.entorno, icon: "󰖯", items: environment },
+      { title: textos.grupos.controladoresPci, icon: "󰓢", items: devices },
     ].filter(group => group.items.length),
   }
 }
@@ -156,13 +167,23 @@ function InfoGroupView({ group }: { group: InfoGroup }) {
   )
 }
 
-export default function SystemSection() {
+type VistaSistema = "informacion" | "supervision"
+
+export default function SystemSection({ vista }: { vista: VistaSistema }) {
+  if (vista === "supervision") {
+    return (
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
+        <TituloSeccion titulo={textos.vistas.supervision} />
+        <SupervisionSistema />
+      </box>
+    )
+  }
   const [snapshot, setSnapshot] = createState<SystemSnapshot>(EMPTY)
   collectSystemInfo().then(setSnapshot)
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "sys-section"]} hexpand>
-      <TituloSeccion titulo="Sistema" />
+      <TituloSeccion titulo={textos.vistas.informacion} />
       <With value={snapshot}>
         {(data: SystemSnapshot) => data.groups.length
           ? <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
@@ -170,7 +191,7 @@ export default function SystemSection() {
             </box>
           : <box cssClasses={["sys-loading"]} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}>
               <Gtk.Spinner spinning={true} />
-              <label label="Detectando componentes del sistema…" />
+              <label label={textos.seccion.cargando} />
             </box>}
       </With>
     </box>

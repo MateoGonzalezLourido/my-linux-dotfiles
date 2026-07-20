@@ -1,0 +1,71 @@
+{
+  "seccion": {
+    "titulo": "Cuenta",
+    "usuarioPredeterminado": "usuario"
+  },
+  "perfil": {
+    "titulo": "Perfil",
+    "equipo": "Equipo: {{nombre}}",
+    "foto": {
+      "titulo": "Foto de perfil",
+      "descripcion": "Copia una imagen local para usarla en AGS y en la pantalla de bloqueo.",
+      "placeholder": "~/Imágenes/perfil.png",
+      "boton": "Cambiar foto"
+    }
+  },
+  "datosPersonales": {
+    "titulo": "Datos personales",
+    "usuario": {
+      "titulo": "Nombre de usuario",
+      "descripcion": "Cambia el usuario de inicio de sesión; no renombra la carpeta personal."
+    },
+    "nombreCompleto": {
+      "titulo": "Nombre completo",
+      "descripcion": "Nombre visible asociado a la cuenta.",
+      "placeholder": "Opcional"
+    }
+  },
+  "seguridad": {
+    "titulo": "Contraseña y autorización",
+    "contrasena": {
+      "titulo": "Contraseña",
+      "descripcion": "Cambia la contraseña de la cuenta actual.",
+      "mostrar": "Cambiar",
+      "ocultar": "Ocultar"
+    },
+    "nuevaContrasena": {
+      "titulo": "Nueva contraseña",
+      "descripcion": "Debe tener al menos 8 caracteres.",
+      "placeholder": "Nueva contraseña"
+    },
+    "confirmarContrasena": {
+      "titulo": "Confirmar contraseña",
+      "placeholder": "Repetir nueva contraseña"
+    },
+    "autorizacion": {
+      "titulo": "Autorización administrativa",
+      "descripcion": "Autoriza los cambios de la cuenta y no se guarda.",
+      "placeholder": "Contraseña de administrador"
+    }
+  },
+  "acciones": {
+    "guardar": "Guardar cambios"
+  },
+  "avisos": {
+    "formato": "~ {{mensaje}}",
+    "rutaVacia": "Escribe la ruta de una imagen.",
+    "rutaInvalida": "La ruta debe ser absoluta o empezar por ~/.",
+    "imagenAusente": "No existe una imagen en esa ruta.",
+    "fotoActualizada": "Foto de perfil actualizada.",
+    "autorizacionRequerida": "Introduce la contraseña de administrador.",
+    "usuarioInvalido": "El usuario debe usar minúsculas, números, _ o - y empezar por una letra.",
+    "contrasenasNoCoinciden": "Las contraseñas nuevas no coinciden.",
+    "contrasenaCorta": "La contraseña nueva debe tener al menos 8 caracteres.",
+    "sinCambios": "No hay cambios que guardar.",
+    "aplicando": "Aplicando cambios…",
+    "cuentaActualizadaReinicio": "Cuenta actualizada. Cierra sesión para usar el nuevo nombre.",
+    "cuentaActualizada": "Cuenta actualizada correctamente.",
+    "contrasenaAdministradorIncorrecta": "La contraseña de administrador no es correcta.",
+    "operacionFallida": "No se pudo completar la operación."
+  }
+}

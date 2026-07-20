@@ -4,6 +4,7 @@ import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { With } from "ags"
 import { notifSettingsVisible, setNotifSettingsVisible } from "../store"
 import SettingsTabs from "./SettingsTabs.tsx"
+import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 
 export default function SettingsWindow(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
@@ -17,7 +18,7 @@ export default function SettingsWindow(gdkmonitor: Gdk.Monitor) {
       valign={Gtk.Align.CENTER}
     >
       <box cssClasses={["ns-header"]} spacing={8} valign={Gtk.Align.CENTER}>
-        <label cssClasses={["ns-title"]} label="Ajustes de notificaciones" hexpand halign={Gtk.Align.START} />
+        <label cssClasses={["ns-title"]} label={textos.seccion.tituloVentana} hexpand halign={Gtk.Align.START} />
       </box>
       <box vexpand>
         <With value={notifSettingsVisible}>

@@ -15,7 +15,7 @@ export default function Clock() {
   let startTime = 0
   //formato del reloj (12h/24h según preferencia; ver widget/settings/preferences.ts)
   const string_clock = () => formatClock()
-  // Repinta al instante cuando el usuario cambia el formato en Ajustes > Fecha e idioma.
+  // Repinta al instante cuando el usuario cambia el formato en Ajustes > Región, fecha y hora.
   const unsubFormat = timeFormat.subscribe(() => setTime(string_clock()))
   let clockInterval: number | null = null
   //logica de timers para actualizar el reloj

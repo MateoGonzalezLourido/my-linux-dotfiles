@@ -8,6 +8,8 @@
 import { createState } from "ags"
 import GLib from "gi://GLib"
 import AstalBattery from "gi://AstalBattery"
+import textos from "../../textos/ajustes/energia.json" with { type: "json" }
+import { formatearTexto } from "../../textos/formatear.ts"
 
 const POWER_CONFIG_PATH = `${GLib.get_user_config_dir()}/power-save/config.json`
 
@@ -106,7 +108,7 @@ export const [wsPreviewSuspended, _setWsPreviewSuspended] = createState(false)
 // handler de "destroy" quita el timer, suelta el tick callback y cancela la suscripción.
 export const [spotifyBarSuspended, _setSpotifyBarSuspended] = createState(false)
 // Pre-composed human label so the UI doesn't have to combine three states in one binding.
-export const [batteryStatusText, _setBatteryStatusText] = createState("Sin batería detectada")
+export const [batteryStatusText, _setBatteryStatusText] = createState(textos.estado.sinBateria)
 
 const bat = (() => { try { return AstalBattery.get_default() } catch { return null } })()
 
@@ -114,7 +116,9 @@ function recompute() {
   const present = !!(bat && bat.isPresent)
   const charging = present ? bat!.charging : false
   const pct = present ? Math.round(bat!.percentage * 100) : 0
-  _setBatteryStatusText(present ? `Batería: ${pct}%${charging ? " (cargando)" : ""}` : "Sin batería detectada")
+  _setBatteryStatusText(present
+    ? formatearTexto(charging ? textos.estado.bateriaCargando : textos.estado.bateria, { porcentaje: pct })
+    : textos.estado.sinBateria)
 
   // pct > 0 guards against a transient 0 read before the proxy has the real value.
   const active = present && !charging && pct > 0 && pct <= powerSaveThreshold.get()

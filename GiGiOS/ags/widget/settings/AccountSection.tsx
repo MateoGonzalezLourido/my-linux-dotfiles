@@ -5,6 +5,8 @@ import GLib from "gi://GLib"
 import ProfileAvatar from "./ProfileAvatar"
 import { AVATAR_PATH, refreshAvatar } from "./avatar"
 import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloSeccion } from "./componentes"
+import textos from "../../textos/ajustes/cuenta.json" with { type: "json" }
+import { formatearTexto } from "../../textos/formatear"
 
 type Notice = { kind: "idle" | "working" | "ok" | "error"; text: string }
 
@@ -19,7 +21,7 @@ function adminCommand(argv: string[], input: string): Promise<string> {
         try {
           const [, stdout, stderr] = proc.communicate_utf8_finish(result)
           if (proc.get_successful()) resolve((stdout ?? "").trim())
-          else reject(new Error((stderr ?? "No se pudo completar la operación").trim()))
+          else reject(new Error((stderr ?? textos.avisos.operacionFallida).trim()))
         } catch (error) { reject(error) }
       })
     } catch (error) { reject(error) }
@@ -28,12 +30,12 @@ function adminCommand(argv: string[], input: string): Promise<string> {
 
 function cleanAdminError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
-  if (/incorrect password|authentication failure|try again/i.test(message)) return "La contraseña de administrador no es correcta."
-  return message.replace(/^sudo:\s*/i, "") || "No se pudo completar la operación."
+  if (/incorrect password|authentication failure|try again/i.test(message)) return textos.avisos.contrasenaAdministradorIncorrecta
+  return message.replace(/^sudo:\s*/i, "") || textos.avisos.operacionFallida
 }
 
 export default function AccountSection() {
-  const currentUser = GLib.get_user_name() || "user"
+  const currentUser = GLib.get_user_name() || textos.seccion.usuarioPredeterminado
   const [loginName, setLoginName] = createState(currentUser)
   const [fullName, setFullName] = createState("")
   const [newPassword, setNewPassword] = createState("")
@@ -45,18 +47,18 @@ export default function AccountSection() {
 
   const applyAvatar = () => {
     const raw = avatarInput.get().trim()
-    if (!raw) return setNotice({ kind: "error", text: "Escribe la ruta de una imagen." })
+    if (!raw) return setNotice({ kind: "error", text: textos.avisos.rutaVacia })
     const path = raw === "~" ? GLib.get_home_dir()
       : raw.startsWith("~/") ? `${GLib.get_home_dir()}/${raw.slice(2)}`
       : raw
     try {
-      if (!GLib.path_is_absolute(path)) throw new Error("La ruta debe ser absoluta o empezar por ~/.")
-      if (!GLib.file_test(path, GLib.FileTest.IS_REGULAR)) throw new Error("No existe una imagen en esa ruta.")
+      if (!GLib.path_is_absolute(path)) throw new Error(textos.avisos.rutaInvalida)
+      if (!GLib.file_test(path, GLib.FileTest.IS_REGULAR)) throw new Error(textos.avisos.imagenAusente)
       GLib.mkdir_with_parents(GLib.path_get_dirname(AVATAR_PATH), 0o700)
       Gio.File.new_for_path(path).copy(Gio.File.new_for_path(AVATAR_PATH), Gio.FileCopyFlags.OVERWRITE, null, null)
       refreshAvatar()
       setAvatarInput("")
-      setNotice({ kind: "ok", text: "Foto de perfil actualizada." })
+      setNotice({ kind: "ok", text: textos.avisos.fotoActualizada })
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : String(error) })
     }
@@ -67,13 +69,13 @@ export default function AccountSection() {
     const realName = fullName.get().trim()
     const password = newPassword.get()
     const admin = adminPassword.get()
-    if (!admin) return setNotice({ kind: "error", text: "Introduce la contraseña de administrador." })
-    if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(nextLogin)) return setNotice({ kind: "error", text: "El usuario debe usar minúsculas, números, _ o - y empezar por una letra." })
-    if (password && password !== confirmPassword.get()) return setNotice({ kind: "error", text: "Las contraseñas nuevas no coinciden." })
-    if (password && password.length < 8) return setNotice({ kind: "error", text: "La contraseña nueva debe tener al menos 8 caracteres." })
-    if (nextLogin === currentUser && !realName && !password) return setNotice({ kind: "error", text: "No hay cambios que guardar." })
+    if (!admin) return setNotice({ kind: "error", text: textos.avisos.autorizacionRequerida })
+    if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(nextLogin)) return setNotice({ kind: "error", text: textos.avisos.usuarioInvalido })
+    if (password && password !== confirmPassword.get()) return setNotice({ kind: "error", text: textos.avisos.contrasenasNoCoinciden })
+    if (password && password.length < 8) return setNotice({ kind: "error", text: textos.avisos.contrasenaCorta })
+    if (nextLogin === currentUser && !realName && !password) return setNotice({ kind: "error", text: textos.avisos.sinCambios })
 
-    setNotice({ kind: "working", text: "Aplicando cambios…" })
+    setNotice({ kind: "working", text: textos.avisos.aplicando })
     try {
       // Validación explícita; cada orden vuelve a autenticar para mantener separado
       // el stdin de sudo del stdin destinado a chpasswd.
@@ -84,7 +86,7 @@ export default function AccountSection() {
       setAdminPassword("")
       setNewPassword("")
       setConfirmPassword("")
-      setNotice({ kind: "ok", text: nextLogin !== currentUser ? "Cuenta actualizada. Cierra sesión para usar el nuevo nombre." : "Cuenta actualizada correctamente." })
+      setNotice({ kind: "ok", text: nextLogin !== currentUser ? textos.avisos.cuentaActualizadaReinicio : textos.avisos.cuentaActualizada })
     } catch (error) {
       setAdminPassword("")
       setNotice({ kind: "error", text: cleanAdminError(error) })
@@ -98,9 +100,9 @@ export default function AccountSection() {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section", "account-section"]} hexpand>
-      <TituloSeccion titulo="Cuenta" />
+      <TituloSeccion titulo={textos.seccion.titulo} />
 
-      <TarjetaAjustes titulo="Perfil" icono="󰀄" cssClasses={["account-card"]}>
+      <TarjetaAjustes titulo={textos.perfil.titulo} icono="󰀄" cssClasses={["account-card"]}>
         <box cssClasses={["dev-row", "account-profile-summary"]} spacing={14} valign={Gtk.Align.CENTER}>
           <ProfileAvatar
             size={46}
@@ -111,39 +113,39 @@ export default function AccountSection() {
           />
           <box orientation={Gtk.Orientation.VERTICAL} spacing={3} hexpand valign={Gtk.Align.CENTER}>
             <label cssClasses={["account-current-user"]} label={currentUser} halign={Gtk.Align.START} />
-            <TextoInformativo label={`@${GLib.get_host_name()}`} halign={Gtk.Align.START} />
+            <TextoInformativo label={formatearTexto(textos.perfil.equipo, { nombre: GLib.get_host_name() })} halign={Gtk.Align.START} />
           </box>
         </box>
-        <FilaAjuste titulo="Foto de perfil" informacion="Elige una imagen mediante su ruta local."
+        <FilaAjuste titulo={textos.perfil.foto.titulo} informacion={textos.perfil.foto.descripcion}
           cssClasses={["account-row"]} maxCaracteresInformacion={38}>
           <box cssClasses={["account-controls"]} spacing={8} valign={Gtk.Align.CENTER}>
-            <EntradaTextoAjustes placeholderText="~/Imágenes/perfil.png"
+            <EntradaTextoAjustes placeholderText={textos.perfil.foto.placeholder}
               onChanged={(entry) => setAvatarInput(entry.get_text())}
               onActivate={applyAvatar} hexpand />
-            <BotonAjustes label="Cambiar foto" onClicked={applyAvatar} />
+            <BotonAjustes label={textos.perfil.foto.boton} onClicked={applyAvatar} />
           </box>
         </FilaAjuste>
       </TarjetaAjustes>
 
-      <TarjetaAjustes titulo="Datos personales" icono="󰓝" cssClasses={["account-card"]}>
-        <FilaAjuste titulo="Nombre de usuario" informacion="Identificador usado para iniciar sesión."
+      <TarjetaAjustes titulo={textos.datosPersonales.titulo} icono="󰓝" cssClasses={["account-card"]}>
+        <FilaAjuste titulo={textos.datosPersonales.usuario.titulo} informacion={textos.datosPersonales.usuario.descripcion}
           cssClasses={["account-row"]} maxCaracteresInformacion={38}>
           <box cssClasses={["account-controls"]}>
             <EntradaTextoAjustes text={currentUser}
               onChanged={(entry) => setLoginName(entry.get_text())} hexpand />
           </box>
         </FilaAjuste>
-        <FilaAjuste titulo="Nombre completo" informacion="Nombre visible asociado a la cuenta."
+        <FilaAjuste titulo={textos.datosPersonales.nombreCompleto.titulo} informacion={textos.datosPersonales.nombreCompleto.descripcion}
           cssClasses={["account-row"]} maxCaracteresInformacion={38}>
           <box cssClasses={["account-controls"]}>
-            <EntradaTextoAjustes placeholderText="Opcional"
+            <EntradaTextoAjustes placeholderText={textos.datosPersonales.nombreCompleto.placeholder}
               onChanged={(entry) => setFullName(entry.get_text())} hexpand />
           </box>
         </FilaAjuste>
       </TarjetaAjustes>
 
-      <TarjetaAjustes titulo="Seguridad" icono="󰌾" cssClasses={["account-card"]}>
-        <FilaAjuste titulo="Contraseña" informacion="Cambia la contraseña de inicio de sesión."
+      <TarjetaAjustes titulo={textos.seguridad.titulo} icono="󰌾" cssClasses={["account-card"]}>
+        <FilaAjuste titulo={textos.seguridad.contrasena.titulo} informacion={textos.seguridad.contrasena.descripcion}
           cssClasses={["account-row"]} maxCaracteresInformacion={38}>
           <BotonAjustes
             activo={passwordExpanded}
@@ -152,30 +154,29 @@ export default function AccountSection() {
               setPasswordExpanded(open)
               if (!open) { setNewPassword(""); setConfirmPassword("") }
             }}
-            label={passwordExpanded((open: boolean) => open ? "Ocultar" : "Cambiar")}
+            label={passwordExpanded((open: boolean) => open ? textos.seguridad.contrasena.ocultar : textos.seguridad.contrasena.mostrar)}
           />
         </FilaAjuste>
         <box visible={passwordExpanded} cssClasses={["account-password-fields"]} orientation={Gtk.Orientation.VERTICAL}>
-          <FilaAjuste titulo="Nueva contraseña" informacion="Debe tener al menos 8 caracteres."
+          <FilaAjuste titulo={textos.seguridad.nuevaContrasena.titulo} informacion={textos.seguridad.nuevaContrasena.descripcion}
             cssClasses={["account-row"]} maxCaracteresInformacion={38}>
-            <box cssClasses={["account-controls"]}>{passwordEntry("Nueva contraseña", setNewPassword)}</box>
+            <box cssClasses={["account-controls"]}>{passwordEntry(textos.seguridad.nuevaContrasena.placeholder, setNewPassword)}</box>
           </FilaAjuste>
-          <FilaAjuste titulo="Confirmar contraseña" informacion="Vuelve a escribir la nueva contraseña."
-            cssClasses={["account-row"]} maxCaracteresInformacion={38}>
-            <box cssClasses={["account-controls"]}>{passwordEntry("Repetir nueva contraseña", setConfirmPassword)}</box>
+          <FilaAjuste titulo={textos.seguridad.confirmarContrasena.titulo} cssClasses={["account-row"]}>
+            <box cssClasses={["account-controls"]}>{passwordEntry(textos.seguridad.confirmarContrasena.placeholder, setConfirmPassword)}</box>
           </FilaAjuste>
         </box>
-        <FilaAjuste titulo="Autorización administrativa" informacion="Se envía directamente a sudo y no se guarda."
+        <FilaAjuste titulo={textos.seguridad.autorizacion.titulo} informacion={textos.seguridad.autorizacion.descripcion}
           cssClasses={["account-row"]} maxCaracteresInformacion={38}>
-          <box cssClasses={["account-controls"]}>{passwordEntry("Contraseña de administrador", setAdminPassword)}</box>
+          <box cssClasses={["account-controls"]}>{passwordEntry(textos.seguridad.autorizacion.placeholder, setAdminPassword)}</box>
         </FilaAjuste>
       </TarjetaAjustes>
 
       <box cssClasses={["account-actions"]} spacing={12} valign={Gtk.Align.CENTER}>
         <With value={notice}>{(state: Notice) => state.text
-          ? <label cssClasses={["account-notice", state.kind]} label={`~ ${state.text}`} halign={Gtk.Align.START} wrap xalign={0} hexpand />
+          ? <label cssClasses={["account-notice", state.kind]} label={formatearTexto(textos.avisos.formato, { mensaje: state.text })} halign={Gtk.Align.START} wrap xalign={0} hexpand />
           : <box hexpand />}</With>
-        <BotonAjustes variante="principal" label="Guardar cambios" onClicked={applyChanges} />
+        <BotonAjustes variante="principal" label={textos.acciones.guardar} onClicked={applyChanges} />
       </box>
     </box>
   )

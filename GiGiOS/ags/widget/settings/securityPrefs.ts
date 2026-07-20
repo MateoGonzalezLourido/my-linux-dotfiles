@@ -1,6 +1,6 @@
 // widget/settings/securityPrefs.ts
 //
-// Preferencias de la sección "Seguridad" del panel de ajustes general
+// Preferencias de la sección "Protección" del panel de ajustes general
 // (widget/SettingsPanel.tsx). Cada clave activa/desactiva un tipo de evento que
 // vigila hypr/scripts/oom-monitor.sh.
 //
@@ -14,6 +14,7 @@
 
 import GLib from "gi://GLib"
 import { createState } from "ags"
+import textos from "../../textos/ajustes/seguridad.json" with { type: "json" }
 
 const SEC_PATH = `${GLib.get_user_config_dir()}/gigios/security.json`
 
@@ -25,25 +26,26 @@ export type SecurityKey =
 
 // Orden + metadatos de UI. El orden aquí es el orden en el que se pintan las
 // filas. Todos por defecto ON = comportamiento actual del monitor.
+const eventos = textos.eventos
 export const SECURITY_ITEMS: { key: SecurityKey; label: string; hint: string }[] = [
-  { key: "oomKiller",      label: "OOM Killer",                 hint: "Avisa cuando el kernel mata un proceso por quedarse sin memoria." },
-  { key: "kernelPanic",    label: "Kernel panic",               hint: "Avisa ante un pánico del kernel (reinicio inminente)." },
-  { key: "hungTask",       label: "Procesos colgados",          hint: "Detecta tareas bloqueadas demasiado tiempo (hung task)." },
-  { key: "hwErrors",       label: "Errores de hardware",        hint: "Fallos de CPU o memoria del kernel (MCE, ECC, EDAC)." },
-  { key: "kernelModules",  label: "Módulos del kernel",         hint: "Avisa al cargar módulos sin firmar o fuera del árbol (posible rootkit)." },
-  { key: "cpuThrottling",  label: "CPU throttling",             hint: "Avisa cuando el kernel limita la CPU por temperatura." },
-  { key: "diskError",      label: "Errores de disco",           hint: "Avisa ante errores de E/S del kernel." },
-  { key: "diskHealth",     label: "Salud del disco (SMART)",    hint: "Sondea SMART y avisa si un disco se acerca a fallar. Requiere smartctl con permisos." },
-  { key: "gpuError",       label: "Errores de GPU",             hint: "Avisa ante fallos de la GPU o del driver NVIDIA." },
-  { key: "serviceFailure", label: "Servicios fallidos",         hint: "Avisa cuando un servicio de systemd no consigue arrancar." },
-  { key: "serviceHealth",  label: "Servicios y crashes en cascada", hint: "Unidades que caen en estado «failed» en cualquier momento (watchdog, crash) y tormentas de coredumps." },
-  { key: "sudoAuth",       label: "Fallos de sudo",             hint: "Avisa ante intentos fallidos de autenticación con sudo." },
-  { key: "privEsc",        label: "Escalada de privilegios",    hint: "Uso de pkexec, fallos de su y autorizaciones polkit denegadas." },
-  { key: "ssh",            label: "Sesiones SSH",               hint: "Avisa ante inicios de sesión SSH aceptados o fallidos." },
-  { key: "appCrash",       label: "Crashes de aplicaciones",    hint: "Avisa cuando una app peta por segfault o vuelca core." },
-  { key: "fileIntegrity",  label: "Integridad de archivos",     hint: "Vigila /etc (passwd, shadow, sudoers, ld.so.preload…), claves SSH, autostart y unidades systemd." },
-  { key: "downloadScan",   label: "Escaneo de descargas",       hint: "Avisa de ejecutables nuevos en ~/Downloads y, si tienes ClamAV, los analiza en busca de malware." },
-  { key: "sandboxLaunch",  label: "Lanzador aislado",           hint: "Ofrece lanzar los ejecutables detectados en una jaula Firejail (tras analizarlos con ClamAV). Abajo puedes lanzar cualquier archivo por ruta." },
+  { key: "oomKiller",      label: eventos.memoriaAgotada.titulo,       hint: eventos.memoriaAgotada.descripcion },
+  { key: "kernelPanic",    label: eventos.panicoKernel.titulo,         hint: eventos.panicoKernel.descripcion },
+  { key: "hungTask",       label: eventos.procesosColgados.titulo,     hint: eventos.procesosColgados.descripcion },
+  { key: "hwErrors",       label: eventos.erroresHardware.titulo,      hint: eventos.erroresHardware.descripcion },
+  { key: "kernelModules",  label: eventos.modulosKernel.titulo,        hint: eventos.modulosKernel.descripcion },
+  { key: "cpuThrottling",  label: eventos.limitacionCpu.titulo,        hint: eventos.limitacionCpu.descripcion },
+  { key: "diskError",      label: eventos.erroresDisco.titulo,         hint: eventos.erroresDisco.descripcion },
+  { key: "diskHealth",     label: eventos.saludDisco.titulo,           hint: eventos.saludDisco.descripcion },
+  { key: "gpuError",       label: eventos.erroresGpu.titulo,           hint: eventos.erroresGpu.descripcion },
+  { key: "serviceFailure", label: eventos.serviciosFallidos.titulo,    hint: eventos.serviciosFallidos.descripcion },
+  { key: "serviceHealth",  label: eventos.saludServicios.titulo,       hint: eventos.saludServicios.descripcion },
+  { key: "sudoAuth",       label: eventos.fallosSudo.titulo,           hint: eventos.fallosSudo.descripcion },
+  { key: "privEsc",        label: eventos.escaladaPrivilegios.titulo,  hint: eventos.escaladaPrivilegios.descripcion },
+  { key: "ssh",            label: eventos.sesionesSsh.titulo,          hint: eventos.sesionesSsh.descripcion },
+  { key: "appCrash",       label: eventos.fallosAplicaciones.titulo,   hint: eventos.fallosAplicaciones.descripcion },
+  { key: "fileIntegrity",  label: eventos.integridadArchivos.titulo,   hint: eventos.integridadArchivos.descripcion },
+  { key: "downloadScan",   label: eventos.escaneoDescargas.titulo,     hint: eventos.escaneoDescargas.descripcion },
+  { key: "sandboxLaunch",  label: eventos.lanzadorAislado.titulo,      hint: eventos.lanzadorAislado.descripcion },
 ]
 
 const KEYS: SecurityKey[] = SECURITY_ITEMS.map((i) => i.key)
@@ -54,15 +56,16 @@ for (const k of KEYS) states[k] = createState(true)
 
 // ── Escáner de descargas: recursos y pausas ─────────────────────────────────
 // Prefs heterogéneas (3 pausas + un número de GB) que se pintan en su PROPIA
-// subsección de SecuritySection, no en la lista de eventos de arriba. A
+// pestaña Descargas de SecuritySection, no en la lista de eventos de arriba. A
 // DIFERENCIA de los toggles de eventos, hypr/scripts/oom-monitor.sh relee estas
 // EN CADA BARRIDO (no solo al arrancar): cambiarlas surte efecto sin reiniciar.
 export type DlPauseKey = "dlPauseInPowerSave" | "dlPauseOnBattery" | "dlPauseWhileGaming"
 
+const pausasDescargas = textos.recursosDescargas.pausas
 export const DL_PAUSE_ITEMS: { key: DlPauseKey; label: string; hint: string }[] = [
-  { key: "dlPauseInPowerSave", label: "Pausar en modo ahorro",  hint: "No analizar descargas mientras el ahorro de energía está activo (batería baja)." },
-  { key: "dlPauseOnBattery",   label: "Pausar con batería",     hint: "No analizar descargas mientras estés desenchufado (con batería)." },
-  { key: "dlPauseWhileGaming", label: "Pausar mientras juego",  hint: "No analizar descargas mientras haya un juego en marcha." },
+  { key: "dlPauseInPowerSave", label: pausasDescargas.modoAhorro.titulo,    hint: pausasDescargas.modoAhorro.descripcion },
+  { key: "dlPauseOnBattery",   label: pausasDescargas.conBateria.titulo,    hint: pausasDescargas.conBateria.descripcion },
+  { key: "dlPauseWhileGaming", label: pausasDescargas.mientrasJuego.titulo, hint: pausasDescargas.mientrasJuego.descripcion },
 ]
 const DL_PAUSE_KEYS = DL_PAUSE_ITEMS.map((i) => i.key)
 

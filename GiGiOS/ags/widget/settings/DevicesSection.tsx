@@ -12,10 +12,12 @@ import {
   printerStatus, printerBusy, refresh as refreshPrinters,
   setCupsEnabled, openCupsWeb,
 } from "../devices/printers"
+import textos from "../../textos/ajustes/dispositivos.json" with { type: "json" }
+import { formatearTexto } from "../../textos/formatear"
 
 type Key = keyof DeviceSettings
 
-function ToggleRow({ setting, label, hint }: { setting: Key, label: string, hint: string }) {
+function ToggleRow({ setting, label, hint }: { setting: Key, label: string, hint?: string }) {
   const active = deviceSettings((s) => Boolean(s[setting]))
   return (
     <FilaAjuste titulo={label} informacion={hint} spacing={12} maxCaracteresInformacion={54}>
@@ -28,7 +30,7 @@ function ToggleRow({ setting, label, hint }: { setting: Key, label: string, hint
 }
 
 function SliderRow({ setting, label, hint, min, max, step, format }: {
-  setting: Key, label: string, hint: string, min: number, max: number, step: number,
+  setting: Key, label: string, hint?: string, min: number, max: number, step: number,
   format: (n: number) => string,
 }) {
   const adjustment = new Gtk.Adjustment({ lower: min, upper: max, stepIncrement: step, pageIncrement: step * 5 })
@@ -51,7 +53,7 @@ function SliderRow({ setting, label, hint, min, max, step, format }: {
 }
 
 function SelectRow({ setting, label, hint, choices, reload = false }: {
-  setting: Key, label: string, hint: string, choices: { value: string | number, label: string }[], reload?: boolean,
+  setting: Key, label: string, hint?: string, choices: { value: string | number, label: string }[], reload?: boolean,
 }) {
   const current = deviceSettings((s) => choices.find(c => String(c.value) === String(s[setting]))?.label ?? String(s[setting]))
   const options = deviceSettings((s) => choices.map(c => ({ ...c, value: String(c.value), active: String(c.value) === String(s[setting]) })))
@@ -70,16 +72,18 @@ function SelectRow({ setting, label, hint, choices, reload = false }: {
 // Bloque de impresoras: un interruptor maestro para CUPS, con estado en vivo y
 // acceso al panel web. La lógica de sistema vive en ../devices/printers.
 function PrintersCard() {
-  const stateLabel = printerStatus((s) => !s.available ? "No instalado" : s.active ? "Activo" : "Inactivo")
+  const stateLabel = printerStatus((s) => !s.available
+    ? textos.impresoras.estado.noInstalado
+    : s.active ? textos.impresoras.estado.activo : textos.impresoras.estado.inactivo)
   const dotClass = printerStatus((s) => !s.available ? ["dev-status-dot"] : s.active ? ["dev-status-dot", "on"] : ["dev-status-dot", "off"])
   const impresionActiva = printerStatus((s) => s.enabled)
   return (
-    <TarjetaAjustes titulo="Impresoras" icono="󰐪">
+    <TarjetaAjustes titulo={textos.tarjetas.impresoras} icono="󰐪">
       <FilaAjuste
-        titulo="Servicio de impresión (CUPS)"
+        titulo={textos.impresoras.servicio.titulo}
         informacion={printerStatus((s) => !s.available
-              ? "CUPS no está instalado en este sistema"
-              : "Activa la impresión y su arranque automático")}
+              ? textos.impresoras.servicio.descripcionNoInstalado
+              : textos.impresoras.servicio.descripcionDisponible)}
         spacing={12}
         maxCaracteresInformacion={54}
       >
@@ -90,7 +94,7 @@ function PrintersCard() {
         />
       </FilaAjuste>
 
-      <FilaAjuste titulo="Estado" spacing={10}>
+      <FilaAjuste titulo={textos.impresoras.estado.titulo} spacing={10}>
         <box spacing={7} valign={Gtk.Align.CENTER}>
           <box cssClasses={dotClass} valign={Gtk.Align.CENTER} />
           <label cssClasses={["sp-field-value", "dev-value"]} label={stateLabel} />
@@ -99,71 +103,73 @@ function PrintersCard() {
 
       <FilaAjuste
         visible={printerStatus((s) => s.active)}
-        titulo="Configuración de impresoras"
-        informacion="Añade o gestiona impresoras en el panel web de CUPS"
+        titulo={textos.impresoras.configuracion.titulo}
+        informacion={textos.impresoras.configuracion.descripcion}
         spacing={10}
         maxCaracteresInformacion={54}
       >
         <button cssClasses={["dev-reset"]} onClicked={() => openCupsWeb()}>
-          <label label="Abrir ↗" />
+          <label label={textos.impresoras.configuracion.abrir} />
         </button>
       </FilaAjuste>
     </TarjetaAjustes>
   )
 }
 
-export default function DevicesSection() {
+type VistaDispositivos = "raton" | "touchpad" | "teclado" | "impresoras"
+
+export default function DevicesSection({ vista }: { vista: VistaDispositivos }) {
   const [confirmReset, setConfirmReset] = createState(false)
-  refreshPrinters()
+  if (vista === "impresoras") refreshPrinters()
   return (
     <overlay cssClasses={["display-select-host"]}>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-        <TituloSeccion titulo="Dispositivos" />
+        <TituloSeccion titulo={textos.vistas[vista]} />
 
-        <TarjetaAjustes titulo="Ratón" icono="󰍽">
-          <SliderRow setting="sensitivity" label="Velocidad del puntero" hint="Ajuste de sensibilidad de Hyprland" min={-1} max={1} step={0.05} format={v => `${v > 0 ? "+" : ""}${v.toFixed(2)}`} />
-          <SelectRow setting="accelProfile" label="Aceleración" hint="Adaptativa para uso general; plana para precisión" choices={[{ value: "adaptive", label: "Adaptativa" }, { value: "flat", label: "Plana" }]} />
-          <SliderRow setting="mouseScrollFactor" label="Velocidad de desplazamiento" hint="Multiplicador de la rueda" min={0.1} max={3} step={0.1} format={v => `${v.toFixed(1)}×`} />
-          <ToggleRow setting="forceNoAccel" label="Movimiento sin aceleración" hint="Fuerza una relación directa con el movimiento físico" />
-          <ToggleRow setting="leftHanded" label="Modo zurdo" hint="Intercambia los botones principal y secundario" />
-          <ToggleRow setting="mouseNaturalScroll" label="Desplazamiento natural" hint="El contenido sigue la dirección de la rueda" />
-        </TarjetaAjustes>
+        {vista === "raton" && <TarjetaAjustes titulo={textos.tarjetas.raton} icono="󰍽">
+          <SliderRow setting="sensitivity" label={textos.raton.velocidadPuntero.titulo} hint={textos.raton.velocidadPuntero.descripcion} min={-1} max={1} step={0.05} format={v => formatearTexto(textos.formatos.sensibilidad, { signo: v > 0 ? "+" : "", valor: v.toFixed(2) })} />
+          <SelectRow setting="accelProfile" label={textos.raton.aceleracion.titulo} hint={textos.raton.aceleracion.descripcion} choices={[{ value: "adaptive", label: textos.raton.aceleracion.opciones.adaptativa }, { value: "flat", label: textos.raton.aceleracion.opciones.plana }]} />
+          <SliderRow setting="mouseScrollFactor" label={textos.raton.velocidadDesplazamiento.titulo} hint={textos.raton.velocidadDesplazamiento.descripcion} min={0.1} max={3} step={0.1} format={v => formatearTexto(textos.formatos.multiplicador, { valor: v.toFixed(1) })} />
+          <ToggleRow setting="forceNoAccel" label={textos.raton.movimientoSinAceleracion.titulo} hint={textos.raton.movimientoSinAceleracion.descripcion} />
+          <ToggleRow setting="leftHanded" label={textos.raton.modoZurdo.titulo} hint={textos.raton.modoZurdo.descripcion} />
+          <ToggleRow setting="mouseNaturalScroll" label={textos.raton.desplazamientoNatural.titulo} hint={textos.raton.desplazamientoNatural.descripcion} />
+        </TarjetaAjustes>}
 
-        <TarjetaAjustes titulo="Touchpad" icono="󰟸">
-          <SliderRow setting="touchpadScrollFactor" label="Velocidad de desplazamiento" hint="Sensibilidad del gesto de dos dedos" min={0.1} max={3} step={0.1} format={v => `${v.toFixed(1)}×`} />
-          <ToggleRow setting="touchpadNaturalScroll" label="Desplazamiento natural" hint="Mueve el contenido en la dirección de los dedos" />
-          <ToggleRow setting="tapToClick" label="Tocar para hacer clic" hint="Un toque equivale al botón principal" />
-          <SelectRow setting="tapButtonMap" label="Mapa de toques" hint="Acción al tocar con dos y tres dedos" choices={[{ value: "lrm", label: "2: derecho · 3: medio" }, { value: "lmr", label: "2: medio · 3: derecho" }]} />
-          <ToggleRow setting="disableWhileTyping" label="Desactivar mientras se escribe" hint="Evita movimientos y clics accidentales" />
-          <ToggleRow setting="clickfinger" label="Clic por número de dedos" hint="Dos dedos hacen clic derecho y tres, clic central" />
-          <ToggleRow setting="middleEmulation" label="Emular botón central" hint="Pulsa ambos botones a la vez para un clic central" />
-          <ToggleRow setting="dragLock" label="Bloqueo de arrastre" hint="Permite levantar el dedo durante un arrastre por toque" />
-        </TarjetaAjustes>
+        {vista === "touchpad" && <TarjetaAjustes titulo={textos.tarjetas.touchpad} icono="󰟸">
+          <SliderRow setting="touchpadScrollFactor" label={textos.touchpad.velocidadDesplazamiento.titulo} hint={textos.touchpad.velocidadDesplazamiento.descripcion} min={0.1} max={3} step={0.1} format={v => formatearTexto(textos.formatos.multiplicador, { valor: v.toFixed(1) })} />
+          <ToggleRow setting="touchpadNaturalScroll" label={textos.touchpad.desplazamientoNatural.titulo} hint={textos.touchpad.desplazamientoNatural.descripcion} />
+          <ToggleRow setting="tapToClick" label={textos.touchpad.tocarParaClic.titulo} hint={textos.touchpad.tocarParaClic.descripcion} />
+          <SelectRow setting="tapButtonMap" label={textos.touchpad.mapaToques.titulo} choices={[{ value: "lrm", label: textos.touchpad.mapaToques.opciones.derechoMedio }, { value: "lmr", label: textos.touchpad.mapaToques.opciones.medioDerecho }]} />
+          <ToggleRow setting="disableWhileTyping" label={textos.touchpad.desactivarMientrasEscribe.titulo} hint={textos.touchpad.desactivarMientrasEscribe.descripcion} />
+          <ToggleRow setting="clickfinger" label={textos.touchpad.clicPorDedos.titulo} hint={textos.touchpad.clicPorDedos.descripcion} />
+          <ToggleRow setting="middleEmulation" label={textos.touchpad.emularBotonCentral.titulo} hint={textos.touchpad.emularBotonCentral.descripcion} />
+          <ToggleRow setting="dragLock" label={textos.touchpad.bloqueoArrastre.titulo} hint={textos.touchpad.bloqueoArrastre.descripcion} />
+        </TarjetaAjustes>}
 
-        <TarjetaAjustes titulo="Teclado" icono="󰌌">
-          <SelectRow setting="kbLayout" label="Distribución" hint="Mapa principal del teclado" choices={[{ value: "es", label: "Español" }, { value: "latam", label: "Latinoamericano" }, { value: "us", label: "Inglés (EE. UU.)" }, { value: "gb", label: "Inglés (Reino Unido)" }, { value: "fr", label: "Francés" }, { value: "de", label: "Alemán" }, { value: "pt", label: "Portugués" }, { value: "it", label: "Italiano" }]} />
-          <SelectRow setting="kbVariant" label="Variante" hint="Variante de la distribución seleccionada" choices={[{ value: "", label: "Predeterminada" }, { value: "nodeadkeys", label: "Sin teclas muertas" }, { value: "dvorak", label: "Dvorak" }, { value: "colemak", label: "Colemak" }]} />
-          <SliderRow setting="repeatRate" label="Velocidad de repetición" hint="Repeticiones por segundo al mantener una tecla" min={1} max={60} step={1} format={v => `${v} /s`} />
-          <SliderRow setting="repeatDelay" label="Espera antes de repetir" hint="Tiempo hasta que empieza la repetición" min={100} max={1200} step={50} format={v => `${v} ms`} />
-          <ToggleRow setting="numlock" label="Bloqueo numérico al iniciar" hint="Activa Num Lock también en la pantalla de bloqueo" />
-        </TarjetaAjustes>
+        {vista === "teclado" && <TarjetaAjustes titulo={textos.tarjetas.teclado} icono="󰌌">
+          <SelectRow setting="kbLayout" label={textos.teclado.distribucion.titulo} hint={textos.teclado.distribucion.descripcion} choices={[{ value: "es", label: textos.teclado.distribucion.opciones.espanol }, { value: "latam", label: textos.teclado.distribucion.opciones.latinoamericano }, { value: "us", label: textos.teclado.distribucion.opciones.inglesEstadosUnidos }, { value: "gb", label: textos.teclado.distribucion.opciones.inglesReinoUnido }, { value: "fr", label: textos.teclado.distribucion.opciones.frances }, { value: "de", label: textos.teclado.distribucion.opciones.aleman }, { value: "pt", label: textos.teclado.distribucion.opciones.portugues }, { value: "it", label: textos.teclado.distribucion.opciones.italiano }]} />
+          <SelectRow setting="kbVariant" label={textos.teclado.variante.titulo} choices={[{ value: "", label: textos.teclado.variante.opciones.predeterminada }, { value: "nodeadkeys", label: textos.teclado.variante.opciones.sinTeclasMuertas }, { value: "dvorak", label: textos.teclado.variante.opciones.dvorak }, { value: "colemak", label: textos.teclado.variante.opciones.colemak }]} />
+          <SliderRow setting="repeatRate" label={textos.teclado.velocidadRepeticion.titulo} min={1} max={60} step={1} format={v => formatearTexto(textos.formatos.porSegundo, { valor: v })} />
+          <SliderRow setting="repeatDelay" label={textos.teclado.esperaRepeticion.titulo} min={100} max={1200} step={50} format={v => formatearTexto(textos.formatos.milisegundos, { valor: v })} />
+          <ToggleRow setting="numlock" label={textos.teclado.bloqueoNumerico.titulo} hint={textos.teclado.bloqueoNumerico.descripcion} />
+        </TarjetaAjustes>}
 
-        <TarjetaAjustes titulo="Puntero" icono="󰆽">
-          <SliderRow setting="tamanoCursor" label="Tamaño del puntero" hint="Tamaño visual del cursor" min={16} max={64} step={1} format={v => `${v} px`} />
-          <SelectRow setting="followMouse" label="Foco bajo el puntero" hint="Cómo cambia el foco al mover el ratón" choices={[{ value: 0, label: "Solo al hacer clic" }, { value: 1, label: "Seguir al puntero" }, { value: 2, label: "Foco libre" }, { value: 3, label: "Seguir sin cambiar teclado" }]} />
-        </TarjetaAjustes>
+        {vista === "raton" && <TarjetaAjustes titulo={textos.tarjetas.puntero} icono="󰆽">
+          <SliderRow setting="tamanoCursor" label={textos.puntero.tamano.titulo} min={16} max={64} step={1} format={v => formatearTexto(textos.formatos.pixeles, { valor: v })} />
+          <SelectRow setting="followMouse" label={textos.puntero.foco.titulo} hint={textos.puntero.foco.descripcion} choices={[{ value: 0, label: textos.puntero.foco.opciones.soloClic }, { value: 1, label: textos.puntero.foco.opciones.seguirPuntero }, { value: 2, label: textos.puntero.foco.opciones.focoLibre }, { value: 3, label: textos.puntero.foco.opciones.seguirSinTeclado }]} />
+        </TarjetaAjustes>}
 
-        <PrintersCard />
+        {vista === "impresoras" && <PrintersCard />}
 
-        <box cssClasses={["dev-reset-row"]} spacing={10} valign={Gtk.Align.CENTER}>
+        <box cssClasses={["dev-reset-row"]} spacing={10} valign={Gtk.Align.CENTER} visible={vista === "raton"}>
           <EncabezadoAjuste
-            titulo="Restablecer dispositivos"
-            informacion="Recupera los valores predeterminados de GiGiOS"
+            titulo={textos.restablecer.titulo}
+            informacion={textos.restablecer.descripcion}
           />
           <button cssClasses={confirmReset((v) => v ? ["dev-reset", "confirm"] : ["dev-reset"])} onClicked={() => {
             if (confirmReset.get()) { resetDeviceSettings(); setConfirmReset(false) }
             else setConfirmReset(true)
-          }}><label label={confirmReset((v) => v ? "Confirmar" : "Restablecer")} /></button>
+          }}><label label={confirmReset((v) => v ? textos.restablecer.confirmar : textos.restablecer.boton)} /></button>
         </box>
       </box>
     </overlay>

@@ -8,6 +8,8 @@ import { getAppIcon, resolveAppColor, appSettings, updateAppSettings } from "../
 import { hexToRgb } from "../rules/color.ts"
 import ColorPicker from "./ColorPicker.tsx"
 import EmptyState from "../../components/EmptyState.tsx"
+import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
+import { formatearTexto } from "../../../textos/formatear.ts"
 
 function muteId(app: string): string { return `user.mute.${app}` }
 function audioMuteId(app: string): string { return `user.muteaudio.${app}` }
@@ -32,7 +34,7 @@ export default function AppsTab() {
       removeUserRule(muteId(app))
     } else {
       const rule: NotifRule = {
-        id: muteId(app), name: `Silenciar ${app}`, enabled: true, priority: 100, source: "user",
+        id: muteId(app), name: formatearTexto(textos.apps.nombreBloqueo, { app }), enabled: true, priority: 100, source: "user",
         match: { app: { op: "equals", value: app } }, effects: { suppress: true },
       }
       upsertUserRule(rule)
@@ -47,7 +49,7 @@ export default function AppsTab() {
       removeUserRule(audioMuteId(app))
     } else {
       const rule: NotifRule = {
-        id: audioMuteId(app), name: `Sin sonido ${app}`, enabled: true, priority: 100, source: "user",
+        id: audioMuteId(app), name: formatearTexto(textos.apps.nombreSinSonido, { app }), enabled: true, priority: 100, source: "user",
         match: { app: { op: "equals", value: app } }, effects: { muteAudio: true },
       }
       upsertUserRule(rule)
@@ -58,18 +60,23 @@ export default function AppsTab() {
     return allRules().filter(r => r.match.app?.op === "equals" && r.match.app.value === app).length
   }
 
+  function ruleCountText(app: string): string {
+    const count = ruleCount(app)
+    return formatearTexto(count === 1 ? textos.apps.reglaDirecta : textos.apps.reglasDirectas, { cantidad: count })
+  }
+
   const empty = apps((a) => (a?.length ?? 0) === 0)
   const [colorApp, setColorApp] = createState<string | null>(null)
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
-      <label cssClasses={["st-tab-hint"]} label="Apps vistas — silencia sus notificaciones" halign={Gtk.Align.START} />
+      <label cssClasses={["st-tab-hint"]} label={textos.apps.cabecera} halign={Gtk.Align.START} />
 
       <With value={empty}>
         {(isEmpty: boolean) => isEmpty
           ? <EmptyState
               icon="󰂚"
-              title="Sin apps todavía"
+              title={textos.apps.vacio}
               wrapClass="ns-empty-state"
               iconClass="ns-empty-icon"
               titleClass="ns-empty-label"
@@ -86,26 +93,30 @@ export default function AppsTab() {
                         </box>
                         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
                           <label cssClasses={["ns-app-name"]} label={app} halign={Gtk.Align.START} ellipsize={3} />
-                          <label cssClasses={["re-row-summary"]} label={rulesFile(() => `${ruleCount(app)} regla(s)`)} halign={Gtk.Align.START} />
+                          <label cssClasses={["re-row-summary"]} label={rulesFile(() => ruleCountText(app))} halign={Gtk.Align.START} />
                         </box>
                         <button
                           cssClasses={colorApp((c) => c === app ? ["ns-color-btn", "open"] : ["ns-color-btn"])}
                           css={appSettings((s) => `background: ${resolveAppColor(app, s)};`)}
-                          tooltipText="Color"
+                          tooltipText={textos.apps.color}
                           onClicked={() => setColorApp(colorApp.get() === app ? null : app)}
                         >
                           <label cssClasses={["ns-color-check"]} label={appSettings((s) => s[app]?.color ? "󰉼" : "")} />
                         </button>
                         <button
                           cssClasses={rulesFile(() => isAudioMuted(app) ? ["ns-mute-btn", "muted"] : ["ns-mute-btn"])}
-                          tooltipText={rulesFile(() => isAudioMuted(app) ? "Reactivar sonido" : "Silenciar sonido")}
+                          tooltipText={rulesFile(() => isAudioMuted(app)
+                            ? textos.apps.quitarSonidoInactivo
+                            : textos.apps.sonidoInactivo)}
                           onClicked={() => toggleAudioMute(app)}
                         >
                           <label cssClasses={["ns-mute-icon"]} label={rulesFile(() => isAudioMuted(app) ? "󰝟" : "󰕾")} />
                         </button>
                         <button
                           cssClasses={rulesFile(() => isMuted(app) ? ["ns-mute-btn", "muted"] : ["ns-mute-btn"])}
-                          tooltipText={rulesFile(() => isMuted(app) ? "Reactivar app" : "Silenciar app")}
+                          tooltipText={rulesFile(() => isMuted(app)
+                            ? textos.apps.quitarBloqueo
+                            : textos.apps.crearBloqueo)}
                           onClicked={() => toggleMute(app)}
                         >
                           <label cssClasses={["ns-mute-icon"]} label={rulesFile(() => isMuted(app) ? "󰂛" : "󰂚")} />

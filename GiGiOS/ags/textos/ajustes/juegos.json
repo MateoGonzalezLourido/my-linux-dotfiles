@@ -1,0 +1,12 @@
+{
+  "seccion": {
+    "titulo": "Juegos"
+  },
+  "grupos": {
+    "rendimiento": "Rendimiento en segundo plano"
+  },
+  "congelarTareas": {
+    "titulo": "Congelar tareas de fondo al jugar",
+    "descripcion": "Aplaza actualizaciones y revisiones de discos, servicios y descargas mientras juegas.\nLas tareas urgentes y las alertas de temperatura siguen activas."
+  }
+}

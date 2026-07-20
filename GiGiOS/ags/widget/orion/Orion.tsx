@@ -263,7 +263,7 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
 
     if (orionVisible.get()) {
       ;(win as any).visible = true
-      setOrionVisible(false)
+      hidePanel()
     }
   })
 

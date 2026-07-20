@@ -4,8 +4,9 @@
 import { Gtk } from "ags/gtk4"
 import { InlineEditableValue } from "../InlineEditableValue"
 import { conectarCambioDeslizador } from "../deslizador"
-import Interruptor from "../Interruptor"
-import { EncabezadoAjuste, TextoInformativo, TituloAjuste, TituloSeccion } from "../settings/componentes"
+import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion } from "../settings/componentes"
+import InactividadSection from "./InactividadSection"
+import textos from "../../textos/ajustes/energia.json" with { type: "json" }
 import {
   powerSaveThreshold, setPowerSaveThreshold,
   suspendNotifFilters, setSuspendNotifFilters,
@@ -34,86 +35,44 @@ export default function EnergySection() {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
-      <TituloSeccion titulo="Energía" />
+      <TituloSeccion titulo={textos.seccion.titulo} />
 
       {/* estado actual */}
       <box spacing={6} halign={Gtk.Align.START}>
-        <label cssClasses={summaryClass} label={batteryStatusText((text) => text.replace("%", ""))} />
+        <label cssClasses={summaryClass} label={batteryStatusText} />
         <label cssClasses={["sp-energy-separator"]} label="·" />
         <label
           cssClasses={modeClass}
-          label={powerSaveActive((active) => active ? "Ahorro activo" : "Ahorro desactivado")}
+          label={powerSaveActive((active) => active ? textos.estado.ahorroActivo : textos.estado.ahorroDesactivado)}
         />
       </box>
 
-      {/* umbral de ahorro */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
-        <box spacing={8} valign={Gtk.Align.CENTER}>
-          <TituloAjuste label="Entrar en ahorro al bajar de" hexpand halign={Gtk.Align.START} />
-          <InlineEditableValue
-            display={powerSaveThreshold((v) => `${Math.round(v)}`)}
-            getValue={() => powerSaveThreshold.get()}
-            onCommit={setPowerSaveThreshold}
-            min={0} max={100}
-            labelClass="sp-field-value"
-            tooltip="Editar umbral de ahorro"
-          />
+      <TarjetaAjustes titulo={textos.grupos.bateria} icono="󰁹">
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand>
+          <box spacing={8} valign={Gtk.Align.CENTER}>
+            <TituloAjuste label={textos.umbral.titulo} hexpand halign={Gtk.Align.START} />
+            <InlineEditableValue
+              display={powerSaveThreshold((v) => `${Math.round(v)} %`)}
+              getValue={() => powerSaveThreshold.get()}
+              onCommit={setPowerSaveThreshold}
+              min={0} max={100}
+              labelClass="sp-field-value"
+              tooltip={textos.umbral.tooltip}
+            />
+          </box>
+          {ThresholdSlider() as unknown as any}
+          <TextoInformativo label={textos.umbral.descripcion} halign={Gtk.Align.START} wrap />
         </box>
-        {ThresholdSlider() as unknown as any}
-        <TextoInformativo
-          label="Se activa con la batería en o por debajo de este nivel (y sin cargar)."
-          halign={Gtk.Align.START}
-          wrap={true}
-        />
-      </box>
+      </TarjetaAjustes>
 
-      {/* suspender filtros de notificaciones */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
-        <box spacing={8} valign={Gtk.Align.CENTER}>
-          <EncabezadoAjuste
-            titulo="Pausar filtros de notificaciones en ahorro"
-            informacion="Detiene los temporizadores de limpieza mientras dure el ahorro; al salir limpia y reanuda."
-            halign={Gtk.Align.START}
-            propiedadesInformacion={{ wrap: true }}
-          />
-          <Interruptor
-            activo={suspendNotifFilters}
-            alAlternar={() => setSuspendNotifFilters(!suspendNotifFilters.get())}
-          />
-        </box>
-      </box>
+      <InactividadSection />
 
-      {/* pausar preview de workspace en ahorro */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
-        <box spacing={8} valign={Gtk.Align.CENTER}>
-          <EncabezadoAjuste
-            titulo="Pausar preview de workspace en ahorro"
-            informacion="Deja de capturar el workspace con grim mientras dure el ahorro; al salir vuelve a capturar."
-            halign={Gtk.Align.START}
-            propiedadesInformacion={{ wrap: true }}
-          />
-          <Interruptor
-            activo={pauseWsPreviewInPowerSave}
-            alAlternar={() => setPauseWsPreviewInPowerSave(!pauseWsPreviewInPowerSave.get())}
-          />
-        </box>
-      </box>
+      <TarjetaAjustes titulo={textos.grupos.modoAhorro} icono="󰌪">
+        <AjusteInterruptor titulo={textos.notificaciones.titulo} informacion={textos.notificaciones.descripcion} activo={suspendNotifFilters} alAlternar={() => setSuspendNotifFilters(!suspendNotifFilters.get())} />
+        <AjusteInterruptor titulo={textos.vistasPrevias.titulo} informacion={textos.vistasPrevias.descripcion} activo={pauseWsPreviewInPowerSave} alAlternar={() => setPauseWsPreviewInPowerSave(!pauseWsPreviewInPowerSave.get())} />
+        <AjusteInterruptor titulo={textos.spotify.titulo} informacion={textos.spotify.descripcion} activo={hideSpotifyBarInPowerSave} alAlternar={() => setHideSpotifyBarInPowerSave(!hideSpotifyBarInPowerSave.get())} />
+      </TarjetaAjustes>
 
-      {/* ocultar la pastilla de Spotify en ahorro */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["sp-field"]} hexpand>
-        <box spacing={8} valign={Gtk.Align.CENTER}>
-          <EncabezadoAjuste
-            titulo="Ocultar Spotify de la barra en ahorro"
-            informacion="Quita carátula, título y las barritas animadas mientras dure el ahorro; al salir vuelven. Es el único widget de la barra que se redibuja de forma continua."
-            halign={Gtk.Align.START}
-            propiedadesInformacion={{ wrap: true }}
-          />
-          <Interruptor
-            activo={hideSpotifyBarInPowerSave}
-            alAlternar={() => setHideSpotifyBarInPowerSave(!hideSpotifyBarInPowerSave.get())}
-          />
-        </box>
-      </box>
     </box>
   )
 }

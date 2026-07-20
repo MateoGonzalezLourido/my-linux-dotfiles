@@ -1,7 +1,10 @@
 import { createState } from "ags"
 import { searchEngine } from "./search"
 import type { SearchResult } from "./search"
-import { orionAppsDefault } from "../settings/preferences"
+import {
+  orionAppsDefault,
+  orionRecordarUltimaSeccion,
+} from "../settings/preferences"
 
 export type SectionId =
   | "inicio" | "apps" | "sistema" | "git" | "watcher"
@@ -13,17 +16,36 @@ export const [activeSection,  setActiveSection]  = createState<SectionId>("inici
 export const [searchQuery,    setSearchQuery]    = createState("")
 export const [searchResults,  setSearchResults]  = createState<SearchResult[]>([])
 
+// Solo vive durante la sesión actual de AGS. Un reinicio vuelve a respetar la
+// página inicial y evita convertir estado de navegación en configuración.
+let ultimaSeccionCerrada: SectionId | null = null
+
+function seccionActualRecordable(): SectionId {
+  return activeSection.get() === "reactivo" ? originSection : activeSection.get()
+}
+
+function recordarSeccionAlCerrar(): void {
+  ultimaSeccionCerrada = orionRecordarUltimaSeccion.get()
+    ? seccionActualRecordable()
+    : null
+}
+
 export function preparePanelOpen() {
   setSearchQuery("")
   setSearchResults([])
   setRightPanelVisible(false)
-  const section = orionAppsDefault.get() ? "apps" : "inicio"
-  originSection = section
-  setSection(section)
+  const seccionInicial: SectionId = orionAppsDefault.get() ? "apps" : "inicio"
+  const seccion = orionRecordarUltimaSeccion.get()
+    ? ultimaSeccionCerrada ?? seccionInicial
+    : seccionInicial
+  originSection = seccion
+  // No notificar un cambio inexistente conserva también el desplazamiento de
+  // la sección montada al volver a abrir Orion.
+  if (activeSection.get() !== seccion) setSection(seccion)
 }
 
 export function showPanel()   { preparePanelOpen(); setOrionVisible(true) }
-export function hidePanel()   { setOrionVisible(false) }
+export function hidePanel()   { recordarSeccionAlCerrar(); setOrionVisible(false) }
 export function togglePanel() {
   if (orionVisible.get()) hidePanel()
   else showPanel()
@@ -44,12 +66,24 @@ let originSection: SectionId = "inicio"
 /** Limpia el estado cuando la ventana ya ha terminado de salir de pantalla. */
 export function finalizarCierrePanel() {
   if (orionVisible.get()) return
+  recordarSeccionAlCerrar()
   setSearchQuery("")
   setSearchResults([])
   setRightPanelVisible(false)
-  setSection("inicio")
+  if (ultimaSeccionCerrada !== null) {
+    originSection = ultimaSeccionCerrada
+    if (activeSection.get() !== ultimaSeccionCerrada) setSection(ultimaSeccionCerrada)
+    return
+  }
+  if (activeSection.get() !== "inicio") setSection("inicio")
   originSection = "inicio"
 }
+
+// Si se desactiva y se vuelve a activar sin abrir Orion entre medias, no debe
+// reaparecer una sección guardada por una configuración anterior.
+orionRecordarUltimaSeccion.subscribe(() => {
+  if (!orionRecordarUltimaSeccion.get()) ultimaSeccionCerrada = null
+})
 
 export function setQuery(query: string) {
   setSearchQuery(query)

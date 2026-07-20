@@ -1,6 +1,6 @@
 // widget/settings/preferences.ts
 //
-// Hub de preferencias de "Personalización" del shell. A diferencia de
+// Hub de preferencias persistentes de las secciones propias del shell. A diferencia de
 // widget/bar/functions/state.ts (que vive SOLO en RAM), estas preferencias se
 // persisten en config/preferences.json para sobrevivir a reinicios.
 //
@@ -61,7 +61,7 @@ const [brightnessOsdEnabled, _setBrightnessOsdEnabled] = createState(true)
 export { volumeOsdEnabled, micOsdEnabled, brightnessOsdEnabled }
 
 // Estado de mute que aplicará inicializador/init.sh al comenzar la sesión.
-// Se guardan aquí porque son elecciones de Personalización, aunque las consume
+// Se guardan aquí porque son elecciones del shell, aunque las consume
 // un script externo antes de que AGS termine de arrancar.
 const [startupVolumeMuted, _setStartupVolumeMuted] = createState(false)
 const [startupMicMuted, _setStartupMicMuted] = createState(false)
@@ -143,6 +143,11 @@ export { tempMonitorEnabled }
 const [clipboardHistoryEnabled, _setClipboardHistoryEnabled] = createState(true)
 export { clipboardHistoryEnabled }
 
+// Limpieza del portapapeles al comenzar la sesión de Hyprland. La consume el
+// script limpiar-portapapeles.sh desde autostart.conf. Default: desactivada.
+const [limpiezaPortapapelesAlIniciar, _setLimpiezaPortapapelesAlIniciar] = createState(false)
+export { limpiezaPortapapelesAlIniciar }
+
 // Menú Orion. app.ts consulta este valor antes de importar el módulo: cuando
 // está desactivado no se crea su ventana ni se cargan watchers/servicios de
 // Orion. El cambio se aplica en el siguiente arranque o recarga de AGS.
@@ -153,6 +158,12 @@ export { orionEnabled }
 // el catálogo de aplicaciones. Se aplica en caliente en la siguiente apertura.
 const [orionAppsDefault, _setOrionAppsDefault] = createState(false)
 export { orionAppsDefault }
+
+// Conserva la última sección de Orion entre cierres dentro de la sesión actual.
+// La sección recordada no se persiste: tras reiniciar AGS vuelve a mandar la
+// página inicial configurada arriba. Default: desactivado.
+const [orionRecordarUltimaSeccion, _setOrionRecordarUltimaSeccion] = createState(false)
+export { orionRecordarUltimaSeccion }
 
 // Monitor de actualizaciones (scripts/updates-monitor.sh) + icono de la barra.
 // El toggle MAESTRO se aplica en caliente (su setter lanza/mata el script y el
@@ -197,7 +208,7 @@ export { autoDndFullscreenApps }
 
 // Formato del reloj de la barra: "24h" (por defecto, p. ej. 14:30) o "12h"
 // (02:30 PM). Lo lee widget/bar/Clock.tsx de forma reactiva, así que el cambio
-// se ve al instante sin reiniciar. Vive en "Fecha e idioma" (DateLanguageSection).
+// se ve al instante sin reiniciar. Vive en "Región, fecha y hora".
 export type TimeFormat = "24h" | "12h"
 const [timeFormat, _setTimeFormat] = createState<TimeFormat>("24h")
 export { timeFormat }
@@ -259,8 +270,14 @@ function load() {
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
+    if (typeof saved.limpiezaPortapapelesAlIniciar === "boolean") {
+      _setLimpiezaPortapapelesAlIniciar(saved.limpiezaPortapapelesAlIniciar)
+    }
     if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
     if (typeof saved.orionAppsDefault === "boolean") _setOrionAppsDefault(saved.orionAppsDefault)
+    if (typeof saved.orionRecordarUltimaSeccion === "boolean") {
+      _setOrionRecordarUltimaSeccion(saved.orionRecordarUltimaSeccion)
+    }
     if (typeof saved.updatesMonitor === "boolean") _setUpdatesMonitorEnabled(saved.updatesMonitor)
     if (typeof saved.updatesPeriodic === "boolean") _setUpdatesPeriodicEnabled(saved.updatesPeriodic)
     if (typeof saved.updatesIntervalHours === "number" && saved.updatesIntervalHours >= 1) {
@@ -302,8 +319,10 @@ function save() {
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
+      limpiezaPortapapelesAlIniciar: limpiezaPortapapelesAlIniciar.get(),
       orion: orionEnabled.get(),
       orionAppsDefault: orionAppsDefault.get(),
+      orionRecordarUltimaSeccion: orionRecordarUltimaSeccion.get(),
       updatesMonitor: updatesMonitorEnabled.get(),
       updatesPeriodic: updatesPeriodicEnabled.get(),
       updatesIntervalHours: updatesIntervalHours.get(),
@@ -426,12 +445,20 @@ export function setClipboardHistoryEnabled(on: boolean) {
   const action = on ? "start" : "stop"
   execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/clipboard-history.sh`, action]).catch(() => {})
 }
+export function setLimpiezaPortapapelesAlIniciar(activa: boolean) {
+  _setLimpiezaPortapapelesAlIniciar(activa)
+  save()
+}
 export function setOrionEnabled(on: boolean) {
   _setOrionEnabled(on)
   save()
 }
 export function setOrionAppsDefault(on: boolean) {
   _setOrionAppsDefault(on)
+  save()
+}
+export function setOrionRecordarUltimaSeccion(activo: boolean) {
+  _setOrionRecordarUltimaSeccion(activo)
   save()
 }
 // Maestro del monitor de actualizaciones: se aplica en caliente. Al activar lanza

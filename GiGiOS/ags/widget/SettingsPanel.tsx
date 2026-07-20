@@ -8,76 +8,83 @@ import { With, createState } from "ags"
 import { settingsPanelVisible, setSettingsPanelVisible } from "./state"
 import EnergySection from "./power/EnergySection"
 import SettingsTabs from "./notifications/settings/SettingsTabs"
-import PersonalizationSection from "./settings/PersonalizationSection"
 import DisplaySection from "./settings/DisplaySection"
 import SystemSection from "./settings/SystemSection"
 import SecuritySection from "./settings/SecuritySection"
 import AccountSection from "./settings/AccountSection"
 import DevicesSection from "./settings/DevicesSection"
 import DateLanguageSection from "./settings/DateLanguageSection"
-import AppsSection from "./settings/AppsSection"
+import BarraEscritoriosSection from "./settings/BarraEscritoriosSection"
+import FuncionesShellSection from "./settings/FuncionesShellSection"
+import JuegosSection from "./settings/JuegosSection"
+import textos from "../textos/ajustes/general.json" with { type: "json" }
 
-type SectionId = "account" | "energy" | "display" | "devices" | "datetime" | "apps" | "system" | "security" | "notifications" | "personalization"
-const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
-  { id: "account", label: "Cuenta", icon: "󰀄" },
-  { id: "energy", label: "Energía", icon: "󰁹" },
-  { id: "display", label: "Pantalla", icon: "󰍹" },
-  { id: "devices", label: "Dispositivos", icon: "󰓢" },
-  { id: "datetime", label: "Fecha e idioma", icon: "󰃭" },
-  { id: "apps", label: "Apps", icon: "󰀻" },
-  { id: "system", label: "Sistema", icon: "󰌢" },
-  { id: "security", label: "Seguridad", icon: "󰒃" },
-  { id: "notifications", label: "Notificaciones", icon: "󰂚" },
-  { id: "personalization", label: "Personalización", icon: "󰏘" },
+type SectionId =
+  | "account" | "language" | "datetime" | "location"
+  | "display" | "personalization" | "mouse" | "touchpad" | "keyboard" | "printers" | "energy" | "games"
+  | "bar" | "workspaces" | "orion" | "clipboard" | "notifications"
+  | "monitoring" | "scans" | "supervision" | "system"
+type SeccionNavegacion = { id: SectionId; label: string; icon: string }
+const SECCIONES_NAVEGACION: SeccionNavegacion[] = [
+  { id: "account", label: textos.secciones.cuenta, icon: "󰀄" },
+  { id: "language", label: textos.secciones.idiomaRegion, icon: "󰗊" },
+  { id: "datetime", label: textos.secciones.fechaHora, icon: "󰃭" },
+  { id: "location", label: textos.secciones.ubicacion, icon: "󰍎" },
+  { id: "display", label: textos.secciones.pantalla, icon: "󰍹" },
+  { id: "personalization", label: textos.secciones.personalizacion, icon: "󰏘" },
+  { id: "mouse", label: textos.secciones.ratonPuntero, icon: "󰍽" },
+  { id: "touchpad", label: textos.secciones.touchpad, icon: "󰟸" },
+  { id: "keyboard", label: textos.secciones.teclado, icon: "󰌌" },
+  { id: "printers", label: textos.secciones.impresoras, icon: "󰐪" },
+  { id: "energy", label: textos.secciones.energia, icon: "󰁹" },
+  { id: "games", label: textos.secciones.juegos, icon: "󰊴" },
+  { id: "bar", label: textos.secciones.barra, icon: "󰍜" },
+  { id: "workspaces", label: textos.secciones.workspaces, icon: "󰆾" },
+  { id: "orion", label: textos.secciones.orion, icon: "󰆍" },
+  { id: "clipboard", label: textos.secciones.portapapeles, icon: "󰅇" },
+  { id: "notifications", label: textos.secciones.notificaciones, icon: "󰂚" },
+  { id: "monitoring", label: textos.secciones.vigilancia, icon: "󰒃" },
+  { id: "scans", label: textos.secciones.escaneos, icon: "󰇚" },
+  { id: "supervision", label: textos.secciones.supervision, icon: "󰓅" },
+  { id: "system", label: textos.secciones.sistema, icon: "󰌢" },
 ]
 
 export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
   const [section, setSection] = createState<SectionId>("account")
+  let contenidoDesplazable: Gtk.ScrolledWindow
 
   const panel = (
     <box cssClasses={["sp-panel"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}>
       {/* left vertical nav */}
       <box cssClasses={["sp-nav"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-        <label cssClasses={["sp-nav-title"]} label="Ajustes" halign={Gtk.Align.START} />
-        {SECTIONS.map(s => (
-          <button
-            cssClasses={section((cur) => cur === s.id ? ["sp-nav-item", "active"] : ["sp-nav-item"])}
-            onClicked={() => setSection(s.id)}
-            valign={Gtk.Align.CENTER}
-            overflow={Gtk.Overflow.VISIBLE}
-          >
-            <box
-              cssClasses={["sp-nav-content"]}
-              spacing={10}
-              valign={Gtk.Align.CENTER}
-              heightRequest={24}
-              overflow={Gtk.Overflow.VISIBLE}
-            >
-              <label
-                cssClasses={["sp-nav-icon"]}
-                label={s.icon}
-                valign={Gtk.Align.CENTER}
-                heightRequest={22}
-                overflow={Gtk.Overflow.VISIBLE}
-              />
-              <label
-                cssClasses={["sp-nav-label"]}
-                label={s.label}
-                hexpand
-                halign={Gtk.Align.START}
-                valign={Gtk.Align.CENTER}
-                heightRequest={22}
-                overflow={Gtk.Overflow.VISIBLE}
-              />
-            </box>
-          </button>
-        ))}
+        <label cssClasses={["sp-nav-title"]} label={textos.panel.titulo} halign={Gtk.Align.START} />
+        <Gtk.ScrolledWindow cssClasses={["sp-nav-scroll"]} vexpand hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.NEVER}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+            {SECCIONES_NAVEGACION.map(s => (
+              <button
+                    cssClasses={section((cur) => cur === s.id ? ["sp-nav-item", "active"] : ["sp-nav-item"])}
+                    onClicked={() => {
+                      setSection(s.id)
+                      contenidoDesplazable?.get_vadjustment().set_value(0)
+                    }}
+                    valign={Gtk.Align.CENTER}
+                    overflow={Gtk.Overflow.VISIBLE}
+                  >
+                    <box cssClasses={["sp-nav-content"]} spacing={10} valign={Gtk.Align.CENTER} heightRequest={24} overflow={Gtk.Overflow.VISIBLE}>
+                      <label cssClasses={["sp-nav-icon"]} label={s.icon} valign={Gtk.Align.CENTER} heightRequest={22} overflow={Gtk.Overflow.VISIBLE} />
+                      <label cssClasses={["sp-nav-label"]} label={s.label} hexpand halign={Gtk.Align.START} valign={Gtk.Align.CENTER} heightRequest={22} overflow={Gtk.Overflow.VISIBLE} />
+                    </box>
+              </button>
+            ))}
+          </box>
+        </Gtk.ScrolledWindow>
       </box>
 
       {/* content (scrollable: algunas secciones —Pantalla— son más altas que el panel) */}
       <Gtk.ScrolledWindow
         cssClasses={["sp-content"]}
+        $={(self: Gtk.ScrolledWindow) => { contenidoDesplazable = self }}
         hexpand
         vexpand
         heightRequest={700}
@@ -90,14 +97,25 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
             {(s: SectionId) => {
               if (s === "account") return <AccountSection />
               if (s === "energy") return <EnergySection />
+              if (s === "games") return <JuegosSection />
               if (s === "display") return <DisplaySection />
-              if (s === "devices") return <DevicesSection />
-              if (s === "datetime") return <DateLanguageSection />
-              if (s === "apps") return <AppsSection />
-              if (s === "system") return <SystemSection />
-              if (s === "security") return <SecuritySection />
-              if (s === "notifications") return <SettingsTabs />
-              return <PersonalizationSection />
+              if (s === "language") return <DateLanguageSection vista="idioma" />
+              if (s === "datetime") return <DateLanguageSection vista="fecha" />
+              if (s === "location") return <DateLanguageSection vista="ubicacion" />
+              if (s === "mouse") return <DevicesSection vista="raton" />
+              if (s === "touchpad") return <DevicesSection vista="touchpad" />
+              if (s === "keyboard") return <DevicesSection vista="teclado" />
+              if (s === "printers") return <DevicesSection vista="impresoras" />
+              if (s === "bar") return <BarraEscritoriosSection vista="barra" />
+              if (s === "workspaces") return <BarraEscritoriosSection vista="workspaces" />
+              if (s === "personalization") return <FuncionesShellSection vista="personalizacion" />
+              if (s === "orion") return <FuncionesShellSection vista="orion" />
+              if (s === "clipboard") return <FuncionesShellSection vista="portapapeles" />
+              if (s === "monitoring") return <SecuritySection vista="vigilancia" />
+              if (s === "scans") return <SecuritySection vista="escaneos" />
+              if (s === "supervision") return <SystemSection vista="supervision" />
+              if (s === "system") return <SystemSection vista="informacion" />
+              return <SettingsTabs />
             }}
           </With>
         </box>

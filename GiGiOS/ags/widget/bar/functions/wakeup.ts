@@ -77,7 +77,7 @@ function writeState(active: boolean) {
 // vetamos la suspensión a los 11 min y el Wake up caduca en el 30, nadie volvería a
 // intentarla y el PC se quedaría despierto para siempre. Reiniciar hypridle rearma
 // los contadores desde cero, así que la cuenta normal (apagar/bloquear/suspender)
-// vuelve a correr a partir de ahora. Mismo `pkill; &` que usa DisplaySection.tsx al
+// vuelve a correr a partir de ahora. Mismo `pkill; &` que usa InactividadSection.tsx al
 // guardar los tiempos.
 function restartHypridle() {
   execAsync(["bash", "-c", "pkill hypridle; hypridle &"]).catch(() => {})

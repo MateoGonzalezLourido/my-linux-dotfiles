@@ -1,4 +1,5 @@
 export { default as BotonAjustes } from "./BotonAjustes"
+export { default as AjusteInterruptor } from "./AjusteInterruptor"
 export { default as EncabezadoAjuste } from "./EncabezadoAjuste"
 export { default as EntradaTextoAjustes } from "./EntradaTextoAjustes"
 export { default as FilaAjuste } from "./FilaAjuste"

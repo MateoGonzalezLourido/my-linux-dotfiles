@@ -4,6 +4,7 @@
 import { Gtk } from "ags/gtk4"
 import { createState } from "ags"
 import { COLOR_PRESETS, normalizeHex } from "../rules/color.ts"
+import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 
 export default function ColorPicker({ value, onChange }: {
   value: string | undefined
@@ -23,10 +24,10 @@ export default function ColorPicker({ value, onChange }: {
       <box spacing={4}>
         <button
           cssClasses={current((c) => c === undefined ? ["cp-auto", "active"] : ["cp-auto"])}
-          tooltipText="Color por defecto"
+          tooltipText={textos.colores.sinColor}
           onClicked={() => pick(undefined)}
         >
-          <label label="Auto" />
+          <label label={textos.colores.automatico} />
         </button>
         {COLOR_PRESETS.map(p => (
           <button
@@ -43,7 +44,7 @@ export default function ColorPicker({ value, onChange }: {
         $={(self: Gtk.Entry) => { entry = self }}
         cssClasses={["re-entry"]}
         text={value ?? ""}
-        placeholderText="#89b4fa  ·  vacío = auto"
+        placeholderText={textos.colores.entrada}
         onChanged={(self: Gtk.Entry) => {
           const t = self.text.trim()
           if (t === "") { setCurrent(undefined); onChange(undefined); return }

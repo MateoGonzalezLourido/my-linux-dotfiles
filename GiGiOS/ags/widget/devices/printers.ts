@@ -1,6 +1,6 @@
 // widget/devices/printers.ts
 //
-// Lógica del bloque "Impresoras" de la sección Dispositivos (DevicesSection.tsx).
+// Lógica del bloque "Impresoras" de Entrada y periféricos (DevicesSection.tsx).
 // Gestiona el servicio de impresión CUPS a nivel de systemd — nada que ver con
 // la config de Hyprland de devices/service.ts, por eso vive en su propio módulo.
 //

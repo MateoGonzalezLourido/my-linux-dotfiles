@@ -1,0 +1,29 @@
+{
+  "panel": {
+    "titulo": "Ajustes",
+    "editarValor": "Editar valor"
+  },
+  "secciones": {
+    "cuenta": "Cuenta",
+    "idiomaRegion": "Idioma y región",
+    "fechaHora": "Fecha y hora",
+    "ubicacion": "Ubicación",
+    "energia": "Energía",
+    "juegos": "Juegos",
+    "pantalla": "Pantallas",
+    "personalizacion": "Personalización",
+    "ratonPuntero": "Ratón y puntero",
+    "touchpad": "Touchpad",
+    "teclado": "Teclado",
+    "impresoras": "Impresoras",
+    "barra": "Barra",
+    "workspaces": "Espacios de trabajo",
+    "orion": "Orion",
+    "portapapeles": "Portapapeles",
+    "notificaciones": "Notificaciones",
+    "vigilancia": "Vigilancia del sistema",
+    "escaneos": "Antivirus",
+    "supervision": "Supervisor",
+    "sistema": "Información del sistema"
+  }
+}

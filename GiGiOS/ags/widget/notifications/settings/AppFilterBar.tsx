@@ -3,6 +3,7 @@
 // "Todas" chip + a horizontal-scrolling list of app chips. Reuses the .np-filter-* styles.
 import { Gtk } from "ags/gtk4"
 import { For, type Accessor } from "ags"
+import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 
 export default function AppFilterBar(props: {
   apps: Accessor<string[]>
@@ -15,7 +16,7 @@ export default function AppFilterBar(props: {
         cssClasses={props.active((f) => f === "all" ? ["np-filter-chip", "active"] : ["np-filter-chip"])}
         onClicked={() => props.onSelect("all")}
       >
-        <label label="Todas" cssClasses={["np-filter-chip-label"]} />
+        <label label={textos.sinReglas.todas} cssClasses={["np-filter-chip-label"]} />
       </button>
 
       <Gtk.ScrolledWindow

@@ -1,0 +1,176 @@
+{
+  "seccionesNuevas": {
+    "barraEscritorios": {
+      "titulo": "Barra y escritorios",
+      "comportamiento": "Comportamiento",
+      "elementos": "Módulos visibles",
+      "espaciosBarra": "Espacios de trabajo en la barra",
+      "espacios": "Límites del selector"
+    },
+    "funcionesShell": {
+      "titulo": "Funciones del shell",
+      "sonidoInicio": "Sonido al iniciar sesión",
+      "indicadores": "Respuesta a las teclas multimedia",
+      "orion": "Comportamiento de Orion",
+      "portapapeles": "Historial de copias"
+    },
+    "sistema": {
+      "supervision": "Supervisión",
+      "actualizaciones": "Actualizaciones"
+    }
+  },
+  "vistasBarra": {
+    "barra": "Barra",
+    "workspaces": "Espacios de trabajo"
+  },
+  "vistasFunciones": {
+    "personalizacion": "Personalización",
+    "orion": "Orion",
+    "portapapeles": "Portapapeles"
+  },
+  "actualizaciones": {
+    "titulo": "Actualizaciones del sistema",
+    "descripcion": "Avisa en la barra de actualizaciones del kernel o de los controladores gráficos.\nDesactivarlo detiene las comprobaciones.",
+    "periodicas": {
+      "titulo": "Recomprobar periódicamente",
+      "descripcion": "Realiza comprobaciones programadas además de la inicial.\nEl cambio se aplica en la próxima sesión."
+    },
+    "intervalo": {
+      "titulo": "Comprobar cada (horas)",
+      "descripcion": "El nuevo intervalo se aplica al reiniciar las comprobaciones o en la próxima sesión.",
+      "placeholder": "3",
+      "guardar": "Guardar"
+    }
+  },
+  "inicioAudio": {
+    "volumen": {
+      "titulo": "Iniciar el volumen silenciado",
+      "descripcion": "Se aplica al comenzar la próxima sesión."
+    },
+    "microfono": {
+      "titulo": "Iniciar el micrófono silenciado",
+      "descripcion": "Se aplica al comenzar la próxima sesión."
+    }
+  },
+  "barra": {
+    "ocultacionAutomatica": {
+      "titulo": "Ocultar la barra automáticamente",
+      "descripcion": "Oculta la barra cuando no se usa y la muestra al llevar el puntero al borde superior.\nDesactivado, las ventanas reservan espacio para ella."
+    },
+    "spotify": {
+      "titulo": "Spotify en la barra",
+      "descripcion": "Muestra la canción actual; clic izquierdo controla la reproducción y clic derecho abre Spotify."
+    },
+    "bateria": {
+      "titulo": "Batería en la barra",
+      "descripcion": "Muestra la carga y, al pasar el puntero, el tiempo y consumo estimados.\nSe oculta si el equipo no tiene batería."
+    },
+    "red": {
+      "titulo": "Red en la barra",
+      "descripcion": "Muestra si usas Wi-Fi o Ethernet y avisa si la conexión no tiene acceso a internet."
+    },
+    "indicadorMicrofono": {
+      "titulo": "Indicador de micrófono en la barra",
+      "descripcion": "Avisa cuando una app usa el micrófono; haz clic derecho para silenciarlo o reactivarlo."
+    },
+    "compartirPantalla": {
+      "titulo": "Indicador de compartir pantalla",
+      "descripcion": "Avisa al detectar que se comparte o graba la pantalla. Desactivarlo detiene la detección."
+    },
+    "bandeja": {
+      "titulo": "Iconos de bandeja en la barra",
+      "descripcion": "Muestra en la barra los iconos de bandeja de las aplicaciones y sus menús."
+    },
+    "notificaciones": {
+      "titulo": "Notificaciones en la barra",
+      "descripcion": "Muestra el botón cuando hay notificaciones.\nOcultarlo no afecta a los avisos, el panel ni el historial."
+    },
+    "workspaces": {
+      "titulo": "Workspaces en la barra",
+      "descripcion": "Oculta solo el selector de la barra; los escritorios y sus atajos siguen funcionando.",
+      "titulosApps": {
+        "titulo": "Títulos de apps al pasar el ratón",
+        "descripcion": "Muestra el nombre de la app y de la ventana al detener el puntero sobre su icono."
+      },
+      "limiteApps": {
+        "titulo": "Máximo de apps por workspace",
+        "tooltip": "Editar límite de iconos",
+        "descripcion": "Muestra entre {{minimo}} y {{maximo}} iconos por workspace; los demás quedan ocultos."
+      },
+      "limiteVisibles": {
+        "titulo": "Máximo de workspaces visibles",
+        "tooltip": "Editar límite de workspaces",
+        "descripcion": "El actual siempre permanece visible; al superar el límite se oculta de la barra el menos reciente."
+      }
+    }
+  },
+  "vistaPrevia": {
+    "titulo": "Vista previa de workspaces",
+    "descripcion": "Guarda una miniatura al visitar cada workspace y la muestra al hacer clic derecho en su número."
+  },
+  "osd": {
+    "volumen": {
+      "titulo": "Widget flotante de volumen",
+      "descripcion": "Aparece al cambiar o silenciar el volumen con las teclas multimedia."
+    },
+    "microfono": {
+      "titulo": "Widget flotante de micrófono",
+      "descripcion": "Aparece al silenciar o reactivar el micrófono con su tecla multimedia."
+    },
+    "brillo": {
+      "titulo": "Widget flotante de brillo",
+      "descripcion": "Aparece al cambiar el brillo con las teclas multimedia."
+    }
+  },
+  "orion": {
+    "menu": {
+      "titulo": "Menú Orion",
+      "descripcion": "Activa o desactiva Orion al reiniciar la interfaz."
+    },
+    "paginaInicial": {
+      "titulo": "Abrir Orion en Aplicaciones",
+      "descripcion": "Cuando Orion está activo, elige Aplicaciones como página inicial. Con este ajuste desactivado, Orion abre Inicio."
+    },
+    "ultimaSeccion": {
+      "titulo": "Mantener la última sección abierta",
+      "descripcion": "Al volver a abrir Orion, conserva la última sección visitada. Tras reiniciar la interfaz, vuelve a usar Inicio o Aplicaciones como página inicial."
+    }
+  },
+  "portapapeles": {
+    "titulo": "Historial del portapapeles",
+    "descripcion": "Guarda las copias para consultarlas con SUPER+V.\nAl desactivarlo, detiene la captura y borra el historial guardado.",
+    "limpiezaManual": {
+      "titulo": "Limpiar portapapeles",
+      "descripcion": "Borra el contenido copiado actualmente y todo el historial guardado.",
+      "boton": "Limpiar"
+    },
+    "limpiezaAutomatica": {
+      "titulo": "Limpiar al reiniciar el sistema",
+      "descripcion": "Vacía el portapapeles y su historial al comenzar la siguiente sesión."
+    }
+  },
+  "monitores": {
+    "bateria": {
+      "titulo": "Monitor de batería",
+      "descripcion": "Avisa al conectar o desconectar el cargador, completar la carga y alcanzar niveles bajos.\nSe aplica en la próxima sesión."
+    },
+    "temperatura": {
+      "titulo": "Monitor de temperatura",
+      "descripcion": "Avisa al superar 85 °C en una CPU Intel o GPU NVIDIA y al volver a enfriarse.\nSe aplica en la próxima sesión."
+    }
+  },
+  "noMolestar": {
+    "titulo": "No molestar automático",
+    "descripcion": "Oculta los avisos mientras juegas o usas a pantalla completa una app de la lista.\nLas notificaciones siguen guardándose en el historial.",
+    "lista": {
+      "titulo": "Apps que silencian en pantalla completa",
+      "ayuda": "Usa Ventana para añadir la app abierta sin escribir su clase.",
+      "vacia": "Sin apps: sólo los juegos activan el No molestar.",
+      "placeholder": "clase de la ventana (p. ej. mpv)",
+      "anadir": "Añadir",
+      "ventana": "Ventana",
+      "anadirVentana": "Añade una ventana en pantalla completa; si no hay ninguna, usa la enfocada",
+      "quitar": "Quitar de la lista"
+    }
+  }
+}

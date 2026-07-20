@@ -5290,10 +5290,14 @@ window.cal-panel > box {
 }
 
 .sp-nav {
-  min-width: 190px;
+  min-width: 225px;
   padding: 16px 10px;
   background: rgba(255, 255, 255, 0.02);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sp-nav-scroll {
+  min-height: 470px;
 }
 
 .sp-nav-title {
@@ -5538,10 +5542,6 @@ button.dl-seg-btn:hover {
 button.dl-seg-btn.active {
   color: #cba6f7;
   background: rgba(203, 166, 247, 0.15);
-}
-
-.dl-tz-select {
-  min-width: 210px;
 }
 
 button.dl-city-result {

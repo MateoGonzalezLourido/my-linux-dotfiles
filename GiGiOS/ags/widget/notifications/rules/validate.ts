@@ -4,6 +4,8 @@
 import type { NotifRule, StringMatch } from "./types.ts"
 import { POPUP_STYLES } from "./types.ts"
 import { isValidHex } from "./color.ts"
+import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
+import { formatearTexto } from "../../../textos/formatear.ts"
 
 function regexValid(value: string): boolean {
   try { new RegExp(value); return true } catch { return false }
@@ -15,30 +17,33 @@ export function validateRule(rule: NotifRule): string[] {
 
   // A "timed" rule needs a positive duration.
   if (e.lifetime === "timed" && !(typeof e.ttlMs === "number" && e.ttlMs > 0)) {
-    errors.push("La regla es temporal: indica una duración válida (ej: 2d 4h 5min, 15min, 3h).")
+    errors.push(textos.validacion.duracion)
   }
 
   // Regex match fields must compile.
   const fields: [string, StringMatch | undefined][] = [
-    ["aplicación", rule.match.app],
-    ["título", rule.match.summary],
-    ["cuerpo", rule.match.body],
-    ["origen", rule.match.source],
+    [textos.validacion.campos.aplicacion, rule.match.app],
+    [textos.validacion.campos.titulo, rule.match.summary],
+    [textos.validacion.campos.cuerpo, rule.match.body],
+    [textos.validacion.campos.origen, rule.match.source],
   ]
   for (const [label, sm] of fields) {
     if (sm && sm.op === "regex" && !regexValid(sm.value)) {
-      errors.push(`Expresión regular inválida en ${label}: "${sm.value}".`)
+      errors.push(formatearTexto(textos.validacion.expresion, { campo: label, valor: sm.value }))
     }
   }
 
   // A color effect, if present, must be a valid hex.
   if (e.color !== undefined && !isValidHex(e.color)) {
-    errors.push(`Color inválido: "${e.color}" (usa un hex como #89b4fa).`)
+    errors.push(formatearTexto(textos.validacion.color, { valor: e.color }))
   }
 
   // A style effect, if present, must be a known skin (el JSON de reglas es editable a mano).
   if (e.style !== undefined && !POPUP_STYLES.includes(e.style)) {
-    errors.push(`Estilo de popup desconocido: "${e.style}" (usa ${POPUP_STYLES.join(" o ")}).`)
+    errors.push(formatearTexto(textos.validacion.estilo, {
+      valor: e.style,
+      opciones: POPUP_STYLES.join(textos.validacion.separadorOpciones),
+    }))
   }
 
   return errors

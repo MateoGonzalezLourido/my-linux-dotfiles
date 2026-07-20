@@ -70,7 +70,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
 
   // Muestra el bar YA, sin el delay de handleShow ni los guards de handleHide.
   // Para los casos en que el bar debe quedarse fijo: pin por teclado y
-  // auto-ocultado desactivado en Personalización.
+  // auto-ocultado desactivado en Barra y escritorios.
   function showNow() {
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
@@ -130,7 +130,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
   })
   barOcultaPorTecla.subscribe(checkVisibility)
 
-  // Auto-ocultado desactivado en Personalización → el bar baja al instante y ya
+  // Auto-ocultado desactivado en Barra y escritorios → el bar baja al instante y ya
   // no vuelve a ocultarse; al reactivarlo, checkVisibility decide (se retraerá si
   // no hay hover ni paneles abiertos).
   barAutoHideEnabled.subscribe(checkVisibility)
@@ -232,7 +232,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         <With value={trayBarEnabled}>{(on: boolean) => on && <SystemTray />}</With>
         <box cssClasses={["bar-status-pair"]} spacing={0}>
           <With value={updatesMonitorEnabled}>{(on: boolean) => on && <UpdatesButton />}</With>
-          {/* Mismo motivo que CPU/RAM más abajo: el toggle de Personalización monta
+          {/* Mismo motivo que CPU/RAM más abajo: el ajuste de Barra y escritorios monta
               y desmonta este icono en caliente, y un <With> que se remonta se inserta
               al FINAL de su box (aparecía junto a Power). Su propio contenedor fija el
               hueco aquí, entre Actualizaciones y Notificaciones. */}

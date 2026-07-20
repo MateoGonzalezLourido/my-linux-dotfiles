@@ -33,7 +33,7 @@ test("summarizeRule with no match says 'Cualquier notificación → no hace nada
   assert.match(summarizeRule(blankRule("x")), /Cualquier notificación → no hace nada/)
 })
 
-test("summarizeRule lists match clauses and effects in Spanish", () => {
+test("summarizeRule lists implemented match clauses and effects in Spanish", () => {
   const s = summarizeRule({
     id: "x", name: "x", enabled: true, priority: 100, source: "user",
     match: { app: { op: "equals", value: "kitty" }, summary: { op: "contains", value: "claude" } },
@@ -42,7 +42,7 @@ test("summarizeRule lists match clauses and effects in Spanish", () => {
   assert.match(s, /la app es «kitty»/)
   assert.match(s, /el título contiene «claude»/)
   assert.match(s, /se limpia al reiniciar el sistema/)
-  assert.match(s, /sin sonido/)
+  assert.doesNotMatch(s, /sin sonido/)
 })
 
 test("summarizeRule shows the duration for a timed rule", () => {

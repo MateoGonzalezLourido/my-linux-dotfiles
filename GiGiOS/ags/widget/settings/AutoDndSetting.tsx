@@ -1,5 +1,5 @@
 // widget/settings/AutoDndSetting.tsx
-// Bloque "No molestar automático" de la sección Personalización.
+// Bloque "No molestar automático" de Notificaciones > General.
 // Un toggle maestro + una lista editable de clases de ventana que, al ponerse en
 // pantalla completa, también activan el No molestar (además de los juegos).
 // La lógica vive en widget/notifications/autoDnd/; aquí sólo persiste preferencias.
@@ -8,6 +8,7 @@ import { Gtk } from "ags/gtk4"
 import AstalHyprland from "gi://AstalHyprland"
 import Interruptor from "../Interruptor"
 import { EncabezadoAjuste, TextoInformativo, TituloSubseccion } from "./componentes"
+import textos from "../../textos/ajustes/personalizacion.json" with { type: "json" }
 import {
   autoDndEnabled, setAutoDndEnabled,
   autoDndFullscreenApps, addAutoDndApp, removeAutoDndApp,
@@ -23,7 +24,7 @@ function AppRow({ app }: { app: string }) {
         cssClasses={["sp-rule-del"]}
         onClicked={() => removeAutoDndApp(app)}
         valign={Gtk.Align.CENTER}
-        tooltipText="Quitar de la lista"
+        tooltipText={textos.noMolestar.lista.quitar}
       >
         <label label="󰅖" />
       </button>
@@ -58,8 +59,8 @@ export default function AutoDndSetting() {
       {/* Toggle maestro */}
       <box spacing={8} valign={Gtk.Align.CENTER}>
         <EncabezadoAjuste
-          titulo="No molestar automático"
-          informacion={"Silencia los popups mientras juegas o con una app en pantalla completa.\nLas notificaciones se siguen guardando en el historial."}
+          titulo={textos.noMolestar.titulo}
+          informacion={textos.noMolestar.descripcion}
           halign={Gtk.Align.START}
           propiedadesInformacion={{ wrap: true, lines: 2, maxWidthChars: 62, xalign: 0 }}
         />
@@ -77,7 +78,12 @@ export default function AutoDndSetting() {
         visible={autoDndEnabled((v: boolean) => v)}
       >
         <TituloSubseccion
-          label="Apps que silencian en pantalla completa"
+          label={textos.noMolestar.lista.titulo}
+          halign={Gtk.Align.START}
+        />
+
+        <TextoInformativo
+          label={textos.noMolestar.lista.ayuda}
           halign={Gtk.Align.START}
         />
 
@@ -88,7 +94,7 @@ export default function AutoDndSetting() {
         </box>
 
         <TextoInformativo
-          label="Sin apps: sólo los juegos activan el No molestar."
+          label={textos.noMolestar.lista.vacia}
           halign={Gtk.Align.START}
           visible={autoDndFullscreenApps((a: string[]) => a.length === 0)}
         />
@@ -99,20 +105,20 @@ export default function AutoDndSetting() {
             cssClasses={["sp-num-input", "adnd-entry"]}
             hexpand
             xalign={0}
-            placeholderText="clase de la ventana (p. ej. mpv)"
+            placeholderText={textos.noMolestar.lista.placeholder}
             $={(self: Gtk.Entry) => { entryRef = self }}
             onActivate={addTyped}
           />
           <button cssClasses={["sp-add-rule"]} onClicked={addTyped} valign={Gtk.Align.CENTER}>
-            <label label="Añadir" />
+            <label label={textos.noMolestar.lista.anadir} />
           </button>
           <button
             cssClasses={["sp-add-rule"]}
             onClicked={addFocused}
             valign={Gtk.Align.CENTER}
-            tooltipText="Añade la app en pantalla completa (o la ventana enfocada)"
+            tooltipText={textos.noMolestar.lista.anadirVentana}
           >
-            <label label="󰊓 Ventana" />
+            <label label={`󰊓 ${textos.noMolestar.lista.ventana}`} />
           </button>
         </box>
       </box>
