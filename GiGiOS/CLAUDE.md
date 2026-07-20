@@ -94,7 +94,10 @@ committed or copied into the repo. Set it up once via `ags/scripts/spotify-auth.
 
 `hypr/autostart.conf` launches the shell (`ags run ~/.config/ags/`), `hypridle`, `init.sh`,
 `wallpaper.sh`, and a set of `hypr/scripts/*-monitor.sh` background daemons (battery, temp,
-ram, disk, oom, wifi, usb, bt, screencast, updates). Apply config changes with `hyprctl reload` and relaunch AGS.
+ram, disk, oom, wifi, usb, bt, screencast, updates). Use `hyprctl reload` for a normal config
+reload. To restart Hyprland correctly —including re-running every `exec-once` in
+`autostart.conf`— use the newer `hyprctl reload full-reset`; a plain reload does not restart
+those commands. Relaunch AGS separately when its code changes.
 
 **El arranque está ESCALONADO, y `autostart.conf` es el único sitio donde se lee el calendario
 entero.** Todo esto salía a la vez y competía con la carga de Hyprland y del shell con la caché
@@ -111,8 +114,9 @@ que encender el interruptor tardara y pareciera roto. La excepción es `oom-moni
 escalona por dentro porque sus sub-monitores no corren el mismo riesgo (ver su sección).
 
 **Editar un `*-monitor.sh` NO afecta al que ya está corriendo — hay que matarlo y relanzarlo.**
-Son `exec-once`, así que viven desde el login, y `hyprctl reload` **no** los reinicia (releer los
-`.conf` no vuelve a lanzar un `exec-once`). Bash además ya tiene el bucle parseado en memoria, de
+Son `exec-once`, así que viven desde el login; una recarga normal (`hyprctl reload`) **no** los
+reinicia, mientras que `hyprctl reload full-reset` sí vuelve a ejecutar el autostart. Bash además
+ya tiene el bucle parseado en memoria, de
 modo que el proceso vivo sigue ejecutando el código **anterior** a tu edición: el fichero en disco
 y lo que corre divergen sin ningún aviso. Se manifiesta como "mi cambio no hace nada" horas
 después — así se coló una tanda de notificaciones de USB sin el hint `x-gigios-source` cuando ya

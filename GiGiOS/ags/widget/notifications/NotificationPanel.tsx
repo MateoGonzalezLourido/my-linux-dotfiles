@@ -529,8 +529,12 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   // La animación dura 280 ms; estos 20 ms extra garantizan que GTK pinte el
   // último frame con el panel completamente fuera antes de ocultar la ventana.
   const PANEL_EXIT_MS = 300
-  const PANEL_PREPARE_MS = 32
   const PANEL_ENTER_MS = 280
+  // Techo de seguridad del arranque de la entrada. El reloj de frames sólo corre mientras
+  // la superficie está mapeada, así que si no llegara ningún tick con allocación la
+  // animación debe arrancar igual: quedarse en `np-preparing` es quedarse en opacity 0,
+  // o sea un panel abierto e invisible. Fail-open, como la puerta del Wake up.
+  const PANEL_PREPARE_CAP_MS = 120
   const [panelRendered, setPanelRendered] = createState(notifPanelVisible.get())
   // Igual que Quick Settings: mapear la superficie directamente con ON_DEMAND
   // deja el foco de puntero de Hyprland desactualizado hasta mover el ratón y se
@@ -540,7 +544,9 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   let panelRef: any = null
   let animationRef: any = null
   let windowRef: any = null
-  let enterTimer: number | null = null
+  let enterTickId: number | null = null
+  let enterCapTimer: number | null = null
+  let entrancePending = false
   let enterSettleTimer: number | null = null
   let exitTimer: number | null = null
   let hoverCloseTimer: number | null = null
@@ -581,27 +587,68 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
     })
   }
 
+  /** Suelta el tick y el techo de la preparación, ganen o pierdan. */
+  function cancelPrepare(): void {
+    if (enterTickId !== null) {
+      animationRef?.remove_tick_callback(enterTickId)
+      enterTickId = null
+    }
+    if (enterCapTimer !== null) {
+      GLib.source_remove(enterCapTimer)
+      enterCapTimer = null
+    }
+  }
+
+  /** Arranca el deslizamiento visible. Idempotente: la gana el tick o el techo, no ambos. */
+  function startEntrance(): void {
+    if (!entrancePending) return
+    entrancePending = false
+    cancelPrepare()
+    animationRef?.remove_css_class("np-preparing")
+    animationRef?.add_css_class("np-entering")
+    // Al terminar el deslizamiento (transform en identidad) re-medir la región
+    // de entrada, calculada desplazada mientras el panel entraba.
+    enterSettleTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_ENTER_MS, () => {
+      reclipInput?.()
+      enterSettleTimer = null
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
   function beginEntrance(): void {
-    if (enterTimer !== null) GLib.source_remove(enterTimer)
+    entrancePending = false
+    cancelPrepare()
     if (enterSettleTimer !== null) { GLib.source_remove(enterSettleTimer); enterSettleTimer = null }
     animationRef?.remove_css_class("np-leaving")
     animationRef?.remove_css_class("np-entering")
     animationRef?.add_css_class("np-preparing")
     setPanelRendered(true)
+    entrancePending = true
 
-    // Dos fotogramas aproximadamente: da tiempo a crear, medir y estilizar los
-    // items antes de iniciar la animación visible, especialmente en la 1.ª apertura.
-    enterTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_PREPARE_MS, () => {
-      animationRef?.remove_css_class("np-preparing")
-      animationRef?.add_css_class("np-entering")
-      enterTimer = null
-      // Al terminar el deslizamiento (transform en identidad) re-medir la región
-      // de entrada, calculada desplazada mientras el panel entraba.
-      enterSettleTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_ENTER_MS, () => {
-        reclipInput?.()
-        enterSettleTimer = null
-        return GLib.SOURCE_REMOVE
-      })
+    // La animación arranca cuando GTK dice que ya ha medido y pintado, NO a un plazo
+    // fijo. Antes eran 32 ms ("dos fotogramas aproximadamente") apostados a ciegas: en la
+    // 1.ª apertura la ventana todavía no se había mapeado nunca, así que ahí caían de
+    // golpe el realize de la superficie, la primera resolución del CSS global (~90 KB)
+    // contra todo el subárbol `.np-*`, la rasterización de los glifos Nerd Font del
+    // header y el primer render node. Cuando eso no cabía en 32 ms el deslizamiento
+    // empezaba con el layout a medias — el microcorte de la primera vez. El reloj de
+    // frames ya sabe cuándo ha terminado; se le pregunta en vez de adivinar.
+    let framesSeen = 0
+    enterTickId = animationRef?.add_tick_callback((widget: any) => {
+      if (!entrancePending) return GLib.SOURCE_REMOVE
+      // El tick corre en la fase de ACTUALIZACIÓN, antes de pintar, y los primeros pueden
+      // llegar sin allocación. Se espera a tener altura real (ya medido) y a un frame más:
+      // ese es el primero con el panel preparado ya pintado.
+      if ((widget.get_height?.() ?? 0) <= 0) return GLib.SOURCE_CONTINUE
+      if (++framesSeen < 2) return GLib.SOURCE_CONTINUE
+      enterTickId = null   // ya nos vamos: que cancelPrepare no lo quite dos veces
+      startEntrance()
+      return GLib.SOURCE_REMOVE
+    }) ?? null
+
+    enterCapTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_PREPARE_CAP_MS, () => {
+      enterCapTimer = null
+      startEntrance()
       return GLib.SOURCE_REMOVE
     })
   }
@@ -622,10 +669,8 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
     }
 
     setPanelKeyboardActive(false)
-    if (enterTimer !== null) {
-      GLib.source_remove(enterTimer)
-      enterTimer = null
-    }
+    entrancePending = false
+    cancelPrepare()
     if (enterSettleTimer !== null) {
       GLib.source_remove(enterSettleTimer)
       enterSettleTimer = null

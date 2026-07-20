@@ -12,6 +12,10 @@ An [AGS v2](https://github.com/Aylur/ags) (Astal) desktop shell for Hyprland/Way
 ags run ~/.config/ags/app.ts     # launch/reload the shell
 ```
 
+When a Hyprland restart is needed, use `hyprctl reload full-reset`: it also re-runs the
+`exec-once` entries from `hypr/autostart.conf`. A plain `hyprctl reload` only reloads the
+configuration and does not restart those autostart processes.
+
 There is no build/lint/test step for the shell itself. To verify a UI change, run the shell and observe it. `out.css` / `out.css.map` are compiled artifacts from `style.scss` — do not edit them by hand.
 
 Pure-logic modules (no GTK imports) are covered by Node's built-in test runner:

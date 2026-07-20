@@ -21,7 +21,11 @@ import { clipWindowInputToContent } from "../inputRegion"
 export default function Orion(gdkmonitor: Gdk.Monitor) {
   const { BOTTOM } = Astal.WindowAnchor
   const PROPORCION_HOLGURA_VERTICAL = 0.2
-  const PREPARACION_ENTRADA_MS = 32
+  // Techo de seguridad del arranque de la entrada. El reloj de frames sólo corre mientras
+  // la superficie está mapeada, así que si no llegara ningún tick con allocación la
+  // entrada debe arrancar igual: quedarse en la preparación es quedarse en `opacity: 0`,
+  // o sea un Orion abierto e invisible. Fail-open, como en NotificationPanel.
+  const TECHO_PREPARACION_MS = 120
   const DURACION_ENTRADA_MS = 280
   const DURACION_ANIMACION_SALIDA_MS = 220
   const ESPERA_DESMAPEO_MS = 280
@@ -29,7 +33,9 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
   const RADIO_CURVAS_LATERALES = 24
   const [orionRenderizado, establecerOrionRenderizado] = createState(orionVisible.get())
   const [cssAnimacionOrion, establecerCssAnimacionOrion] = createState(".orion-wrapper {}")
-  let temporizadorPreparacionEntrada: number | null = null
+  let idFramePreparacion: number | null = null
+  let temporizadorTechoPreparacion: number | null = null
+  let preparacionPendiente = false
   let temporizadorFinEntrada: number | null = null
   let idFrameSalida: number | null = null
   let refVentana: any = null
@@ -77,17 +83,28 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
     idFrameSalida = null
   }
 
-  function cancelarTemporizadoresEntrada(): boolean {
-    const preparacionPendiente = temporizadorPreparacionEntrada !== null
-    if (temporizadorPreparacionEntrada !== null) {
-      GLib.source_remove(temporizadorPreparacionEntrada)
-      temporizadorPreparacionEntrada = null
+  /** Suelta el tick y el techo de la preparación, ganen o pierdan. */
+  function cancelarPreparacion(): void {
+    if (idFramePreparacion !== null) {
+      panelContainer.remove_tick_callback(idFramePreparacion)
+      idFramePreparacion = null
     }
+    if (temporizadorTechoPreparacion !== null) {
+      GLib.source_remove(temporizadorTechoPreparacion)
+      temporizadorTechoPreparacion = null
+    }
+  }
+
+  /** Devuelve si se canceló ESTANDO aún en la preparación invisible (nada que animar). */
+  function cancelarTemporizadoresEntrada(): boolean {
+    const estabaPreparando = preparacionPendiente
+    preparacionPendiente = false
+    cancelarPreparacion()
     if (temporizadorFinEntrada !== null) {
       GLib.source_remove(temporizadorFinEntrada)
       temporizadorFinEntrada = null
     }
-    return preparacionPendiente
+    return estabaPreparando
   }
 
   function calcularDistanciaVertical(): number {
@@ -110,9 +127,45 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
     establecerCssAnimacionOrion(".orion-wrapper { opacity: 0; }")
     establecerOrionRenderizado(true)
 
-    temporizadorPreparacionEntrada = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PREPARACION_ENTRADA_MS, () => {
-      const distanciaEntrada = calcularDistanciaVertical()
-      establecerCssAnimacionOrion(`
+    preparacionPendiente = true
+
+    // La animación arranca cuando GTK dice que ya ha medido y pintado, NO a un plazo fijo.
+    // Antes eran 32 ms ("dos fotogramas aproximadamente") apostados a ciegas, y aquí eso
+    // costaba DOS cosas, no una. La primera apertura no había mapeado nunca la superficie,
+    // así que ahí caían de golpe el realize, la primera resolución del CSS global contra
+    // todo el subárbol `.orion-*` y el primer render node — el microcorte. Y además
+    // `calcularDistanciaVertical()` MIDE dentro de esta ventana: sin allocación todavía,
+    // `panelContainer.get_height()` da 0 y la distancia del deslizamiento sale de la
+    // holgura sobre el alto de ventana, no del panel real. El reloj de frames ya sabe
+    // cuándo ha terminado de medir; se le pregunta en vez de adivinar.
+    let framesVistos = 0
+    idFramePreparacion = panelContainer.add_tick_callback((widget: any) => {
+      if (!preparacionPendiente) return false
+      // El tick corre en la fase de ACTUALIZACIÓN, antes de pintar, y los primeros pueden
+      // llegar sin allocación. Se espera a tener altura real (ya medido) y a un frame más:
+      // ese es el primero con el panel preparado ya pintado.
+      if ((widget.get_height?.() ?? 0) <= 0) return true
+      if (++framesVistos < 2) return true
+      idFramePreparacion = null   // ya nos vamos: que cancelarPreparacion no lo quite dos veces
+      arrancarEntrada()
+      return false
+    })
+
+    temporizadorTechoPreparacion = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TECHO_PREPARACION_MS, () => {
+      temporizadorTechoPreparacion = null
+      arrancarEntrada()
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  /** Arranca el deslizamiento visible. Idempotente: la gana el tick o el techo, no ambos. */
+  function arrancarEntrada(): void {
+    if (!preparacionPendiente) return
+    preparacionPendiente = false
+    cancelarPreparacion()
+
+    const distanciaEntrada = calcularDistanciaVertical()
+    establecerCssAnimacionOrion(`
         @keyframes orion-panel-slide-in-dynamic {
           from { transform: translateY(${distanciaEntrada}px); }
           to { transform: translateY(0); }
@@ -127,14 +180,12 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
             orion-panel-fade-in-dynamic 45ms linear;
         }
       `)
-      temporizadorPreparacionEntrada = null
-      temporizadorFinEntrada = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DURACION_ENTRADA_MS, () => {
-        // El helper difiere la medición a idle, cuando el transform ya está en
-        // identidad y la región coincide con el panel que ve el usuario.
-        recalcularRegionEntrada?.()
-        temporizadorFinEntrada = null
-        return GLib.SOURCE_REMOVE
-      })
+
+    temporizadorFinEntrada = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DURACION_ENTRADA_MS, () => {
+      // El helper difiere la medición a idle, cuando el transform ya está en
+      // identidad y la región coincide con el panel que ve el usuario.
+      recalcularRegionEntrada?.()
+      temporizadorFinEntrada = null
       return GLib.SOURCE_REMOVE
     })
   }

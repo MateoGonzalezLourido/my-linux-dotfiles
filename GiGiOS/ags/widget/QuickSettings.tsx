@@ -3384,7 +3384,11 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   const PANEL_TOTAL_WIDTH = 350
   const PANEL_PANEL_WIDTH = 330
   const PANEL_TOP = 37
-  const PANEL_PREPARE_MS = 32
+  // Techo de seguridad del arranque de la entrada. El reloj de frames sólo corre mientras
+  // la superficie está mapeada, así que si no llegara ningún tick con allocación la
+  // entrada debe arrancar igual: quedarse en `qs-preparing` es quedarse en opacity 0, o
+  // sea un panel abierto e invisible. Fail-open, como en NotificationPanel y Orion.
+  const PANEL_PREPARE_CAP_MS = 120
   const PANEL_ENTER_MS = 280
   // La salida vertical necesita cruzar el borde con suficiente antelación para
   // que el último muestreo visible no sea una franja del pie. Se calcula sobre
@@ -3405,7 +3409,9 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   // así los Entry y Escape siguen funcionando al interactuar con su contenido.
   const [qsKeyboardActive, setQsKeyboardActive] = createState(false)
   const [qsExitCss, setQsExitCss] = createState(".qs-wrapper {}")
-  let enterTimer: number | null = null
+  let enterTickId: number | null = null
+  let enterCapTimer: number | null = null
+  let entrancePending = false
   let entranceGuardTimer: number | null = null
   let exitTickId: number | null = null
   let hoverCloseTimer: number | null = null
@@ -3467,28 +3473,69 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     })
   }
 
+  /** Suelta el tick y el techo de la preparación, ganen o pierdan. */
+  function cancelPrepare(): void {
+    if (enterTickId !== null) {
+      qsAnimationRef?.remove_tick_callback(enterTickId)
+      enterTickId = null
+    }
+    if (enterCapTimer !== null) {
+      GLib.source_remove(enterCapTimer)
+      enterCapTimer = null
+    }
+  }
+
+  /** Arranca el deslizamiento visible. Idempotente: la gana el tick o el techo, no ambos. */
+  function startEntrance(): void {
+    if (!entrancePending) return
+    entrancePending = false
+    cancelPrepare()
+    qsAnimationRef?.remove_css_class("qs-preparing")
+    qsAnimationRef?.add_css_class("qs-entering")
+    entranceGuardTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_ENTER_MS, () => {
+      entranceActive = false
+      entranceGuardTimer = null
+      // El transform ya está en identidad: re-medir la región de entrada, que
+      // se había calculado desplazada mientras el panel se deslizaba.
+      reclipInput?.()
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
   function beginEntrance(): void {
-    if (enterTimer !== null) GLib.source_remove(enterTimer)
-    if (entranceGuardTimer !== null) GLib.source_remove(entranceGuardTimer)
+    entrancePending = false
+    cancelPrepare()
+    if (entranceGuardTimer !== null) { GLib.source_remove(entranceGuardTimer); entranceGuardTimer = null }
     entranceActive = true
     // Quitar la animación de salida dinámica mientras la ventana aún está oculta.
     setQsExitCss(".qs-wrapper {}")
     qsAnimationRef?.remove_css_class("qs-entering")
     qsAnimationRef?.add_css_class("qs-preparing")
     setQsRendered(true)
+    entrancePending = true
 
-    enterTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_PREPARE_MS, () => {
-      qsAnimationRef?.remove_css_class("qs-preparing")
-      qsAnimationRef?.add_css_class("qs-entering")
-      entranceGuardTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_ENTER_MS, () => {
-        entranceActive = false
-        entranceGuardTimer = null
-        // El transform ya está en identidad: re-medir la región de entrada, que
-        // se había calculado desplazada mientras el panel se deslizaba.
-        reclipInput?.()
-        return GLib.SOURCE_REMOVE
-      })
-      enterTimer = null
+    // La animación arranca cuando GTK dice que ya ha medido y pintado, NO a un plazo fijo
+    // (eran 32 ms apostados a ciegas). Aquí el tirón no se notaba —el panel es pequeño y
+    // su árbol cabe de sobra en dos fotogramas—, pero el plazo fijo sigue siendo una
+    // apuesta: basta un arranque con la caché fría, un monitor a 60 Hz o un frame perdido
+    // para que la entrada empiece con el layout a medias. Mismo remedio que en
+    // NotificationPanel y Orion; el reloj de frames ya sabe cuándo ha terminado.
+    let framesSeen = 0
+    enterTickId = qsAnimationRef?.add_tick_callback((widget: any) => {
+      if (!entrancePending) return false
+      // El tick corre en la fase de ACTUALIZACIÓN, antes de pintar, y los primeros pueden
+      // llegar sin allocación. Se espera a tener altura real (ya medido) y a un frame más:
+      // ese es el primero con el panel preparado ya pintado.
+      if ((widget.get_height?.() ?? 0) <= 0) return true
+      if (++framesSeen < 2) return true
+      enterTickId = null   // ya nos vamos: que cancelPrepare no lo quite dos veces
+      startEntrance()
+      return false
+    }) ?? null
+
+    enterCapTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_PREPARE_CAP_MS, () => {
+      enterCapTimer = null
+      startEntrance()
       return GLib.SOURCE_REMOVE
     })
   }
@@ -3505,10 +3552,8 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     }
 
     setQsKeyboardActive(false)
-    if (enterTimer !== null) {
-      GLib.source_remove(enterTimer)
-      enterTimer = null
-    }
+    entrancePending = false
+    cancelPrepare()
     if (entranceGuardTimer !== null) {
       GLib.source_remove(entranceGuardTimer)
       entranceGuardTimer = null

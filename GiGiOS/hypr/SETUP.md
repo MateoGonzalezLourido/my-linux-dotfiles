@@ -659,7 +659,8 @@ La instalación completa está al principio de esta guía. Como lista de comprob
 5. Ajusta `monitors.conf`, el avatar opcional y los fondos si quieres personalizarlos.
 6. Restaura
    `~/.config/gigios/` solo si quieres conservar el mismo estado y recarga Hyprland
-   (`hyprctl reload` o vuelve a iniciar sesión). Comprueba con
+   (`hyprctl reload full-reset` o vuelve a iniciar sesión). `hyprctl reload` hace una recarga
+   normal, pero no vuelve a ejecutar los `exec-once` del autostart. Comprueba con
    `ags run ~/.config/ags/app.ts` que el shell arranca sin errores.
 7. Corre `~/GiGiOS/bin/preflight.sh --installed`.
 

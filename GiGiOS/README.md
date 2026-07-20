@@ -5,6 +5,12 @@ config de Hyprland (incl. hyprlock y scripts de escáner), la foto de perfil, lo
 wallpapers y los directorios de config auxiliares. Como árbol de dotfiles, los
 archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 
+## Recargar o reiniciar Hyprland
+
+Para aplicar únicamente cambios de configuración usa `hyprctl reload`. Para reiniciar
+Hyprland correctamente y volver a ejecutar los `exec-once` de `hypr/autostart.conf`, usa
+`hyprctl reload full-reset`; una recarga normal no relanza el autostart.
+
 ## Contenido
 
 - `ags/`            — shell de AGS  (symlink: `~/.config/ags`)
