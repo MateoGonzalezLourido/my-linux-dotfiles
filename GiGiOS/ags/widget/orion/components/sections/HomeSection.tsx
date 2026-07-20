@@ -13,6 +13,7 @@ import {
 } from "../../state"
 import { favorites, setFavorites, saveFavorites, type FavoriteApp } from "../../data/favorites"
 import { checkExecExists } from "../../data/appResolver"
+import { launchApp } from "../../data/launch"
 
 // Cache of appId/execName → Gio.Icon for rendering favorites
 let _iconCache: Map<string, Gio.Icon | null> | null = null
@@ -374,7 +375,7 @@ function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
       showAppContext({
         id: app.id, name: app.name, iconName: app.iconName, gicon,
         execRaw: app.exec, execName, appId: app.id,
-        launch: () => execAsync(["sh", "-c", app.exec]).catch(() => {}),
+        launch: () => launchApp(app.exec),
       })
     } catch (_) {}
   })
@@ -389,7 +390,7 @@ function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
       suppressClick = false
       return GLib.SOURCE_REMOVE
     })
-    execAsync(["sh", "-c", app.exec]).catch(() => {})
+    launchApp(app.exec)
     hidePanel()
   })
   btn.add_controller(clickGesture)

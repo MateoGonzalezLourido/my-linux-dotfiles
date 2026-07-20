@@ -1,6 +1,6 @@
 import Gio from "gi://Gio"
-import { execAsync } from "ags/process"
 import type { SearchHandler, SearchResult } from "../types"
+import { launchApp } from "../../data/launch"
 
 let _cache: Gio.AppInfo[] | null = null
 function getApps(): Gio.AppInfo[] {
@@ -116,7 +116,7 @@ export const appsHandler: SearchHandler = {
         },
         action: () => {
           const cmd = (a.get_commandline() ?? "").replace(/%[fFuUdDnNickvmb]/g, "").trim()
-          if (cmd) execAsync(["sh", "-c", cmd]).catch(() => {})
+          if (cmd) launchApp(cmd)
         },
       }))
   },

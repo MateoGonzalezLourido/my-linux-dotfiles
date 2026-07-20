@@ -550,9 +550,36 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   let enterSettleTimer: number | null = null
   let exitTimer: number | null = null
   let hoverCloseTimer: number | null = null
+  let alturaConservada = -1
   // Recorte de la región de entrada; se asigna tras construir la ventana. Debe re-ejecutarse al
   // terminar la animación de entrada (el transform de deslizamiento falsea la medida mientras corre).
   let reclipInput: (() => void) | null = null
+
+  /**
+   * Mantiene estable la geometría visible durante esta apertura. Las notificaciones
+   * actualizan su lista de forma síncrona, pero GTK recalcula el layout después; por
+   * eso este método, llamado desde la suscripción previa al repintado, todavía ve la
+   * altura con la que el panel se estaba mostrando. `height-request` es un mínimo:
+   * contenido nuevo puede hacerlo crecer, mientras que borrar contenido no encoge la
+   * superficie justo antes de la animación de salida.
+   */
+  function conservarAlturaActual(): void {
+    const alturaActual = panelRef?.get_height?.() ?? 0
+    if (alturaActual <= 0) return
+    alturaConservada = Math.max(alturaConservada, alturaActual)
+    panelRef?.set_height_request?.(alturaConservada)
+  }
+
+  function liberarAlturaConservada(): void {
+    alturaConservada = -1
+    panelRef?.set_height_request?.(-1)
+  }
+
+  // Se registra antes de construir PanelHeader/NotificationList para capturar la
+  // asignación anterior antes de que sus suscriptores reconstruyan u oculten filas.
+  notifications.subscribe(() => {
+    if (notifPanelVisible.get()) conservarAlturaActual()
+  })
 
   function cancelHoverClose(): void {
     if (hoverCloseTimer === null) return
@@ -664,10 +691,14 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
         GLib.source_remove(exitTimer)
         exitTimer = null
       }
+      liberarAlturaConservada()
       beginEntrance()
       return
     }
 
+    // Congelar antes de que closeNotifPanel quite el footer de selección o cualquier
+    // otro hijo reactivo. La salida conserva así exactamente la altura que se veía.
+    conservarAlturaActual()
     setPanelKeyboardActive(false)
     entrancePending = false
     cancelPrepare()
@@ -682,6 +713,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
     exitTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_EXIT_MS, () => {
       setPanelRendered(false)
       animationRef?.remove_css_class("np-leaving")
+      liberarAlturaConservada()
       exitTimer = null
       return GLib.SOURCE_REMOVE
     })

@@ -150,10 +150,15 @@ export { clipboardHistoryEnabled }
 const [limpiezaPortapapelesAlIniciar, _setLimpiezaPortapapelesAlIniciar] = createState(false)
 export { limpiezaPortapapelesAlIniciar }
 
-// Anclaje de ventanas al escritorio de lanzamiento (scripts/rofi-launch.py).
-// Lo consume el script, que NO es un daemon: el bind lo lanza de cero en cada
-// SUPER+SPACE, así que lee esta clave al arrancar y el cambio se aplica en el
-// siguiente atajo — sin pkill ni re-exec, al revés que los monitores.
+// Anclaje de ventanas al escritorio de lanzamiento (hypr/scripts/anclaje.py).
+// La consumen los DOS lanzadores que usan ese motor: rofi-launch.py (SUPER+SPACE)
+// y lanzar-anclado.py (por el que Orion abre sus apps, widget/orion/data/launch.ts).
+// Es una sola clave a propósito — para quien la usa es una única función, y
+// partirla solo permitiría dejarla a medias; el nombre dice "Rofi" porque ya está
+// escrito en el preferences.json de la máquina y renombrarlo apagaría el anclaje
+// en silencio. Ninguno de los dos es un daemon: nacen de cero en cada lanzamiento,
+// leen esta clave al arrancar y el cambio se aplica en el siguiente — sin pkill ni
+// re-exec, al revés que los monitores.
 // Default: activado.
 const [anclarVentanasRofi, _setAnclarVentanasRofi] = createState(true)
 export { anclarVentanasRofi }

@@ -2,8 +2,8 @@ import { Gtk } from "ags/gtk4"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import Pango from "gi://Pango"
-import { execAsync } from "ags/process"
 import { hidePanel, showAppContext } from "../../state"
+import { launchApp } from "../../data/launch"
 
 interface AppEntry {
   name: string
@@ -74,12 +74,12 @@ function openAppContext(app: AppEntry) {
     execRaw: app.exec,
     execName: app.execName,
     appId: app.appId,
-    launch: () => execAsync(["sh", "-c", app.exec]).catch(() => {}),
+    launch: () => launchApp(app.exec),
   })
 }
 
 function launchAppDirect(app: AppEntry) {
-  execAsync(["sh", "-c", app.exec]).catch(() => {})
+  launchApp(app.exec)
   hidePanel()
 }
 
