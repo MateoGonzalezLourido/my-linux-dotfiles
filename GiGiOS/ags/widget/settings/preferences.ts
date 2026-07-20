@@ -158,6 +158,16 @@ export { limpiezaPortapapelesAlIniciar }
 const [anclarVentanasRofi, _setAnclarVentanasRofi] = createState(true)
 export { anclarVentanasRofi }
 
+// Escáner de apps al iniciar sesión (scripts/escaner-apps-inicio.sh). Vigila 30 s
+// las ventanas que se abren solas (autostart, restauración de sesión) y al terminar
+// salta al escritorio donde hayan quedado. El script NO es un daemon: nace en
+// autostart.conf, mira y muere, así que lee esta clave una vez y el cambio se
+// aplica en la próxima sesión — no hace falta pkill ni re-exec.
+// Default: DESACTIVADO, porque mover el escritorio activo por su cuenta es
+// intrusivo y debe optarse a ello.
+const [escanerAppsInicio, _setEscanerAppsInicio] = createState(false)
+export { escanerAppsInicio }
+
 // Menú Orion. app.ts consulta este valor antes de importar el módulo: cuando
 // está desactivado no se crea su ventana ni se cargan watchers/servicios de
 // Orion. El cambio se aplica en el siguiente arranque o recarga de AGS.
@@ -292,6 +302,9 @@ function load() {
     if (typeof saved.anclarVentanasRofi === "boolean") {
       _setAnclarVentanasRofi(saved.anclarVentanasRofi)
     }
+    if (typeof saved.escanerAppsInicio === "boolean") {
+      _setEscanerAppsInicio(saved.escanerAppsInicio)
+    }
     if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
     if (typeof saved.orionAppsDefault === "boolean") _setOrionAppsDefault(saved.orionAppsDefault)
     if (typeof saved.orionRecordarUltimaSeccion === "boolean") {
@@ -341,6 +354,7 @@ function save() {
       clipboardHistory: clipboardHistoryEnabled.get(),
       limpiezaPortapapelesAlIniciar: limpiezaPortapapelesAlIniciar.get(),
       anclarVentanasRofi: anclarVentanasRofi.get(),
+      escanerAppsInicio: escanerAppsInicio.get(),
       orion: orionEnabled.get(),
       orionAppsDefault: orionAppsDefault.get(),
       orionRecordarUltimaSeccion: orionRecordarUltimaSeccion.get(),
@@ -473,6 +487,12 @@ export function setLimpiezaPortapapelesAlIniciar(activa: boolean) {
 }
 export function setAnclarVentanasRofi(on: boolean) {
   _setAnclarVentanasRofi(on)
+  save()
+}
+// Sin setter maestro: el script solo corre al iniciar sesión, así que no hay
+// proceso vivo al que relanzar ni matar. Basta con persistirlo.
+export function setEscanerAppsInicio(on: boolean) {
+  _setEscanerAppsInicio(on)
   save()
 }
 export function setOrionEnabled(on: boolean) {

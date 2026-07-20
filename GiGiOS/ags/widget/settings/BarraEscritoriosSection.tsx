@@ -1,4 +1,4 @@
-import { For } from "ags"
+import { For, onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import Interruptor from "../Interruptor"
 import { conectarCambioDeslizador } from "../deslizador"
@@ -50,10 +50,14 @@ function DeslizadorLimite({ valor, minimo, maximo, alCambiar }: {
   })
   escala.cssClasses = ["qs-slider", "brightness"]
   conectarCambioDeslizador(escala, alCambiar)
-  const desconectar = valor.subscribe(() => {
+  // onCleanup, NUNCA connect("destroy"): en GTK4 `destroy` sale de `dispose`, y al
+  // desmontar con <With> el widget solo se desparenta —los closures de JS lo siguen
+  // referenciando—, así que el handler no llegaba a correr y cada visita a la sección
+  // dejaba un suscriptor vivo para siempre. <With> sí hace scope.dispose(). Mismo
+  // patrón (y mismo bug) que documenta SpotifyNowPlaying.tsx.
+  onCleanup(valor.subscribe(() => {
     if (ajuste.value !== valor.get()) ajuste.value = valor.get()
-  })
-  escala.connect("destroy", () => { if (typeof desconectar === "function") desconectar() })
+  }))
   return escala
 }
 

@@ -272,8 +272,9 @@ export function applyAllowTearing(on: boolean) {
 //     dentro programa DOS canales independientes — luz nocturna y brillo. Una regla puede
 //     tocar uno, el otro o los dos. FUERA de su franja no pinta nada: la luz nocturna
 //     vuelve al manual y el brillo, al valor que tenía antes de entrar.
-// Precedencia (luz nocturna): dentro de una franja cálida manda el horario; fuera, el
-// manual. `lastAppliedTemp === -1` ⇒ hyprsunset apagado.
+// Precedencia (luz nocturna): dentro de una franja cálida manda el horario, SALVO que el
+// usuario haya tocado a mano en esa misma franja (override, abajo); fuera, el manual.
+// `lastAppliedTemp === -1` ⇒ hyprsunset apagado.
 let lastAppliedTemp = -1
 
 function nowHM() {
@@ -286,14 +287,26 @@ function rulesOn(): boolean { return nightRulesEnabled.get() && nightRules.get()
 // maestro de QuickSettings (refleja la fuente real: manual O programada).
 export const [nightOn, setNightOn] = createState(false)
 
-// "Desactivar hasta la próxima": QS puede apagar la luz actual sin desactivar el
-// horario. El descarte se limpia cuando el horario cambia de franja (otra regla
-// activa) y entonces la programada se vuelve a aplicar sola.
-let nightDismissed = false
-let dismissedKey = ""
+// Override manual DENTRO de una franja. Sin esto, el horario ganaba SIEMPRE mientras
+// estuviera vigente (`baseTemp`), así que con una regla activa el interruptor y el slider
+// de temperatura no hacían nada: tocabas, se guardaba en disco, y la siguiente
+// reconciliación (el tick de 60 s, o el propio `applyNight` de la llamada) devolvía la
+// temperatura de la regla. El brillo no tenía el bug porque su canal solo se aplica AL
+// ENTRAR en la franja (ver `applyScheduledBrightness`), y por eso "el brillo sí funciona".
+//
+// Es el mismo trato que ya tenía el "desactivar hasta la próxima" del maestro de QS —
+// de hecho lo absorbe: apagar a mano es un override que pide "nada". Guarda la franja en
+// la que se tocó, así que caduca sola al cambiar de franja y entonces la programada se
+// vuelve a aplicar. Por sesión, como antes: no se persiste.
+let nightOverrideKey: string | null = null
 
-// Identidad de la franja de LUZ NOCTURNA vigente (para detectar la transición que limpia
-// el descarte). Solo cuentan las reglas que hablan de la luz: entrar en una franja de solo
+function overrideActive(): boolean {
+  return nightOverrideKey !== null && nightOverrideKey === scheduleKey()
+}
+function claimNightOverride() { nightOverrideKey = scheduleKey() }
+
+// Identidad de la franja de LUZ NOCTURNA vigente (para detectar la transición que caduca
+// el override manual). Solo cuentan las reglas que hablan de la luz: entrar en una franja de solo
 // brillo no es cambiar de franja. Fuera de toda franja ⇒ clave fija.
 function scheduleKey(): string {
   if (rulesOn()) {
@@ -303,10 +316,10 @@ function scheduleKey(): string {
   return "no-schedule"
 }
 
-// Temperatura que "quieren" horario/manual (sin contar el descarte). Dentro de una franja
-// que programe la luz manda el horario; fuera de toda franja, el manual.
+// Temperatura que "quieren" horario/manual. Dentro de una franja que programe la luz manda
+// el horario; fuera de toda franja —o con override manual vigente—, el manual.
 function baseTemp(): number | null {
-  if (rulesOn()) {
+  if (!overrideActive() && rulesOn()) {
     const t = activeSetpoint(nowHM(), nightRules.get(), "temp")
     if (t != null && t > 0) return t   // dentro de la franja: manda el horario
   }
@@ -381,8 +394,8 @@ function applyRules() {
 // Reconcilia hyprsunset con el estado deseado (arranca / cambia temp / apaga) y
 // publica `nightOn`. El descarte se limpia al cambiar de franja de horario.
 function applyNight() {
-  if (nightDismissed && scheduleKey() !== dismissedKey) nightDismissed = false
-  const temp = nightDismissed ? null : baseTemp()
+  if (nightOverrideKey !== null && nightOverrideKey !== scheduleKey()) nightOverrideKey = null
+  const temp = baseTemp()
   setNightOn(temp != null)
   if (temp == null) {
     if (lastAppliedTemp !== -1) { lastAppliedTemp = -1; execAsync(["pkill", "-HUP", "-x", "hyprsunset"]).catch(() => {}) }
@@ -398,27 +411,25 @@ function applyNight() {
 // y descarta la franja de horario en curso) o la enciende (fija). El horario sigue
 // activo: la siguiente regla la volverá a encender.
 export function toggleNightNow() {
-  if (nightOn.get()) {
-    setNightLightActive(false)      // apaga la fija
-    nightDismissed = true
-    dismissedKey = scheduleKey()    // recuerda la franja en curso
-  } else {
-    nightDismissed = false
-    setNightLightActive(true)       // enciende la fija
-  }
+  setNightLightActive(!nightOn.get())
+  claimNightOverride()   // en esta franja manda el usuario (encienda o apague)
   saveDisplayConfig(); applyNight()
 }
 
-// (1) Toggle manual — enciende/apaga la luz nocturna fija ahora.
+// (1) Toggle manual — enciende/apaga la luz nocturna fija ahora. También reclama el
+// override: si no, con una franja vigente el interruptor no haría nada visible.
 export function setNightLightManual(on: boolean) {
-  nightDismissed = false
-  setNightLightActive(on); saveDisplayConfig(); applyNight()
+  setNightLightActive(on); claimNightOverride(); saveDisplayConfig(); applyNight()
 }
 
 // Temperatura manual (slider). Aplica en vivo con debounce si el manual manda.
 let tempDebounce: number | null = null
 export function setManualTemp(t: number) {
-  nightDismissed = false
+  // Mover el slider con la luz ENCENDIDA es pedir "quiero esta temperatura ahora", venga
+  // de donde venga la que hay: se adopta como manual y se reclama la franja. Con la luz
+  // apagada solo se está editando el valor manual para más tarde — no se enciende nada ni
+  // se pisa una franja que ni siquiera está tocando la luz.
+  if (nightOn.get()) { setNightLightActive(true); claimNightOverride() }
   setNightLightTemp(t); saveDisplayConfig()
   if (tempDebounce !== null) GLib.source_remove(tempDebounce)
   tempDebounce = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => { applyNight(); tempDebounce = null; return GLib.SOURCE_REMOVE })
@@ -428,7 +439,7 @@ export function setManualTemp(t: number) {
 // se añade una franja por defecto (cálida de 22:00 a 07:00). Sin brillo: programarlo es
 // opt-in, no algo que aparezca solo al encender el horario.
 export function setNightRulesEnabled(on: boolean) {
-  nightDismissed = false
+  nightOverrideKey = null   // tocar el horario devuelve el mando al horario
   setNightRulesEnabledState(on)
   if (on && nightRules.get().length === 0) {
     setNightRules([{ start: "22:00", end: "07:00", temp: 3500, brightness: null }])
@@ -437,7 +448,7 @@ export function setNightRulesEnabled(on: boolean) {
 }
 
 export function setNightRulesAndSave(rules: NightRule[]) {
-  nightDismissed = false
+  nightOverrideKey = null
   setNightRules(rules); saveDisplayConfig(); applyRules()
 }
 

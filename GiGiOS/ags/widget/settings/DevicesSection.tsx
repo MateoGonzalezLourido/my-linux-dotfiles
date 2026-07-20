@@ -1,5 +1,5 @@
 import { Gtk } from "ags/gtk4"
-import { createState } from "ags"
+import { createState, onCleanup } from "ags"
 import { DisplaySelect } from "../display/controls"
 import { conectarCambioDeslizador } from "../deslizador"
 import Interruptor from "../Interruptor"
@@ -39,8 +39,10 @@ function SliderRow({ setting, label, hint, min, max, step, format }: {
   scale.cssClasses = ["qs-slider", "dev-slider"]
   conectarCambioDeslizador(scale, (value) =>
     updateDeviceSettings({ [setting]: Math.round(value / step) * step }))
-  const unsub = deviceSettings.subscribe(() => { adjustment.value = Number(deviceSettings.get()[setting]) })
-  scale.connect("destroy", () => { if (typeof unsub === "function") unsub() })
+  // onCleanup, NUNCA connect("destroy"): ver la nota en BarraEscritoriosSection.tsx.
+  // El handler de `destroy` no corría al desmontar con <With>, así que cada visita a
+  // Ratón/Touchpad/Teclado/Impresoras añadía un suscriptor permanente a deviceSettings.
+  onCleanup(deviceSettings.subscribe(() => { adjustment.value = Number(deviceSettings.get()[setting]) }))
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={7} cssClasses={["dev-row"]}>
       <box spacing={8}>

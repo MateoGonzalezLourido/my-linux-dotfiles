@@ -327,6 +327,59 @@ trabaja) y el bucle de espera, que **relee ambos motivos** en cada vuelta, así 
 del toggle maestro de AGS no mataría el script hasta acabar la espera. En `oom-monitor` los
 sub-monitores ya duermen en primer plano, así que ahí `sleep` a secas es lo coherente.
 
+### Escáner de apps al iniciar sesión (`escaner-apps-inicio.sh`)
+
+Al empezar la sesión se abren ventanas **solas** (autostart, restauración de sesión) y no siempre
+en el escritorio que estás mirando: acabas delante de uno vacío mientras tus apps están en otro.
+Este script mira los primeros 30 s y te lleva donde hayan quedado. `0` ventanas nuevas → no hace
+nada; **un** escritorio destino → salta a él; **dos o más** → llama a `compact-workspaces.sh` y
+salta al destino **más cercano** al activo (empate → id menor).
+
+**La decisión se toma AL FINAL de los 30 s, no en cada evento, y esa es la diferencia entre la
+función y un tic nervioso.** Saltar según llega cada `openwindow` haría rebotar el escritorio
+activo cuatro o cinco veces mientras arranca la sesión — justo el desconcierto que esto viene a
+quitar. El peaje aceptado es que la corrección llega a los 30 s, no al instante.
+
+**Va a t=0 en `autostart.conf`, y es la excepción al calendario escalonado**: escucha `openwindow`
+en el socket de eventos, y las apps de autostart abren **exactamente ahí**. Retrasarlo no es
+apartarlo del pico de carga, es perderse las ventanas que existe para seguir — el mismo motivo por
+el que `oom-monitor` no se retrasa entero. En reposo cuesta un `nc` bloqueado en un socket, y a los
+30 s muere.
+
+**La dirección del evento viene SIN el `0x`** que sí trae `hyprctl clients` (`openwindow>>ADDRESS,
+workspace,class,title`, y hay que cortar en la primera coma: la línea entera trae también
+workspace, clase y título). Cruzar ambas fuentes sin normalizar da cero coincidencias **en
+silencio** — el script recolecta bien, resuelve a lista vacía y sale con éxito sin saltar a ningún
+sitio. Fue el primer fallo real y no da ningún error.
+
+**Los escritorios se re-resuelven DESPUÉS de compactar**, porque `compact-workspaces.sh` renumera:
+un id leído antes de compactar apunta a otro sitio (o a nada) al terminar. Solo cuentan las
+ventanas que **no existían** al arrancar el script — lo ya abierto no es un autolanzamiento — y se
+ignoran los escritorios especiales, que no son una posición donde dejar al usuario.
+
+**Es de un solo uso, no un daemon**, así que se aparta de la advertencia general de los
+`*-monitor.sh`: lee su preferencia una vez, mira y muere. No hay proceso vivo que se quede
+ejecutando código viejo, ni hace falta `pkill` + re-exec al cambiar el ajuste — se aplica en la
+próxima sesión, como `limpiezaPortapapelesAlIniciar`.
+
+**Alcance real**: corre al arrancar **Hyprland**, no al volver de una suspensión o hibernación
+(volver no reinicia el compositor, así que no hay `exec-once` que lo lance). Cubre el autostart y
+cualquier restauración de sesión que ocurra tras un arranque completo.
+
+Prefiere el socket de eventos al sondeo porque no forkea nada durante los 30 s — el arranque de
+sesión es cuando más sobra la carga — y cae a sondear cada 2 s si no hay `nc -U` ni `socat`. Que el
+lector no emita **nada** es indistinguible de "30 s sin abrir ventanas", así que se distingue por
+si llegó a hablar: el socket emite por cualquier cosa (foco, cambio de escritorio), de modo que
+callarse significa que no podemos fiarnos, y ahí se recae al sondeo en vez de abandonar.
+
+**Ajuste**: `escanerAppsInicio` en `~/.config/gigios/preferences.json` (Ajustes > Personalización >
+Ventanas y escritorios). **Ausente = DESACTIVADO**, al revés que la mayoría de claves de este
+fichero: mover el escritorio activo por su cuenta es intrusivo y hay que optar a ello. Ese default
+es también lo que hace seguro leerlo con `.escanerAppsInicio // false` — el tropiezo del operador
+`//` de jq documentado en `gaming-gate.sh` (que trata un `false` literal como ausente) aquí da el
+mismo resultado por ambos caminos. `GIGIOS_ESCANER_SEGS` acorta la ventana para probarlo sin
+esperar medio minuto, la misma costura que `GIGIOS_USB_PENDING_DIR` en el monitor de USB.
+
 ### Update monitor (`updates-monitor.sh`)
 
 Checks for pending updates and surfaces the **important** ones as bar icons (AGS

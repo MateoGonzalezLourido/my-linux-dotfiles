@@ -1,10 +1,13 @@
 // widget/SettingsPanel.tsx
 // General settings window opened from the QuickSettings gear. Same full-screen backdrop + centered
 // panel style as the notification settings window, but navigation is a vertical list on the LEFT.
-// Content is wrapped in <With> so it is built fresh on open and torn down on close.
+// El contenido va en un <With> sobre `vistaActiva` (sección, o null si el panel está
+// cerrado): se construye al ABRIR y se desmonta al cerrar, así que con Ajustes cerrado no
+// queda ni un timer ni una suscripción viva. La nav lateral es estática y vive con la
+// ventana. Ojo: tiene que ser UN solo <With>, no dos anidados — ver la nota junto a él.
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { With, createState } from "ags"
+import { With, createState, createComputed } from "ags"
 import { settingsPanelVisible, setSettingsPanelVisible, privilegedPromptActive } from "./state"
 import EnergySection from "./power/EnergySection"
 import SettingsTabs from "./notifications/settings/SettingsTabs"
@@ -54,6 +57,9 @@ const SECCIONES_NAVEGACION: SeccionNavegacion[] = [
 export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
   const [section, setSection] = createState<SectionId>("account")
+  // null = panel cerrado → no se construye ninguna sección. La sección elegida se
+  // conserva en `section` entre aperturas; lo que se tira es el árbol de widgets.
+  const vistaActiva = createComputed(() => settingsPanelVisible() ? section() : null)
   let contenidoDesplazable: Gtk.ScrolledWindow
 
   const panel = (
@@ -95,8 +101,27 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
         vscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
       >
         <box orientation={Gtk.Orientation.VERTICAL} hexpand>
-          <With value={section}>
-            {(s: SectionId) => {
+          {/* UN SOLO <With>, sobre `vistaActiva` (= sección, o null con el panel cerrado).
+              Gatea por VISIBILIDAD, no solo por sección: sin eso la sección por defecto
+              (Cuenta) se construía al arrancar el shell —una vez por monitor— y seguía
+              montada toda la sesión sin haber abierto Ajustes nunca, porque `panel` se
+              evalúa en el cuerpo de la función que app.ts invoca con .map() al arrancar y
+              <With> renderiza con `immediate: true`. Cerrar solo cambiaba `visible` de la
+              ventana y no desmontaba nada.
+
+              NO se puede hacer con dos <With> anidados (visibilidad → sección), que es lo
+              primero que sale: <With> devuelve un Fragment y `Fragment.append` lanza
+              "nesting Fragments are not yet supported". El error se traga en el efecto, así
+              que el panel se queda SIN CONTENIDO y además el fragment externo nunca llega a
+              tener hijos → su scope no se dispone jamás y no corre ni un onCleanup: pierdes
+              justo lo que venías a arreglar, en silencio. Medido.
+
+              Por lo mismo el caso cerrado devuelve un <box/> vacío y no `null`: <With> no
+              añade nada al fragment ante null/undefined/false/"", y el ciclo de disposición
+              cuelga de iterar los hijos del fragment. Sin hijo no hay dispose. */}
+          <With value={vistaActiva}>
+            {(s: SectionId | null) => {
+              if (s === null) return <box />
               if (s === "account") return <AccountSection />
               if (s === "energy") return <EnergySection />
               if (s === "games") return <JuegosSection />

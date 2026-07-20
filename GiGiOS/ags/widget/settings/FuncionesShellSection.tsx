@@ -11,6 +11,7 @@ import {
   orionAppsDefault, setOrionAppsDefault,
   orionRecordarUltimaSeccion, setOrionRecordarUltimaSeccion,
   anclarVentanasRofi, setAnclarVentanasRofi,
+  escanerAppsInicio, setEscanerAppsInicio,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
   limpiezaPortapapelesAlIniciar, setLimpiezaPortapapelesAlIniciar,
 } from "./preferences"
@@ -36,6 +37,7 @@ export default function FuncionesShellSection({ vista }: { vista: VistaFunciones
 
       {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.ventanas} icono="󰖯">
         <AjusteInterruptor titulo={textos.ventanas.anclaje.titulo} informacion={textos.ventanas.anclaje.descripcion} activo={anclarVentanasRofi} alAlternar={() => setAnclarVentanasRofi(!anclarVentanasRofi.get())} />
+        <AjusteInterruptor titulo={textos.ventanas.escanerInicio.titulo} informacion={textos.ventanas.escanerInicio.descripcion} activo={escanerAppsInicio} alAlternar={() => setEscanerAppsInicio(!escanerAppsInicio.get())} />
       </TarjetaAjustes>}
 
       {vista === "orion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.orion} icono="󰆍">

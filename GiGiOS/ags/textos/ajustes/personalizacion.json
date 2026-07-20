@@ -127,6 +127,10 @@
     "anclaje": {
       "titulo": "Anclar ventanas al escritorio de lanzamiento",
       "descripcion": "Al abrir una app desde el buscador (SUPER+ESPACIO), su ventana aparece en el escritorio donde la lanzaste aunque te hayas cambiado mientras cargaba.\nAl desactivarlo, cada ventana aparece en el escritorio en el que estés."
+    },
+    "escanerInicio": {
+      "titulo": "Escáner de apps al iniciar sesión",
+      "descripcion": "Durante los primeros 30 segundos vigila las ventanas que se abren solas (autostart, restauración de sesión) y después te lleva al escritorio donde han quedado.\nSi ocupan varios escritorios, primero los compacta y salta al más cercano al que estés.\nSe aplica al comenzar la próxima sesión."
     }
   },
   "orion": {

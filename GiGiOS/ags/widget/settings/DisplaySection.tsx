@@ -340,19 +340,20 @@ export default function DisplaySection() {
     })
   }
 
-  // Poller ref-counted: adquirir mientras el panel de Ajustes esté visible;
-  // liberar al ocultarse y al destruirse la sección (evita fugas y timers vivos).
+  // Poller (hyprctl cada 2 s) Y reloj (30 s) ref-contados: ambos se adquieren solo
+  // mientras el panel de Ajustes está VISIBLE, no mientras la sección está montada.
+  // El reloj colgaba del montaje, así que dejar Ajustes en Pantalla y cerrar el panel
+  // lo dejaba tickeando el resto de la sesión, recomputando el resumen y actualizando
+  // etiquetas de una ventana oculta. Se gatean juntos porque los dos existen solo para
+  // pintar algo que nadie está mirando cuando el panel está cerrado.
   let holding = false
   const evalPoll = () => {
     const want = settingsPanelVisible.get()
-    if (want && !holding) { acquirePoll(); holding = true }
-    else if (!want && holding) { releasePoll(); holding = false }
+    if (want && !holding) { acquirePoll(); acquireClock(); holding = true }
+    else if (!want && holding) { releasePoll(); releaseClock(); holding = false }
   }
   const unsub = settingsPanelVisible.subscribe(evalPoll)
   evalPoll()
-
-  // Reloj de la sección (para "vigente" y el resumen): vive mientras viva la sección.
-  acquireClock()
 
   // Qué está aplicando el horario AHORA. Es la respuesta visible a "¿por qué se ha
   // encendido?": si una franja rige, se ve aquí y su tarjeta sale marcada.
@@ -380,8 +381,7 @@ export default function DisplaySection() {
   fixSelection()
 
   const cleanup = () => {
-    if (holding) { releasePoll(); holding = false }
-    releaseClock()
+    if (holding) { releasePoll(); releaseClock(); holding = false }
     if (typeof unsub === "function") unsub()
     if (typeof unsubMon === "function") unsubMon()
   }
