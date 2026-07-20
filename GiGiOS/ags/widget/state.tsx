@@ -31,6 +31,10 @@ export function openSettingsPanel() {
   closeAllPanels()
   setSettingsPanelVisible(true)
 }
+export function alternarPanelAjustes() {
+  if (settingsPanelVisible.get()) setSettingsPanelVisible(false)
+  else openSettingsPanel()
+}
 export const [qsView, setQsView] = createState<"main" | "wifi" | "bluetooth" | "display" | "audio" | "mic">("main")
 export const [infoSsid, setInfoSsid] = createState<string | null>(null)
 

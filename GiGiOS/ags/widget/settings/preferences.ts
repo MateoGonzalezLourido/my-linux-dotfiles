@@ -14,8 +14,10 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createComputed, createState } from "ags"
 import { execAsync } from "ags/process"
+import { normalizarModoDaltonismo, type ModoDaltonismo } from "./daltonismo"
 
 const PREFS_PATH = `${GLib.get_user_config_dir()}/gigios/preferences.json`
+const SCRIPT_DALTONISMO = `${GLib.get_user_config_dir()}/hypr/scripts/aplicar-filtro-daltonismo.sh`
 
 // ── Estado reactivo ───────────────────────────────────────────────────────────
 // Preview de workspace: captura con grim al cambiar de workspace + popover al
@@ -213,6 +215,12 @@ export type TimeFormat = "24h" | "12h"
 const [timeFormat, _setTimeFormat] = createState<TimeFormat>("24h")
 export { timeFormat }
 
+// Corrección global de color para daltonismo. Solo puede haber un shader de
+// pantalla activo en Hyprland, de modo que el propio tipo representa también la
+// exclusividad entre los tres modos. "ninguno" conserva la imagen original.
+const [modoDaltonismo, _setModoDaltonismo] = createState<ModoDaltonismo>("ninguno")
+export { modoDaltonismo }
+
 // Formatea una hora según la preferencia. En 12h calculamos AM/PM a mano en vez
 // de usar %p: en locales como es_US.UTF-8 %p viene vacío y el reloj quedaría
 // ambiguo ("09:09 " sin sufijo). Así el formato es independiente del idioma.
@@ -289,6 +297,7 @@ function load() {
       _setAutoDndFullscreenApps(sanitizeApps(saved.autoDndFullscreenApps))
     }
     if (saved.timeFormat === "12h" || saved.timeFormat === "24h") _setTimeFormat(saved.timeFormat)
+    _setModoDaltonismo(normalizarModoDaltonismo(saved.modoDaltonismo))
   } catch (e) { /* archivo ausente o corrupto → nos quedamos con los defaults */ }
 }
 
@@ -330,6 +339,7 @@ function save() {
       autoDnd: autoDndEnabled.get(),
       autoDndFullscreenApps: autoDndFullscreenApps.get(),
       timeFormat: timeFormat.get(),
+      modoDaltonismo: modoDaltonismo.get(),
     }
     GLib.file_set_contents(PREFS_PATH, JSON.stringify(config, null, 2))
   } catch (e) { /* no-op: un fallo de escritura no debe romper la UI */ }
@@ -487,6 +497,17 @@ export function setUpdatesIntervalHours(h: number) {
 export function setTimeFormat(fmt: TimeFormat) {
   _setTimeFormat(fmt)
   save()
+}
+export function setModoDaltonismo(modo: ModoDaltonismo) {
+  const siguiente = normalizarModoDaltonismo(modo)
+  if (modoDaltonismo.get() === siguiente) return
+  _setModoDaltonismo(siguiente)
+  save()
+  // El script también se ejecuta desde hyprland.conf en cada recarga. Pasarle
+  // el modo aquí evita releer el JSON en el camino interactivo.
+  execAsync([SCRIPT_DALTONISMO, siguiente]).catch((error) => {
+    console.error("[accesibilidad] No se pudo aplicar la corrección de color:", error)
+  })
 }
 export function setAutoDndEnabled(on: boolean) {
   _setAutoDndEnabled(on)

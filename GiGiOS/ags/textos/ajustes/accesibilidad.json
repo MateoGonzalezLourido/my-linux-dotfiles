@@ -1,0 +1,25 @@
+{
+  "seccion": {
+    "titulo": "Accesibilidad"
+  },
+  "grupos": {
+    "daltonismo": "Corrección de color para daltonismo"
+  },
+  "daltonismo": {
+    "descripcion": "Aplica la corrección elegida a toda la pantalla. Solo puede haber un modo activo; vuelve a pulsarlo para desactivarlo. El filtro puede aumentar ligeramente el uso de la GPU."
+  },
+  "modos": {
+    "protanopia": {
+      "titulo": "Protanopia",
+      "descripcion": "Redistribuye la información del rojo hacia tonos más distinguibles."
+    },
+    "deuteranopia": {
+      "titulo": "Deuteranopia",
+      "descripcion": "Redistribuye la información del verde hacia tonos más distinguibles."
+    },
+    "tritanopia": {
+      "titulo": "Tritanopia",
+      "descripcion": "Redistribuye la información del azul hacia tonos más distinguibles."
+    }
+  }
+}

@@ -27,7 +27,10 @@ required=(
   ags/widget/notifications/DaemonConflictBanner.tsx ags/widget/notifications/daemonCheck.ts
   ags/widget/notifications/rules/engine.style.test.ts ags/widget/settings/ProfileAvatar.tsx
   ags/widget/settings/SecuritySection.tsx ags/widget/settings/securityPrefs.ts
+  ags/widget/settings/AccessibilitySection.tsx ags/widget/settings/OpcionDaltonismo.tsx ags/widget/settings/daltonismo.ts
+  ags/widget/settings/daltonismo.test.ts ags/textos/ajustes/accesibilidad.json
   hypr/hyprland.conf hypr/monitor-settings.conf
+  hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
   hypr/gpu/laptop-hibrida.conf hypr/gpu/sobremesa-nvidia.conf
   Wallpapers/sunset.jpg
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/scan-file.sh

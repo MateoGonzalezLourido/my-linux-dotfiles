@@ -17,11 +17,12 @@ import DateLanguageSection from "./settings/DateLanguageSection"
 import BarraEscritoriosSection from "./settings/BarraEscritoriosSection"
 import FuncionesShellSection from "./settings/FuncionesShellSection"
 import JuegosSection from "./settings/JuegosSection"
+import AccessibilitySection from "./settings/AccessibilitySection"
 import textos from "../textos/ajustes/general.json" with { type: "json" }
 
 type SectionId =
   | "account" | "language" | "datetime" | "location"
-  | "display" | "personalization" | "mouse" | "touchpad" | "keyboard" | "printers" | "energy" | "games"
+  | "display" | "accessibility" | "personalization" | "mouse" | "touchpad" | "keyboard" | "printers" | "energy" | "games"
   | "bar" | "workspaces" | "orion" | "clipboard" | "notifications"
   | "monitoring" | "scans" | "supervision" | "system"
 type SeccionNavegacion = { id: SectionId; label: string; icon: string }
@@ -31,6 +32,7 @@ const SECCIONES_NAVEGACION: SeccionNavegacion[] = [
   { id: "datetime", label: textos.secciones.fechaHora, icon: "󰃭" },
   { id: "location", label: textos.secciones.ubicacion, icon: "󰍎" },
   { id: "display", label: textos.secciones.pantalla, icon: "󰍹" },
+  { id: "accessibility", label: textos.secciones.accesibilidad, icon: "󰦧" },
   { id: "personalization", label: textos.secciones.personalizacion, icon: "󰏘" },
   { id: "mouse", label: textos.secciones.ratonPuntero, icon: "󰍽" },
   { id: "touchpad", label: textos.secciones.touchpad, icon: "󰟸" },
@@ -99,6 +101,7 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
               if (s === "energy") return <EnergySection />
               if (s === "games") return <JuegosSection />
               if (s === "display") return <DisplaySection />
+              if (s === "accessibility") return <AccessibilitySection />
               if (s === "language") return <DateLanguageSection vista="idioma" />
               if (s === "datetime") return <DateLanguageSection vista="fecha" />
               if (s === "location") return <DateLanguageSection vista="ubicacion" />
