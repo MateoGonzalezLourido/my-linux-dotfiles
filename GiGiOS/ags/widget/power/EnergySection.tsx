@@ -12,6 +12,7 @@ import {
   suspendNotifFilters, setSuspendNotifFilters,
   pauseWsPreviewInPowerSave, setPauseWsPreviewInPowerSave,
   hideSpotifyBarInPowerSave, setHideSpotifyBarInPowerSave,
+  freezeBackgroundInPowerSave, setFreezeBackgroundInPowerSave,
   powerSaveActive, batteryStatusText,
 } from "./powerState.ts"
 
@@ -70,6 +71,7 @@ export default function EnergySection() {
       <TarjetaAjustes titulo={textos.grupos.modoAhorro} icono="󰌪">
         <AjusteInterruptor titulo={textos.notificaciones.titulo} informacion={textos.notificaciones.descripcion} activo={suspendNotifFilters} alAlternar={() => setSuspendNotifFilters(!suspendNotifFilters.get())} />
         <AjusteInterruptor titulo={textos.vistasPrevias.titulo} informacion={textos.vistasPrevias.descripcion} activo={pauseWsPreviewInPowerSave} alAlternar={() => setPauseWsPreviewInPowerSave(!pauseWsPreviewInPowerSave.get())} />
+        <AjusteInterruptor titulo={textos.procesosFondo.titulo} informacion={textos.procesosFondo.descripcion} activo={freezeBackgroundInPowerSave} alAlternar={() => setFreezeBackgroundInPowerSave(!freezeBackgroundInPowerSave.get())} />
         <AjusteInterruptor titulo={textos.spotify.titulo} informacion={textos.spotify.descripcion} activo={hideSpotifyBarInPowerSave} alAlternar={() => setHideSpotifyBarInPowerSave(!hideSpotifyBarInPowerSave.get())} />
       </TarjetaAjustes>
 

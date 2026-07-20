@@ -19,6 +19,7 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createState } from "ags"
 import { isGameClient } from "../bar/games/evidence"
+import { backgroundJobsSuspended } from "./powerState.ts"
 
 const STATE_PATH = `${GLib.get_user_config_dir()}/gigios/runtime-state.json`
 
@@ -72,6 +73,14 @@ function getPid(): number {
 // Se escribe el epoch ABSOLUTO, no un contador, por lo mismo que `until` en
 // wakeup.json: así el lado bash resuelve la gracia contra el reloj de pared sin que
 // nadie tenga que reescribir el fichero, y no se desfasa tras una suspensión.
+//
+// `powerSaveFreeze` viaja en este mismo fichero, y no en uno propio, porque el fichero
+// se reescribe ENTERO en cada cambio: dos escritores sobre el mismo JSON se pisarían.
+// Es el mismo gate (lib/gaming-gate.sh) congelando el mismo sondeo prescindible por otro
+// motivo —ahorro de energía en vez de partida—, así que comparte también la guarda del
+// pid: si AGS muere, bash hace fail-open y el mantenimiento vuelve a correr.
+// El valor ya viene COMBINADO desde powerState.ts (ahorro activo Y el usuario lo pidió),
+// igual que spotifyBarSuspended y compañía; bash no reevalúa nada.
 function writeFlag(gaming: boolean) {
   try {
     const dir = GLib.path_get_dirname(STATE_PATH)
@@ -80,6 +89,7 @@ function writeFlag(gaming: boolean) {
       gaming,
       gameFocused,
       lastGameFocus,
+      powerSaveFreeze: backgroundJobsSuspended.get(),
       pid: getPid(),
     }))
   } catch (e) {
@@ -132,6 +142,10 @@ export function initGamingState(): void {
   // un 0 heredado lo daría por abandonado hace 55 años y no congelaría nada.
   lastGameFocus = Math.floor(Date.now() / 1000)
   writeFlag(isGaming.get())
+
+  // El ahorro entra y sale sin que pase nada con las ventanas, así que sin esto el
+  // fichero solo se actualizaría la próxima vez que abrieras o cerraras un juego.
+  backgroundJobsSuspended.subscribe(() => writeFlag(isGaming.get()))
 
   hypr.connect("client-added", (_s, client) => {
     addIfGame(client)

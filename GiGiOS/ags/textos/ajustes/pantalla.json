@@ -115,10 +115,6 @@
         "activado": "Activado",
         "soloPantallaCompleta": "Solo pantalla completa"
       }
-    },
-    "tearing": {
-      "titulo": "Permitir tearing (juegos)",
-      "descripcion": "Permite a los juegos compatibles mostrar fotogramas sin esperar a la sincronización vertical. Puede reducir la latencia, pero provocar cortes en la imagen."
     }
   },
   "suspension": {

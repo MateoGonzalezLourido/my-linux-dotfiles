@@ -223,11 +223,26 @@ export interface RefreshOption {
   raw: string       // string original ("144.00") para reconstruir el modo
 }
 
-// Hz distintos que reporta el panel, redondeados y ordenados de mayor a menor.
-export function refreshOptions(availableModes: string[]): RefreshOption[] {
+// Hz distintos que reporta el panel para UNA resolución, redondeados y ordenados
+// de mayor a menor.
+//
+// El filtro por resolución NO es cosmético: los modos de un panel no comparten
+// frecuencias. Aquí (2560x1440) el panel da 240/165/144/120/60, pero a 1080p da
+// además 100/50/30/25/24 — agruparlos todos ofrecía en el desplegable modos que
+// esa resolución no admite. Y el `raw` es por modo, así que el 240 pooled venía
+// del "239.97" de 1440p: elegirlo a 1080p mandaba `1920x1080@239.97Hz`, que no
+// existe. `res` ausente (o una resolución fabricada de COMMON_RESOLUTIONS, que el
+// panel no reporta) cae a la lista completa: es mejor ofrecer de más que dejar el
+// desplegable vacío.
+export function refreshOptions(availableModes: string[], res?: { w: number; h: number }): RefreshOption[] {
+  const forRes = res
+    ? availableModes.filter(m => m.startsWith(`${res.w}x${res.h}@`))
+    : []
+  const source = forRes.length > 0 ? forRes : availableModes
+
   const seen = new Set<number>()
   const out: RefreshOption[] = []
-  for (const mode of availableModes) {
+  for (const mode of source) {
     const m = mode.match(/@([\d.]+)Hz$/)
     if (!m) continue
     const raw = m[1]
@@ -238,4 +253,29 @@ export function refreshOptions(availableModes: string[]): RefreshOption[] {
   }
   out.sort((a, b) => b.hz - a.hz)
   return out
+}
+
+// Mejor frecuencia para `res` conservando la intención del usuario al cambiar de
+// resolución: la misma si existe, si no la más alta por debajo, y como último
+// recurso la más baja disponible.
+//
+// Sin esto, cambiar de resolución arrastraba los Hz actuales a pelo — pasar de
+// 1080p@240 a 1440p pedía `2560x1440@240.00Hz`, que este panel no tiene (su modo
+// es 239.97), y a 1600x1200 pedía 240 Hz donde el máximo son 60. Se prefiere
+// bajar y no subir porque un modo por encima de lo que el panel admite es lo que
+// deja la pantalla en negro.
+export function bestRefreshFor(availableModes: string[], res: { w: number; h: number }, currentHz: number): string | null {
+  // Resolución fabricada (COMMON_RESOLUTIONS, escalada por GPU): el panel no
+  // reporta modos suyos, así que no hay nada mejor que conservar los Hz actuales.
+  // Se comprueba aquí porque refreshOptions cae a la lista completa, y devolver
+  // el raw de OTRA resolución sería peor que no tocar nada.
+  if (!availableModes.some(m => m.startsWith(`${res.w}x${res.h}@`))) return null
+  const opts = refreshOptions(availableModes, res)
+  if (opts.length === 0) return null
+  const target = Math.round(currentHz)
+  const exact = opts.find(o => o.hz === target)
+  if (exact) return exact.raw
+  // opts va de mayor a menor: el primero por debajo del actual es el mayor que cabe.
+  const lower = opts.find(o => o.hz < target)
+  return (lower ?? opts[opts.length - 1]).raw
 }

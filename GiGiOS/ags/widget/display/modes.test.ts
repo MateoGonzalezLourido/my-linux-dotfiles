@@ -145,7 +145,17 @@ test("monitorNeedsUpdate detecta transform, bitdepth y cm", () => {
   assert.equal(monitorNeedsUpdate(mon, { cm: "auto" }), false)
 })
 
-import { nativeResolution, resolutionOptions, refreshOptions } from "./modes.ts"
+import { nativeResolution, resolutionOptions, refreshOptions, bestRefreshFor } from "./modes.ts"
+
+// Los modos reales de este panel (DP-1), recortados: sirven para los casos que
+// motivaron el filtro por resolución.
+const PANEL = [
+  "2560x1440@59.95Hz", "2560x1440@239.97Hz", "2560x1440@164.96Hz",
+  "2560x1440@144.00Hz", "2560x1440@120.00Hz",
+  "1920x1080@240.00Hz", "1920x1080@119.88Hz", "1920x1080@100.00Hz",
+  "1920x1080@60.00Hz", "1920x1080@23.98Hz",
+  "1600x1200@60.00Hz",
+]
 
 test("nativeResolution returns the largest reported mode by area", () => {
   assert.deepEqual(nativeResolution(["1920x1200@144.00Hz", "1920x1200@60.00Hz"]), { w: 1920, h: 1200 })
@@ -180,4 +190,44 @@ test("refreshOptions returns distinct rounded hz sorted desc", () => {
   const opts = refreshOptions(["1920x1200@144.00Hz", "1920x1200@60.00Hz", "1600x900@60.00Hz"])
   assert.deepEqual(opts.map(o => o.hz), [144, 60])
   assert.equal(opts[0].raw, "144.00")
+})
+
+test("refreshOptions only offers rates the given resolution actually has", () => {
+  assert.deepEqual(refreshOptions(PANEL, { w: 2560, h: 1440 }).map(o => o.hz), [240, 165, 144, 120, 60])
+  assert.deepEqual(refreshOptions(PANEL, { w: 1920, h: 1080 }).map(o => o.hz), [240, 120, 100, 60, 24])
+  assert.deepEqual(refreshOptions(PANEL, { w: 1600, h: 1200 }).map(o => o.hz), [60])
+})
+
+test("refreshOptions takes the raw value from the given resolution's own mode", () => {
+  // 240 Hz es 239.97 a 1440p pero 240.00 a 1080p: agrupados, elegir 240 a 1080p
+  // mandaba un modo inexistente.
+  assert.equal(refreshOptions(PANEL, { w: 2560, h: 1440 })[0].raw, "239.97")
+  assert.equal(refreshOptions(PANEL, { w: 1920, h: 1080 })[0].raw, "240.00")
+})
+
+test("refreshOptions falls back to every rate for an unreported resolution", () => {
+  // 1366x768 no lo reporta el panel (resolución fabricada, escalada por GPU):
+  // mejor ofrecer de más que dejar el desplegable vacío.
+  const opts = refreshOptions(PANEL, { w: 1366, h: 768 })
+  assert.deepEqual(opts.map(o => o.hz), refreshOptions(PANEL).map(o => o.hz))
+})
+
+test("bestRefreshFor keeps the rate when the new resolution has it", () => {
+  assert.equal(bestRefreshFor(PANEL, { w: 1920, h: 1080 }, 120), "119.88")
+  assert.equal(bestRefreshFor(PANEL, { w: 2560, h: 1440 }, 144), "144.00")
+})
+
+test("bestRefreshFor steps DOWN, never up, when the rate is unavailable", () => {
+  // 1080p@240 → 1600x1200, cuyo único modo es 60: pedir 240 dejaría la pantalla negra.
+  assert.equal(bestRefreshFor(PANEL, { w: 1600, h: 1200 }, 240), "60.00")
+  // 1440p@165 → 1080p: no hay 165, el mayor que cabe es 120.
+  assert.equal(bestRefreshFor(PANEL, { w: 1920, h: 1080 }, 165), "119.88")
+})
+
+test("bestRefreshFor falls back to the lowest rate when nothing is below", () => {
+  assert.equal(bestRefreshFor(PANEL, { w: 2560, h: 1440 }, 30), "59.95")
+})
+
+test("bestRefreshFor returns null for an unreported resolution", () => {
+  assert.equal(bestRefreshFor(PANEL, { w: 1366, h: 768 }, 144), null)
 })

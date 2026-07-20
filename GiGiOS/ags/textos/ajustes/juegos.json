@@ -3,7 +3,12 @@
     "titulo": "Juegos"
   },
   "grupos": {
+    "graficosLatencia": "Gráficos y latencia",
     "rendimiento": "Rendimiento en segundo plano"
+  },
+  "tearing": {
+    "titulo": "Permitir tearing (juegos)",
+    "descripcion": "Permite a los juegos compatibles mostrar fotogramas sin esperar a la sincronización vertical. Puede reducir la latencia, pero provocar cortes en la imagen."
   },
   "congelarTareas": {
     "titulo": "Congelar tareas de fondo al jugar",

@@ -12,14 +12,14 @@ import Interruptor from "../Interruptor"
 import { TextoInformativo, TituloAjuste, TituloSeccion, TituloSubseccion } from "./componentes"
 import {
   monitors, monitorPrefs, monitorCaps, applyPatch, acquirePoll, releasePoll,
-  globalVrrMode, applyGlobalVrr, allowTearing, applyAllowTearing,
+  globalVrrMode, applyGlobalVrr,
   nightRules, setNightRulesAndSave, nightRulesEnabled, setNightRulesEnabled,
   setNightLightManual, setManualTemp, saveDisplayConfig,
 } from "../display/service"
 import type { NightRule } from "../display/schedule"
 import { activeRuleFor, activeSetpoint } from "../display/schedule"
 import {
-  resolutionOptions, refreshOptions, matchScalePreset, SCALE_PRESETS,
+  resolutionOptions, refreshOptions, bestRefreshFor, matchScalePreset, SCALE_PRESETS,
   TRANSFORMS, CM_MODES, computeRelativePosition,
 } from "../display/modes"
 import {
@@ -470,7 +470,13 @@ export default function DisplaySection() {
                 active: s.width === o.w && s.height === o.h,
               }))
             })}
-            onSelect={(value) => { const s = selected(); if (s) applyPatch(s, { mode: `${value}@${s.refreshRate.toFixed(2)}Hz` }) }}
+            onSelect={(value) => {
+              const s = selected(); if (!s) return
+              const [w, h] = value.split("x").map(Number)
+              // Los Hz actuales pueden no existir en la nueva resolución.
+              const hz = bestRefreshFor(s.availableModes, { w, h }, s.refreshRate) ?? s.refreshRate.toFixed(2)
+              applyPatch(s, { mode: `${value}@${hz}Hz` })
+            }}
           />
         </box>
 
@@ -480,7 +486,7 @@ export default function DisplaySection() {
             current={createComputed(() => { const s = selected(); return s ? `${Math.round(s.refreshRate)} Hz` : "—" })}
             options={createComputed(() => {
               const s = selected(); if (!s) return []
-              return refreshOptions(s.availableModes).map(o => ({ label: `${o.hz} Hz`, value: o.raw, active: Math.round(s.refreshRate) === o.hz }))
+              return refreshOptions(s.availableModes, { w: s.width, h: s.height }).map(o => ({ label: `${o.hz} Hz`, value: o.raw, active: Math.round(s.refreshRate) === o.hz }))
             })}
             onSelect={(value) => { const s = selected(); if (s) applyPatch(s, { mode: `${s.width}x${s.height}@${value}Hz` }) }}
           />
@@ -726,19 +732,6 @@ export default function DisplaySection() {
           />
         </box>
 
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-          <box spacing={8} valign={Gtk.Align.CENTER}>
-            <TituloAjuste label={textos.globales.tearing.titulo} hexpand halign={Gtk.Align.START} />
-            <Interruptor
-              activo={allowTearing}
-              alAlternar={() => applyAllowTearing(!allowTearing.get())}
-            />
-          </box>
-          <TextoInformativo
-            label={textos.globales.tearing.descripcion}
-            halign={Gtk.Align.START} wrap xalign={0}
-          />
-        </box>
       </box>
 
     </box>

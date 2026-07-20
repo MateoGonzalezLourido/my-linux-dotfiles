@@ -222,7 +222,7 @@ se ve. Ojo al leerlo en AGS: se saca con `hints.lookup_value()` de la clave suel
 `image-data` trae los píxeles en crudo; hoy solo se libra de ese coste porque únicamente corre
 cuando una regla reescribe texto.
 
-### Congelar tareas de fondo al jugar (`lib/gaming-gate.sh`)
+### Congelar tareas de fondo al jugar — y en modo ahorro (`lib/gaming-gate.sh`)
 
 **El "modo juego" tiene dos mitades, y antes solo existía una.** El auto-DND ya callaba las
 notificaciones mientras juegas, pero nada quitaba la CARGA: los sondeos de mantenimiento seguían
@@ -300,6 +300,27 @@ un `jq` cada 10 s durante una partida de tres horas sería justo el coste que es
 quitar. El ajuste (`gamingFreeze` en `preferences.json`, ausente = activado) sí usa `jq`, pero
 cacheado 30 s; se lee **en vivo**, no una vez al arrancar, porque es un control de recursos:
 apagarlo descongela en ≤30 s sin reiniciar ningún monitor, incluso a mitad de partida.
+
+**El mismo gate congela también en MODO AHORRO, y ese es su segundo motivo.** La lista de lo que
+se congela es idéntica —sondeo caro y aplazable— porque la razón es hermana: al jugar el
+mantenimiento molesta, con la batería baja **cuesta autonomía** (`smartctl` despierta discos,
+`updates-monitor` enciende la radio). Lo decide AGS y llega **ya combinado** (ahorro activo **Y**
+el interruptor de Ajustes > Energía > "Reducir procesos en segundo plano", `freezeBackground` en
+`~/.config/power-save/config.json`, ausente = activado) como **`powerSaveFreeze`** en ese mismo
+`runtime-state.json` — mismo fichero porque se reescribe **entero** en cada cambio y dos
+escritores se pisarían; lo publica `gamingState.ts`, suscrito al estado de `powerState.ts`.
+
+**Bash NO rederiva "¿estoy en ahorro?", y esa es la decisión.** Mirar `/sys/class/power_supply` a
+mano ya salió mal una vez —lista también la pila del **ratón**, que reporta `Discharging` para
+siempre (ver `_is_system_battery` en `oom-monitor.sh`)—, mientras que AGS ya tiene la respuesta
+buena por upower y con el umbral que enseña la UI. Una sola fuente de verdad, y el error de
+paralaje entre lo que dice Ajustes y lo que hace el gate deja de ser posible.
+
+**Son dos interruptores, no uno**: `gamingFreeze` gobierna **solo** el motivo "juego" — apagar la
+congelación al jugar no debe apagar la del ahorro, y al revés. Lo demás se comparte tal cual: la
+guarda del `pid` de AGS, el fail-open (sin fichero, JSON corrupto, pid muerto o clave ausente → se
+trabaja) y el bucle de espera, que **relee ambos motivos** en cada vuelta, así que salir del ahorro
+—o desactivar el ajuste— descongela en ≤`GAMING_GATE_POLL` sin reiniciar ningún monitor.
 
 **`GAMING_GATE_SLEEP` no es decorativo.** `updates-monitor` lo pone a `blocking sleep` porque bash
 **difiere las señales** mientras espera a un hijo en primer plano: con un `sleep` normal, el `pkill`

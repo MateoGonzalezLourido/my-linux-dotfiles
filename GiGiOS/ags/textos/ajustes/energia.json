@@ -26,6 +26,10 @@
     "titulo": "Pausar vistas previas de espacios de trabajo",
     "descripcion": "Desactiva las miniaturas de los espacios de trabajo y deja de hacer capturas durante el ahorro. Se recuperan al salir."
   },
+  "procesosFondo": {
+    "titulo": "Reducir procesos en segundo plano",
+    "descripcion": "Congela el mantenimiento prescindible durante el ahorro: la búsqueda de actualizaciones y los sondeos de salud de discos y de servicios. El trabajo aplazado se hace al salir del ahorro; la vigilancia de seguridad y la de temperatura nunca se paran."
+  },
   "spotify": {
     "titulo": "Ocultar Spotify de la barra",
     "descripcion": "Oculta el reproductor de Spotify y detiene sus actualizaciones y animaciones durante el ahorro. Vuelve a mostrarse al salir."

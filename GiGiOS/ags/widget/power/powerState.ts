@@ -18,12 +18,14 @@ interface PowerConfig {
   suspendNotifFilters: boolean // when true, notification filter timers pause during power-save
   pauseWsPreview: boolean      // when true, the workspace preview (grim capture) pauses during power-save
   hideSpotifyBar: boolean      // when true, the Spotify pill is unmounted during power-save
+  freezeBackground: boolean    // when true, background maintenance polling freezes during power-save
 }
 const DEFAULTS: PowerConfig = {
   thresholdPct: 15,
   suspendNotifFilters: false,
   pauseWsPreview: true,
   hideSpotifyBar: true,
+  freezeBackground: true,
 }
 
 function loadConfig(): PowerConfig {
@@ -36,6 +38,7 @@ function loadConfig(): PowerConfig {
         suspendNotifFilters: !!data.suspendNotifFilters,
         pauseWsPreview: typeof data.pauseWsPreview === "boolean" ? data.pauseWsPreview : DEFAULTS.pauseWsPreview,
         hideSpotifyBar: typeof data.hideSpotifyBar === "boolean" ? data.hideSpotifyBar : DEFAULTS.hideSpotifyBar,
+        freezeBackground: typeof data.freezeBackground === "boolean" ? data.freezeBackground : DEFAULTS.freezeBackground,
       }
     }
   } catch (_) {}
@@ -51,6 +54,7 @@ export const [powerSaveThreshold, _setThreshold] = createState(initial.threshold
 export const [suspendNotifFilters, _setSuspend] = createState(initial.suspendNotifFilters)
 export const [pauseWsPreviewInPowerSave, _setPauseWsPreview] = createState(initial.pauseWsPreview)
 export const [hideSpotifyBarInPowerSave, _setHideSpotifyBar] = createState(initial.hideSpotifyBar)
+export const [freezeBackgroundInPowerSave, _setFreezeBackground] = createState(initial.freezeBackground)
 
 let saveTimer: number | null = null
 function persist() {
@@ -64,6 +68,7 @@ function persist() {
         suspendNotifFilters: suspendNotifFilters.get(),
         pauseWsPreview: pauseWsPreviewInPowerSave.get(),
         hideSpotifyBar: hideSpotifyBarInPowerSave.get(),
+        freezeBackground: freezeBackgroundInPowerSave.get(),
       }))
     } catch (e) {
       console.error("[power] save failed:", e)
@@ -93,6 +98,11 @@ export function setHideSpotifyBarInPowerSave(v: boolean) {
   recompute()
   persist()
 }
+export function setFreezeBackgroundInPowerSave(v: boolean) {
+  _setFreezeBackground(v)
+  recompute()
+  persist()
+}
 
 // ── Derived power state ─────────────────────────────────────────────────────────
 // powerSaveActive: on battery and at/under the threshold.
@@ -107,6 +117,14 @@ export const [wsPreviewSuspended, _setWsPreviewSuspended] = createState(false)
 // medido), y un widget meramente invisible seguiría pagando ambos. Al desmontarlo, su
 // handler de "destroy" quita el timer, suelta el tick callback y cancela la suscripción.
 export const [spotifyBarSuspended, _setSpotifyBarSuspended] = createState(false)
+// backgroundJobsSuspended: powerSaveActive AND the user opted in to freezing background work.
+// A diferencia de los tres de arriba, este NO lo consume ningún widget: lo publica
+// gamingState.ts en runtime-state.json para el lado BASH (lib/gaming-gate.sh), que congela
+// el mismo sondeo prescindible que ya congela al jugar (actualizaciones, SMART, unidades).
+// Se combina aquí, y no en bash, a propósito: rederivar allí "¿ahorro activo?" ya salió mal
+// una vez —/sys/class/power_supply lista también la pila del ratón (ver oom-monitor.sh)— y
+// AstalBattery/upower ya distingue la batería del equipo. Una sola fuente de verdad.
+export const [backgroundJobsSuspended, _setBackgroundJobsSuspended] = createState(false)
 // Pre-composed human label so the UI doesn't have to combine three states in one binding.
 export const [batteryStatusText, _setBatteryStatusText] = createState(textos.estado.sinBateria)
 
@@ -126,6 +144,7 @@ function recompute() {
   _setSuspended(active && suspendNotifFilters.get())
   _setWsPreviewSuspended(active && pauseWsPreviewInPowerSave.get())
   _setSpotifyBarSuspended(active && hideSpotifyBarInPowerSave.get())
+  _setBackgroundJobsSuspended(active && freezeBackgroundInPowerSave.get())
 }
 
 if (bat) {

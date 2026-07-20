@@ -1,5 +1,6 @@
 import { Gtk } from "ags/gtk4"
 import { AjusteInterruptor, TarjetaAjustes, TituloSeccion } from "./componentes"
+import { allowTearing, applyAllowTearing } from "../display/service"
 import { gamingFreezeEnabled, setGamingFreezeEnabled } from "./preferences"
 import textos from "../../textos/ajustes/juegos.json" with { type: "json" }
 
@@ -8,6 +9,14 @@ export default function JuegosSection() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
       <TituloSeccion titulo={textos.seccion.titulo} />
+      <TarjetaAjustes titulo={textos.grupos.graficosLatencia} icono="󰹑">
+        <AjusteInterruptor
+          titulo={textos.tearing.titulo}
+          informacion={textos.tearing.descripcion}
+          activo={allowTearing}
+          alAlternar={() => applyAllowTearing(!allowTearing.get())}
+        />
+      </TarjetaAjustes>
       <TarjetaAjustes titulo={textos.grupos.rendimiento} icono="󰊴">
         <AjusteInterruptor
           titulo={textos.congelarTareas.titulo}
