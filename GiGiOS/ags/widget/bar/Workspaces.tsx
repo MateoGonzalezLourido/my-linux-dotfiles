@@ -665,6 +665,19 @@ export default function Workspaces() {
   hypr.connect("notify::workspaces", update)
   hypr.connect("notify::focused-workspace", update)
   hypr.connect("notify::clients", update)
+  // Una ventana que CAMBIA de workspace no altera la lista de clientes —
+  // `notify::clients` avisa de altas y bajas, no de movimientos—, así que sin esto
+  // los iconos se quedan donde nació la ventana hasta que algo más fuerce un
+  // `update()`. Casi siempre lo forzaba otra cosa por casualidad: mover a mano con
+  // `movetoworkspace` te lleva al destino y dispara `notify::focused-workspace`.
+  // Lo destapó `movetoworkspacesilent` —el que usa el anclaje de
+  // hypr/scripts/anclaje.py, silencioso justo para no arrastrarte—: la app se abre
+  // en el workspace en el que estás, se emite el alta (icono ahí), y el traslado al
+  // workspace de lanzamiento no emite nada. Resultado: el icono se queda en un
+  // workspace donde la app ya no está, y solo se corrige al abrir o cerrar otra
+  // ventana. Medido: en un traslado silencioso `client-moved` sí llega y
+  // `notify::clients` no.
+  hypr.connect("client-moved", update)
   hypr.connect("notify::focused-client", () => {
     setFocusedAddress((hypr as any).focusedClient?.address ?? "")
   })
