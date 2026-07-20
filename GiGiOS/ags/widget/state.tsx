@@ -35,6 +35,34 @@ export function alternarPanelAjustes() {
   if (settingsPanelVisible.get()) setSettingsPanelVisible(false)
   else openSettingsPanel()
 }
+// ── Diálogos de polkit y la ventana de Ajustes ────────────────────────────────
+// El agente de polkit (hyprpolkitagent) dibuja su diálogo como una ventana
+// NORMAL (un toplevel xdg). La ventana de Ajustes es una superficie layer-shell
+// en la capa OVERLAY, y en wlroots una capa OVERLAY se compone SIEMPRE por
+// encima de cualquier toplevel: no hay regla de ventana que pueda invertir ese
+// orden. Por eso el diálogo de la contraseña quedaba tapado y había que cerrar
+// Ajustes para llegar a él.
+//
+// La única salida es que la ventana de Ajustes se aparte mientras el diálogo
+// está en pantalla: baja a la capa BOTTOM (por encima del fondo de escritorio,
+// por debajo de los toplevels) y suelta el teclado. Sigue viéndose detrás, así
+// que no se pierde el contexto, y vuelve sola a OVERLAY al terminar.
+//
+// Ref-contado como openBarMenu(): dos operaciones privilegiadas solapadas no
+// pueden devolver la ventana arriba mientras la otra sigue pidiendo contraseña.
+export const [privilegedPromptActive, setPrivilegedPromptActive] = createState(false)
+let _privilegedCount = 0
+export async function withPrivilegedPrompt<T>(fn: () => Promise<T>): Promise<T> {
+  _privilegedCount++
+  setPrivilegedPromptActive(true)
+  try {
+    return await fn()
+  } finally {
+    _privilegedCount = Math.max(0, _privilegedCount - 1)
+    if (_privilegedCount === 0) setPrivilegedPromptActive(false)
+  }
+}
+
 export const [qsView, setQsView] = createState<"main" | "wifi" | "bluetooth" | "display" | "audio" | "mic">("main")
 export const [infoSsid, setInfoSsid] = createState<string | null>(null)
 

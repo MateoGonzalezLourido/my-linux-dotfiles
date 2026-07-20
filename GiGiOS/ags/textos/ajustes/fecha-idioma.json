@@ -138,6 +138,7 @@
         "manual": "Manual"
       }
     },
+    "bloqueada": "La ubicación está bloqueada: ni las apps ni GiGiOS pueden saber dónde estás. Actívala arriba para volver a usarla.",
     "actual": {
       "titulo": "Ubicación actual",
       "descripcion": "Se usa cuando está activada la zona horaria automática.",

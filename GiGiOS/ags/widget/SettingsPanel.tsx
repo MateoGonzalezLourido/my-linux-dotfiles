@@ -5,7 +5,7 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { With, createState } from "ags"
-import { settingsPanelVisible, setSettingsPanelVisible } from "./state"
+import { settingsPanelVisible, setSettingsPanelVisible, privilegedPromptActive } from "./state"
 import EnergySection from "./power/EnergySection"
 import SettingsTabs from "./notifications/settings/SettingsTabs"
 import DisplaySection from "./settings/DisplaySection"
@@ -131,10 +131,15 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
       name="settings-panel"
       visible={settingsPanelVisible}
       gdkmonitor={gdkmonitor}
-      layer={Astal.Layer.OVERLAY}
+      // Mientras polkit pide la contraseña, esta ventana se aparta: una capa
+      // OVERLAY tapa SIEMPRE al diálogo (es un toplevel normal) y obligaba a
+      // cerrar Ajustes para poder escribir. Ver withPrivilegedPrompt en state.tsx.
+      layer={privilegedPromptActive(a => a ? Astal.Layer.BOTTOM : Astal.Layer.OVERLAY)}
       anchor={TOP | BOTTOM | LEFT | RIGHT}
       exclusivity={Astal.Exclusivity.IGNORE}
-      keymode={Astal.Keymode.ON_DEMAND}
+      // Y suelta el teclado: con ON_DEMAND la capa puede retener el foco y el
+      // diálogo se quedaría sin recibir lo que teclees.
+      keymode={privilegedPromptActive(a => a ? Astal.Keymode.NONE : Astal.Keymode.ON_DEMAND)}
       application={app}
       cssClasses={["sp-window"]}
     >

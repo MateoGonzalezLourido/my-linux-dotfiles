@@ -200,50 +200,64 @@ export default function DateLanguageSection({ vista }: { vista: VistaFechaIdioma
             <Interruptor activo={snapshot(s => !s.geoclueBlocked)} alAlternar={() => setLocationBlocked(!snapshot.get().geoclueBlocked)} />
           </FilaAjuste>
 
-          <FilaAjuste titulo={textos.ubicacion.origen.titulo} informacion={textos.ubicacion.origen.descripcion}>
-            <Segmented
-              options={[{ value: "auto", label: textos.ubicacion.origen.opciones.automatica }, { value: "manual", label: textos.ubicacion.origen.opciones.manual }]}
-              current={prefs(p => p.source)}
-              onSelect={(v) => setLocationSource(v as any)}
-            />
-          </FilaAjuste>
-
-          <box cssClasses={["dev-row"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-            <box spacing={10} valign={Gtk.Align.CENTER}>
-              <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
-                <TituloAjuste label={textos.ubicacion.actual.titulo} halign={Gtk.Align.START} />
-                <TextoInformativo label={textos.ubicacion.actual.descripcion} />
-                <label cssClasses={["account-notice"]} label={prefs(p => p.location.name || textos.ubicacion.actual.sinDeterminar)} halign={Gtk.Align.START} wrap xalign={0} maxWidthChars={48} />
+          {/* Todo lo que hay debajo del interruptor solo existe si la ubicación
+              está permitida. Antes seguía ahí, mostrando la ciudad guardada y
+              dejando buscar otra con el bloqueo puesto: la UI se contradecía. */}
+          <With value={snapshot(s => s.geoclueBlocked)}>
+            {(bloqueada: boolean) => bloqueada ? (
+              <box cssClasses={["dev-row"]}>
+                <label cssClasses={["account-notice"]} label={textos.ubicacion.bloqueada}
+                  halign={Gtk.Align.START} wrap xalign={0} maxWidthChars={52} />
               </box>
-              <With value={prefs(p => p.source)}>
-                {(src: string) => src === "auto"
-                  ? <BotonAjustes label={busy(b => b ? textos.ubicacion.actual.actualizando : textos.ubicacion.actual.actualizar)} onClicked={() => refreshAutoLocation()} />
-                  : <box />}
-              </With>
-            </box>
+            ) : (
+              <box orientation={Gtk.Orientation.VERTICAL} spacing={14}>
+              <FilaAjuste titulo={textos.ubicacion.origen.titulo} informacion={textos.ubicacion.origen.descripcion}>
+                <Segmented
+                  options={[{ value: "auto", label: textos.ubicacion.origen.opciones.automatica }, { value: "manual", label: textos.ubicacion.origen.opciones.manual }]}
+                  current={prefs(p => p.source)}
+                  onSelect={(v) => setLocationSource(v as any)}
+                />
+              </FilaAjuste>
 
-            <With value={prefs(p => p.source)}>
-              {(src: string) => src !== "manual" ? <box /> : (
-                <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-                  <box spacing={8}>
-                    <EntradaTextoAjustes placeholderText={textos.ubicacion.busqueda.placeholder} hexpand
-                      onChanged={(e: Gtk.Entry) => setCityQuery(e.get_text())}
-                      onActivate={doSearch} />
-                    <BotonAjustes label={textos.ubicacion.busqueda.boton} onClicked={doSearch} />
+              <box cssClasses={["dev-row"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+                <box spacing={10} valign={Gtk.Align.CENTER}>
+                  <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
+                    <TituloAjuste label={textos.ubicacion.actual.titulo} halign={Gtk.Align.START} />
+                    <TextoInformativo label={textos.ubicacion.actual.descripcion} />
+                    <label cssClasses={["account-notice"]} label={prefs(p => p.location.name || textos.ubicacion.actual.sinDeterminar)} halign={Gtk.Align.START} wrap xalign={0} maxWidthChars={48} />
                   </box>
-                  <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-                    <For each={results}>
-                      {(r: CityResult) => (
-                        <button cssClasses={["dl-city-result"]} onClicked={() => { setManualLocation(r); setResults([]) }}>
-                          <label label={r.name} halign={Gtk.Align.START} hexpand xalign={0} />
-                        </button>
-                      )}
-                    </For>
-                  </box>
+                  <With value={prefs(p => p.source)}>
+                    {(src: string) => src === "auto"
+                      ? <BotonAjustes label={busy(b => b ? textos.ubicacion.actual.actualizando : textos.ubicacion.actual.actualizar)} onClicked={() => refreshAutoLocation()} />
+                      : <box />}
+                  </With>
                 </box>
-              )}
-            </With>
-          </box>
+
+                <With value={prefs(p => p.source)}>
+                  {(src: string) => src !== "manual" ? <box /> : (
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+                      <box spacing={8}>
+                        <EntradaTextoAjustes placeholderText={textos.ubicacion.busqueda.placeholder} hexpand
+                          onChanged={(e: Gtk.Entry) => setCityQuery(e.get_text())}
+                          onActivate={doSearch} />
+                        <BotonAjustes label={textos.ubicacion.busqueda.boton} onClicked={doSearch} />
+                      </box>
+                      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+                        <For each={results}>
+                          {(r: CityResult) => (
+                            <button cssClasses={["dl-city-result"]} onClicked={() => { setManualLocation(r); setResults([]) }}>
+                              <label label={r.name} halign={Gtk.Align.START} hexpand xalign={0} />
+                            </button>
+                          )}
+                        </For>
+                      </box>
+                    </box>
+                  )}
+                </With>
+              </box>
+              </box>
+            )}
+          </With>
         </TarjetaAjustes>}
       </box>
     </overlay>

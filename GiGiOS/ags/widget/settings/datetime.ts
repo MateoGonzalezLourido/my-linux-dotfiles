@@ -21,6 +21,7 @@
 import GLib from "gi://GLib"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
+import { withPrivilegedPrompt } from "../state"
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
 const ENV_PATH = `${GLib.get_user_config_dir()}/hypr/env.conf`
@@ -63,14 +64,20 @@ const DEFAULT_PREFS: LocationPrefs = {
   location: { name: "", latitude: null, longitude: null, timezone: "" },
 }
 
+// El estado inicial NO puede decir "permitida" a ciegas: `refresh()` es async
+// (dos forks de systemctl) y la sección se construye antes de que conteste, así
+// que un `geoclueBlocked: false` fijo pintaba el interruptor ENCENDIDO durante
+// el primer frame aunque la ubicación estuviera bloqueada. Se siembra con la
+// intención del usuario ya persistida, que es lo mejor que se sabe sin forkear.
+const INITIAL_PREFS = readPrefs()
 const EMPTY_SNAPSHOT: DateTimeSnapshot = {
   locale: "", timezone: "", ntp: false,
-  geoclueAvailable: false, geoclueBlocked: false,
+  geoclueAvailable: false, geoclueBlocked: !INITIAL_PREFS.locationAllowed,
 }
 
 // ── Estado reactivo ───────────────────────────────────────────────────────────
 const [snapshot, _setSnapshot] = createState<DateTimeSnapshot>(EMPTY_SNAPSHOT)
-const [prefs, _setPrefs] = createState<LocationPrefs>(readPrefs())
+const [prefs, _setPrefs] = createState<LocationPrefs>(INITIAL_PREFS)
 // true mientras corre un comando que pide contraseña / red, para que la UI
 // pueda mostrar un estado ocupado y evitar dobles clics.
 const [busy, _setBusy] = createState(false)
@@ -149,7 +156,12 @@ export async function refresh() {
     timezone: tz,
     ntp: ntp === "yes",
     geoclueAvailable,
-    geoclueBlocked: geoclueAvailable ? geoclueMasked === "masked" : !prefs.get().locationAllowed,
+    // Bloqueada si lo dice el sistema O si lo dice la intención del usuario.
+    // Con GeoClue instalado el servicio manda, pero `locationAllowed` sigue
+    // gobernando la geolocalización por IP que hace GiGiOS por su cuenta: sin
+    // ese OR, desenmascarar geoclue "desbloqueaba" algo que el usuario había
+    // apagado, y el flag de disco quedaba contradiciendo a la UI.
+    geoclueBlocked: (geoclueAvailable && geoclueMasked === "masked") || !prefs.get().locationAllowed,
   })
 }
 
@@ -237,9 +249,12 @@ function writeEnvLocale(clean: string) {
 }
 
 // ── Zona horaria y NTP (piden contraseña vía polkit) ────────────────────────────
+// Todo lo que pasa por aquí escala privilegios (pkexec o timedatectl), así que
+// va envuelto en withPrivilegedPrompt: aparta la ventana de Ajustes para que el
+// diálogo de polkit no quede tapado debajo de su capa OVERLAY.
 async function withBusy<T>(fn: () => Promise<T>): Promise<T> {
   _setBusy(true)
-  try { return await fn() } finally { _setBusy(false); await refresh() }
+  try { return await withPrivilegedPrompt(fn) } finally { _setBusy(false); await refresh() }
 }
 
 export function applyTimezone(tz: string) {
@@ -264,16 +279,31 @@ export function setManualTime(value: string) {
 // ── Privacidad de ubicación ─────────────────────────────────────────────────────
 // blocked=true → las apps NO pueden leer la ubicación. Con GeoClue instalado se
 // enmascara el servicio (polkit). Sin GeoClue, se guarda un flag local.
-export function setLocationBlocked(blocked: boolean) {
-  if (!snapshot.get().geoclueAvailable) {
-    mutatePrefs({ locationAllowed: !blocked })
-    _setSnapshot({ ...snapshot.get(), geoclueBlocked: blocked })
-    return Promise.resolve()
-  }
+export async function setLocationBlocked(blocked: boolean) {
+  // La intención del usuario se persiste SIEMPRE, haya GeoClue o no: es el flag
+  // que leen los widgets de GiGiOS y el que siembra el estado inicial. Antes
+  // solo se escribía en la rama sin GeoClue, así que con GeoClue instalado el
+  // disco decía "permitida" con la UI diciendo "bloqueada".
+  mutatePrefs({ locationAllowed: !blocked })
+  // Bloquear tiene que NOTARSE: se olvida la ubicación guardada, que si no se
+  // quedaba en pantalla ("Madrid, España") con el interruptor apagado.
+  if (blocked) mutatePrefs({ location: { name: "", latitude: null, longitude: null, timezone: "" } })
+  _setSnapshot({ ...snapshot.get(), geoclueBlocked: blocked })
+
+  if (!snapshot.get().geoclueAvailable) return
+
   const cmd = blocked
     ? "systemctl mask --now geoclue.service"
     : "systemctl unmask geoclue.service"
-  return withBusy(() => execAsync(["pkexec", "bash", "-c", cmd]).catch(e => { console.error("[datetime] geoclue:", e) }))
+  await withBusy(() => execAsync(["pkexec", "bash", "-c", cmd]).catch(e => {
+    // pkexec cancelado o fallido: la intención local se revierte para no dejar
+    // la UI afirmando un bloqueo del sistema que no llegó a aplicarse.
+    console.error("[datetime] geoclue:", e)
+    mutatePrefs({ locationAllowed: blocked })  // restaura el valor anterior (el opuesto al pedido)
+  }))
+  // Al desbloquear, repuebla la ubicación en el acto en vez de dejar
+  // "Sin determinar" hasta que alguien pulse Actualizar.
+  if (!blocked && prefs.get().source === "auto") void refreshAutoLocation()
 }
 
 // ── Ubicación (dato) ────────────────────────────────────────────────────────────
@@ -321,6 +351,9 @@ export async function searchCity(query: string): Promise<CityResult[]> {
 }
 
 export function setManualLocation(city: CityResult) {
+  // El bloqueo cubre TODA la ubicación, no solo la automática por IP: sin esto
+  // se podía buscar una ciudad y verla en pantalla con el interruptor apagado.
+  if (snapshot.get().geoclueBlocked) return
   const data: LocationData = {
     name: city.name, latitude: city.latitude, longitude: city.longitude, timezone: city.timezone,
   }

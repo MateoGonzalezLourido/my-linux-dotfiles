@@ -16,6 +16,7 @@
 
 import { createState } from "ags"
 import { execAsync } from "ags/process"
+import { withPrivilegedPrompt } from "../state"
 
 export interface PrinterStatus {
   available: boolean   // existe la unit cups.service (CUPS instalado)
@@ -59,9 +60,11 @@ export async function refresh() {
   })
 }
 
+// Igual que en settings/datetime.ts: lo de dentro pide contraseña por polkit, y
+// withPrivilegedPrompt aparta la ventana de Ajustes para que el diálogo se vea.
 async function withBusy<T>(fn: () => Promise<T>): Promise<T> {
   _setPrinterBusy(true)
-  try { return await fn() } finally { _setPrinterBusy(false); await refresh() }
+  try { return await withPrivilegedPrompt(fn) } finally { _setPrinterBusy(false); await refresh() }
 }
 
 // Habilita (arranca + autostart) o deshabilita (detiene + quita autostart) CUPS.
