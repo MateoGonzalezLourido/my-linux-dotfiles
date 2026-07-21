@@ -1,3 +1,7 @@
+// Handler de búsqueda para la sección "Atajos": inline mientras ya estás en
+// esa sección (filtra en sitio, ver `KeybindsSection.tsx`); fuera de ella
+// sus resultados navegan allí en vez de ejecutar nada directamente.
+
 import { getKeybinds } from "../../data/keybinds"
 import type { SearchHandler, SearchResult } from "../types"
 

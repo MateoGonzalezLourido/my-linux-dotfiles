@@ -61,7 +61,7 @@ Antes de iniciar Hyprland, revisa la GPU en `hypr/hyprland.conf`. Por seguridad
 no se activa ningún perfil específico en una instalación nueva. Los únicos
 pasos deliberadamente manuales son los que necesitan datos o privilegios del
 usuario: Spotify, `sudo freshclam`, `sudo sensors-detect` y fuentes propietarias.
-La guía completa y la resolución de problemas están en [hypr/SETUP.md](hypr/SETUP.md).
+La guía completa y la resolución de problemas están en [docs/SETUP.md](docs/SETUP.md).
 
 Para instalar solo los archivos y gestionar paquetes por tu cuenta:
 

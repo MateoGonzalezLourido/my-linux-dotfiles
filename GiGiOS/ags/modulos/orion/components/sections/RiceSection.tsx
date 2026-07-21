@@ -19,8 +19,8 @@ import Gio from "gi://Gio"
 import {
   listWallpapers, applyWallpaper, applyRandom,
   randomOnStart, setRandomOnStart, currentWallpaper, WALLPAPER_DIR,
-} from "../../wallpaperConfig"
-import { loadThumbnails, THUMB_W, THUMB_H } from "../../wallpaperThumbs"
+} from "../../data/wallpaperConfig"
+import { loadThumbnails, THUMB_W, THUMB_H } from "../../services/wallpaperThumbs"
 import Interruptor from "../../../../componentes/Interruptor"
 import { TextoInformativo, TituloAjuste } from "../../../ajustes/componentes"
 

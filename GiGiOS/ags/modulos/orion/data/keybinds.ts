@@ -1,3 +1,8 @@
+// Parsea `~/.config/hypr/{keybinds,variables}.conf` a una lista de grupos
+// legibles para la sección "Atajos" y para `search/handlers/keybinds.ts`. Se
+// re-parsea solo (con `Gio.FileMonitor`) cuando esos ficheros cambian en
+// disco, así editarlos no requiere reiniciar AGS.
+
 import { readFile } from "ags/file"
 import { createState } from "ags"
 import GLib from "gi://GLib"

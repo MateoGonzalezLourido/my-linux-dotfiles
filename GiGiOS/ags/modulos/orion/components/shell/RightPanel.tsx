@@ -1,15 +1,22 @@
+// Panel contextual de la derecha: acciones sobre la app seleccionada (abrir,
+// editar config, fijar en Inicio). Sustituye la reserva `.orion-balance`
+// derecha cuando está visible — ver el comentario de `panelInner` en
+// `Orion.tsx` para el porqué de esa reserva simétrica.
+
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import {
   rightPanelApp, rightPanelVisible, hidePanel,
   type AppContextItem,
-} from "../state"
-import { addFavorite, removeFavorite, isFavorite, favorites } from "../data/favorites"
+} from "../../state"
+import { addFavorite, removeFavorite, isFavorite, favorites } from "../../data/favorites"
+import { crearIconoApp } from "../shared/tarjetaApp"
+import { vaciarCaja } from "../shared/gtkUtils"
 import type {
   ElementoNavegacionBusqueda,
   NavegacionBusqueda,
-} from "./NavegacionBusqueda"
+} from "../shared/NavegacionBusqueda"
 
 interface PropiedadesPanelDerecho {
   navegacion: NavegacionBusqueda
@@ -65,8 +72,7 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
 
   function rebuild() {
     const app = rightPanelApp.get()
-    let child = inner.get_first_child()
-    while (child) { const next = child.get_next_sibling(); inner.remove(child); child = next }
+    vaciarCaja(inner)
     accionesActuales = []
     if (!app) {
       sincronizarAcciones()
@@ -77,9 +83,7 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
     const header = new Gtk.Box({ cssClasses: ["rp-header"], spacing: 10 })
     const eyebrow = new Gtk.Label({ label: "APLICACIÓN", cssClasses: ["rp-eyebrow"], halign: Gtk.Align.START })
     inner.append(eyebrow)
-    const headerIcon = app.gicon
-      ? (() => { const i = Gtk.Image.new_from_gicon(app.gicon); i.pixel_size = 22; return i })()
-      : new Gtk.Image({ iconName: app.iconName, pixelSize: 22 })
+    const headerIcon = crearIconoApp(app.gicon, app.iconName, 22)
     headerIcon.set_css_classes(["rp-app-icon"])
     const iconWrap = new Gtk.Box({ cssClasses: ["rp-app-icon-wrap"], halign: Gtk.Align.CENTER, valign: Gtk.Align.CENTER })
     iconWrap.append(headerIcon)

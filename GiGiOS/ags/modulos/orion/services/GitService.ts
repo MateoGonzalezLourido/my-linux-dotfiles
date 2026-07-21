@@ -1,3 +1,8 @@
+// Capa de datos de la sección Git de Orion: todo lo que sale a `git`/`gh` o
+// toca disco (config en ~/.config/jarvis/git-repos.json). Sin estado propio
+// ni GTK — `components/sections/git/estado.ts` es quien lo envuelve en
+// `createState` para la UI.
+
 import { execAsync } from "ags/process"
 import { readFile } from "ags/file"
 import GLib from "gi://GLib"
@@ -300,9 +305,6 @@ export function saveConfig(data: any): void {
   )
 }
 
-// Keeps private alias so existing internal callers compile unchanged
-const saveFullConfig = saveConfig
-
 export function ensureConfigFile(): void {
   const dir = `${GLib.get_home_dir()}/.config/jarvis`
   const path = `${dir}/git-repos.json`
@@ -319,7 +321,7 @@ export function saveScanConfig(scan: ScanConfig): void {
     const raw = readFile(path)
     const data = raw ? JSON.parse(raw) : { repos: [] }
     data.scan = { ...scan, lastScanAt: Date.now() }
-    saveFullConfig(data)
+    saveConfig(data)
   } catch { /* ignore */ }
 }
 
@@ -439,6 +441,6 @@ export function removeRepo(repoId: string): void {
     const data = JSON.parse(raw)
     if (!Array.isArray(data.repos)) return
     data.repos = data.repos.filter((r: any) => r.id !== repoId)
-    saveFullConfig(data)
+    saveConfig(data)
   } catch { /* ignore */ }
 }

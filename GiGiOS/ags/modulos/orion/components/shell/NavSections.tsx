@@ -1,8 +1,13 @@
+// Monta TODAS las secciones de una vez (no perezoso) y alterna su
+// visibilidad, en vez de reconstruir al cambiar de pestaña: así una sección
+// conserva su scroll y su estado interno (filtros, vista mosaico/lista…) al
+// volver a ella.
+
 import { Gtk } from "ags/gtk4"
-import { activeSection, onSectionChange } from "../state"
-import { SECTION_COMPONENTS } from "./sections"
-import { ALTURA_FRANJA_SISTEMA } from "./sections/HomeSection"
-import type { NavegacionBusqueda } from "./NavegacionBusqueda"
+import { activeSection, onSectionChange } from "../../state"
+import { SECTION_COMPONENTS } from "../sections"
+import { ALTURA_FRANJA_SISTEMA } from "../sections/HomeSection"
+import type { NavegacionBusqueda } from "../shared/NavegacionBusqueda"
 
 const ALTURA_VIEWPORT_ORION = 458
 

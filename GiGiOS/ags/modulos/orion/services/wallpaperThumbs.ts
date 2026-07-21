@@ -1,4 +1,4 @@
-// modulos/orion/wallpaperThumbs.ts
+// modulos/orion/services/wallpaperThumbs.ts
 //
 // Caché de miniaturas en disco para la rejilla de fondos (RiceSection).
 //

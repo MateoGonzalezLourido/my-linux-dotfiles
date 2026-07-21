@@ -1,4 +1,4 @@
-// modulos/orion/wallpaperConfig.ts
+// modulos/orion/data/wallpaperConfig.ts
 //
 // Estado y utilidades para la sección "Temas" (RiceSection) de Orion: lista de
 // wallpapers, fondo actual y ajuste "aleatorio al iniciar".

@@ -36,13 +36,13 @@ curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfi
 ```
 
 `KITTY_PROFILE` admite `auto` (predeterminado), `laptop` y `desktop`. Consulta
-[los perfiles de Kitty](../docs/kitty-profiles.md) para cambiarlo después de la
+[los perfiles de Kitty](kitty-profiles.md) para cambiarlo después de la
 instalación y diagnosticar el renderizado.
 
 Firefox se selecciona del mismo modo con `FIREFOX_PROFILE=auto|laptop|desktop`.
 El instalador localiza o crea su perfil predeterminado y enlaza allí el
 `user.js`; no depende del nombre aleatorio que Firefox asigne a la carpeta.
-Consulta [los perfiles de Firefox](../docs/firefox-profiles.md) para ver los
+Consulta [los perfiles de Firefox](firefox-profiles.md) para ver los
 ajustes y el procedimiento de cambio.
 
 **AGS sí es obligatorio.** GiGiOS no usa una barra o centro de notificaciones externo:

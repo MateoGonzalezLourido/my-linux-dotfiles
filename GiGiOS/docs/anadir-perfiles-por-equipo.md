@@ -178,7 +178,7 @@ Crea `GiGiOS/docs/<aplicacion>-profiles.md` con:
 - limitaciones conocidas.
 
 Enlaza la guía desde `GiGiOS/README.md` y, si afecta a una instalación nueva,
-desde `GiGiOS/hypr/SETUP.md`.
+desde `GiGiOS/docs/SETUP.md`.
 
 ## 8. Pruebas obligatorias
 

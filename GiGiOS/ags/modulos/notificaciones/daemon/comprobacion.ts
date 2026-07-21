@@ -16,7 +16,7 @@
 //
 // Lo que hace traicionero el fallo: basta con tener dunst *instalado* aunque no lo lances —
 // D-Bus lo autoactiva con la primera notificación de la sesión, antes de que AGS esté listo.
-// Se arregla enmascarándolo, no desinstalándolo (`hypr/SETUP.md` §2).
+// Se arregla enmascarándolo, no desinstalándolo (`docs/SETUP.md` §2).
 import { createState } from "ags"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"

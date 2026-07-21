@@ -1,3 +1,7 @@
+// Handler de búsqueda por defecto de Inicio: fuzzy-match sobre nombre, exec,
+// id y descripción de cada `.desktop` (algoritmo de subsecuencia estilo
+// rofi/fzf), con pesos distintos por campo.
+
 import Gio from "gi://Gio"
 import type { SearchHandler, SearchResult } from "../types"
 import { launchApp } from "../../data/launch"

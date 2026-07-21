@@ -206,6 +206,6 @@
     "detalle": "El shell no recibe ninguna notificación mientras otro daemon sea el dueño de\norg.freedesktop.Notifications, así que no hay nada que guardar.\n\nsystemctl --user mask {{unidad}}\nsystemctl --user stop {{unidad}}",
     "notificacionTitulo": "Notificaciones secuestradas por {{proceso}}",
     "notificacionCuerpo": "El shell no recibirá ninguna notificación mientras {{proceso}} tenga el nombre de D-Bus. Ejecuta: systemctl --user mask {{daemon}}.service && systemctl --user stop {{daemon}}.service",
-    "registro": "[notif] {{proceso}} (PID {{pid}}) es el dueño de {{nombre}}: AstalNotifd no recibirá nada.\n[notif] No se guardarán notificaciones (ni avisos, ni historial). Arréglalo con:\n[notif]   systemctl --user mask {{daemon}}.service && systemctl --user stop {{daemon}}.service\n[notif] Ver hypr/SETUP.md §2."
+    "registro": "[notif] {{proceso}} (PID {{pid}}) es el dueño de {{nombre}}: AstalNotifd no recibirá nada.\n[notif] No se guardarán notificaciones (ni avisos, ni historial). Arréglalo con:\n[notif]   systemctl --user mask {{daemon}}.service && systemctl --user stop {{daemon}}.service\n[notif] Ver docs/SETUP.md §2."
   }
 }

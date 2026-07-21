@@ -1,3 +1,8 @@
+// Elige QUÉ handler responde a una búsqueda: el de mayor confianza gana, con
+// un pequeño empujón para el handler por defecto de la sección actual (así
+// una búsqueda ambigua se resuelve a favor de donde ya estás). Los handlers
+// en sí no compiten entre ellos ni se conocen.
+
 import type { SectionId } from "../state"
 import type { SearchHandler, SearchResult } from "./types"
 

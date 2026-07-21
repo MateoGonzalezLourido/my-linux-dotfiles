@@ -1,7 +1,12 @@
+// Barra de pestañas de Orion (Inicio/Apps/Flujos/…) con un indicador
+// deslizante que se anima entre botones usando `Gtk.Overlay` + transform CSS
+// en vez de reconstruirse — el mismo patrón de "medir, luego animar por
+// transform" que usa la entrada de `Orion.tsx`.
+
 import { Gtk } from "ags/gtk4"
 import { createState } from "ags"
 import GLib from "gi://GLib"
-import { activeSection, setSection, type SectionId } from "../state"
+import { activeSection, setSection, type SectionId } from "../../state"
 
 interface SectionIndexItem {
   id: string

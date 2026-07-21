@@ -1,0 +1,95 @@
+import { Gtk } from "ags/gtk4"
+import { onCleanup } from "ags"
+import { formatearFechaLarga, hoyISO } from "../dominio/fechas.ts"
+import { abrirCreacion, agendaSeleccionada, fechaSeleccionada } from "../estado.ts"
+import { TarjetaEvento } from "./TarjetaEvento.tsx"
+
+/**
+ * Agenda del día seleccionado, a la derecha de la vista mensual.
+ *
+ * Se reconstruye entera al cambiar el día o los eventos, por lo mismo que la rejilla: las filas son
+ * widgets sin estado y una lista reactiva por identidad de objeto es justo el patrón que en este
+ * proyecto acabó destruyendo widgets con el foco dentro.
+ */
+export function AgendaDia(): Gtk.Widget {
+  const lista = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 4 })
+  lista.set_css_classes(["cal-agenda-day-events"])
+
+  const titulo = new Gtk.Label({ label: "" })
+  titulo.set_css_classes(["cal-agenda-title"])
+  titulo.set_halign(Gtk.Align.START)
+  titulo.set_xalign(0)
+  titulo.set_wrap(true)
+
+  const subtitulo = new Gtk.Label({ label: "" })
+  subtitulo.set_css_classes(["cal-agenda-subtitulo"])
+  subtitulo.set_halign(Gtk.Align.START)
+  subtitulo.set_xalign(0)
+
+  function reconstruir() {
+    const fecha = fechaSeleccionada.get()
+    const items = agendaSeleccionada.get()
+
+    titulo.set_label(formatearFechaLarga(fecha))
+    subtitulo.set_label(
+      fecha === hoyISO()
+        ? items.length === 0 ? "Hoy · sin eventos" : `Hoy · ${items.length} evento${items.length === 1 ? "" : "s"}`
+        : items.length === 0 ? "Sin eventos" : `${items.length} evento${items.length === 1 ? "" : "s"}`,
+    )
+
+    let hijo = lista.get_first_child()
+    while (hijo) {
+      const siguiente = hijo.get_next_sibling()
+      lista.remove(hijo)
+      hijo = siguiente
+    }
+
+    if (items.length === 0) {
+      lista.append(
+        (
+          <box cssClasses={["cal-agenda-empty"]} orientation={Gtk.Orientation.VERTICAL} spacing={6} valign={Gtk.Align.CENTER} vexpand>
+            <label cssClasses={["cal-empty-icon"]} label="󰃭" />
+            <label cssClasses={["cal-empty-title"]} label="Nada para este día" />
+            <button cssClasses={["cal-btn", "primario"]} onClicked={() => abrirCreacion(fecha)}>
+              <label label="Añadir el primer evento" />
+            </button>
+          </box>
+        ) as unknown as Gtk.Widget,
+      )
+      return
+    }
+
+    for (const item of items) lista.append(TarjetaEvento({ item }))
+  }
+
+  const bajas = [fechaSeleccionada.subscribe(reconstruir), agendaSeleccionada.subscribe(reconstruir)]
+  onCleanup(() => {
+    for (const baja of bajas) if (typeof baja === "function") baja()
+  })
+  reconstruir()
+
+  return (
+    <box cssClasses={["cal-agenda-view"]} orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+      <box cssClasses={["cal-agenda-header"]} orientation={Gtk.Orientation.VERTICAL} spacing={1}>
+        {titulo}
+        {subtitulo}
+      </box>
+      <Gtk.ScrolledWindow
+        vexpand
+        hscrollbarPolicy={Gtk.PolicyType.NEVER}
+        vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+      >
+        {lista}
+      </Gtk.ScrolledWindow>
+      <box cssClasses={["cal-agenda-footer"]}>
+        <button
+          cssClasses={["cal-btn"]}
+          hexpand
+          onClicked={() => abrirCreacion(fechaSeleccionada.get())}
+        >
+          <label label="  Añadir evento" />
+        </button>
+      </box>
+    </box>
+  ) as unknown as Gtk.Widget
+}

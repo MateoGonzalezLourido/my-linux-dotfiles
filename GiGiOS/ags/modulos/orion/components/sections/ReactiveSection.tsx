@@ -1,5 +1,8 @@
+// Sección "reactiva": lista de resultados de `search/`, montada cuando una
+// búsqueda no es inline para la sección actual (ver `setQuery` en
+// `../../state.ts`, que redirige aquí y recuerda de dónde venías).
+
 import { Gtk } from "ags/gtk4"
-import GLib from "gi://GLib"
 import {
   searchResults,
   setSection,
@@ -8,10 +11,13 @@ import {
   hideRightPanel,
 } from "../../state"
 import type { SearchResult } from "../../search"
+import { activarDobleClic } from "../shared/dobleClic"
+import { crearIconoApp } from "../shared/tarjetaApp"
+import { vaciarCaja } from "../shared/gtkUtils"
 import type {
   ElementoNavegacionBusqueda,
   NavegacionBusqueda,
-} from "../NavegacionBusqueda"
+} from "../shared/NavegacionBusqueda"
 
 function mostrarContextoApp(resultado: SearchResult): void {
   const nombreEjecutable = resultado.meta?.execName ?? ""
@@ -48,13 +54,7 @@ function crearFila(
 
   // Icono
   const contenedorIcono = new Gtk.Box({ cssClasses: ["rx-icon-wrap"], valign: Gtk.Align.CENTER })
-  if (resultado.icon) {
-    const imagen = Gtk.Image.new_from_gicon(resultado.icon)
-    imagen.pixel_size = 26
-    contenedorIcono.append(imagen)
-  } else {
-    contenedorIcono.append(new Gtk.Image({ iconName: resultado.iconName ?? "application-x-executable", pixelSize: 26 }))
-  }
+  contenedorIcono.append(crearIconoApp(resultado.icon, resultado.iconName ?? "application-x-executable", 26))
   fila.append(contenedorIcono)
 
   // Texto
@@ -85,10 +85,17 @@ function crearFila(
     if (boton.has_focus) navegacion.seleccionarResultado(navegable, false)
   })
 
-  let suprimirClic = false
+  const estaSuprimido = esApp
+    ? activarDobleClic(boton, () => {
+      navegacion.seleccionarResultado(navegable, false)
+      resultado.action()
+      hidePanel()
+    })
+    : null
+
   boton.connect("clicked", () => {
     navegacion.seleccionarResultado(navegable)
-    if (suprimirClic) { suprimirClic = false; return }
+    if (estaSuprimido?.()) return
     if (resultado.navigateTo) {
       setSection(resultado.navigateTo)
     } else if (!esApp) {
@@ -98,26 +105,6 @@ function crearFila(
       mostrarContextoApp(resultado)
     }
   })
-
-  if (esApp) {
-    const gesto = new Gtk.GestureClick()
-    gesto.set_button(1)
-    gesto.propagation_phase = Gtk.PropagationPhase.CAPTURE
-    gesto.connect("pressed", (_gesto, pulsaciones) => {
-      if (pulsaciones !== 2) return
-      navegacion.seleccionarResultado(navegable, false)
-      suprimirClic = true
-      // Al ocultarse la ventana, GTK puede omitir la señal "clicked" final.
-      // Soltar la guarda por separado conserva el siguiente clic normal.
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
-        suprimirClic = false
-        return GLib.SOURCE_REMOVE
-      })
-      resultado.action()
-      hidePanel()
-    })
-    boton.add_controller(gesto)
-  }
 
   contenedor.append(boton)
   return { contenedor, navegable }
@@ -133,12 +120,7 @@ export function ReactiveSection(
   contenido.append(etiquetaVacia)
 
   function reconstruir(resultados: SearchResult[]) {
-    let hijo = contenido.get_first_child()
-    while (hijo) {
-      const siguiente = hijo.get_next_sibling()
-      if (hijo !== etiquetaVacia) contenido.remove(hijo)
-      hijo = siguiente
-    }
+    vaciarCaja(contenido, etiquetaVacia)
     if (resultados.length === 0) {
       navegacion.establecerResultados([])
       etiquetaVacia.visible = true

@@ -1,3 +1,6 @@
+// Punto de entrada del buscador de Orion: instancia el motor y registra sus
+// handlers. Añadir un dominio de búsqueda nuevo es: crear `handlers/x.ts`
+// implementando `SearchHandler` y registrarlo aquí.
 import { SearchEngine } from "./engine"
 import { appsHandler } from "./handlers/apps"
 import { keybindsHandler } from "./handlers/keybinds"

@@ -1,3 +1,7 @@
+// Auto-heals favoritos cuyo binario se movió o se reinstaló con otro nombre
+// (rolling releases, un `-bin`/`-git` cambiado por el estable…). Se ejecuta
+// al arrancar (`favorites.ts`) y al fallar un lanzamiento.
+
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import type { FavoriteApp } from "./favorites"

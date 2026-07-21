@@ -1,3 +1,8 @@
+// Ventana raíz de Orion: la layer OVERLAY anclada abajo, su animación de
+// entrada/salida (deslizamiento + fade) y el enrutado de teclado que reenvía
+// flechas/Tab/Enter al modelo de navegación compartido. El contenido en sí
+// (secciones, búsqueda, panel contextual) vive en `components/`.
+
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { createState } from "ags"
@@ -11,14 +16,14 @@ import {
   finalizarCierrePanel,
   activeSection,
 } from "./state"
-import CentroComandos from "./components/CentroComandos"
-import { focusSearchAndType } from "./components/SearchBar"
-import NavSections from "./components/NavSections"
+import CentroComandos from "./components/shell/CentroComandos"
+import { focusSearchAndType } from "./components/shell/SearchBar"
+import NavSections from "./components/shell/NavSections"
 import { SystemStats } from "./components/sections/HomeSection"
-import CornerCurve from "./components/CornerCurve"
-import RightPanel from "./components/RightPanel"
+import CornerCurve from "./components/shell/CornerCurve"
+import RightPanel from "./components/shell/RightPanel"
 import { clipWindowInputToContent } from "../../utilidades/inputRegion"
-import { NavegacionBusqueda } from "./components/NavegacionBusqueda"
+import { NavegacionBusqueda } from "./components/shared/NavegacionBusqueda"
 
 export default function Orion(gdkmonitor: Gdk.Monitor) {
   const { BOTTOM } = Astal.WindowAnchor
@@ -31,7 +36,7 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
   const DURACION_ENTRADA_MS = 280
   const DURACION_ANIMACION_SALIDA_MS = 220
   const ESPERA_DESMAPEO_MS = 280
-  // Debe coincidir con el radio usado por components/CornerCurve.tsx.
+  // Debe coincidir con el radio usado por components/shell/CornerCurve.tsx.
   const RADIO_CURVAS_LATERALES = 24
   const [orionRenderizado, establecerOrionRenderizado] = createState(orionVisible.get())
   const [cssAnimacionOrion, establecerCssAnimacionOrion] = createState(".orion-wrapper {}")

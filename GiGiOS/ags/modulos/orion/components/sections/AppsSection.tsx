@@ -1,7 +1,10 @@
+// Sección "Aplicaciones" de Orion: catálogo completo de `.desktop`, filtrable
+// por categoría y con dos vistas (mosaico / lista). Las apps de Inicio
+// (favoritos) son un catálogo aparte — ver `HomeSection.tsx` — pero comparten
+// el icono y la tarjeta de mosaico vía `../shared/tarjetaApp`.
+
 import { Gtk } from "ags/gtk4"
 import Gio from "gi://Gio"
-import GLib from "gi://GLib"
-import Pango from "gi://Pango"
 import {
   activeSection,
   hidePanel,
@@ -9,10 +12,13 @@ import {
   showAppContext,
 } from "../../state"
 import { launchApp } from "../../data/launch"
+import { activarDobleClic } from "../shared/dobleClic"
+import { crearIconoApp, construirTileApp } from "../shared/tarjetaApp"
+import { vaciarCaja, vaciarFlowBox } from "../shared/gtkUtils"
 import type {
   ElementoNavegacionBusqueda,
   NavegacionBusqueda,
-} from "../NavegacionBusqueda"
+} from "../shared/NavegacionBusqueda"
 
 interface AppEntry {
   name: string
@@ -70,15 +76,6 @@ function getAllApps(): AppEntry[] {
   return _appCache
 }
 
-function appIcon(app: AppEntry, size: number): Gtk.Image {
-  if (app.gicon) {
-    const image = Gtk.Image.new_from_gicon(app.gicon)
-    image.pixel_size = size
-    return image
-  }
-  return new Gtk.Image({ iconName: app.iconName, pixelSize: size })
-}
-
 function openAppContext(app: AppEntry) {
   showAppContext({
     id: app.appId,
@@ -103,30 +100,16 @@ function bindAppActivation(
   navegacion: NavegacionBusqueda,
   navegable: ElementoNavegacionBusqueda,
 ) {
-  let suppressClick = false
-  const gesture = new Gtk.GestureClick()
-  gesture.set_button(1)
-  gesture.propagation_phase = Gtk.PropagationPhase.CAPTURE
-  gesture.connect("pressed", (_gesture, presses) => {
-    if (presses === 2) {
-      suppressClick = true
-      // Orion can hide before GTK emits this press' final "clicked" signal.
-      // Always release the guard so it cannot consume a click on the next open.
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
-        suppressClick = false
-        return GLib.SOURCE_REMOVE
-      })
-      navegacion.seleccionarResultado(navegable, false)
-      launchAppDirect(app)
-    }
+  const estaSuprimido = activarDobleClic(boton, () => {
+    navegacion.seleccionarResultado(navegable, false)
+    launchAppDirect(app)
   })
-  boton.add_controller(gesture)
   boton.connect("notify::has-focus", () => {
     if (boton.has_focus) navegacion.seleccionarResultado(navegable, false)
   })
   boton.connect("clicked", () => {
     navegacion.seleccionarResultado(navegable, false)
-    if (suppressClick) { suppressClick = false; return }
+    if (estaSuprimido()) return
     openAppContext(app)
   })
 }
@@ -136,7 +119,7 @@ function buildAppRow(app: AppEntry, navegacion: NavegacionBusqueda): AppRenderiz
   const inner = new Gtk.Box({ spacing: 10 })
 
   const iconBox = new Gtk.Box({ cssClasses: ["apps-row-icon"], valign: Gtk.Align.CENTER })
-  iconBox.append(appIcon(app, 32))
+  iconBox.append(crearIconoApp(app.gicon, app.iconName, 32))
   inner.append(iconBox)
   inner.append(new Gtk.Label({
     label: app.name,
@@ -165,32 +148,7 @@ function buildAppRow(app: AppEntry, navegacion: NavegacionBusqueda): AppRenderiz
 
 function buildAppTile(app: AppEntry, navegacion: NavegacionBusqueda): AppRenderizada {
   const boton = new Gtk.Button({ cssClasses: ["apps-tile"] })
-  const inner = new Gtk.Box({
-    orientation: Gtk.Orientation.VERTICAL,
-    cssClasses: ["apps-tile-inner"],
-    spacing: 6,
-    halign: Gtk.Align.CENTER,
-  })
-  const iconBox = new Gtk.Box({
-    cssClasses: ["apps-tile-icon"],
-    halign: Gtk.Align.CENTER,
-    valign: Gtk.Align.CENTER,
-  })
-  iconBox.append(appIcon(app, 38))
-  inner.append(iconBox)
-  inner.append(new Gtk.Label({
-    label: app.name,
-    cssClasses: ["apps-tile-label"],
-    wrap: true,
-    wrapMode: Pango.WrapMode.WORD_CHAR,
-    lines: 2,
-    ellipsize: Pango.EllipsizeMode.END,
-    maxWidthChars: 12,
-    halign: Gtk.Align.CENTER,
-    justify: Gtk.Justification.CENTER,
-    xalign: 0.5,
-  }))
-  boton.set_child(inner)
+  construirTileApp(boton, crearIconoApp(app.gicon, app.iconName, 38), app.name)
   const navegable: ElementoNavegacionBusqueda = {
     marcarSeleccionado: (seleccionado) => {
       if (seleccionado) boton.add_css_class("seleccionado")
@@ -255,10 +213,8 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
   let navegablesActuales: ElementoNavegacionBusqueda[] = []
 
   function clearViews() {
-    let child = listBox.get_first_child()
-    while (child) { const next = child.get_next_sibling(); listBox.remove(child); child = next }
-    let gridChild: Gtk.FlowBoxChild | null
-    while ((gridChild = grid.get_child_at_index(0)) !== null) grid.remove(gridChild)
+    vaciarCaja(listBox)
+    vaciarFlowBox(grid)
   }
 
   function renderMode() {

@@ -1,3 +1,7 @@
+// Estado central de Orion: sección activa, búsqueda y panel contextual
+// derecho. Es la única pieza que las secciones y `Orion.tsx` comparten —
+// evita que cada componente importe a otro directamente.
+
 import { createState } from "ags"
 import { searchEngine } from "./search"
 import type { SearchResult } from "./search"

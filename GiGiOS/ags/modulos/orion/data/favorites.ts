@@ -1,3 +1,7 @@
+// Apps fijadas en la sección Inicio de Orion. Persisten en
+// ~/.local/share/orion/favorites.json (fuera del repo, dato del usuario) y se
+// validan/auto-sanan al arrancar contra `appResolver.ts`.
+
 import { createState } from "ags"
 import GLib from "gi://GLib"
 import { validateFavorites, resolveExec, invalidateCache } from "./appResolver"

@@ -1,6 +1,12 @@
+// Sección "Atajos" de Orion: lista los grupos de `data/keybinds.ts` (parseados
+// de `keybinds.conf`) y los filtra en vivo contra `searchQuery` — la búsqueda
+// es inline aquí (ver `search/handlers/keybinds.ts`, `inlineFor: ["keybinds"]`),
+// no redirige a la sección reactiva.
+
 import { Gtk } from "ags/gtk4"
 import { keybinds } from "../../data/keybinds"
 import { searchQuery } from "../../state"
+import { vaciarCaja } from "../shared/gtkUtils"
 
 export function KeybindsSection() {
   type RowEntry   = { box: Gtk.Box; binding: string; description: string }
@@ -13,12 +19,7 @@ export function KeybindsSection() {
   emptyLabel.visible = false
 
   function clearContent() {
-    let child = content.get_first_child()
-    while (child) {
-      const next = child.get_next_sibling()
-      content.remove(child)
-      child = next
-    }
+    vaciarCaja(content)
   }
 
   function build() {

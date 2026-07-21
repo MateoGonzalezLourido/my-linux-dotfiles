@@ -1,0 +1,100 @@
+import { Gtk } from "ags/gtk4"
+import { onCleanup } from "ags"
+import { alarmas, alternarAlarma, eliminarAlarma } from "./estadoReloj.ts"
+import { textoProximaActivacion, textoRepeticion } from "./planificadorAlarmas.ts"
+import type { Alarma } from "./tipos.ts"
+
+/**
+ * Lista de alarmas, con las activas arriba.
+ *
+ * Se reconstruye entera al cambiar la lista, como el resto de listas del panel. Aquí además evita un
+ * problema propio: el texto «En 3 h 12 min» es derivado del reloj, y si cada fila lo mantuviera vivo
+ * con su propio temporizador tendríamos una alarma por fila tickeando para actualizar una frase
+ * aproximada. Se recalcula al reconstruir y al abrir la sección, que es cuando se mira.
+ */
+export function ListaAlarmas({ alEditar }: { alEditar: (alarma: Alarma) => void }): Gtk.Widget {
+  const lista = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 6 })
+  lista.set_css_classes(["reloj-lista-alarmas"])
+
+  function fila(alarma: Alarma): Gtk.Widget {
+    const proxima = textoProximaActivacion(alarma, Date.now())
+    const interruptor = new Gtk.Switch({ active: alarma.activa })
+    interruptor.set_valign(Gtk.Align.CENTER)
+    interruptor.connect("notify::active", () => {
+      if (interruptor.get_active() !== alarma.activa) alternarAlarma(alarma.id)
+    })
+
+    return (
+      <box cssClasses={alarma.activa ? ["reloj-alarma", "activa"] : ["reloj-alarma"]} spacing={10}>
+        <box orientation={Gtk.Orientation.VERTICAL} hexpand spacing={1}>
+          <label cssClasses={["reloj-alarma-hora"]} label={alarma.hora} halign={Gtk.Align.START} />
+          <label
+            cssClasses={["reloj-alarma-etiqueta"]}
+            label={alarma.etiqueta.trim() === "" ? "Alarma" : alarma.etiqueta}
+            halign={Gtk.Align.START}
+            xalign={0}
+          />
+          <box spacing={6}>
+            <label cssClasses={["reloj-alarma-chip"]} label={textoRepeticion(alarma)} halign={Gtk.Align.START} />
+            <label
+              cssClasses={["reloj-alarma-proxima"]}
+              label={proxima ?? ""}
+              visible={proxima !== null}
+              halign={Gtk.Align.START}
+            />
+          </box>
+        </box>
+        {interruptor}
+        <button cssClasses={["cal-icon-btn"]} tooltipText="Editar" onClicked={() => alEditar(alarma)}>
+          <label label="󰏫" />
+        </button>
+        <button cssClasses={["cal-icon-btn"]} tooltipText="Eliminar" onClicked={() => eliminarAlarma(alarma.id)}>
+          <label label="󰆴" />
+        </button>
+      </box>
+    ) as unknown as Gtk.Widget
+  }
+
+  function reconstruir() {
+    let hijo = lista.get_first_child()
+    while (hijo) {
+      const siguiente = hijo.get_next_sibling()
+      lista.remove(hijo)
+      hijo = siguiente
+    }
+
+    const todas = alarmas.get()
+    if (todas.length === 0) {
+      lista.append(
+        (
+          <box cssClasses={["cal-agenda-empty"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+            <label cssClasses={["cal-empty-icon"]} label="󰀠" />
+            <label cssClasses={["cal-empty-sub"]} label="No hay alarmas" />
+          </box>
+        ) as unknown as Gtk.Widget,
+      )
+      return
+    }
+
+    const activas = todas.filter((a) => a.activa).sort((a, b) => a.hora.localeCompare(b.hora))
+    const inactivas = todas.filter((a) => !a.activa).sort((a, b) => a.hora.localeCompare(b.hora))
+
+    for (const alarma of activas) lista.append(fila(alarma))
+    if (inactivas.length > 0) {
+      lista.append(
+        (
+          <label cssClasses={["reloj-separador"]} label="Desactivadas" halign={Gtk.Align.START} />
+        ) as unknown as Gtk.Widget,
+      )
+      for (const alarma of inactivas) lista.append(fila(alarma))
+    }
+  }
+
+  const baja = alarmas.subscribe(reconstruir)
+  onCleanup(() => {
+    if (typeof baja === "function") baja()
+  })
+  reconstruir()
+
+  return lista as unknown as Gtk.Widget
+}

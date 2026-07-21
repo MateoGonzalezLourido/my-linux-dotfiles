@@ -86,7 +86,7 @@ install_packages() {
     warn "Dependencias omitidas (INSTALL_PACKAGES=0); se validarán antes de finalizar."
     return
   }
-  command -v pacman >/dev/null || die "La instalación automática solo admite Arch/CachyOS (falta pacman). Usá INSTALL_PACKAGES=0 y seguí hypr/SETUP.md."
+  command -v pacman >/dev/null || die "La instalación automática solo admite Arch/CachyOS (falta pacman). Usá INSTALL_PACKAGES=0 y seguí docs/SETUP.md."
   command -v sudo >/dev/null || die "Falta sudo. Instálalo y concede permisos al usuario antes de continuar."
 
   # Pacman acepta paquetes -git como proveedores de hyprutils/hyprlang. Si ya
@@ -101,7 +101,7 @@ install_packages() {
   if (( ${#pila_hyprland_incompatible[@]} )); then
     warn "Hay paquetes incompatibles con la pila estable que instala GiGiOS:"
     printf '  - %s\n' "${pila_hyprland_incompatible[@]}" >&2
-    die "No modifico esa pila automáticamente. Sigue la recuperación de hypr/SETUP.md y repite el instalador."
+    die "No modifico esa pila automáticamente. Sigue la recuperación de docs/SETUP.md y repite el instalador."
   fi
 
   # CachyOS ofrece su perfil Pure de Fish y el actualizador de mirrors. En Arch
@@ -336,7 +336,7 @@ cat <<'EOF'
   • Firefox:  el perfil se eligió según FIREFOX_PROFILE; reiniciá Firefox tras cambiarlo.
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:
               dotfiles remote set-url origin git@github.com:MateoGonzalezLourido/my-linux-dotfiles.git
-  • Hardware: antes de iniciar Hyprland elegí el perfil GPU; ver hypr/SETUP.md.
+  • Hardware: antes de iniciar Hyprland elegí el perfil GPU; ver docs/SETUP.md.
   • Sistema:  ejecutá una vez 'sudo freshclam' y, si necesitás sensores, 'sudo sensors-detect'.
   • Sesión:   cerrá y abrí sesión; después comprobá con 'ags run ~/.config/ags/app.ts'.
 EOF

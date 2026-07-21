@@ -1,5 +1,10 @@
+// Campo de búsqueda de Orion. `focusSearchAndType` es el punto de entrada de
+// "empezar a escribir enfoca la búsqueda" (ver el handler de teclado en
+// `Orion.tsx`), de ahí que la referencia al `Gtk.Entry` se guarde a nivel de
+// módulo en vez de pasarse como prop.
+
 import { Gtk } from "ags/gtk4"
-import { setQuery, orionVisible } from "../state"
+import { setQuery, orionVisible } from "../../state"
 
 let _entry: Gtk.Entry | null = null
 

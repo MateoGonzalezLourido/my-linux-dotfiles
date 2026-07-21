@@ -1,3 +1,7 @@
+// Contrato entre el motor de búsqueda (`engine.ts`) y sus handlers
+// (`handlers/*.ts`). Un handler nuevo solo necesita implementar
+// `SearchHandler` y registrarse en `index.ts`.
+
 import type Gio from "gi://Gio"
 import type { SectionId } from "../state"
 
