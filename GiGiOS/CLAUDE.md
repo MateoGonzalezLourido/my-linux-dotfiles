@@ -20,6 +20,12 @@ Supporting dirs: `Wallpapers/` (used directly by `wallpaper.sh`, no symlink),
 `system/` (ficheros que van a `/etc`, **no** se symlinkean: se instalan con `sudo` — la regla udev de
 escritura en USB y la carga del módulo `i2c-dev`; ver las secciones de USB y de brillo).
 
+`mime/`, `qt6ct/`, `menus/`, `kdeglobals`, `mimeapps.list` en la raíz no son un componente
+propio: son fragmentos sueltos de integración de escritorio (tema Qt, asociación de apps, menú
+XDG, tipos MIME) sin relación funcional entre sí. Cada uno vive en la raíz porque **espeja la
+ruta relativa a `~/.config` (o `~/.local/share/mime`) de su destino**, tal como se ve en el mapeo
+de `bin/link.sh` — agruparlos en una carpeta temática rompería esa correspondencia 1:1.
+
 `power-save/config.json` y `orion/favorites.json` **ya no viven dentro del repo**: antes
 `GiGiOS/cache/power-save/` y `GiGiOS/state/orion/` guardaban el dato real y un symlink XDG
 apuntaba hacia dentro (mismo esquema que `ags/`/`hypr/`), pero eso dejaba datos de usuario
