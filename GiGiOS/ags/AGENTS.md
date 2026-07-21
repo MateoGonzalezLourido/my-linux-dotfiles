@@ -2,14 +2,14 @@
 
 ## Estructura del proyecto y módulos
 
-Este es un shell de escritorio AGS v2/Astal para Hyprland/Wayland, escrito en TypeScript y JSX para GTK4. `app.ts` es el punto de entrada y crea ventanas de nivel superior por monitor. La mayor parte del código de interfaz vive en `widget/`: `widget/bar/` contiene módulos de la barra, `widget/notifications/` contiene la UI de notificaciones y lógica pura, `widget/orion/` contiene el lanzador Jarvis/Orion, y `widget/calendar/` contiene vistas de calendario. El estado global y la orquestación de paneles están en `widget/state.tsx`. El estilo se centra en `style.scss`; `out.css` y `out.css.map` son artefactos generados y no deben editarse a mano. Los datos JSON en tiempo de ejecución viven **fuera del repositorio** en `~/.config/gigios/` (se escriben/leen en ejecución; `bin/link.sh` migra cualquier resto del antiguo directorio `config/` dentro del repo). Los stubs generados de tipos GObject viven en `@girs/` para soporte de editor/tipos.
+Este es un shell de escritorio AGS v2/Astal para Hyprland/Wayland, escrito en TypeScript y JSX para GTK4. `app.ts` es el punto de entrada y crea las ventanas de nivel superior por monitor. La estructura separa responsabilidades: `modulos/` agrupa funcionalidades completas de interfaz (`barra/`, `notificaciones/`, `orion/`, `calendario/`, `ajustes/`, `ajustes-rapidos/` y `osd/`); `componentes/` contiene controles visuales compartidos; `estado/` contiene la orquestación global; `servicios/` integra Bluetooth, dispositivos, energía, multimedia, pantalla y Spotify; y `utilidades/` conserva helpers sin dominio propio. Mantén la lógica específica dentro de su módulo y mueve algo a una raíz transversal solo cuando tenga consumidores de varias funcionalidades. El estilo se centra en `style.scss`; `out.css` y `out.css.map` son artefactos generados y no deben editarse a mano. Los datos JSON en tiempo de ejecución viven **fuera del repositorio** en `~/.config/gigios/` (se escriben/leen en ejecución; `bin/link.sh` migra cualquier resto del antiguo directorio `config/` dentro del repo). Los stubs generados de tipos GObject viven en `@girs/` para soporte de editor/tipos.
 
 ## Comandos de compilación, prueba y desarrollo
 
 - `ags quit` seguido de `ags run ~/.config/ags/app.ts`: detiene primero cualquier instancia de AGS y después lanza o recarga el shell localmente.
 - `hyprctl reload full-reset`: reinicia Hyprland y vuelve a ejecutar los `exec-once` de `hypr/autostart.conf`; una recarga normal (`hyprctl reload`) no actualiza el autostart.
-- `node --test widget/notifications/rules/*.test.ts widget/notifications/history/*.test.ts widget/notifications/cleanup/*.test.ts widget/notifications/settings/*.test.ts`: ejecuta la suite de lógica de notificaciones.
-- `node --test widget/notifications/rules/engine.evaluate.test.ts`: ejecuta un único archivo de pruebas mientras iteras.
+- `node --test $(rg --files modulos servicios textos -g '*.test.ts')`: ejecuta toda la suite de lógica pura.
+- `node --test modulos/notificaciones/rules/engine.evaluate.test.ts`: ejecuta un único archivo de pruebas mientras iteras.
 
 No hay `package.json`, `tsconfig.json` ni un paso de build del proyecto en este repositorio; AGS se encarga del empaquetado, la transpilación y la carga en tiempo de ejecución.
 
@@ -20,7 +20,7 @@ Aplica esto también a los archivos de pruebas cuando formen parte del cambio. N
 
 ## Estilo de código y convenciones de nombres
 
-Sigue el estilo existente de TypeScript/TSX: widgets funcionales, imports explícitos desde `ags/gtk4`, `ags/gtk4/app` y módulos `gi://...`, y archivos de funcionalidad colocados junto a su código. Usa `createState` para el estado reactivo y añade el nuevo estado de visibilidad de paneles a `panelStates` más `closeAllPanels()` en `widget/state.tsx`. Mantén los prefijos de clases CSS específicos de cada funcionalidad coherentes con el código cercano, como `.notif-*`, `.nb-*` y `.ns-*`.
+Sigue el estilo existente de TypeScript/TSX: widgets funcionales, imports explícitos desde `ags/gtk4`, `ags/gtk4/app` y módulos `gi://...`, y archivos de funcionalidad colocados junto a su código. Usa `createState` para el estado reactivo y añade el nuevo estado de visibilidad de paneles a `panelStates` más `closeAllPanels()` en `estado/shell.tsx`. Mantén los prefijos de clases CSS específicos de cada funcionalidad coherentes con el código cercano, como `.notif-*`, `.nb-*` y `.ns-*`.
 
 Las dimensiones CSS de GTK son mínimos, no tamaños fijos. Los hijos de un `Gtk.Box` horizontal usan por defecto `valign=FILL`, así que los botones compactos pueden estirarse hasta la altura del elemento más alto y parecer que el `min-height` o el padding no hacen nada. Pon `valign={Gtk.Align.CENTER}` (o el alineamiento equivalente en el eje cruzado) en los controles compactos antes de cambiar sus dimensiones CSS.
 

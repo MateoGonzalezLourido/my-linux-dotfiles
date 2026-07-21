@@ -3,7 +3,7 @@
 lanzar-anclado.py — ejecuta un comando y ancla sus ventanas al escritorio actual.
 
 Es el mismo anclaje que ya tenía rofi (ver `anclaje.py`), pero para quien lanza
-apps desde fuera de rofi: hoy Orion (`ags/widget/orion/data/launch.ts`). Orion
+apps desde fuera de rofi: hoy Orion (`ags/modulos/orion/data/launch.ts`). Orion
 llamaba a `sh -c <exec>` a pelo, así que sus apps aparecían donde estuvieras al
 terminar de cargar y no donde las abriste — justo lo contrario que rofi.
 

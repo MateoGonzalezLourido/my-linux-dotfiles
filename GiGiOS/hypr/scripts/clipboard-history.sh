@@ -2,7 +2,7 @@
 #
 # Historial del portapapeles (cliphist + wl-clipboard), gobernado por la
 # preferencia clipboardHistory de ~/.config/gigios/preferences.json (la escribe
-# AGS › Ajustes › Personalización, ver widget/settings/preferences.ts).
+# AGS › Ajustes › Personalización, ver modulos/ajustes/preferences.ts).
 #
 #   start   arranca el watcher `wl-paste --watch cliphist store` si la pref lo
 #           permite y no hay ya uno. Se lanza DESACOPLADO (setsid --fork) para

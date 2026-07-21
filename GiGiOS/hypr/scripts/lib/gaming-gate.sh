@@ -3,7 +3,7 @@
 # fondo PRESCINDIBLE mientras hay un juego delante. Se SOURCEA, no se ejecuta.
 #
 # Reutiliza el flag que ya existe: ~/.config/gigios/runtime-state.json, escrito por
-# AGS (widget/power/gamingState.ts) reusando a su vez la detección `isGameClient`
+# AGS (servicios/energia/gamingState.ts) reusando a su vez la detección `isGameClient`
 # de la barra. Aquí NO se vuelve a detectar nada — bash no sabría hacerlo mejor.
 #
 # QUÉ SE CONGELA Y QUÉ NO — la lista corta, porque la asimetría es el diseño:

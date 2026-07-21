@@ -161,7 +161,7 @@ registra `Name=org.freedesktop.Notifications` → `SystemdService=dunst.service`
 **primera notificación de la sesión** hace que D-Bus lo active vía systemd. En el arranque eso
 ocurre antes de que AGS esté listo, y como el nombre solo lo puede tener un proceso, dunst se
 queda con él para el resto de la sesión: `AstalNotifd` nunca lo consigue, la señal `notified` no
-se emite jamás y `ingest()` (único punto de entrada, `widget/notifications/NotificationPopup.tsx`)
+se emite jamás y `ingest()` (único punto de entrada, `modulos/notificaciones/NotificationPopup.tsx`)
 no llega a ejecutarse. Síntoma: los popups que ves son los de dunst y **`notifications.json` y
 `notif-history.json` se quedan vacíos** — el historial no guarda nada y parece que falta código,
 cuando el shell simplemente no recibe una sola notificación.
@@ -169,7 +169,7 @@ cuando el shell simplemente no recibe una sola notificación.
 Astal *sí* se queja (`proxy.vala: cannot get proxy: dunst is already running`), pero por el
 **stdout de `ags`**: lanzado desde `autostart.conf` ese aviso no llega ni a `hyprland.log` ni al
 journal, así que solo lo ve quien arranca el shell a mano. Por eso el shell **se autodiagnostica**
-desde `ags/widget/notifications/daemonCheck.ts`: comprueba quién tiene el nombre, y si no es él,
+desde `ags/modulos/notificaciones/daemonCheck.ts`: comprueba quién tiene el nombre, y si no es él,
 lanza una notificación crítica (que pinta el propio daemon intruso, que es el que funciona) y
 sustituye el "Historial vacío"/"Sin notificaciones" por un banner que nombra al culpable y da el
 comando exacto. Se apaga solo, sin reiniciar AGS, en cuanto enmascaras al rival.
@@ -215,9 +215,9 @@ En Arch/CachyOS, si aparece `sass: command not found`, instálalo con
 **Tests de Node** (opcionales, solo para desarrollo, no para que el shell funcione):
 
 ```sh
-node --test widget/notifications/rules/*.test.ts widget/notifications/history/*.test.ts \
-  widget/notifications/cleanup/*.test.ts widget/notifications/settings/*.test.ts \
-  widget/services/spotify/*.test.ts
+node --test modulos/notificaciones/rules/*.test.ts modulos/notificaciones/history/*.test.ts \
+  modulos/notificaciones/cleanup/*.test.ts modulos/notificaciones/settings/*.test.ts \
+  servicios/spotify/*.test.ts
 ```
 
 Necesita `nodejs` (probado con v26).
@@ -253,7 +253,7 @@ Qué usa cada cosa:
 - **`hyprshot`** (capturas, `Print` / `Ctrl+Print` en `keybinds.conf`) ya trae como
   dependencias `grim`, `slurp`, `jq`, `libnotify`, `wl-clipboard` — pero como AGS también
   llama a `grim` directamente (preview de workspace al clic-derecho sobre el número, ver
-  `widget/bar/Workspaces.tsx`), instálalo igual explícitamente. Opcional: `hyprpicker`
+  `modulos/barra/Workspaces.tsx`), instálalo igual explícitamente. Opcional: `hyprpicker`
   (congela pantalla durante la captura).
 - **`rofi`** — lanzador de apps (`SUPER+SPACE` → `hypr/scripts/rofi-launch.py`, requiere
   además `python3`, ya lo trae el sistema base — que es también lo que necesita
@@ -412,7 +412,7 @@ selección activa de Wayland con `wl-copy --clear` y borra la base de `cliphist`
 
 ## 7. Secretos (Spotify, credenciales)
 
-El servicio Spotify de AGS (`widget/services/spotify/SpotifyService.ts`) y el script
+El servicio Spotify de AGS (`servicios/spotify/SpotifyService.ts`) y el script
 `~/.config/ags/scripts/spotify-auth.sh` guardan/leen las credenciales en **texto plano**
 en `~/.config/gigios/spotify-creds.json` (chmod 600, git-ignored). No hay KWallet ni
 Secret Service: se retiró a propósito porque bajo Hyprland pedía la contraseña del monedero
@@ -523,8 +523,8 @@ Para que la interfaz y las acciones funcionen, el repo debe contener estos archi
 dos scripts `.sh` deben tener permiso de ejecución:
 
 ```text
-GiGiOS/ags/widget/settings/SecuritySection.tsx
-GiGiOS/ags/widget/settings/securityPrefs.ts
+GiGiOS/ags/modulos/ajustes/SecuritySection.tsx
+GiGiOS/ags/modulos/ajustes/securityPrefs.ts
 GiGiOS/hypr/scripts/scan-file.sh
 GiGiOS/hypr/scripts/run-untrusted.sh
 ```
@@ -614,7 +614,7 @@ En este repositorio bare usa también:
 
 ```sh
 dotfiles status --short --untracked-files=all -- GiGiOS .github
-dotfiles ls-files GiGiOS/ags/widget/settings/SecuritySection.tsx \
+dotfiles ls-files GiGiOS/ags/modulos/ajustes/SecuritySection.tsx \
   GiGiOS/hypr/scripts/scan-file.sh GiGiOS/bin/preflight.sh
 ```
 
@@ -634,14 +634,14 @@ for f in \
   GiGiOS/rofi/config.rasi \
   GiGiOS/hypr/scripts/scan-file.sh \
   GiGiOS/hypr/scripts/run-untrusted.sh \
-  GiGiOS/ags/widget/settings/AccountSection.tsx \
-  GiGiOS/ags/widget/settings/AppsSection.tsx \
-  GiGiOS/ags/widget/settings/DateLanguageSection.tsx \
-  GiGiOS/ags/widget/settings/DevicesSection.tsx \
-  GiGiOS/ags/widget/settings/DisplaySection.tsx \
-  GiGiOS/ags/widget/settings/SecuritySection.tsx \
-  GiGiOS/ags/widget/settings/SystemSection.tsx \
-  GiGiOS/ags/widget/settings/securityPrefs.ts; do
+  GiGiOS/ags/modulos/ajustes/AccountSection.tsx \
+  GiGiOS/ags/modulos/ajustes/AppsSection.tsx \
+  GiGiOS/ags/modulos/ajustes/DateLanguageSection.tsx \
+  GiGiOS/ags/modulos/ajustes/DevicesSection.tsx \
+  GiGiOS/ags/modulos/ajustes/DisplaySection.tsx \
+  GiGiOS/ags/modulos/ajustes/SecuritySection.tsx \
+  GiGiOS/ags/modulos/ajustes/SystemSection.tsx \
+  GiGiOS/ags/modulos/ajustes/securityPrefs.ts; do
   test -f "$f" || echo "FALTA: $f"
 done
 ```
@@ -721,7 +721,7 @@ La leen dos sitios, y ninguno se rompe si el archivo no existe:
 
 1. **Pantalla de bloqueo (`hyprlock`)** — `hyprlock.conf`, bloque `image` con
    `path = ~/.local/share/gigios/face.png`. Sin archivo, omite el avatar.
-2. **AGS** — `widget/settings/avatar.ts` exporta `AVATAR_PATH`, que consumen
+2. **AGS** — `modulos/ajustes/avatar.ts` exporta `AVATAR_PATH`, que consumen
    `ProfileAvatar.tsx` (el avatar) y `AccountSection.tsx` (el selector). Sin archivo,
    AGS cae a mostrar las iniciales del usuario.
 
@@ -757,7 +757,7 @@ migrar y qué se regenera solo.
 | `~/.config/jarvis/git-repos.json` | repos que Orion conoce para la sección Git (rutas locales — revisa que existan en el PC nuevo) |
 | `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
 | `~/.local/share/orion/profiles/*.json` | sesiones guardadas de Orion (`ProfileManager.ts`) |
-| `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `widget/power/powerState.ts`) |
+| `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `servicios/energia/powerState.ts`) |
 | `~/.local/share/gigios/face.png` | foto privada opcional, fuera del repo; se pone desde Ajustes > Cuenta (§13) |
 | `~/GiGiOS/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
 | `~/.config/gigios/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
@@ -766,7 +766,7 @@ migrar y qué se regenera solo.
 
 Todo lo demás dentro de `~/.config/hypr/*.conf`, `~/.config/hypr/scripts/`,
 `~/.config/hypr/envs/`, y todo `~/.config/ags/` salvo `calendar-events.json` de la
-tabla anterior: `app.ts`, `widget/**`, `style.scss`
+tabla anterior: `app.ts`, `modulos/**`, `componentes/**`, `estado/**`, `servicios/**`, `utilidades/**`, `style.scss`
 (→ `out.css` generado, no se edita a mano).
 
 ### 14.3 Fuera de `hypr/` y `ags/`, pero incluidos en este repositorio

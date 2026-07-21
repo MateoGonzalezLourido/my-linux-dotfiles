@@ -1,27 +1,27 @@
 import app from "ags/gtk4/app"
 import style from "./out.css"
-import Bar from "./widget/Bar"
-import PowerOptions from "./widget/bar/PowerOptions"
-import OSD, { showOSD } from "./widget/OSD"
-import { showMicOSD } from "./widget/MicOSD"
-import QuickSettings from "./widget/QuickSettings"
-import NotificationPopup from "./widget/notifications/NotificationPopup"
-import NotificationPanel from "./widget/notifications/NotificationPanel"
-import SettingsWindow from "./widget/notifications/settings/SettingsWindow"
-import CalendarPanel from "./widget/CalendarPanel"
-import SettingsPanel from "./widget/SettingsPanel"
-import Orion from "./widget/orion/Orion"
-import { togglePanel as alternarPanelOrion } from "./widget/orion/state"
-import { orionEnabled } from "./widget/settings/preferences"
-import { startCleanupEngine } from "./widget/notifications/cleanup/cleanupEngine"
-import { runAppSettingsMigration } from "./widget/notifications/settings/runMigration"
-import { initAutoDnd } from "./widget/notifications/autoDnd/watcher"
-import { initNotifDaemonCheck } from "./widget/notifications/daemonCheck"
-import { initTrayApps } from "./widget/settings/trayApps"
-import { initGamingState } from "./widget/power/gamingState"
-import { initWakeUp } from "./widget/bar/functions/wakeup"
-import { initGamemode, toggleGamemode } from "./widget/power/gamemode"
-import { alternarBarPorTecla, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness } from "./widget/state"
+import Bar from "./modulos/barra/Bar"
+import PowerOptions from "./modulos/barra/PowerOptions"
+import OSD, { showOSD } from "./modulos/osd/OSD"
+import { showMicOSD } from "./modulos/osd/MicOSD"
+import QuickSettings from "./modulos/ajustes-rapidos/QuickSettings"
+import NotificationPopup from "./modulos/notificaciones/NotificationPopup"
+import NotificationPanel from "./modulos/notificaciones/NotificationPanel"
+import SettingsWindow from "./modulos/notificaciones/settings/SettingsWindow"
+import CalendarPanel from "./modulos/calendario/CalendarPanel"
+import SettingsPanel from "./modulos/ajustes/SettingsPanel"
+import Orion from "./modulos/orion/Orion"
+import { togglePanel as alternarPanelOrion } from "./modulos/orion/state"
+import { orionEnabled } from "./modulos/ajustes/preferences"
+import { startCleanupEngine } from "./modulos/notificaciones/cleanup/cleanupEngine"
+import { runAppSettingsMigration } from "./modulos/notificaciones/settings/runMigration"
+import { initAutoDnd } from "./modulos/notificaciones/autoDnd/watcher"
+import { initNotifDaemonCheck } from "./modulos/notificaciones/daemonCheck"
+import { initTrayApps } from "./modulos/ajustes/trayApps"
+import { initGamingState } from "./servicios/energia/gamingState"
+import { initWakeUp } from "./modulos/barra/functions/wakeup"
+import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
+import { alternarBarPorTecla, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness } from "./estado/shell"
 
 app.start({
   css: style,
@@ -43,7 +43,7 @@ app.start({
     }
     // Las teclas de brillo pasan por aquí en vez de llamar a `brightnessctl` desde el
     // keybind: así funcionan con los dos backends (panel interno o DDC/CI) y el estado
-    // del shell no se desincroniza del monitor. Ver `widget/display/brightness.ts`.
+    // del shell no se desincroniza del monitor. Ver `servicios/pantalla/brightness.ts`.
     if (argv.includes("brightness-up")) {
       stepBrightness(0.1)
       response("ok")

@@ -2,7 +2,7 @@
 
 ## Estructura del proyecto y módulos
 
-GiGiOS es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos reales viven aquí y se instalan en ubicaciones XDG mediante enlaces simbólicos. `ags/` contiene el shell AGS v2/Astal en TypeScript/TSX; lee `ags/AGENTS.md` antes de cambiar código del shell. `hypr/` contiene Hyprland, hyprlock, hypridle, perfiles de GPU y scripts de monitores. `inicializador/` contiene la restauración del estado de arranque. `Wallpapers/` se usa directamente desde los scripts de fondos. `cache/power-save/` y `state/orion/` son destinos de enlaces simbólicos respaldados en tiempo de ejecución. `docs/` guarda especificaciones y planes.
+GiGiOS es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos reales viven aquí y se instalan en ubicaciones XDG mediante enlaces simbólicos. `ags/` contiene el shell AGS v2/Astal en TypeScript/TSX; lee `ags/AGENTS.md` antes de cambiar código del shell. Su código se separa en `modulos/` de interfaz y funcionalidad, `componentes/` compartidos, `estado/`, `servicios/` y `utilidades/`. `hypr/` contiene Hyprland, hyprlock, hypridle, perfiles de GPU y scripts de monitores. `inicializador/` contiene la restauración del estado de arranque. `Wallpapers/` se usa directamente desde los scripts de fondos. `cache/power-save/` y `state/orion/` son destinos de enlaces simbólicos respaldados en tiempo de ejecución. `docs/` guarda especificaciones y planes.
 
 ## Comandos de compilación, prueba y desarrollo
 
@@ -12,7 +12,7 @@ GiGiOS es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos rea
 - `ags quit` seguido de `ags run ~/.config/ags/app.ts`: detiene primero cualquier instancia de AGS y después lanza o recarga el shell tras cambios en la interfaz.
 - `hyprctl reload`: aplica cambios de configuración de Hyprland sin reiniciar los `exec-once`.
 - `hyprctl reload full-reset`: reinicia Hyprland correctamente y vuelve a ejecutar los `exec-once` de `hypr/autostart.conf`; usarlo cuando haya que actualizar el autostart o reiniciar el compositor.
-- `node --test ags/widget/**/*.test.ts`: ejecuta las pruebas TypeScript locales. Si el shell no expande `**`, ejecuta explícitamente los archivos `*.test.ts` relevantes.
+- `node --test $(rg --files ags -g '*.test.ts')`: ejecuta todas las pruebas TypeScript locales.
 
 ## Control de versiones
 

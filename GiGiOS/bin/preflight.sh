@@ -16,19 +16,19 @@ required=(
   install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh ags/app.ts ags/style.scss ags/out.css
   mimeapps.list menus/applications.menu kdeglobals qt6ct/qt6ct.conf
   mime/packages/text-x-xresources.xml mime/packages/text-x-codigo.xml
-  ags/widget/bar/games/evidence.ts ags/widget/bar/games/icon.ts
-  ags/widget/bar/workspaceOrder.ts ags/widget/bar/workspaceOrder.test.ts
-  ags/widget/bar/workspaceTooltip.ts ags/widget/bar/workspaceTooltip.test.ts
-  ags/widget/bluetooth/estadoInicio.ts ags/widget/bluetooth/estadoInicio.test.ts
-  ags/widget/bluetooth/tileState.ts ags/widget/bluetooth/tileState.test.ts
-  ags/widget/display/brightness.ts
-  ags/widget/mediaClient.ts ags/widget/mediaClient.test.ts
-  ags/widget/mediaProgress.ts ags/widget/mediaProgress.test.ts
-  ags/widget/notifications/DaemonConflictBanner.tsx ags/widget/notifications/daemonCheck.ts
-  ags/widget/notifications/rules/engine.style.test.ts ags/widget/settings/ProfileAvatar.tsx
-  ags/widget/settings/SecuritySection.tsx ags/widget/settings/securityPrefs.ts
-  ags/widget/settings/AccessibilitySection.tsx ags/widget/settings/OpcionDaltonismo.tsx ags/widget/settings/daltonismo.ts
-  ags/widget/settings/daltonismo.test.ts ags/textos/ajustes/accesibilidad.json
+  ags/modulos/barra/games/evidence.ts ags/modulos/barra/games/icon.ts
+  ags/modulos/barra/workspaceOrder.ts ags/modulos/barra/workspaceOrder.test.ts
+  ags/modulos/barra/workspaceTooltip.ts ags/modulos/barra/workspaceTooltip.test.ts
+  ags/servicios/bluetooth/estadoInicio.ts ags/servicios/bluetooth/estadoInicio.test.ts
+  ags/servicios/bluetooth/tileState.ts ags/servicios/bluetooth/tileState.test.ts
+  ags/servicios/pantalla/brightness.ts
+  ags/servicios/multimedia/mediaClient.ts ags/servicios/multimedia/mediaClient.test.ts
+  ags/servicios/multimedia/mediaProgress.ts ags/servicios/multimedia/mediaProgress.test.ts
+  ags/modulos/notificaciones/DaemonConflictBanner.tsx ags/modulos/notificaciones/daemonCheck.ts
+  ags/modulos/notificaciones/rules/engine.style.test.ts ags/modulos/ajustes/ProfileAvatar.tsx
+  ags/modulos/ajustes/SecuritySection.tsx ags/modulos/ajustes/securityPrefs.ts
+  ags/modulos/ajustes/AccessibilitySection.tsx ags/modulos/ajustes/OpcionDaltonismo.tsx ags/modulos/ajustes/daltonismo.ts
+  ags/modulos/ajustes/daltonismo.test.ts ags/textos/ajustes/accesibilidad.json
   hypr/hyprland.conf hypr/monitor-settings.conf
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
   hypr/gpu/laptop-hibrida.conf hypr/gpu/sobremesa-nvidia.conf
@@ -61,6 +61,10 @@ done < <(grep -oE '~/.config/(hypr|inicializador)/[^ ;]+' "$GIGIOS/hypr/autostar
 
 while IFS= read -r script; do
   bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGIOS"/}"
+  # Lo que vive en un `lib/` se SOURCEA, no se ejecuta (hoy: lib/gaming-gate.sh),
+  # así que exigirle el bit +x era un falso positivo: el bit invitaría a ejecutar
+  # algo que ejecutado no hace nada. La comprobación de sintaxis sí aplica.
+  case "$script" in */scripts/lib/*) continue ;; esac
   [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGIOS"/}"
 done < <(find "$GIGIOS/hypr/scripts" "$GIGIOS/ags/scripts" -type f -name '*.sh' -print)
 for script in \
