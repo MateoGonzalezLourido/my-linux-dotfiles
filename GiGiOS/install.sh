@@ -4,22 +4,22 @@
 # symlinks de GiGiOS. Pensado para una máquina nueva o recuperación.
 #
 # Uso:
-#   curl -sSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | bash
-#   curl -sSL <url> | DOTFILES_BRANCH=desktop bash    # otra rama
+#   curl -sSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
+#   curl -sSL <url> | DOTFILES_BRANCH=guides bash     # otra rama del repo (no per-equipo: eso va por *_PROFILE)
 #   curl -sSL <url> | INSTALL_PACKAGES=0 bash        # sin instalar paquetes
 #   curl -sSL <url> | KITTY_PROFILE=desktop bash      # forzar perfil de Kitty
 #   curl -sSL <url> | FIREFOX_PROFILE=desktop bash    # forzar perfil de Firefox
 #
 # Variables:
 #   DOTFILES_REPO    URL del repo   (por defecto HTTPS público)
-#   DOTFILES_BRANCH  rama a instalar (por defecto: laptop)
+#   DOTFILES_BRANCH  rama a instalar (por defecto: main)
 #   INSTALL_PACKAGES 1 instala las dependencias (por defecto); 0 las omite
 #   KITTY_PROFILE    auto, laptop o desktop (por defecto: auto)
 #   FIREFOX_PROFILE  auto, laptop o desktop (por defecto: auto)
 set -euo pipefail
 
 REPO_URL="${DOTFILES_REPO:-https://github.com/MateoGonzalezLourido/my-linux-dotfiles.git}"
-BRANCH="${DOTFILES_BRANCH:-laptop}"
+BRANCH="${DOTFILES_BRANCH:-main}"
 DOTGIT="$HOME/.dotfiles"
 BACKUP="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
 INSTALL_PACKAGES="${INSTALL_PACKAGES:-1}"
@@ -55,6 +55,10 @@ install_packages() {
   local official=(
     git curl python xdg-utils shared-mime-info base-devel util-linux polkit
     less man-db wget tar expac hwinfo openbsd-netcat neovim
+    # pacman-contrib: da `checkupdates` a updates-monitor.sh (sincroniza su propia BD
+    # temporal en vez de leer la del sistema). Sin él el monitor sigue funcionando
+    # cayendo a `pacman -Qu`, pero eso exige una BD ya sincronizada por el usuario.
+    pacman-contrib
     # Mantén esta pila en paquetes estables. qt6ct + Breeze proporcionan el
     # tema Qt; hyprqt6engine-git no es necesario y fuerza bibliotecas -git.
     hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
@@ -66,7 +70,9 @@ install_packages() {
     # panel de reloj). Sin él la alerta se ve pero no suena, sin error visible.
     libcanberra
     nm-connection-editor blueman fish
-    kitty firefox dolphin kservice breeze ffmpegthumbs kdegraphics-thumbnailers
+    # kconfig: da kreadconfig6/kwriteconfig6, que usa bin/configurar-dolphin.sh (paso 4
+    # de este instalador) y bin/preflight.sh ya exige explícitamente.
+    kitty firefox dolphin kservice kconfig breeze ffmpegthumbs kdegraphics-thumbnailers
     ark 7zip unrar elisa filelight gwenview haruna kate kfind kolourpaint
     libreoffice-fresh libreoffice-fresh-es okular partitionmanager simple-scan
     tela-circle-icon-theme-grey
@@ -329,8 +335,9 @@ info "Instalación base completa."
 echo "  • Rama:     $BRANCH"
 [ -d "$BACKUP" ] && echo "  • Backups:  $BACKUP"
 cat <<'EOF'
-  • Secreto:  ~/.config/gigios/spotify-creds.json NO viene en el repo (git-ignored).
-              Restaurá tu copia o corré  ~/GiGiOS/ags/scripts/spotify-auth.sh
+  • Secretos: ~/.config/gigios/spotify-creds.json y ~/.config/gigios/google-calendar-creds.json
+              NO vienen en el repo (git-ignored). Restaurá tus copias o corré
+              ~/GiGiOS/ags/scripts/spotify-auth.sh y ~/GiGiOS/ags/scripts/google-calendar-auth.sh
   • Shell:    Zsh quedó como predeterminado; abrí una terminal nueva para cargarlo.
   • Kitty:    el perfil se eligió según KITTY_PROFILE; cambiá con ~/GiGiOS/bin/kitty-profile.sh.
   • Firefox:  el perfil se eligió según FIREFOX_PROFILE; reiniciá Firefox tras cambiarlo.
