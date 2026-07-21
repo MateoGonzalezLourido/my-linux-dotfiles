@@ -1,4 +1,3 @@
-// modulos/notificaciones/persist.ts
 // Escritura atómica y asíncrona de los almacenes JSON de notificaciones.
 //
 // `GLib.file_set_contents` es síncrono y hace fsync: bloquea el bucle principal (y con él el
@@ -11,6 +10,17 @@
 // La variante `_bytes_` toma un GLib.Bytes cuyo ciclo de vida sí queda garantizado.
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
+
+export function cargarJson<T>(path: string, fallback: T, label: string): T {
+  try {
+    const [ok, content] = GLib.file_get_contents(path)
+    if (!ok) return fallback
+    return JSON.parse(new TextDecoder().decode(content)) as T
+  } catch (e) {
+    console.error(`[notif] load ${label} failed:`, e)
+    return fallback
+  }
+}
 
 export function saveJsonAsync(path: string, data: unknown, label: string): void {
   let text: string
@@ -43,5 +53,23 @@ export function saveJsonAsync(path: string, data: unknown, label: string): void 
     )
   } catch (e) {
     console.error(`[notif] save ${label} failed:`, e)
+  }
+}
+
+export function crearGuardadoJsonProgramado(
+  path: string,
+  label: string,
+  demoraMs: number,
+  obtenerDatos: () => unknown,
+): () => void {
+  let temporizador: number | null = null
+
+  return () => {
+    if (temporizador !== null) GLib.source_remove(temporizador)
+    temporizador = GLib.timeout_add(GLib.PRIORITY_DEFAULT, demoraMs, () => {
+      saveJsonAsync(path, obtenerDatos(), label)
+      temporizador = null
+      return GLib.SOURCE_REMOVE
+    })
   }
 }

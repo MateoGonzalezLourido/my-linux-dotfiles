@@ -2,21 +2,18 @@
 // Form editor for a single rule. No JSON exposed. Mounted fresh per edit.
 import { Gtk } from "ags/gtk4"
 import { createState } from "ags"
-import type { NotifRule, StringMatch, Lifetime, DedupKeySpec, PopupStyle } from "../rules/types.ts"
+import type { NotifRule, Lifetime, DedupKeySpec, PopupStyle } from "../rules/types.ts"
 import { NOTIF_FIELDS } from "../rules/notifFields.ts"
 import { parseDuration, formatDuration } from "../rules/duration.ts"
 import { upsertUserRule, removeUserRule, setBuiltinOverride, clearBuiltinOverride } from "../rules/rulesStore.ts"
 import { validateRule } from "../rules/validate.ts"
 import ColorPicker from "./ColorPicker.tsx"
+import CampoCoincidencia from "./CampoCoincidencia.tsx"
+import CamposReescritura, { type CampoReescrituraId } from "./CamposReescritura.tsx"
+import { AlternadorEditor, CampoEditor } from "./ControlesEditor.tsx"
 import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear.ts"
 
-const OPS: StringMatch["op"][] = ["contains", "equals", "regex"]
-const OP_LABEL: Record<StringMatch["op"], string> = {
-  contains: textos.editor.operadores.contiene,
-  equals: textos.editor.operadores.igual,
-  regex: textos.editor.operadores.expresionRegular,
-}
 const LIFETIMES: (Lifetime | "none")[] = ["none", "flash", "timed", "persistent"]
 const LIFE_LABEL: Record<string, string> = {
   none: textos.editor.ciclos.ninguno,
@@ -56,8 +53,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
   const patchMatch = (p: Partial<NotifRule["match"]>) => patch({ match: { ...draft.get().match, ...p } })
   const patchEffects = (p: Partial<NotifRule["effects"]>) => patch({ effects: { ...draft.get().effects, ...p } })
   // rewrite per-field state: undefined = leave unchanged, "" = clear/omit, text = replace.
-  type RewriteField = "appName" | "summary" | "body"
-  const updateRewrite = (which: RewriteField, val: string | undefined) => {
+  const updateRewrite = (which: CampoReescrituraId, val: string | undefined) => {
     const cur: { appName?: string; summary?: string; body?: string } = { ...(draft.get().effects.rewrite ?? {}) }
     if (val === undefined) delete cur[which]; else cur[which] = val
     const e = { ...draft.get().effects }
@@ -65,70 +61,13 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
     else e.rewrite = cur
     patch({ effects: e })
   }
-  const setRewriteText = (which: RewriteField, text: string) => updateRewrite(which, text ? text : undefined)
-  const setRewriteClear = (which: RewriteField, clear: boolean) => updateRewrite(which, clear ? "" : undefined)
+  const setRewriteText = (which: CampoReescrituraId, text: string) => updateRewrite(which, text ? text : undefined)
+  const setRewriteClear = (which: CampoReescrituraId, clear: boolean) => updateRewrite(which, clear ? "" : undefined)
   const isBuiltin = rule.source === "builtin"
   const isNew = !isBuiltin
     && rule.name === textos.resumen.nuevaRegla
     && Object.keys(rule.match).length === 0
     && Object.keys(rule.effects).length === 0
-
-  // Build a StringMatch field block (operator selector + value entry). Empty value removes the field.
-  function MatchField(props: { field: "app" | "summary" | "body" | "source"; title: string }) {
-    const cur = (): StringMatch | undefined => draft.get().match[props.field]
-    return (
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
-        <label cssClasses={["re-field-label"]} label={props.title} halign={Gtk.Align.START} />
-        <box spacing={4}>
-          {OPS.map(op => (
-            <button
-              cssClasses={draft((d) => d.match[props.field]?.op === op ? ["re-seg", "active"] : ["re-seg"])}
-              onClicked={() => {
-                const c = cur()
-                patchMatch({ [props.field]: { op, value: c?.value ?? "", ci: c?.ci } } as any)
-              }}
-            >
-              <label label={OP_LABEL[op]} />
-            </button>
-          ))}
-        </box>
-        <Gtk.Entry
-          cssClasses={["re-entry"]}
-          text={cur()?.value ?? ""}
-          placeholderText={textos.editor.ayudas.campoVacio}
-          onChanged={(self) => {
-            const v = self.text
-            if (!v) { const m = { ...draft.get().match }; delete (m as any)[props.field]; patch({ match: m }) }
-            else { const c = cur(); patchMatch({ [props.field]: { op: c?.op ?? "contains", value: v } } as any) }
-          }}
-        />
-      </box>
-    )
-  }
-
-  function Toggle(props: { label: string; get: () => boolean; set: (v: boolean) => void }) {
-    return (
-      <button
-        cssClasses={draft((_) => props.get() ? ["re-toggle", "active"] : ["re-toggle"])}
-        onClicked={() => props.set(!props.get())}
-      >
-        <label label={props.label} />
-      </button>
-    )
-  }
-
-  // Wrapper "título + contenido" de un campo del formulario (VERTICAL, spacing
-  // 4, clase re-field/re-field-label). No cubre los grupos de toggles sin
-  // título (spacing 4, horizontal) ni el bloque de reescritura de texto
-  // (varios sub-campos con su propio label inline) — esos se quedan como están.
-  function Field({ title, visible, children }: { title: string; visible?: any; children?: any }) {
-    return (
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]} visible={visible}>
-        <label cssClasses={["re-field-label"]} label={title} halign={Gtk.Align.START} />
-        {children}
-      </box>
-    )
-  }
 
   const [advanced, setAdvanced] = createState(false)
 
@@ -169,9 +108,9 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
       <Gtk.ScrolledWindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
         <box orientation={Gtk.Orientation.VERTICAL} spacing={10}>
           {/* Name */}
-          <Field title={textos.editor.titulos.nombre}>
+          <CampoEditor titulo={textos.editor.titulos.nombre}>
             <Gtk.Entry cssClasses={["re-entry"]} text={rule.name} onChanged={(self) => patch({ name: self.text })} />
-          </Field>
+          </CampoEditor>
 
           <label cssClasses={["re-section"]} label={textos.editor.titulos.cuando} halign={Gtk.Align.START} />
           <label
@@ -180,16 +119,16 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
             halign={Gtk.Align.START}
             wrap={true}
           />
-          <MatchField field="app" title={textos.editor.titulos.aplicacion} />
-          <MatchField field="summary" title={textos.editor.titulos.titulo} />
-          <MatchField field="body" title={textos.editor.titulos.cuerpo} />
+          <CampoCoincidencia campo="app" titulo={textos.editor.titulos.aplicacion} borrador={draft} actualizarMatch={patchMatch} reemplazarMatch={(match) => patch({ match })} />
+          <CampoCoincidencia campo="summary" titulo={textos.editor.titulos.titulo} borrador={draft} actualizarMatch={patchMatch} reemplazarMatch={(match) => patch({ match })} />
+          <CampoCoincidencia campo="body" titulo={textos.editor.titulos.cuerpo} borrador={draft} actualizarMatch={patchMatch} reemplazarMatch={(match) => patch({ match })} />
           {/* «system» = viene de un script de hypr/scripts (hint x-gigios-source). Es lo que casa
               la builtin del skin dunst; sin este campo esa regla no se podría editar desde aquí. */}
-          <MatchField field="source" title={textos.editor.titulos.origen} />
+          <CampoCoincidencia campo="source" titulo={textos.editor.titulos.origen} borrador={draft} actualizarMatch={patchMatch} reemplazarMatch={(match) => patch({ match })} />
 
           <label cssClasses={["re-section"]} label={textos.editor.titulos.acciones} halign={Gtk.Align.START} />
           {/* lifetime */}
-          <Field title={textos.editor.titulos.ciclo}>
+          <CampoEditor titulo={textos.editor.titulos.ciclo}>
             <box spacing={4}>
               {LIFETIMES.map(lt => (
                 <button
@@ -210,33 +149,34 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
               halign={Gtk.Align.START}
               wrap={true}
             />
-          </Field>
+          </CampoEditor>
 
           {/* clear on reboot — independent flag; combinable with any lifetime (flash, timed, …) */}
           <box spacing={4} cssClasses={["re-field"]}>
-            <Toggle
+            <AlternadorEditor
               label={textos.editor.acciones.limpiarReinicio}
-              get={() => !!draft.get().effects.clearOnBoot}
-              set={(v) => patchEffects({ clearOnBoot: v })}
+              estado={draft}
+              activo={() => !!draft.get().effects.clearOnBoot}
+              onChange={(v) => patchEffects({ clearOnBoot: v })}
             />
           </box>
 
           {/* ttl (only when timed) */}
-          <Field title={textos.editor.titulos.expira} visible={draft((d) => d.effects.lifetime === "timed")}>
+          <CampoEditor titulo={textos.editor.titulos.expira} visible={draft((d) => d.effects.lifetime === "timed")}>
             <Gtk.Entry
               cssClasses={["re-entry"]}
               text={rule.effects.ttlMs ? formatDuration(rule.effects.ttlMs) : ""}
               placeholderText={textos.editor.ayudas.duracion}
               onChanged={(self) => patchEffects({ ttlMs: parseDuration(self.text) ?? undefined })}
             />
-          </Field>
+          </CampoEditor>
 
           {/* effect toggles */}
           <box spacing={4} cssClasses={["re-field"]}>
-            <Toggle label={textos.editor.acciones.descartar} get={() => !!draft.get().effects.suppress} set={(v) => patchEffects({ suppress: v })} />
-            <Toggle label={textos.editor.acciones.sinPopup} get={() => !!draft.get().effects.dontShow} set={(v) => patchEffects({ dontShow: v })} />
-            <Toggle label={textos.editor.acciones.sinAudio} get={() => !!draft.get().effects.muteAudio} set={(v) => patchEffects({ muteAudio: v })} />
-            <Toggle label={textos.editor.acciones.sinHistorial} get={() => !!draft.get().effects.noHistory} set={(v) => patchEffects({ noHistory: v })} />
+            <AlternadorEditor label={textos.editor.acciones.descartar} estado={draft} activo={() => !!draft.get().effects.suppress} onChange={(v) => patchEffects({ suppress: v })} />
+            <AlternadorEditor label={textos.editor.acciones.sinPopup} estado={draft} activo={() => !!draft.get().effects.dontShow} onChange={(v) => patchEffects({ dontShow: v })} />
+            <AlternadorEditor label={textos.editor.acciones.sinAudio} estado={draft} activo={() => !!draft.get().effects.muteAudio} onChange={(v) => patchEffects({ muteAudio: v })} />
+            <AlternadorEditor label={textos.editor.acciones.sinHistorial} estado={draft} activo={() => !!draft.get().effects.noHistory} onChange={(v) => patchEffects({ noHistory: v })} />
           </box>
           <label
             cssClasses={["re-hint"]}
@@ -246,7 +186,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
           />
 
           {/* accent color */}
-          <Field title={textos.editor.titulos.color}>
+          <CampoEditor titulo={textos.editor.titulos.color}>
             <ColorPicker
               value={rule.effects.color}
               onChange={(hex) => {
@@ -255,10 +195,10 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
                 patch({ effects: e })
               }}
             />
-          </Field>
+          </CampoEditor>
 
           {/* popup skin */}
-          <Field title={textos.editor.titulos.estilo}>
+          <CampoEditor titulo={textos.editor.titulos.estilo}>
             <box spacing={4}>
               {STYLES.map(st => (
                 <button
@@ -279,10 +219,10 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
               halign={Gtk.Align.START}
               wrap={true}
             />
-          </Field>
+          </CampoEditor>
 
           {/* dedup key */}
-          <Field title={textos.editor.titulos.duplicadas}>
+          <CampoEditor titulo={textos.editor.titulos.duplicadas}>
             <box spacing={4}>
               {DEDUPS.map(dk => (
                 <button
@@ -299,56 +239,15 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
               halign={Gtk.Align.START}
               wrap={true}
             />
-          </Field>
+          </CampoEditor>
 
           <label cssClasses={["re-section"]} label={textos.editor.titulos.reescritura} halign={Gtk.Align.START} />
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
-            {/* nombre de la app */}
-            <box spacing={6} valign={Gtk.Align.CENTER}>
-              <label cssClasses={["re-field-label"]} label={textos.editor.titulos.nombreApp} hexpand halign={Gtk.Align.START} />
-              <button
-                cssClasses={draft((d) => d.effects.rewrite?.appName === "" ? ["re-toggle", "active"] : ["re-toggle"])}
-                onClicked={() => setRewriteClear("appName", draft.get().effects.rewrite?.appName !== "")}
-              ><label label={textos.editor.acciones.quitarNombre} /></button>
-            </box>
-            <Gtk.Entry
-              cssClasses={["re-entry"]}
-              text={rule.effects.rewrite?.appName && rule.effects.rewrite.appName !== "" ? rule.effects.rewrite.appName : ""}
-              placeholderText={textos.editor.ayudas.sinCambios}
-              sensitive={draft((d) => d.effects.rewrite?.appName !== "")}
-              onChanged={(self) => { if (draft.get().effects.rewrite?.appName === "") return; setRewriteText("appName", self.text) }}
-            />
-
-            {/* título */}
-            <box spacing={6} valign={Gtk.Align.CENTER}>
-              <label cssClasses={["re-field-label"]} label={textos.editor.titulos.nuevoTitulo} hexpand halign={Gtk.Align.START} />
-              <button
-                cssClasses={draft((d) => d.effects.rewrite?.summary === "" ? ["re-toggle", "active"] : ["re-toggle"])}
-                onClicked={() => setRewriteClear("summary", draft.get().effects.rewrite?.summary !== "")}
-              ><label label={textos.editor.acciones.vaciar} /></button>
-            </box>
-            <Gtk.Entry
-              cssClasses={["re-entry"]}
-              text={rule.effects.rewrite?.summary && rule.effects.rewrite.summary !== "" ? rule.effects.rewrite.summary : ""}
-              placeholderText={textos.editor.ayudas.sinCambios}
-              sensitive={draft((d) => d.effects.rewrite?.summary !== "")}
-              onChanged={(self) => { if (draft.get().effects.rewrite?.summary === "") return; setRewriteText("summary", self.text) }}
-            />
-
-            {/* cuerpo */}
-            <box spacing={6} valign={Gtk.Align.CENTER}>
-              <label cssClasses={["re-field-label"]} label={textos.editor.titulos.nuevoCuerpo} hexpand halign={Gtk.Align.START} />
-              <button
-                cssClasses={draft((d) => d.effects.rewrite?.body === "" ? ["re-toggle", "active"] : ["re-toggle"])}
-                onClicked={() => setRewriteClear("body", draft.get().effects.rewrite?.body !== "")}
-              ><label label={textos.editor.acciones.vaciar} /></button>
-            </box>
-            <Gtk.Entry
-              cssClasses={["re-entry"]}
-              text={rule.effects.rewrite?.body && rule.effects.rewrite.body !== "" ? rule.effects.rewrite.body : ""}
-              placeholderText={textos.editor.ayudas.sinCambios}
-              sensitive={draft((d) => d.effects.rewrite?.body !== "")}
-              onChanged={(self) => { if (draft.get().effects.rewrite?.body === "") return; setRewriteText("body", self.text) }}
+            <CamposReescritura
+              reglaInicial={rule}
+              borrador={draft}
+              cambiarTexto={setRewriteText}
+              cambiarVaciado={setRewriteClear}
             />
 
             <label
@@ -365,7 +264,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
           <button cssClasses={["re-advanced-toggle"]} onClicked={() => setAdvanced(!advanced.get())}>
             <label label={advanced((a) => `${a ? "󰅀" : "󰅂"} ${textos.editor.titulos.avanzado}`)} halign={Gtk.Align.START} />
           </button>
-          <Field title={textos.editor.titulos.condiciones} visible={advanced((a) => a)}>
+          <CampoEditor titulo={textos.editor.titulos.condiciones} visible={advanced((a) => a)}>
             <label
               cssClasses={["re-hint"]}
               label={textos.editor.ayudas.condiciones}
@@ -389,7 +288,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
                 </button>
               ))}
             </box>
-          </Field>
+          </CampoEditor>
         </box>
       </Gtk.ScrolledWindow>
 

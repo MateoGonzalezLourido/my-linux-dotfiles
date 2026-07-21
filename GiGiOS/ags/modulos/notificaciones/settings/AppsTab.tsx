@@ -1,7 +1,6 @@
 // modulos/notificaciones/settings/AppsTab.tsx
 import { Gtk } from "ags/gtk4"
 import { createState, For, With } from "ags"
-import type { NotifRule } from "../rules/types.ts"
 import { rulesFile, allRules, upsertUserRule, removeUserRule } from "../rules/rulesStore.ts"
 import { historyEntries } from "../history/historyStore.ts"
 import { getAppIcon, resolveAppColor, appSettings, updateAppSettings } from "../store.ts"
@@ -10,9 +9,11 @@ import ColorPicker from "./ColorPicker.tsx"
 import EmptyState from "../../../componentes/EmptyState.tsx"
 import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear.ts"
-
-function muteId(app: string): string { return `user.mute.${app}` }
-function audioMuteId(app: string): string { return `user.muteaudio.${app}` }
+import {
+  crearReglaAplicacion,
+  idReglaAplicacion,
+  type TipoReglaAplicacion,
+} from "./reglasAplicacion.ts"
 
 export default function AppsTab() {
   const computeApps = (): string[] => {
@@ -26,34 +27,16 @@ export default function AppsTab() {
   historyEntries.subscribe(refresh)
   rulesFile.subscribe(refresh)
 
-  function isMuted(app: string): boolean {
-    return allRules().some(r => r.id === muteId(app) && r.enabled && r.effects.suppress)
+  function estaActiva(tipo: TipoReglaAplicacion, app: string): boolean {
+    return allRules().some((regla) =>
+      regla.id === idReglaAplicacion(tipo, app)
+      && regla.enabled
+      && (tipo === "bloqueo" ? !!regla.effects.suppress : !!regla.effects.muteAudio))
   }
-  function toggleMute(app: string) {
-    if (isMuted(app)) {
-      removeUserRule(muteId(app))
-    } else {
-      const rule: NotifRule = {
-        id: muteId(app), name: formatearTexto(textos.apps.nombreBloqueo, { app }), enabled: true, priority: 100, source: "user",
-        match: { app: { op: "equals", value: app } }, effects: { suppress: true },
-      }
-      upsertUserRule(rule)
-    }
-    refresh()
-  }
-  function isAudioMuted(app: string): boolean {
-    return allRules().some(r => r.id === audioMuteId(app) && r.enabled && r.effects.muteAudio)
-  }
-  function toggleAudioMute(app: string) {
-    if (isAudioMuted(app)) {
-      removeUserRule(audioMuteId(app))
-    } else {
-      const rule: NotifRule = {
-        id: audioMuteId(app), name: formatearTexto(textos.apps.nombreSinSonido, { app }), enabled: true, priority: 100, source: "user",
-        match: { app: { op: "equals", value: app } }, effects: { muteAudio: true },
-      }
-      upsertUserRule(rule)
-    }
+
+  function alternarRegla(tipo: TipoReglaAplicacion, app: string): void {
+    if (estaActiva(tipo, app)) removeUserRule(idReglaAplicacion(tipo, app))
+    else upsertUserRule(crearReglaAplicacion(tipo, app))
     refresh()
   }
   function ruleCount(app: string): number {
@@ -104,22 +87,22 @@ export default function AppsTab() {
                           <label cssClasses={["ns-color-check"]} label={appSettings((s) => s[app]?.color ? "󰉼" : "")} />
                         </button>
                         <button
-                          cssClasses={rulesFile(() => isAudioMuted(app) ? ["ns-mute-btn", "muted"] : ["ns-mute-btn"])}
-                          tooltipText={rulesFile(() => isAudioMuted(app)
+                          cssClasses={rulesFile(() => estaActiva("silencio", app) ? ["ns-mute-btn", "muted"] : ["ns-mute-btn"])}
+                          tooltipText={rulesFile(() => estaActiva("silencio", app)
                             ? textos.apps.quitarSonidoInactivo
                             : textos.apps.sonidoInactivo)}
-                          onClicked={() => toggleAudioMute(app)}
+                          onClicked={() => alternarRegla("silencio", app)}
                         >
-                          <label cssClasses={["ns-mute-icon"]} label={rulesFile(() => isAudioMuted(app) ? "󰝟" : "󰕾")} />
+                          <label cssClasses={["ns-mute-icon"]} label={rulesFile(() => estaActiva("silencio", app) ? "󰝟" : "󰕾")} />
                         </button>
                         <button
-                          cssClasses={rulesFile(() => isMuted(app) ? ["ns-mute-btn", "muted"] : ["ns-mute-btn"])}
-                          tooltipText={rulesFile(() => isMuted(app)
+                          cssClasses={rulesFile(() => estaActiva("bloqueo", app) ? ["ns-mute-btn", "muted"] : ["ns-mute-btn"])}
+                          tooltipText={rulesFile(() => estaActiva("bloqueo", app)
                             ? textos.apps.quitarBloqueo
                             : textos.apps.crearBloqueo)}
-                          onClicked={() => toggleMute(app)}
+                          onClicked={() => alternarRegla("bloqueo", app)}
                         >
-                          <label cssClasses={["ns-mute-icon"]} label={rulesFile(() => isMuted(app) ? "󰂛" : "󰂚")} />
+                          <label cssClasses={["ns-mute-icon"]} label={rulesFile(() => estaActiva("bloqueo", app) ? "󰂛" : "󰂚")} />
                         </button>
                       </box>
                       <box cssClasses={["ns-color-editor"]} visible={colorApp((c) => c === app)}>

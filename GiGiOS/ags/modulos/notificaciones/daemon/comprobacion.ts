@@ -1,4 +1,3 @@
-// modulos/notificaciones/daemonCheck.ts
 // Vigila que seamos NOSOTROS quienes servimos las notificaciones de la sesión.
 //
 // `ingest()` solo corre desde la señal "notified" de AstalNotifd, y esa señal solo llega si
@@ -13,7 +12,7 @@
 // shell a mano en una terminal. Y aunque la vea, dice *qué* pasa pero no *qué rompe* ni *cómo
 // se arregla*. Este módulo no descubre nada nuevo: comprueba el invariante de verdad ("¿es
 // nuestro el nombre?") y lo convierte en algo que se ve — estado reactivo para el banner
-// (DaemonConflictBanner.tsx), una notificación de escritorio y un log accionable.
+// (`BannerConflicto.tsx`), una notificación de escritorio y un log accionable.
 //
 // Lo que hace traicionero el fallo: basta con tener dunst *instalado* aunque no lo lances —
 // D-Bus lo autoactiva con la primera notificación de la sesión, antes de que AGS esté listo.
@@ -22,8 +21,8 @@ import { createState } from "ags"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
-import textos from "../../textos/ajustes/notificaciones.json" with { type: "json" }
-import { formatearTexto } from "../../textos/formatear.ts"
+import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
+import { formatearTexto } from "../../../textos/formatear.ts"
 
 const NOTIF_NAME = "org.freedesktop.Notifications"
 

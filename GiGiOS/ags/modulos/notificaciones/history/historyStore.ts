@@ -5,7 +5,7 @@ import { createState } from "ags"
 import GLib from "gi://GLib"
 import type { StoredNotification } from "../store.ts"
 import { notifSettingsVisible } from "../store.ts"
-import { saveJsonAsync } from "../persist.ts"
+import { cargarJson, crearGuardadoJsonProgramado } from "../estado/persistencia.ts"
 import { ruleIndex } from "../rules/rulesStore.ts"
 import { evaluate } from "../rules/engine.ts"
 import { computeDedupKey } from "../rules/dedup.ts"
@@ -16,28 +16,15 @@ import {
 
 const HISTORY_PATH = `${GLib.get_user_config_dir()}/gigios/notif-history.json`
 
-function loadHistory(): HistoryEntry[] {
-  try {
-    const [ok, content] = GLib.file_get_contents(HISTORY_PATH)
-    if (ok) {
-      const data = JSON.parse(new TextDecoder().decode(content))
-      return data.entries ?? []
-    }
-  } catch (e) { console.error("[notif] loadHistory failed:", e) }
-  return []
-}
+const historialCargado = cargarJson<{ entries?: HistoryEntry[] }>(HISTORY_PATH, {}, "history")
+export const [historyEntries, setHistoryEntries] = createState<HistoryEntry[]>(historialCargado.entries ?? [])
 
-let saveTimer: number | null = null
-function scheduleSave(): void {
-  if (saveTimer !== null) GLib.source_remove(saveTimer)
-  saveTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
-    saveJsonAsync(HISTORY_PATH, { entries: historyEntries.get() }, "history")
-    saveTimer = null
-    return GLib.SOURCE_REMOVE
-  })
-}
-
-export const [historyEntries, setHistoryEntries] = createState<HistoryEntry[]>(loadHistory())
+const scheduleSave = crearGuardadoJsonProgramado(
+  HISTORY_PATH,
+  "history",
+  1500,
+  () => ({ entries: historyEntries.get() }),
+)
 
 /** Record an incoming (already-stored) notification into history. No-op if a rule matched it. */
 export function recordNotification(n: StoredNotification): void {

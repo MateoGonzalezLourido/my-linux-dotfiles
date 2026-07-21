@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { PopupBurstGuard } from "./popupBurst.ts"
+import { PopupBurstGuard } from "./rafaga.ts"
 
 test("starts a burst only after exceeding the threshold", () => {
   const guard = new PopupBurstGuard(20, 8000)

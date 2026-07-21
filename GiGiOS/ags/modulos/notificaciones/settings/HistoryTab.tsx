@@ -8,8 +8,8 @@ import { ruleFromHistoryEntry } from "./ruleFactory.ts"
 import RuleEditor from "./RuleEditor.tsx"
 import AppFilterBar from "./AppFilterBar.tsx"
 import EmptyState from "../../../componentes/EmptyState.tsx"
-import { notifDaemonConflict, type DaemonConflict } from "../daemonCheck.ts"
-import DaemonConflictBanner from "../DaemonConflictBanner.tsx"
+import { notifDaemonConflict, type DaemonConflict } from "../daemon/comprobacion.ts"
+import BannerConflicto from "../daemon/BannerConflicto.tsx"
 import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 
 export default function HistoryTab() {
@@ -33,7 +33,7 @@ export default function HistoryTab() {
                   // es el punto: es en esta pantalla donde se mira cuando "no guarda nada".
                   ? <With value={notifDaemonConflict}>
                       {(c: DaemonConflict | null) => c
-                        ? DaemonConflictBanner({
+                        ? BannerConflicto({
                             conflict: c,
                             wrapClass: "ns-empty-state",
                             iconClass: "ns-empty-icon",

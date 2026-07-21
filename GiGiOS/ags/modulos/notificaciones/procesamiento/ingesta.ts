@@ -1,15 +1,15 @@
-// modulos/notificaciones/ingest.ts
+// Punto único de entrada para las notificaciones recibidas.
 // Single entry point for incoming notifications: classify via rules → apply on-receive cleanup
 // (suppress, dedup) → store → schedule dynamic conditions. The popup/daemon calls only this.
 import AstalNotifd from "gi://AstalNotifd"
-import { notifications, setNotifications, removeNotification, scheduleStoreSave, appSettings, NOTIF_CAP, type StoredNotification } from "./store.ts"
-import { ruleIndex } from "./rules/rulesStore.ts"
-import { evaluate } from "./rules/engine.ts"
-import { applyTemplate } from "./rules/template.ts"
-import { buildNotifFields, type RawNotif } from "./rules/notifFields.ts"
-import { getCondition } from "./rules/conditions.ts"
-import type { NotifInput } from "./rules/types.ts"
-import { recordNotification } from "./history/historyStore.ts"
+import { notifications, setNotifications, removeNotification, scheduleStoreSave, appSettings, NOTIF_CAP, type StoredNotification } from "../store.ts"
+import { ruleIndex } from "../rules/rulesStore.ts"
+import { evaluate } from "../rules/engine.ts"
+import { applyTemplate } from "../rules/template.ts"
+import { buildNotifFields, type RawNotif } from "../rules/notifFields.ts"
+import { getCondition } from "../rules/conditions.ts"
+import type { NotifInput } from "../rules/types.ts"
+import { recordNotification } from "../history/historyStore.ts"
 
 /** Unpack a notification's D-Bus hints (a{sv}) into a flat string map for rewrite placeholders.
  *  Only string/number/boolean hint values are kept; complex values (images, byte arrays) skipped. */

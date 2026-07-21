@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { canFitPopup } from "./popupLayout.ts"
+import { canFitPopup } from "./disposicion.ts"
 
 test("caps the visible stack at five popups", () => {
   assert.equal(canFitPopup([80, 80, 80, 80, 80], 80, 1000, 5, 8), false)

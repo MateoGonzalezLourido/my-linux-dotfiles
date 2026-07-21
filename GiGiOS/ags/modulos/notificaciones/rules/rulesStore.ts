@@ -6,40 +6,13 @@ import GLib from "gi://GLib"
 import type { NotifRule } from "./types.ts"
 import { BUILTIN_RULES } from "./defaults.ts"
 import { compileRules, type RuleIndex } from "./engine.ts"
+import { cargarJson, crearGuardadoJsonProgramado } from "../estado/persistencia.ts"
 
 const RULES_PATH = `${GLib.get_user_config_dir()}/gigios/notif-rules.json`
 
 interface RulesFile {
   userRules: NotifRule[]
   builtinOverrides: Record<string, Partial<NotifRule>> // keyed by builtin id
-}
-
-function loadFile(): RulesFile {
-  try {
-    if (!GLib.file_test(RULES_PATH, GLib.FileTest.EXISTS)) {
-      return { userRules: [], builtinOverrides: {} }
-    }
-    const [ok, content] = GLib.file_get_contents(RULES_PATH)
-    if (ok) {
-      const data = JSON.parse(new TextDecoder().decode(content))
-      return { userRules: data.userRules ?? [], builtinOverrides: data.builtinOverrides ?? {} }
-    }
-  } catch (e) { console.error("[notif] loadFile failed:", e) }
-  return { userRules: [], builtinOverrides: {} }
-}
-
-let saveTimer: number | null = null
-function scheduleSave(file: RulesFile): void {
-  if (saveTimer !== null) GLib.source_remove(saveTimer)
-  saveTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 800, () => {
-    try {
-      const dir = GLib.path_get_dirname(RULES_PATH)
-      if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) GLib.mkdir_with_parents(dir, 0o755)
-      GLib.file_set_contents(RULES_PATH, JSON.stringify(file, null, 2))
-    } catch (e) { console.error("[notif] save rules failed:", e) }
-    saveTimer = null
-    return GLib.SOURCE_REMOVE
-  })
 }
 
 /** Compose builtin seeds (with overrides applied) + user rules into one list. */
@@ -51,16 +24,27 @@ function composeRules(file: RulesFile): NotifRule[] {
   return [...builtins, ...file.userRules]
 }
 
-const initialFile = loadFile()
+const archivoCargado = cargarJson<Partial<RulesFile>>(RULES_PATH, {}, "rules")
+const initialFile: RulesFile = {
+  userRules: archivoCargado.userRules ?? [],
+  builtinOverrides: archivoCargado.builtinOverrides ?? {},
+}
 
 // Reactive: the full rule list and the compiled index.
 export const [rulesFile, setRulesFile] = createState<RulesFile>(initialFile)
 export const [ruleIndex, setRuleIndex] = createState<RuleIndex>(compileRules(composeRules(initialFile)))
 
+const programarGuardado = crearGuardadoJsonProgramado(
+  RULES_PATH,
+  "rules",
+  800,
+  () => rulesFile.get(),
+)
+
 function recompile(file: RulesFile): void {
   setRulesFile(file)
   setRuleIndex(compileRules(composeRules(file)))
-  scheduleSave(file)
+  programarGuardado()
 }
 
 export function allRules(): NotifRule[] { return composeRules(rulesFile.get()) }
