@@ -2,12 +2,14 @@ export interface ElementoNavegacionBusqueda {
   marcarSeleccionado: (seleccionado: boolean) => void
   activar: () => void
   previsualizar?: () => void
+  enfocar?: () => void
 }
 
 type ZonaNavegacion = "resultados" | "submenu"
+export type DireccionCuadricula = "arriba" | "abajo" | "izquierda" | "derecha"
 
 /**
- * Fuente única de verdad para la navegación del buscador de Orion.
+ * Fuente única de verdad para navegar resultados y submenús de Orion.
  *
  * El foco de GTK permanece libre para la entrada de texto y la accesibilidad;
  * la selección visible y la activación dependen exclusivamente de este modelo.
@@ -17,12 +19,18 @@ export class NavegacionBusqueda {
   private acciones: ElementoNavegacionBusqueda[] = []
   private indiceResultado = -1
   private indiceAccion = -1
+  private columnasResultados = 1
   private zona: ZonaNavegacion = "resultados"
 
-  establecerResultados(resultados: ElementoNavegacionBusqueda[]): void {
+  establecerResultados(
+    resultados: ElementoNavegacionBusqueda[],
+    seleccionarPrimero = true,
+    columnas = 1,
+  ): void {
     this.desmarcarTodos()
     this.resultados = resultados
-    this.indiceResultado = resultados.length > 0 ? 0 : -1
+    this.indiceResultado = seleccionarPrimero && resultados.length > 0 ? 0 : -1
+    this.columnasResultados = Math.max(1, Math.trunc(columnas))
     this.zona = "resultados"
     this.marcarResultadoActual()
   }
@@ -63,11 +71,39 @@ export class NavegacionBusqueda {
     return true
   }
 
-  moverResultados(direccion: 1 | -1): boolean {
+  moverResultados(direccion: 1 | -1, previsualizar = true): boolean {
     if (this.resultados.length === 0) return false
+    if (this.indiceResultado < 0) {
+      this.seleccionarIndiceResultado(0, previsualizar)
+      this.enfocarResultadoActual()
+      return true
+    }
     const base = Math.max(0, this.indiceResultado)
     const siguiente = (base + direccion + this.resultados.length) % this.resultados.length
-    this.seleccionarIndiceResultado(siguiente, true)
+    this.seleccionarIndiceResultado(siguiente, previsualizar)
+    this.enfocarResultadoActual()
+    return true
+  }
+
+  moverEnCuadricula(direccion: DireccionCuadricula, previsualizar = true): boolean {
+    if (this.resultados.length === 0) return false
+    if (this.indiceResultado < 0) {
+      this.seleccionarIndiceResultado(0, previsualizar)
+      this.enfocarResultadoActual()
+      return true
+    }
+
+    const columnas = this.columnasResultados
+    const indice = this.indiceResultado
+    const columna = indice % columnas
+    let siguiente = indice
+    if (direccion === "izquierda" && columna > 0) siguiente = indice - 1
+    if (direccion === "derecha" && columna < columnas - 1 && indice + 1 < this.resultados.length) siguiente = indice + 1
+    if (direccion === "arriba" && indice - columnas >= 0) siguiente = indice - columnas
+    if (direccion === "abajo" && indice + columnas < this.resultados.length) siguiente = indice + columnas
+
+    if (siguiente !== indice) this.seleccionarIndiceResultado(siguiente, previsualizar)
+    this.enfocarResultadoActual()
     return true
   }
 
@@ -79,6 +115,7 @@ export class NavegacionBusqueda {
     const base = Math.max(0, this.indiceAccion)
     this.indiceAccion = (base + direccion + this.acciones.length) % this.acciones.length
     this.marcarAccionActual()
+    this.enfocarAccionActual()
     return true
   }
 
@@ -89,6 +126,7 @@ export class NavegacionBusqueda {
     this.zona = "submenu"
     this.indiceAccion = 0
     this.marcarAccionActual()
+    this.enfocarAccionActual()
     return true
   }
 
@@ -97,7 +135,20 @@ export class NavegacionBusqueda {
     this.desmarcarAccionActual()
     this.zona = "resultados"
     this.marcarResultadoActual()
+    this.enfocarResultadoActual()
     return true
+  }
+
+  estaEnSubmenu(): boolean {
+    return this.zona === "submenu"
+  }
+
+  activarResultadoYEntrarSubmenu(): boolean {
+    if (this.zona !== "resultados") return false
+    const resultado = this.resultados[this.indiceResultado]
+    if (!resultado) return false
+    resultado.activar()
+    return this.entrarSubmenu()
   }
 
   activarSeleccionado(): boolean {
@@ -134,6 +185,14 @@ export class NavegacionBusqueda {
 
   private desmarcarAccionActual(): void {
     this.acciones[this.indiceAccion]?.marcarSeleccionado(false)
+  }
+
+  private enfocarResultadoActual(): void {
+    this.resultados[this.indiceResultado]?.enfocar?.()
+  }
+
+  private enfocarAccionActual(): void {
+    this.acciones[this.indiceAccion]?.enfocar?.()
   }
 
   private desmarcarTodos(): void {

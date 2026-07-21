@@ -113,7 +113,7 @@ if [[ "$mode" == "--installed" ]]; then
     gwenview:gwenview haruna:haruna kate:kate kfind:kfind
     kolourpaint:kolourpaint libreoffice:libreoffice-fresh okular:okular
     partitionmanager:partitionmanager simple-scan:simple-scan
-    clamscan:clamav firejail:firejail bwrap:bubblewrap
+    clamscan:clamav firejail:firejail bwrap:bubblewrap gamemoded:gamemode
     xdg-user-dir:xdg-user-dirs
   )
   for entry in "${commands[@]}"; do

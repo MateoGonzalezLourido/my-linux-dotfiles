@@ -75,6 +75,7 @@ function crearFila(
       if (esApp) mostrarContextoApp(resultado)
       else hideRightPanel()
     },
+    enfocar: () => boton.grab_focus(),
     activar: () => activarResultado(resultado),
   }
 

@@ -50,6 +50,7 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
         if (seleccionado) boton.add_css_class("seleccionado")
         else boton.remove_css_class("seleccionado")
       },
+      enfocar: () => boton.grab_focus(),
       activar: alActivar,
     }
     boton.connect("notify::has-focus", () => {

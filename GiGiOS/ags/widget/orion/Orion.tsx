@@ -276,7 +276,8 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
           controlador.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         }}
         onKeyPressed={(_controlador, keyval, _keycode, state) => {
-          if (activeSection.get() !== "reactivo") return false
+          const seccion = activeSection.get()
+          if (seccion !== "reactivo" && seccion !== "apps") return false
 
           const modificadores = state as unknown as number
           const CTRL = 4, ALT = 8, SUPER = 0x4000000
@@ -286,21 +287,40 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
 
           if (keyval === Gdk.KEY_Tab || keyval === Gdk.KEY_ISO_Left_Tab) {
             const retroceder = keyval === Gdk.KEY_ISO_Left_Tab || (modificadores & 1) !== 0
+            if (seccion === "apps" && navegacion.estaEnSubmenu()) {
+              return navegacion.moverVertical(retroceder ? -1 : 1)
+            }
             return navegacion.moverResultados(retroceder ? -1 : 1)
           }
           if (keyval === Gdk.KEY_Up) {
+            if (seccion === "apps" && !navegacion.estaEnSubmenu()) {
+              return navegacion.moverEnCuadricula("arriba")
+            }
             return navegacion.moverVertical(-1)
           }
           if (keyval === Gdk.KEY_Down) {
+            if (seccion === "apps" && !navegacion.estaEnSubmenu()) {
+              return navegacion.moverEnCuadricula("abajo")
+            }
             return navegacion.moverVertical(1)
           }
           if (keyval === Gdk.KEY_Right) {
+            if (seccion === "apps") {
+              if (navegacion.estaEnSubmenu()) return true
+              return navegacion.moverEnCuadricula("derecha")
+            }
             return navegacion.entrarSubmenu()
           }
           if (keyval === Gdk.KEY_Left) {
+            if (seccion === "apps" && !navegacion.estaEnSubmenu()) {
+              return navegacion.moverEnCuadricula("izquierda")
+            }
             return navegacion.salirSubmenu()
           }
           if (keyval === Gdk.KEY_Return || keyval === Gdk.KEY_KP_Enter) {
+            if (seccion === "apps" && !navegacion.estaEnSubmenu()) {
+              return navegacion.activarResultadoYEntrarSubmenu()
+            }
             return navegacion.activarSeleccionado()
           }
           return false

@@ -31,6 +31,8 @@ import {
   brightness
 } from "./state"
 import { applyBrightness, brightnessSupported } from "./display/brightness"
+import { gamemodeAvailable, gamemodeActive, toggleGamemode } from "./power/gamemode"
+import { GAME_GLYPH } from "./bar/games/icon"
 import { clipWindowInputToContent } from "./inputRegion"
 import * as Spotify from "./services/spotify/SpotifyService"
 import {
@@ -798,6 +800,21 @@ function QsHeader() {
         <label cssClasses={["qs-date"]} label={date} halign={Gtk.Align.START} />
       </box>
       <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} cssClasses={["qs-header-actions"]}>
+        {/* Modo juego (Feral GameMode). Oculto si el paquete no está instalado:
+            sin `gamemoded` el botón no podría hacer nada. */}
+        <button
+          visible={gamemodeAvailable}
+          cssClasses={["bar-pill", "nb-pill"]}
+          tooltipText={gamemodeActive((a) => a
+            ? "Modo juego activo · GameMode prioriza el sistema para jugar"
+            : "Modo juego · activar GameMode")}
+          onClicked={toggleGamemode}
+        >
+          <label
+            cssClasses={gamemodeActive((a) => a ? ["nb-icon", "gm-icon", "active"] : ["nb-icon", "gm-icon"])}
+            label={GAME_GLYPH}
+          />
+        </button>
         <button
           cssClasses={["bar-pill", "nb-pill"]}
           onClicked={alternarPanelNotificaciones}

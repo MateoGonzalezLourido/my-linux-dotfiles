@@ -2,8 +2,17 @@ import { Gtk } from "ags/gtk4"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import Pango from "gi://Pango"
-import { hidePanel, showAppContext } from "../../state"
+import {
+  activeSection,
+  hidePanel,
+  rightPanelVisible,
+  showAppContext,
+} from "../../state"
 import { launchApp } from "../../data/launch"
+import type {
+  ElementoNavegacionBusqueda,
+  NavegacionBusqueda,
+} from "../NavegacionBusqueda"
 
 interface AppEntry {
   name: string
@@ -19,6 +28,11 @@ interface Category {
   id: string
   label: string
   gioKey: string
+}
+
+interface AppRenderizada {
+  widget: Gtk.Widget
+  navegable: ElementoNavegacionBusqueda
 }
 
 const CATEGORIES: Category[] = [
@@ -83,7 +97,12 @@ function launchAppDirect(app: AppEntry) {
   hidePanel()
 }
 
-function bindAppActivation(btn: Gtk.Button, app: AppEntry) {
+function bindAppActivation(
+  boton: Gtk.Button,
+  app: AppEntry,
+  navegacion: NavegacionBusqueda,
+  navegable: ElementoNavegacionBusqueda,
+) {
   let suppressClick = false
   const gesture = new Gtk.GestureClick()
   gesture.set_button(1)
@@ -97,18 +116,23 @@ function bindAppActivation(btn: Gtk.Button, app: AppEntry) {
         suppressClick = false
         return GLib.SOURCE_REMOVE
       })
+      navegacion.seleccionarResultado(navegable, false)
       launchAppDirect(app)
     }
   })
-  btn.add_controller(gesture)
-  btn.connect("clicked", () => {
+  boton.add_controller(gesture)
+  boton.connect("notify::has-focus", () => {
+    if (boton.has_focus) navegacion.seleccionarResultado(navegable, false)
+  })
+  boton.connect("clicked", () => {
+    navegacion.seleccionarResultado(navegable, false)
     if (suppressClick) { suppressClick = false; return }
     openAppContext(app)
   })
 }
 
-function buildAppRow(app: AppEntry): Gtk.Widget {
-  const btn = new Gtk.Button({ cssClasses: ["apps-row"], hexpand: true })
+function buildAppRow(app: AppEntry, navegacion: NavegacionBusqueda): AppRenderizada {
+  const boton = new Gtk.Button({ cssClasses: ["apps-row"], hexpand: true })
   const inner = new Gtk.Box({ spacing: 10 })
 
   const iconBox = new Gtk.Box({ cssClasses: ["apps-row-icon"], valign: Gtk.Align.CENTER })
@@ -121,15 +145,26 @@ function buildAppRow(app: AppEntry): Gtk.Widget {
     hexpand: true,
     ellipsize: 3,
   }))
-  btn.set_child(inner)
+  boton.set_child(inner)
 
-  bindAppActivation(btn, app)
+  const navegable: ElementoNavegacionBusqueda = {
+    marcarSeleccionado: (seleccionado) => {
+      if (seleccionado) boton.add_css_class("seleccionado")
+      else boton.remove_css_class("seleccionado")
+    },
+    previsualizar: () => {
+      if (rightPanelVisible.get()) openAppContext(app)
+    },
+    enfocar: () => boton.grab_focus(),
+    activar: () => openAppContext(app),
+  }
+  bindAppActivation(boton, app, navegacion, navegable)
 
-  return btn
+  return { widget: boton, navegable }
 }
 
-function buildAppTile(app: AppEntry): Gtk.Widget {
-  const btn = new Gtk.Button({ cssClasses: ["apps-tile"] })
+function buildAppTile(app: AppEntry, navegacion: NavegacionBusqueda): AppRenderizada {
+  const boton = new Gtk.Button({ cssClasses: ["apps-tile"] })
   const inner = new Gtk.Box({
     orientation: Gtk.Orientation.VERTICAL,
     cssClasses: ["apps-tile-inner"],
@@ -155,12 +190,23 @@ function buildAppTile(app: AppEntry): Gtk.Widget {
     justify: Gtk.Justification.CENTER,
     xalign: 0.5,
   }))
-  btn.set_child(inner)
-  bindAppActivation(btn, app)
-  return btn
+  boton.set_child(inner)
+  const navegable: ElementoNavegacionBusqueda = {
+    marcarSeleccionado: (seleccionado) => {
+      if (seleccionado) boton.add_css_class("seleccionado")
+      else boton.remove_css_class("seleccionado")
+    },
+    previsualizar: () => {
+      if (rightPanelVisible.get()) openAppContext(app)
+    },
+    enfocar: () => boton.grab_focus(),
+    activar: () => openAppContext(app),
+  }
+  bindAppActivation(boton, app, navegacion, navegable)
+  return { widget: boton, navegable }
 }
 
-export function AppsSection() {
+export function AppsSection(navegacion: NavegacionBusqueda) {
   // ── Category pills ────────────────────────────────────────────
   const catsBox = new Gtk.Box({ cssClasses: ["apps-cats"], spacing: 2 })
 
@@ -206,6 +252,7 @@ export function AppsSection() {
   const countLabel = new Gtk.Label({ cssClasses: ["apps-count"] })
   let currentApps: AppEntry[] = []
   let gridMode = true
+  let navegablesActuales: ElementoNavegacionBusqueda[] = []
 
   function clearViews() {
     let child = listBox.get_first_child()
@@ -216,13 +263,27 @@ export function AppsSection() {
 
   function renderMode() {
     clearViews()
+    navegablesActuales = []
     grid.visible = gridMode
     listBox.visible = !gridMode
     modeIcon.icon_name = gridMode ? "view-app-grid-symbolic" : "view-list-symbolic"
     modeLabel.label = gridMode ? "Mosaico" : "Lista"
     for (const app of currentApps) {
-      gridMode ? grid.append(buildAppTile(app)) : listBox.append(buildAppRow(app))
+      const renderizada = gridMode
+        ? buildAppTile(app, navegacion)
+        : buildAppRow(app, navegacion)
+      navegablesActuales.push(renderizada.navegable)
+      if (gridMode) grid.append(renderizada.widget)
+      else listBox.append(renderizada.widget)
     }
+    sincronizarNavegacion()
+  }
+
+  function sincronizarNavegacion(): void {
+    if (activeSection.get() !== "apps") return
+    // Al entrar no hay selección. La primera flecha o Tab seleccionan la
+    // primera app; a partir de ahí el modelo aplica el movimiento solicitado.
+    navegacion.establecerResultados(navegablesActuales, false, gridMode ? 6 : 1)
   }
 
   modeButton.connect("clicked", () => {
@@ -244,6 +305,7 @@ export function AppsSection() {
   }
 
   rebuild("all")
+  activeSection.subscribe(sincronizarNavegacion)
 
   const catsScroll = new Gtk.ScrolledWindow()
   catsScroll.set_css_classes(["apps-cats-scroll"])

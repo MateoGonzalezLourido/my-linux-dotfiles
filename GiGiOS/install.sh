@@ -75,7 +75,7 @@ install_packages() {
     smartmontools lm_sensors pciutils usbutils udisks2 lsof ntfsprogs dosfstools exfatprogs
     alsa-utils inotify-tools dbus kmod
     networkmanager bluez bluez-utils xdg-user-dirs
-    clamav firejail bubblewrap xxhash file cups geoclue
+    clamav firejail bubblewrap xxhash file cups geoclue gamemode
     mesa-utils lshw fd github-cli
   )
 

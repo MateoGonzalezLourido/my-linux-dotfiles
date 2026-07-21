@@ -2896,6 +2896,10 @@ button.qs-user-settings-btn {
 
     &.has-notifs { color: $violet; }
     &.dnd        { color: rgb(245, 50, 105); }
+
+    // Modo juego (Feral GameMode): gris apagado, violeta encendido — mismo
+    // contraste que .has-notifs, que es el "encendido" del resto del encabezado.
+    &.gm-icon.active { color: $violet; }
   }
 
   &.panel-open {

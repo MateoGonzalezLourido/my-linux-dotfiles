@@ -20,6 +20,7 @@ import { initNotifDaemonCheck } from "./widget/notifications/daemonCheck"
 import { initTrayApps } from "./widget/settings/trayApps"
 import { initGamingState } from "./widget/power/gamingState"
 import { initWakeUp } from "./widget/bar/functions/wakeup"
+import { initGamemode, toggleGamemode } from "./widget/power/gamemode"
 import { alternarBarPorTecla, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness } from "./widget/state"
 
 app.start({
@@ -51,6 +52,12 @@ app.start({
     if (argv.includes("brightness-down")) {
       stepBrightness(-0.1)
       response("ok")
+      return
+    }
+    // Mismo interruptor que el botón de mando de Quick Settings, por si algún día
+    // se quiere una tecla. La respuesta dice en qué estado queda.
+    if (argv.includes("toggle-gamemode")) {
+      response(toggleGamemode() ? "on" : "off")
       return
     }
     if (argv.includes("toggle-orion")) {
@@ -108,6 +115,10 @@ app.start({
     // demás (abajo): su único trabajo es limpiar estado heredado peligroso, y es
     // un borrado de fichero — retrasar justo eso no tiene sentido.
     initWakeUp()
+    // Misma razón, mismo sitio: un registro de GameMode huérfano de un AGS muerto
+    // dejaría el gobernador de CPU en `performance` sin UI donde apagarlo. Es un
+    // `pkill` acotado a nuestro argv0, así que tampoco tiene sentido apartarlo.
+    initGamemode()
 
     // ── Trabajo de fondo, apartado del pintado inicial ────────────────────────
     // Nada de esto se ve: son vigilantes y un barrido de limpieza. Corriendo aquí

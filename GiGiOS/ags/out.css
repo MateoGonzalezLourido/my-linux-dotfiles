@@ -614,6 +614,11 @@ popover.background {
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
+.apps-tile.seleccionado {
+  background: rgb(29.45, 25.38, 37.85);
+  border-color: rgba(203, 166, 247, 0.42);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(203, 166, 247, 0.14);
+}
 .apps-tile:active {
   background: rgb(27.5, 23.8, 35.5);
 }
@@ -651,6 +656,11 @@ popover.background {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
+}
+.apps-row.seleccionado {
+  background: rgb(29.45, 25.38, 37.85);
+  border-color: rgba(203, 166, 247, 0.42);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(203, 166, 247, 0.14);
 }
 
 .apps-row-icon {
@@ -3667,6 +3677,9 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
 }
 .bar-pill.nb-pill .nb-icon.dnd {
   color: rgb(245, 50, 105);
+}
+.bar-pill.nb-pill .nb-icon.gm-icon.active {
+  color: #cba6f7;
 }
 .bar-pill.nb-pill.panel-open {
   background-color: rgba(255, 255, 255, 0.07);
