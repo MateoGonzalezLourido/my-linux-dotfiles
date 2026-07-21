@@ -1,0 +1,20 @@
+// Paleta compartida por style.scss y por los módulos autocontenidos que
+// mantienen su propio SCSS (p. ej. modulos/orion/orion.scss). Cambiar un
+// color aquí lo cambia en todos los sitios que lo referencian, en vez de
+// tener el mismo hex copiado y pegado en cada fichero.
+
+$bg-bar: rgba(8, 8, 12);
+$bg-pill: rgba(255, 255, 255, 0.07);
+$bg-pill-hover: rgba(0, 0, 0, 0.36);
+$border: rgba(255, 255, 255, 0.308);
+$text: #e2e2e2;
+$text-dim: rgba($text, 0.45);
+$blue: #89b4fa;
+$violet: #cba6f7;
+$red: rgb(245, 50, 105);
+$orange: #fab387;
+$pink: #f38ba8;
+$teal: #94e2d5;
+$white: #ffffff;
+$font-icon: "MesloLGS Nerd Font";
+$radius-pill: 999px;
