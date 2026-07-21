@@ -13,7 +13,7 @@ fail() { printf 'ERROR   %s\n' "$*" >&2; errors=$((errors + 1)); }
 warn() { printf 'AVISO   %s\n' "$*"; warnings=$((warnings + 1)); }
 
 required=(
-  install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh ags/app.ts ags/style.scss ags/out.css
+  install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh ags/app.ts ags/estilos/style.scss ags/estilos/out.css
   mimeapps.list menus/applications.menu kdeglobals qt6ct/qt6ct.conf
   mime/packages/text-x-xresources.xml mime/packages/text-x-codigo.xml
   ags/servicios/juegos/evidencia.ts ags/servicios/juegos/iconos.ts
@@ -77,7 +77,7 @@ for script in \
   [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGIOS"/}"
 done
 
-[[ -s "$GIGIOS/ags/out.css" ]] || fail "ags/out.css falta o está vacío"
+[[ -s "$GIGIOS/ags/estilos/out.css" ]] || fail "ags/estilos/out.css falta o está vacío"
 app_icons="$GIGIOS/ags/config/app_icons.json"
 if [[ ! -s "$app_icons" ]]; then
   warn "sin ags/config/app_icons.json (los workspaces usarán iconos gráficos)"

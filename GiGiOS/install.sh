@@ -246,8 +246,8 @@ else
 fi
 
 # --- 7. Generar el CSS que importa app.ts ---
-SCSS="$HOME/GiGiOS/ags/style.scss"
-CSS="$HOME/GiGiOS/ags/out.css"
+SCSS="$HOME/GiGiOS/ags/estilos/style.scss"
+CSS="$HOME/GiGiOS/ags/estilos/out.css"
 APP_ICONS="$HOME/GiGiOS/ags/config/app_icons.json"
 
 [[ -f "$SCSS" ]] || die "Falta $SCSS. El checkout de GiGiOS está incompleto; vuelve a ejecutar el instalador o comprueba la rama '$BRANCH'."

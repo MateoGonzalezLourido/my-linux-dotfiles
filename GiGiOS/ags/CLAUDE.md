@@ -16,7 +16,7 @@ When a Hyprland restart is needed, use `hyprctl reload full-reset`: it also re-r
 `exec-once` entries from `hypr/autostart.conf`. A plain `hyprctl reload` only reloads the
 configuration and does not restart those autostart processes.
 
-There is no build/lint/test step for the shell itself. To verify a UI change, run the shell and observe it. `out.css` / `out.css.map` are compiled artifacts from `style.scss` — do not edit them by hand.
+There is no build/lint/test step for the shell itself. To verify a UI change, run the shell and observe it. `estilos/out.css` is a compiled artifact from `estilos/style.scss` — do not edit it by hand. Its source map is **not** kept next to it (see Styling below).
 
 Pure-logic modules (no GTK imports) are covered by Node's built-in test runner:
 
@@ -68,7 +68,37 @@ System services are GObject libraries imported as `gi://Astal*` (e.g. `AstalWp` 
 
 ### Styling
 
-Single global stylesheet `style.scss` (large, ~90KB). **`app.ts` imports `./out.css`, not the SCSS** — AGS does *not* compile SCSS at runtime, so editing `style.scss` has no visible effect until you regenerate the artifact: `sass --no-charset style.scss out.css` from `ags/` (rewrites `out.css` + `out.css.map`; `--no-charset` is required because GTK CSS rejects Sass's `@charset` rule). Dark catppuccin-inspired theme. Class-name prefixes scope features: `.nb-*`/`.np-*`/`.notif-*`/`.ns-*` for notifications, etc. Los módulos autocontenidos pueden conservar su propio SCSS, como `modulos/orion/orion.scss`. UI uses JetBrainsMono Nerd Font glyphs throughout for icons.
+Global stylesheet lives in `estilos/` (`style.scss`, large, ~90KB), not loose in `ags/` root —
+keeps the three style-related files (source, shared palette, compiled output) together instead of
+scattered next to `app.ts`. `estilos/_colores.scss` holds the shared color/font palette
+(`$bg-bar`, `$blue`, `$violet`, `$red`, `$orange`, `$pink`, `$teal`, `$text`, `$font-icon`, …) as
+the single source of truth; `style.scss` pulls it in with `@use 'colores' as *;` so every existing
+unprefixed `$blue`/`$text`/… reference keeps working. **`app.ts` imports `./estilos/out.css`, not
+the SCSS** — AGS does *not* compile SCSS at runtime, so editing `style.scss` has no visible effect
+until you regenerate the artifact:
+
+```sh
+sass --no-charset --source-map-urls=absolute estilos/style.scss estilos/out.css   # from ags/
+mv estilos/out.css.map ~/.cache/gigios/out.css.map
+sed -i "s#sourceMappingURL=out.css.map#sourceMappingURL=file://$HOME/.cache/gigios/out.css.map#" estilos/out.css
+```
+
+**El mapa NO se queda junto al CSS, a propósito.** `sass` no tiene una opción para elegir dónde
+escribe el `.map` por separado del `.css` — siempre lo escribe al lado con el mismo nombre base —
+así que dejarlo así habría añadido un cuarto fichero suelto (y sin versionar, ya que ni siquiera se
+commitea) justo en el directorio que se quería despejar. Se compila con
+`--source-map-urls=absolute` para que las rutas a los `.scss` de origen que quedan grabadas
+**dentro** del mapa sean absolutas — así el mapa sigue apuntando a las fuentes correctas aunque ya
+no viva en el mismo directorio que ellas — y solo entonces se mueve a
+`~/.cache/gigios/out.css.map` (mismo sitio que el resto de caché no versionada del proyecto, ver
+`sysinfo.json` en `modulos/ajustes/sistema/`) reescribiendo el comentario final de `out.css` para
+que apunte ahí. `--no-charset` sigue siendo obligatorio porque GTK CSS rechaza el `@charset` de
+Sass. Dark catppuccin-inspired theme. Class-name prefixes scope features: `.nb-*`/`.np-*`/`.notif-*`/`.ns-*`
+for notifications, etc. Los módulos autocontenidos pueden conservar su propio SCSS, como
+`modulos/orion/orion.scss` — que a su vez consume `estilos/_colores.scss` (`@use
+'../../estilos/colores' as c;`) para sus tokens `$j-accent`/`$j-text-primary`/`$j-bg-shell*` en vez
+de repetir los mismos hex; solo `$j-accent-pink` es un tono propio sin equivalente en la paleta
+global. UI uses JetBrainsMono Nerd Font glyphs throughout for icons.
 
 Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fab387` orange, `#f9e2af` yellow, `#a6e3a1` green, `#94e2d5` teal.
 

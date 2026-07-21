@@ -21,7 +21,7 @@ Aplica esto también a los archivos de pruebas cuando formen parte del cambio. N
 
 ## Estilo de código y convenciones de nombres
 
-Sigue el estilo existente de TypeScript/TSX en `ags/`: widgets funcionales, imports explícitos de `ags/gtk4` y `gi://...`, y módulos locales por funcionalidad. Mantén `ags/out.css` y `ags/out.css.map` fuera de ediciones manuales; cambia `ags/style.scss` en su lugar. Los archivos de Hyprland usan nombres descriptivos en minúsculas terminados en `.conf`; los scripts usan nombres en kebab-case y minúsculas terminados en `.sh`.
+Sigue el estilo existente de TypeScript/TSX en `ags/`: widgets funcionales, imports explícitos de `ags/gtk4` y `gi://...`, y módulos locales por funcionalidad. Mantén `ags/estilos/out.css` fuera de ediciones manuales; cambia `ags/estilos/style.scss` en su lugar (su `.map` ya no vive en el repo, se genera en `~/.cache/gigios/`). Los archivos de Hyprland usan nombres descriptivos en minúsculas terminados en `.conf`; los scripts usan nombres en kebab-case y minúsculas terminados en `.sh`.
 
 Usa español de forma consistente en los nombres y la documentación orientados al código en este repositorio: variables, funciones, comentarios y documentación deben mantener el mismo idioma y estilo de nombres, salvo que una API, dependencia o interfaz externa exija otro idioma. Esto mejora la coherencia y la mantenibilidad.
 
@@ -48,7 +48,7 @@ Usa español de forma consistente en los nombres y la documentación orientados 
 
 ### CSS
 
-- Mantén el CSS en `style.scss` siempre que sea posible, y procura que el CSS nuevo sea visualmente coherente con el diseño existente salvo que el usuario pida explícitamente otra cosa.
+- Mantén el CSS en `ags/estilos/style.scss` siempre que sea posible, y procura que el CSS nuevo sea visualmente coherente con el diseño existente salvo que el usuario pida explícitamente otra cosa.
 - Al añadir CSS nuevo, primero comprueba si puede compactarse dentro de un bloque existente en vez de crear otro bloque de clase casi idéntico.
 - Comprueba también si los estilos pueden agruparse en un elemento padre en lugar de duplicarse en varios hijos cuando eso mejore la mantenibilidad.
 

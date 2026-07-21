@@ -1,5 +1,5 @@
 import app from "ags/gtk4/app"
-import style from "./out.css"
+import style from "./estilos/out.css"
 import Barra from "./modulos/barra/Barra"
 import MenuEnergia from "./modulos/menu-energia/MenuEnergia"
 import OSD, { showOSD } from "./modulos/osd/OSD"

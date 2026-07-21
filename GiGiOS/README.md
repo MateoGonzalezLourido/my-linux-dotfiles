@@ -69,7 +69,7 @@ curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfi
 
 Este modo omite únicamente la instalación de paquetes: las dependencias siguen siendo
 necesarias para completar la validación. En Arch/CachyOS, `dart-sass` proporciona el
-comando `sass` que compila `ags/style.scss`.
+comando `sass` que compila `ags/estilos/style.scss`.
 
 ## Reparar o validar
 

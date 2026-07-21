@@ -1,6 +1,7 @@
 hypr/docs/superpowers/
 hypr/scripts/wallpaper.sh.save
 .directory
-ags/out.css.map
+ags/estilos/out.css.map
+ags/**/*.test.ts
 hypr/logs/
 hypr/scripts/__pycache__/

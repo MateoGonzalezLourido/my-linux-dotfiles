@@ -201,12 +201,15 @@ sudo pacman -S gjs gtk4-layer-shell gobject-introspection npm dart-sass
 Comprueba versión con `ags --version` (aquí: `3.1.0`). No hay `package.json` — AGS resuelve
 todo en runtime, no hace falta `npm install`.
 
-**Compilar el CSS** — `out.css` es un artefacto generado de `style.scss` y no se edita a
-mano. `install.sh` lo recompila automáticamente. Si modificas SCSS después, corre:
+**Compilar el CSS** — `estilos/out.css` es un artefacto generado de `estilos/style.scss` y no se
+edita a mano. `install.sh` lo recompila automáticamente. Si modificas SCSS después, corre:
 
 ```sh
-cd ~/.config/ags && sass style.scss out.css
+cd ~/.config/ags && sass --no-charset --no-source-map estilos/style.scss estilos/out.css
 ```
+
+(`--no-source-map` evita dejar un `.map` suelto en `estilos/`; para desarrollo del shell, con mapa
+de depuración enrutado a `~/.cache/gigios/`, ver `ags/CLAUDE.md`.)
 
 No hace falta hacerlo manualmente durante la primera instalación.
 En Arch/CachyOS, si aparece `sass: command not found`, instálalo con
@@ -768,8 +771,8 @@ migrar y qué se regenera solo.
 ### 14.2 Config/código del dotfiles — genérico, viaja igual para cualquiera que use este setup
 
 Todo lo demás dentro de `~/.config/hypr/*.conf`, `~/.config/hypr/scripts/`,
-`~/.config/hypr/envs/`, y todo `~/.config/ags/`: `app.ts`, `modulos/**`, `componentes/**`, `estado/**`, `servicios/**`, `utilidades/**`, `style.scss`
-(→ `out.css` generado, no se edita a mano).
+`~/.config/hypr/envs/`, y todo `~/.config/ags/`: `app.ts`, `modulos/**`, `componentes/**`, `estado/**`, `servicios/**`, `utilidades/**`, `estilos/style.scss`
+(→ `estilos/out.css` generado, no se edita a mano; su `.map` de depuración se genera fuera del repo, en `~/.cache/gigios/`).
 
 ### 14.3 Fuera de `hypr/` y `ags/`, pero incluidos en este repositorio
 
