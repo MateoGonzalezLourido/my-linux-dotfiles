@@ -1,21 +1,6 @@
 @use 'sass:color';
+@use 'colores' as *;
 @use 'modulos/orion/orion';
-
-$bg-bar: rgba(8, 8, 12);
-$bg-pill: rgba(255, 255, 255, 0.07);
-$bg-pill-hover: rgba(0, 0, 0, 0.36);
-$border: rgba(255, 255, 255, 0.308);
-$text: #e2e2e2;
-$text-dim: rgba($text, 0.45);
-$blue: #89b4fa;
-$violet: #cba6f7;
-$red: rgb(245, 50, 105);
-$orange: #fab387;
-$pink: #f38ba8;
-$teal: #94e2d5;
-$white: #ffffff;
-$font-icon: "MesloLGS Nerd Font";
-$radius-pill: 999px;
 
 // Quita el fondo/borde/sombra por defecto del tema GTK de un nodo (botón,
 // popover, scrollbar...) para que solo se vea lo que defina la regla concreta.

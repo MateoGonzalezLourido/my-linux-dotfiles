@@ -1,11 +1,15 @@
 @use 'sass:color';
+@use '../../colores' as c;
 
 // ═══════════════════════════════════════════════════════════
 // ORION PANEL
 // ═══════════════════════════════════════════════════════════
 
 // ── Tokens ──────────────────────────────────────────────────
-$j-bg-shell-opaco: rgb(8, 8, 12);
+// Los tokens de color/texto que coinciden con la paleta global de style.scss
+// se derivan de _colores.scss para que no puedan divergir; $j-accent-pink no
+// tiene equivalente ahí (es un tono propio de Orion) y se queda literal.
+$j-bg-shell-opaco: c.$bg-bar;
 
 // Compone los tintes de los controles sobre una base sólida. El color conserva
 // el contraste anterior, pero el píxel final ya no deja pasar el blur del shell.
@@ -18,32 +22,32 @@ $j-bg-shell-opaco: rgb(8, 8, 12);
   );
 }
 
-$j-bg-shell:       rgba(8, 8, 12, 0.94);
+$j-bg-shell:       rgba(c.$bg-bar, 0.94);
 $j-bg-item:        fondo-control-opaco(rgba(255, 255, 255, 0.035));
 $j-bg-item-hover:  fondo-control-opaco(rgba(255, 255, 255, 0.075));
-$j-bg-item-active: fondo-control-opaco(rgba(203, 166, 247, 0.11));
+$j-bg-item-active: fondo-control-opaco(rgba(c.$violet, 0.11));
 
-$j-accent:         #89b4fa;
-$j-accent-teal:    #94e2d5;
+$j-accent:         c.$blue;
+$j-accent-teal:    c.$teal;
 $j-accent-pink:    #f5c2e7;
-$j-accent-purple:  #cba6f7;
-$j-accent-amber:   #fab387;
-$j-accent-red:     #f38ba8;
+$j-accent-purple:  c.$violet;
+$j-accent-amber:   c.$orange;
+$j-accent-red:     c.$pink;
 
-$j-text-primary:   #e2e2e2;
+$j-text-primary:   c.$text;
 $j-text-secondary: rgba(226, 226, 226, 0.62);
 $j-text-muted:     rgba(226, 226, 226, 0.32);
 
 $j-border-subtle:  rgba(255, 255, 255, 0.055);
 $j-border-normal:  rgba(255, 255, 255, 0.105);
-$j-border-active:  rgba(203, 166, 247, 0.42);
+$j-border-active:  rgba(c.$violet, 0.42);
 
 $j-radius:    24px;
 $j-radius-md: 14px;
 $j-radius-sm: 11px;
 $j-radius-xs: 8px;
 
-$j-font-mono: 'MesloLGS Nerd Font', 'Fira Code', monospace;
+$j-font-mono: c.$font-icon, 'Fira Code', monospace;
 $j-font-sans: 'Inter', system-ui, sans-serif;
 
 // Relieve compartido para los controles interactivos de Orion. El fondo sigue
