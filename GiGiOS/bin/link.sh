@@ -29,16 +29,11 @@ LINKS=(
   "qt6ct/qt6ct.conf::$HOME/.config/qt6ct/qt6ct.conf"
   "mime/packages/text-x-xresources.xml::$HOME/.local/share/mime/packages/text-x-xresources.xml"
   "mime/packages/text-x-codigo.xml::$HOME/.local/share/mime/packages/text-x-codigo.xml"
-  "cache/power-save::$HOME/.config/power-save"
-  "state/orion::$HOME/.local/share/orion"
 )
 
 # Orígenes que son datos de runtime y arrancan vacíos: se crean si faltan,
 # en vez de fallar. Evita tener que versionar un .gitkeep sólo para el symlink.
-CREATABLE=(
-  "state/orion"
-  "cache/power-save"
-)
+CREATABLE=()
 
 mode=link
 case "${1:-}" in
@@ -175,6 +170,51 @@ for entry in "${LINKS[@]}"; do
   mkdir -p "$(dirname "$dst")"
   ln -sfn "$src" "$dst"
   echo "LINK  $dst -> $src"
+done
+
+# ── Datos de runtime que ya NO viven dentro del repo ─────────────────────────
+# power-save y orion se enlazaban antes con un symlink XDG -> GiGiOS (mismo
+# esquema que el resto de LINKS), pero eso deja el dato REAL dentro del árbol
+# que gestiona git: un `git clean`, un reset del checkout bare o restaurar un
+# backup del repo se lo llevaría por delante. Ahora el dato real vive
+# directamente en su ruta XDG, sin symlink de por medio; esto solo migra lo
+# que quede de instalaciones con el esquema viejo (symlink apuntando al repo,
+# o el propio directorio todavía dentro de GiGiOS) y crea la ruta si falta.
+MIGRATE_OUT=(
+  "cache/power-save::$HOME/.config/power-save"
+  "state/orion::$HOME/.local/share/orion"
+)
+for entry in "${MIGRATE_OUT[@]}"; do
+  src="$GIGIOS/${entry%%::*}"
+  dst="${entry##*::}"
+
+  if [[ -L "$dst" ]]; then
+    phys="$(readlink -f "$dst" 2>/dev/null || true)"
+    if [[ -n "$phys" && ( "$phys" == "$gigios_phys" || "$phys" == "$gigios_phys"/* ) ]]; then
+      if [[ "$mode" == check ]]; then
+        echo "MIGRAR $dst (symlink viejo al repo; debería ser un directorio real)"; status=1; continue
+      fi
+      rm -f "$dst"
+      mkdir -p "$(dirname "$dst")"
+      if [[ -e "$src" ]]; then mv "$src" "$dst"; echo "MOVE  $dst <- $src"
+      else mkdir -p "$dst"; echo "MKDIR $dst (dato de runtime)"; fi
+      rmdir "$(dirname "$src")" 2>/dev/null || true
+    fi
+  elif [[ ! -e "$dst" && -e "$src" ]]; then
+    if [[ "$mode" == check ]]; then
+      echo "MIGRAR $dst (datos aún en $src)"; status=1; continue
+    fi
+    mkdir -p "$(dirname "$dst")"
+    mv "$src" "$dst"; echo "MOVE  $dst <- $src"
+    rmdir "$(dirname "$src")" 2>/dev/null || true
+  elif [[ ! -e "$dst" ]]; then
+    if [[ "$mode" == check ]]; then
+      echo "FALTA $dst (dato de runtime; se crea vacío)"; status=1; continue
+    fi
+    mkdir -p "$dst"; echo "MKDIR $dst (dato de runtime)"
+  else
+    echo "OK    $dst"
+  fi
 done
 
 # ── Foto de perfil ───────────────────────────────────────────────────────────

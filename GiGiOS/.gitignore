@@ -2,7 +2,5 @@ hypr/docs/superpowers/
 hypr/scripts/wallpaper.sh.save
 .directory
 ags/out.css.map
-cache/power-save/
 hypr/logs/
 hypr/scripts/__pycache__/
-state/orion/

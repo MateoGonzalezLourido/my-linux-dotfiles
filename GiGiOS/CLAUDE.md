@@ -16,10 +16,18 @@ XDG paths via **symlinks**, not copies. The three big components are:
   hardware state (brightness, night light, wifi, bluetooth, volume). Symlinked to `~/.config/inicializador`.
 
 Supporting dirs: `Wallpapers/` (used directly by `wallpaper.sh`, no symlink),
-`state/orion/` → `~/.local/share/orion`, `cache/power-save/` → `~/.config/power-save`,
 `bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
 `system/` (ficheros que van a `/etc`, **no** se symlinkean: se instalan con `sudo` — la regla udev de
 escritura en USB y la carga del módulo `i2c-dev`; ver las secciones de USB y de brillo).
+
+`power-save/config.json` y `orion/favorites.json` **ya no viven dentro del repo**: antes
+`GiGiOS/cache/power-save/` y `GiGiOS/state/orion/` guardaban el dato real y un symlink XDG
+apuntaba hacia dentro (mismo esquema que `ags/`/`hypr/`), pero eso dejaba datos de usuario
+dentro del árbol que gestiona git — un `git clean`, un reset del checkout bare o restaurar un
+backup del repo se los habría llevado por delante. Ahora viven directamente en
+`~/.config/power-save/` y `~/.local/share/orion/`, sin symlink de por medio, junto con el resto
+de datos de runtime (ver la sección siguiente). `bin/link.sh` migra automáticamente cualquier
+instalación que todavía tenga el esquema viejo.
 
 ## Git caveat
 
@@ -64,8 +72,10 @@ unless the application's limitations are documented there.
 
 User/runtime state is **not** versioned. It lives in `~/.config/gigios/` (`display.json`,
 `system_state.json`, `notifications.json`, `preferences.json`, …), plus `~/.config/jarvis/`
-and `~/.local/share/jarvis/` for the Orion launcher. These are data written/read by widgets
-and scripts at runtime — not code.
+and `~/.local/share/jarvis/` for the Orion launcher, `~/.config/power-save/config.json`
+(umbral y filtros de modo ahorro) and `~/.local/share/orion/favorites.json` (favoritos del
+launcher — ver "What this is" para por qué estos dos últimos dejaron de vivir dentro del repo).
+These are data written/read by widgets and scripts at runtime — not code.
 
 `~/.config/gigios/spotify-creds.json` y `~/.config/gigios/google-calendar-creds.json` son
 **secretos en texto plano** (chmod 600) y no pueden commitearse ni copiarse dentro del repo. Se
@@ -81,6 +91,10 @@ nada, no que se deje una copia dentro de git. El orden es escribir el destino y 
 borrar el origen. Las alarmas se persisten; el temporizador y el cronómetro son de sesión.
 
 ## Hyprland structure
+
+For the directory layout, the exact `source=` order, and which script fires from where, see
+[`docs/hypr-estructura.md`](docs/hypr-estructura.md) — this section only covers the *why* behind
+specific decisions, not a structural map.
 
 `hypr/hyprland.conf` is a thin entry point that `source`s the split configs (`env`, `monitors`,
 `input`, `windows`, `animations`, `rules`, `keybinds`, `autostart`, `permissions`, …). Note:

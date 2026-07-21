@@ -51,22 +51,14 @@ GiGiOS/hypr/logs/
 # jarvis: datos privados del launcher (repos detectados) — no versionar
 GiGiOS/jarvis/
 
-# Estado y sesiones del launcher orion — datos por-usuario, no versionar.
-# El directorio lo crea GiGiOS/bin/link.sh si falta (no hace falta versionarlo).
-GiGiOS/state/orion/
-
 # Copias archivadas sin uso (código muerto)
 GiGiOS/_legacy/
 
 # Snapshots de migración
 GiGiOS/preflight-snapshot.txt
 
-# Cache / datos de runtime por-usuario — no versionar.
-# Los subdirectorios los crea GiGiOS/bin/link.sh si faltan (marcados CREATABLE).
-GiGiOS/cache/
-
 # Foto de perfil: mecanismo viejo eliminado (ahora estandarizada en
-# ~/.cache/gigios/face.png, ver GiGiOS/hypr/SETUP.md §13). Se ignoran para que los
+# ~/.cache/gigios/face.png, ver GiGiOS/docs/SETUP.md §13). Se ignoran para que los
 # dispositivos que todavía los tienen en disco no los vuelvan a añadir.
 GiGiOS/hypr/hyprlock_avatar.png
 GiGiOS/assets/face.png
