@@ -146,6 +146,17 @@ avisaba de "no hay WiFi" habiéndola, y dejaba la sesión sin monitor). Hoy: hay
 **kernel** y no depende de NM, así que no reintroduce la carrera); hay antena pero NM no la
 publica → reintenta 30 s y solo entonces avisa, que ahí sí es un problema real.
 
+**Una vez con interfaz, es 100 % dirigido por eventos**: bloquea en `nmcli monitor` (D-Bus de
+NetworkManager) y no sondea nada mientras está inactivo. La línea global `"Connectivity is now
+'X'"` de `nmcli monitor` refleja la conectividad **primaria** de NetworkManager, no la de la wifi
+en concreto — con cable y wifi a la vez ese evento puede venir del cable —, así que ante cualquier
+cambio se reconsulta la conectividad **por interfaz** (`IP4-CONNECTIVITY` de `$IFACE`) y solo se
+avisa de portal cautivo si el portal es el de la wifi. `LC_ALL=C` fuerza inglés en la lectura de
+`nmcli monitor` porque sus palabras clave (`connected`/`disconnected`) son fijas en ese idioma
+independientemente del locale del sistema — lo que ve el usuario por `notify-send` sigue en
+español, definido aparte en las funciones `notify_*`. Si `nmcli monitor` muere (NetworkManager se
+reinicia), el bucle exterior lo relanza en vez de dejar el daemon colgado para siempre.
+
 ### Wake up: la puerta `idle-action.sh` delante de hypridle
 
 **Los `on-timeout` de `hypridle.conf` ya no llaman a la acción: llaman a
@@ -862,6 +873,171 @@ so it descends into archives), notifying clean / infected / couldn't-scan. Invok
 button on the oversized-file notification and by the "Analizar un archivo con ClamAV" path field in
 `ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`. Both `run-untrusted.sh` and `scan-file.sh` prefer `clamscan` and fall back
 across engines, and both surface a clear "run `sudo freshclam`" hint when the signature DB is missing.
+
+### Comprobación de arranque (`boot-healthcheck.sh`)
+
+Es el `exec-once` más caro del arranque —de ahí que vaya al final del calendario escalonado, a
+`t=30` (ver la sección de `autostart.conf` más arriba)— y por eso está pensado para ser **silencioso
+en una máquina sana**: solo notifica por categoría cuando encuentra un problema, y todo (incluida la
+pasada limpia) queda en `hypr/logs/boot-healthcheck.log` (ignorado por git, ver `.gitignore`).
+Ejecutado a mano responde al instante — el retraso lo pone quien lo lanza, no el script.
+
+**Fase 1 autodescubre el hardware presente** (batería, GPU NVIDIA, NVMe, SATA, soporte SMART,
+sensores de ventilador, swap, Bluetooth, audio, red, USB) y la Fase 2 solo comprueba las categorías
+cuyo hardware existe — un sobremesa sin batería no recibe ningún chequeo de batería, ni un aviso de
+que no la tiene. La GPU NVIDIA se detecta por **PCI** (`lspci`/`vendor` sysfs), no por si el módulo
+`nvidia` está cargado: mirar el módulo primero se comería precisamente el caso que este chequeo
+existe para pillar (GPU presente, driver no cargado).
+
+**Varios comandos caros se ejecutan una sola vez y se reutilizan entre chequeos** (`sensors`,
+`rfkill list bluetooth`, `aplay -l`, `ip link show`, `journalctl -b -1`): cada uno alimenta dos
+comprobaciones distintas (existencia + estado) con la misma lectura, en vez de invocar el comando
+dos veces por una diferencia de grep. El de ventilador parado además se beneficia de que sea **la
+misma muestra**: correlaciona la temperatura de CPU y las RPM del ventilador de una única lectura de
+`sensors`, no de dos llamadas casi simultáneas que podrían no coincidir.
+
+**Los errores de kernel/journal se deduplican por proceso/unidad**, no por línea — N repeticiones
+de la misma fuente cuentan como un solo problema, y se filtra ruido conocido de antemano (ACPI,
+init de Bluetooth, nouveau, WMI, variables EFI, pstore, firmware). El chequeo de suspensión/hibernación
+mira el **arranque anterior** (`journalctl -b -1`), no el actual: busca errores de suspend/hibernate,
+servicios `systemd-*sleep*` en estado failed, y señales de reinicio forzado (watchdog, "rebooted
+forcefully", modo de emergencia) — con `sddm-helper` excluido a propósito porque incrusta el log de
+Xorg, que contiene literalmente la cadena "nowatchdog" en su `cmdline` y daría un falso positivo.
+
+**La salud de batería compara `energy_full` contra `energy_full_design`** (o su par `charge_*` en
+equipos que no exponen energía), no un simple porcentaje de carga — es la métrica de degradación
+real de la celda, y avisa por debajo del 80 % de la capacidad de diseño original.
+
+### Grabar pantalla (`grabar-pantalla.sh`)
+
+Toggle de dos invocaciones: la primera arranca `wf-recorder` en segundo plano y bloquea esperándolo;
+la segunda (mismo atajo) detecta que ya hay una grabación y le manda `SIGINT` para que cierre el
+contenedor MP4 correctamente en vez de dejarlo truncado. Todo el estado va protegido por un
+`flock` sobre un fichero de bloqueo — necesario porque pulsar el atajo dos veces seguidas rápido es
+exactamente el caso de uso.
+
+**Validar "hay una grabación activa" no se conforma con que el PID exista.** Comprueba además que
+`/proc/$pid/comm` sea literalmente `wf-recorder` **y** que `/proc/$pid/cmdline` contenga la ruta de
+salida exacta que se guardó — un PID reciclado por otro proceso cualquiera tras un cierre forzado no
+basta para que el toggle lo confunda con "sigue grabando". Solo si esa doble comprobación falla se
+borra el fichero de estado (nunca antes, para no perder la referencia a una grabación real que sigue
+viva).
+
+**El modo `ventana` restringe `slurp` a las ventanas realmente seleccionables**: geometrías sacadas
+de `hyprctl clients -j`, filtradas a las que están en un workspace **visible ahora mismo** (según
+`hyprctl monitors -j`), mapeadas, no ocultas y con tamaño > 0 — en vez de dejar a `slurp` seleccionar
+una región libre de la pantalla. Cancelar con Esc sale con código 0 en silencio, no es un error.
+
+Graba **siempre** con el audio interno del sistema: resuelve el sink por defecto con
+`pactl get-default-sink` y usa su fuente `.monitor`, verificando primero que esa fuente exista de
+verdad en `pactl list short sources` antes de arrancar. Tras lanzar `wf-recorder` espera 0.25 s y
+comprueba que el proceso siga vivo — así un fallo inmediato de salida, audio o códec no se anuncia
+como "grabación iniciada" cuando en realidad murió al instante.
+
+### Portapapeles (`clipboard-history.sh`, `limpiar-portapapeles.sh`, `miniatura-portapapeles.sh`)
+
+`clipboard-history.sh start` arranca el watcher (`wl-paste --watch cliphist store`) con
+**`setsid --fork`**, no con `exec` ni en primer plano: así queda reparentado a init y sobrevive a
+quien lo lanzó — tanto Hyprland (`autostart.conf`) como AGS (`execAsync`) llaman a `start`, y antes
+el watcher moría junto con AGS por usar `exec`. Dos patrones de proceso distintos cumplen roles
+distintos: uno general (cualquier límite de `-max-items`) sirve para detectar y **sustituir** un
+watcher que quedó con un límite antiguo sin perder el historial ya guardado (`stop` no vale para
+eso: también hace `cliphist wipe`), y uno exacto (límite actual) sirve para el caso normal de "ya
+está corriendo bien, no hacer nada".
+
+`picker` (SUPER+V) es un toggle de Rofi: si ya está abierto, la segunda pulsación lo cierra. Con el
+historial desactivado por preferencia no abre nada (`stop` ya lo vació, no hay qué mostrar). El AWK
+que arma la lista distingue tres tipos de entrada de `cliphist`: imágenes binarias (miniatura vía
+`miniatura-portapapeles.sh`), rutas de imagen en texto (decodificando `file://` con sus `%XX`), y
+texto normal — conservando el ID de `cliphist` en una columna oculta para poder decodificar la
+selección exacta. Cancelar (Esc) sale con 0 sin tocar el portapapeles, para no pisar con un
+`wl-copy` vacío lo que el usuario tenía copiado.
+
+`miniatura-portapapeles.sh` no crea ficheros intermedios ni caché propia: canaliza
+`cliphist decode` directo a ImageMagick, con límites de memoria/mapa/disco (128 MiB/0/0) para acotar
+el coste de generar una miniatura bajo demanda, escribiendo ya en la ruta que espera Rofi.
+
+`limpiar-portapapeles.sh` tiene dos entradas: `limpiar` (llamada directa, p. ej. desde AGS) y
+`al-iniciar` (la usa `autostart.conf`, respeta la preferencia `limpiezaPortapapelesAlIniciar`).
+Borra primero la selección activa de Wayland (`wl-copy --clear`) y solo después el historial
+persistente (`cliphist wipe`) — en ese orden: si el watcher llegara a capturar el clear como una
+entrada nueva, el wipe posterior se la lleva también.
+
+### Utilidades cortas de un solo uso
+
+- **`aplicar-filtro-daltonismo.sh`** — aplica o quita un shader de pantalla de Hyprland
+  (`decoration:screen_shader`) para protanopia/deuteranopia/tritanopia. Sin sondeo: lo invoca AGS al
+  cambiar el ajuste y Hyprland en cada arranque/recarga para restaurar `modoDaltonismo` de
+  `preferences.json`; sin argumento lee esa preferencia en el momento, sin caché.
+- **`compact-workspaces.sh`** — renumera los escritorios ocupados a IDs consecutivos desde 1,
+  moviendo ventanas en silencio (`movetoworkspacesilent`) y siguiendo al escritorio activo hasta su
+  nuevo número. Sale sin hacer nada si no hay ninguna ventana en ningún escritorio. Es el motor que
+  usa `escaner-apps-inicio.sh` cuando detecta dos o más escritorios destino (ver esa sección) — y por
+  lo que esa sección advierte que los IDs deben releerse **después** de compactar.
+- **`toggle-orion.sh`** — antes de tocar nada comprueba el ajuste maestro `orion` en
+  `preferences.json`: si está desactivado no manda el toggle a AGS, porque deliberadamente no hay
+  ninguna ventana registrada que responda. Intenta primero `ags request toggle-orion` y solo si falla
+  o no devuelve `"ok"` cae a `ags toggle orion` — cubre la breve ventana de una recarga en la que el
+  script enlazado en disco ya se actualizó pero la instancia de AGS en marcha todavía no, sin la cual
+  el atajo quedaría inservible justo en ese momento.
+- **`toggle-gaps-borders.sh`** — alterna gaps/rounding a 0 (modo compacto) y de vuelta a valores fijos
+  (`gaps_in 2.5`, `gaps_out 8`, `rounding 6`) marcados por un fichero de estado en
+  `$XDG_RUNTIME_DIR`. Esos valores de "vuelta a la normalidad" están escritos aquí, no leídos de
+  `userprefs.conf` — si algún día cambias los gaps por defecto ahí, hay que replicarlo en este script
+  o el toggle "restaurará" un valor obsoleto.
+- **`wallpaper.sh`** — tres modos: sin argumento (arranque, respeta `randomOnStart`), `--random`
+  (botón de Orion) y `<ruta>` (clic en una miniatura de Orion). El campo `current` de
+  `~/.config/gigios/wallpaper.json` lo escribe **siempre este script** tras aplicar un fondo, y
+  `randomOnStart` lo escribe **siempre AGS** desde su toggle — cada lado hace read-modify-write
+  conservando el campo del otro, así que ninguno pisa el ajuste del otro por accidente. Léelo con el
+  mismo cuidado que el resto del repo: `.randomOnStart // true` sería incorrecto (el `//` de `jq`
+  trataría un `false` real como ausente), de ahí el `if .randomOnStart == false then … end`
+  explícito. En modo arranque, si `randomOnStart` es falso pero no hay `current` guardado o el
+  fichero ya no existe, cae a uno aleatorio en vez de fallar.
+
+### Monitores de recursos restantes (`battery-monitor.sh`, `temp-monitor.sh`, `ram-monitor.sh`, `disk-monitor.sh`, `bt-monitor.sh`)
+
+Los tres primeros comparten un mismo molde: bucle de sondeo con **solo builtins de bash** en el
+camino caliente (sin forks salvo `notify-send`/`jq` cuando de verdad hay algo que decir), histéresis
+para no oscilar en el umbral, e **intervalo de sondeo adaptativo** (más corto cerca del umbral, más
+largo con margen de sobra) para reducir despertares. Los tres leen su interruptor de
+`preferences.json` **una sola vez al arrancar** con el mismo cuidado repetido por todo el repo: NO
+`.claveMonitor // true`, porque el operador `//` de `jq` trata un `false` literal como ausente y ese
+"apagado" nunca surtiría efecto — se lee con `if has(...)`.
+
+- **`battery-monitor.sh`** — sondeo adaptativo (30/60/90 s) de `/sys/class/power_supply/BAT0`. Nunca
+  avisa de modo ahorro ni de batería baja mientras carga (se resetean los flags al pasar a
+  `Charging`). Espeja el umbral de ahorro de energía de AGS leyendo
+  `~/.config/power-save/config.json` cada 10 min como mucho. El primer estado tras arrancar
+  (`prev_status=""`) se trata como válido en vez de como un caso aparte, para no disparar un falso
+  "cargador desconectado" en el login. La detección de "carga completa" cubre tanto `status=Full`
+  como `Charging` al 100 % — hay baterías que nunca reportan `Full`.
+- **`temp-monitor.sh`** — resuelve la ruta sysfs de `coretemp` ("Package id 0") **una sola vez** al
+  arrancar, no en cada vuelta; la GPU usa `nvidia-smi` (este driver no expone temperatura por hwmon
+  en esta máquina) solo si está presente. Histéresis 85 °C/80 °C, sondeo 15 s cerca del umbral, 60 s
+  en reposo.
+- **`ram-monitor.sh`** — usa `MemAvailable` de `/proc/meminfo`, no un porcentaje de uso: es la
+  estimación del propio kernel de lo reutilizable sin llegar a swap (descuenta caché reclamable), así
+  que no confunde el cacheo agresivo normal de Linux con memoria realmente agotada. Umbral absoluto en
+  MB (no %) porque el mismo porcentaje significa márgenes reales muy distintos en un portátil de 4 GB
+  que en un sobremesa de 32 GB. El parseo aprovecha que `MemAvailable` sale entre las primeras líneas
+  del fichero para cortar el bucle en cuanto aparece.
+- **`disk-monitor.sh`** — **no es un daemon**: corre una vez al login y sale. El espacio libre no
+  tiene fuente de eventos y quedarse sin él es raro, así que una sola comprobación al arrancar es el
+  compromiso correcto — coste cero el resto de la sesión. Deduplica por dispositivo (los subvolúmenes
+  btrfs reportan el mismo dispositivo bajo varios puntos de montaje) e ignora particiones por debajo
+  de 6 GB (EFI, boot) por no valer la pena vigilarlas.
+- **`bt-monitor.sh`** — distingue una pérdida de Bluetooth **inesperada** de una intencionada.
+  Suscripción única y siempre activa a D-Bus del sistema (barata mientras bloquea) a los eventos
+  `PropertiesChanged` de `Connected` y a las llamadas al método `Disconnect()` de BlueZ: una
+  desconexión manual (`bluetoothctl`, ajustes de GNOME/KDE, blueman — cualquier cosa que pase por la
+  API estándar) se reconoce por esa llamada a `Disconnect()` y se calla si el `Connected: false`
+  correspondiente llega dentro de una ventana de 5 s; y si el adaptador está apagado tampoco avisa
+  (apagar el Bluetooth no es "perder" un dispositivo). Una pérdida genuina espera 10 s de gracia
+  (cubre desconexiones breves con auto-reconexión) antes de confirmar y notificar, comprobando de
+  nuevo el estado en un subproceso en segundo plano mientras el bucle principal sigue leyendo eventos.
+  El nombre del dispositivo se captura en el momento de la caída, mientras todavía está en la caché de
+  `bluetoothd` — puede dejar de resolverse una vez desconectado de verdad.
 
 ## init.sh (hardware state restore)
 
