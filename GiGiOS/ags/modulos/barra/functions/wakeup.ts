@@ -25,8 +25,8 @@
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createState } from "ags"
-import { execAsync } from "ags/process"
 import { parseMinutes, normalizeMinutesText } from "./wakeupTime"
+import { reiniciarHypridle } from "../../../servicios/pantalla/reinicioHypridle"
 
 const STATE_PATH = `${GLib.get_user_config_dir()}/gigios/wakeup.json`
 
@@ -79,10 +79,6 @@ function writeState(active: boolean) {
 // los contadores desde cero, así que la cuenta normal (apagar/bloquear/suspender)
 // vuelve a correr a partir de ahora. Mismo `pkill; &` que usa InactividadSection.tsx al
 // guardar los tiempos.
-function restartHypridle() {
-  execAsync(["bash", "-c", "pkill hypridle; hypridle &"]).catch(() => {})
-}
-
 function stopTick() {
   if (tick !== null) {
     GLib.source_remove(tick)
@@ -132,7 +128,7 @@ export function setWakeUpActive(on: boolean) {
   _setRemaining(null)
   stopTick()
   writeState(false)
-  restartHypridle()
+  reiniciarHypridle().catch(() => {})
 }
 
 /** Cambiar los minutos con el Wake up encendido reprograma la cuenta atrás en caliente. */

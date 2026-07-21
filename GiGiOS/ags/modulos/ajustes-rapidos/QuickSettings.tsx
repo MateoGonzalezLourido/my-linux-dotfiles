@@ -1,6 +1,6 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState, For, With, createComputed } from "ags"
+import { createState, For, With, createComputed, onCleanup } from "ags"
 import { createBinding } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
@@ -11,10 +11,8 @@ import AstalWp from "gi://AstalWp"
 import AstalNetwork from "gi://AstalNetwork"
 import AstalBluetooth from "gi://AstalBluetooth"
 import AstalNotifd from "gi://AstalNotifd"
-import AstalMpris from "gi://AstalMpris"
 import AstalHyprland from "gi://AstalHyprland"
 import Gio from "gi://Gio"
-import GioUnix from "gi://GioUnix?version=2.0"
 import GdkPixbuf from "gi://GdkPixbuf"
 import cairo from "gi://cairo"
 import {
@@ -32,7 +30,7 @@ import {
 } from "../../estado/shell"
 import { applyBrightness, brightnessSupported } from "../../servicios/pantalla/brightness"
 import { gamemodeAvailable, gamemodeActive, toggleGamemode } from "../../servicios/energia/gamemode"
-import { GAME_GLYPH } from "../barra/games/icon"
+import { GLIFO_JUEGO as GAME_GLYPH } from "../../servicios/juegos/iconos"
 import { clipWindowInputToContent } from "../../utilidades/inputRegion"
 import * as Spotify from "../../servicios/spotify/SpotifyService"
 import {
@@ -49,7 +47,8 @@ import {
 import { DisplaySelect } from "../../servicios/pantalla/controls"
 import { InlineEditableValue } from "../../componentes/InlineEditableValue"
 import { conectarCambioDeslizador } from "../../utilidades/deslizador"
-import { getIcon } from "../barra/appIcons"
+import { obtenerGlifoAplicacion as getIcon } from "../../servicios/aplicaciones/glifos"
+import { obtenerEntradaEscritorio } from "../../servicios/aplicaciones/entradasEscritorio"
 import {
   resolverRestauracionBluetooth,
   valorBluetoothParaGuardar,
@@ -58,10 +57,10 @@ import { getBluetoothTileInfo } from "../../servicios/bluetooth/tileState"
 import { resolveMediaLengthSeconds, safeMediaPosition } from "../../servicios/multimedia/mediaProgress"
 import { findMediaClient } from "../../servicios/multimedia/mediaClient"
 import {
-  programarLimpiezaCacheCaratulas,
-  registrarCaratulaLocal,
-  resolverCaratulaRemota,
-} from "../../servicios/multimedia/cacheCaratulas"
+  obtenerEstadoReproductor,
+  reproductoresMultimedia,
+  revisionMultimedia,
+} from "../../servicios/multimedia/mpris"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -1144,15 +1143,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
 
 // ── Section 3: Media Player ───────────────────────────────────────────────────
 
-const MEDIA_THEMES = [
-  { bg: "rgba(137, 180, 250, 0.08)", border: "rgba(137, 180, 250, 0.2)", accent: "#89b4fa" },
-  { bg: "rgba(245, 194, 231, 0.08)", border: "rgba(245, 194, 231, 0.2)", accent: "#f5c2e7" },
-  { bg: "rgba(166, 227, 161, 0.08)", border: "rgba(166, 227, 161, 0.2)", accent: "#a6e3a1" },
-  { bg: "rgba(250, 179, 135, 0.08)", border: "rgba(250, 179, 135, 0.2)", accent: "#fab387" },
-  { bg: "rgba(203, 166, 247, 0.08)", border: "rgba(203, 166, 247, 0.2)", accent: "#cba6f7" },
-  { bg: "rgba(249, 226, 175, 0.08)", border: "rgba(249, 226, 175, 0.2)", accent: "#f9e2af" },
-  { bg: "rgba(148, 226, 213, 0.08)", border: "rgba(148, 226, 213, 0.2)", accent: "#94e2d5" },
-]
+const ACENTO_MEDIA_PREDETERMINADO = "#89b4fa"
 
 function hexToRgb(hex: string): [number, number, number] {
   const raw = hex.replace("#", "")
@@ -1234,7 +1225,7 @@ function oneUiFgTone(rgb: [number, number, number]): [number, number, number] {
 
 function cssRgbToTuple(rgb: string): [number, number, number] {
   const values = rgb.match(/\d+/g)?.map(Number)
-  if (!values || values.length < 3) return hexToRgb(MEDIA_THEMES[0].accent)
+  if (!values || values.length < 3) return hexToRgb(ACENTO_MEDIA_PREDETERMINADO)
   return [values[0], values[1], values[2]]
 }
 
@@ -1251,15 +1242,6 @@ function formatMediaTime(value: number): string {
 // sesgo de luminancia. El código viejo penalizaba/premiaba por luminancia
 // ("darkFit") y calidez ("warmBias"), lo que a veces elegía un color distinto al
 // de Samsung → de ahí las inversiones "aquí oscuro / allí claro".
-// Muchos navegadores (Firefox) NO publican mpris:artUrl para YouTube, pero sí
-// xesam:url con el enlace del vídeo. Derivamos la miniatura del ID del vídeo.
-// Cubre watch?v=, youtu.be/, /embed/ y /shorts/.
-function youtubeThumb(url: string): string {
-  if (!url) return ""
-  const m = url.match(/(?:[?&]v=|youtu\.be\/|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{11})/)
-  return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : ""
-}
-
 function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number] {
   const pixels = pixbuf.get_pixels()
   const width = pixbuf.get_width()
@@ -1320,7 +1302,7 @@ function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number]
       bestScore = score
     }
   }
-  if (!best || best.count <= 0) return hexToRgb(MEDIA_THEMES[0].accent)
+  if (!best || best.count <= 0) return hexToRgb(ACENTO_MEDIA_PREDETERMINADO)
 
   return [
     Math.round(best.r / best.count),
@@ -1330,9 +1312,6 @@ function dominantPixbufColor(pixbuf: GdkPixbuf.Pixbuf): [number, number, number]
 }
 
 function QsMedia() {
-  const mpris = AstalMpris.get_default()
-  if (!mpris) return <box />
-  programarLimpiezaCacheCaratulas()
   const hypr = AstalHyprland.get_default()
 
   const [title, setTitle] = createState("Sin reproducción")
@@ -1347,8 +1326,7 @@ function QsMedia() {
   const [playerIndex, setPlayerIndex] = createState(0)
   const [numPlayers, setNumPlayers] = createState(0)
   const [playerName, setPlayerName] = createState("")
-  const [themeIdx, setThemeIdx] = createState(0)
-  const [coverAccent, setCoverAccent] = createState(MEDIA_THEMES[0].accent)
+  const [coverAccent, setCoverAccent] = createState(ACENTO_MEDIA_PREDETERMINADO)
   const [trackId, setTrackIdState] = createState<string | null>(null)
   const [isAdState, setIsAd] = createState(false)
   const [liked, setLiked] = createState(false)
@@ -1376,66 +1354,29 @@ function QsMedia() {
   playerAppIcon.append(playerGlyph)
   playerAppIcon.append(playerIcon)
 
-  const normalizedAppKey = (value: string) => value
-    .toLowerCase()
-    .replace(/\.desktop$/i, "")
-    .replace(/[^a-z0-9]/g, "")
-
-  const playerIconCache = new Map<string, Gio.Icon | null>()
-  const resolvePlayerIcon = (player: any): Gio.Icon | null => {
+  const resolverIconoReproductor = (player: any): Gio.Icon | null => {
     const entry = String(player.entry || "").trim()
-    const cacheKey = `${entry}\0${player.bus_name || ""}\0${player.identity || ""}`
-    if (playerIconCache.has(cacheKey)) return playerIconCache.get(cacheKey) ?? null
-
-    // MPRIS DesktopEntry es el basename del .desktop y, cuando está presente,
-    // ofrece la asociación exacta incluso para navegadores y apps Flatpak.
-    for (const desktopId of [entry, entry && `${entry.replace(/\.desktop$/i, "")}.desktop`]) {
-      if (!desktopId) continue
-      const desktop = GioUnix.DesktopAppInfo.new(desktopId)
-      const icon = desktop?.get_icon()
-      if (icon) {
-        playerIconCache.set(cacheKey, icon)
-        return icon
-      }
-    }
-
-    // Algunos clientes no publican DesktopEntry. En ese caso casamos las señales
-    // MPRIS con identificadores fiables de las aplicaciones instaladas.
     const busId = String(player.bus_name || "")
       .replace(/^org\.mpris\.MediaPlayer2\./i, "")
       .replace(/\.instance[^.]*$/i, "")
-    const wanted = new Set([entry, busId, String(player.identity || "")]
-      .map(normalizedAppKey)
-      .filter(Boolean))
-
-    for (const appInfo of Gio.AppInfo.get_all() as Gio.AppInfo[]) {
-      const desktop = appInfo as any
-      const executable = String(appInfo.get_executable?.() || "").split("/").pop() || ""
-      const aliases = [
-        appInfo.get_id() || "",
-        appInfo.get_name() || "",
-        executable,
-        desktop.get_startup_wm_class?.() || "",
-      ].map(normalizedAppKey)
-
-      if (aliases.some((alias) => alias && wanted.has(alias))) {
-        const icon = appInfo.get_icon()
-        if (icon) {
-          playerIconCache.set(cacheKey, icon)
-          return icon
-        }
-      }
-    }
-
-    playerIconCache.set(cacheKey, null)
-    return null
+    const identity = String(player.identity || "")
+    // El índice compartido ya cachea Gio.AppInfo y se invalida cuando cambian las
+    // aplicaciones instaladas; evitar otro recorrido y otra caché por monitor.
+    return obtenerEntradaEscritorio({ class: entry, initialClass: busId })?.icono
+      ?? obtenerEntradaEscritorio({ class: identity })?.icono
+      ?? null
   }
 
   // El corazón solo aplica con cuenta Premium (los endpoints /me/tracks dan 403 en
   // free). isPremium() implica estar configurado. Se resuelve una vez (async) y se
   // cachea aquí para leerlo síncronamente en update(); si no es Premium, el corazón
   // no llega a mostrarse.
-  Spotify.isPremium().then(setCanLike)
+  let desmontado = false
+  Spotify.isPremium().then((premium) => {
+    if (desmontado) return
+    setCanLike(premium)
+    update()
+  })
 
   let currentP: any = null
   let mediaContentWidget: Gtk.Widget | null = null
@@ -1473,38 +1414,107 @@ function QsMedia() {
     }
   }
 
-  // Contador de anuncios del bloque actual. Spotify no expone por MPRIS cuántos
-  // anuncios hay ni en cuál vas, así que los contamos: cada trackid de anuncio
-  // distinto incrementa el índice; al volver una pista real se resetea.
-  let adIndex = 0
-  let lastAdTrackId: string | null = null
+  const temporizadoresTransitorios = new Set<number>()
+  let duracionActual: number | null = null
 
-  // AstalMpris no está descargando la carátula (deja la URL https, que GTK4 no puede
-  // pintar en CSS). La descargamos nosotros a ~/.cache/ags/media/ una vez por álbum y
-  // usamos la ruta local. Rutas locales / vacío se pasan tal cual.
-  // Dedup contra la ENTRADA cruda (no solo la rama http). Si comparábamos solo
-  // en la rama http, una portada local intermedia (Spotify) dejaba lastCoverUrl
-  // desactualizado y al volver a una URL ya vista se saltaba el cambio.
-  let lastCoverInput = "\0" // centinela ≠ "" para que la primera vez ("") sí aplique
-  const resolveCover = (raw: string) => {
-    if (raw === lastCoverInput) return // misma fuente que el tick anterior
-    lastCoverInput = raw
-    if (!raw) { setCover(""); return }
-    if (!raw.startsWith("http")) {
-      registrarCaratulaLocal(raw)
-      setCover(raw)
+  /** Actualiza solo los datos que avanzan con el tiempo; es la única ruta sondeada. */
+  const actualizarPosicion = () => {
+    const p = currentP
+    if (!p || duracionActual === null) {
+      setHasProgress(false)
+      setProg(0)
+      setPositionLabel("")
+      setDurationLabel("")
       return
     }
-    resolverCaratulaRemota(raw)
-      .then((path) => { if (lastCoverInput === raw) setCover(path) })
-      .catch(() => { if (lastCoverInput === raw) setCover("") })
+
+    const posicion = safeMediaPosition(p.position, duracionActual)
+    setHasProgress(true)
+    setProg(posicion / duracionActual)
+    setPositionLabel(formatMediaTime(posicion))
+    setDurationLabel(formatMediaTime(duracionActual))
   }
 
+  /** Recalcula la duración únicamente cuando cambia el estado MPRIS o el jugador. */
+  const actualizarDuracion = () => {
+    const p = currentP
+    if (!p) {
+      duracionActual = null
+      actualizarPosicion()
+      return
+    }
+
+    let duracionMprisCruda: unknown = null
+    try { duracionMprisCruda = p.get_meta?.("mpris:length")?.deep_unpack?.() } catch (_) {}
+
+    const claveProgreso = `${p.bus_name || ""}\0${p.trackid || ""}\0${p.title || ""}`
+    const duracionDirecta = resolveMediaLengthSeconds(p.length, duracionMprisCruda)
+    duracionActual = duracionDirecta ?? fallbackLengths.get(claveProgreso) ?? null
+
+    if (duracionActual !== null) {
+      actualizarPosicion()
+      return
+    }
+
+    actualizarPosicion()
+
+    const esFirefox = String(p.bus_name || "").toLowerCase().includes("firefox")
+    const puedePrepararFirefox = esFirefox
+      && quickSettingsVisible.get()
+      && obtenerEstadoReproductor(p)?.reproduciendo === true
+      && p.can_pause
+      && p.can_play
+      && !primedFirefoxTracks.has(claveProgreso)
+
+    if (puedePrepararFirefox) {
+      primedFirefoxTracks.add(claveProgreso)
+      if (primeFirefoxLength(p.bus_name)) {
+        const idTemporizador = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+          temporizadoresTransitorios.delete(idTemporizador)
+          if (!desmontado && currentP === p) actualizarDuracion()
+          return GLib.SOURCE_REMOVE
+        })
+        temporizadoresTransitorios.add(idTemporizador)
+        return
+      }
+    }
+
+    // Astal puede conservar Metadata vacío al registrar Firefox. Consultamos la
+    // fuente MPRIS real con un límite corto y cacheamos la duración encontrada.
+    const intentos = lengthQueryAttempts.get(claveProgreso) ?? 0
+    if (intentos >= 3 || pendingLengthQueries.has(claveProgreso)) return
+
+    const nombreReproductor = String(p.bus_name || "").replace(/^org\.mpris\.MediaPlayer2\./, "")
+    if (!nombreReproductor) return
+    lengthQueryAttempts.set(claveProgreso, intentos + 1)
+    pendingLengthQueries.add(claveProgreso)
+    execAsync(["playerctl", "-p", nombreReproductor, "metadata", "mpris:length"])
+      .then((salida) => {
+        if (desmontado) return
+        const duracionAlternativa = resolveMediaLengthSeconds(0, salida.trim())
+        if (duracionAlternativa !== null) {
+          fallbackLengths.set(claveProgreso, duracionAlternativa)
+          while (fallbackLengths.size > 32) {
+            const masAntigua = fallbackLengths.keys().next().value
+            if (masAntigua === undefined) break
+            fallbackLengths.delete(masAntigua)
+          }
+        }
+        pendingLengthQueries.delete(claveProgreso)
+        if (duracionAlternativa !== null && currentP === p) actualizarDuracion()
+      })
+      .catch(() => pendingLengthQueries.delete(claveProgreso))
+  }
+
+  /** Metadatos y reproducción llegan por señales desde el servicio MPRIS único. */
   const update = () => {
-    const players = mpris.players
+    const players = reproductoresMultimedia.get()
     setNumPlayers(players.length)
     if (players.length === 0) {
+      currentP = null
+      duracionActual = null
       setHasPlayer(false)
+      actualizarPosicion()
       return
     }
 
@@ -1516,58 +1526,42 @@ function QsMedia() {
 
     const p = players[idx]
     if (!p) {
+      currentP = null
+      duracionActual = null
       setHasPlayer(false)
+      actualizarPosicion()
       return
     }
 
+    const estado = obtenerEstadoReproductor(p)
+    if (!estado) return
     currentP = p
     setHasPlayer(true)
-    const rawTrackId = p.trackid || ""
-    const ad = Spotify.isAd(rawTrackId)
+    const rawTrackId = estado.trackIdCrudo
+    const ad = estado.esAnuncio
     const id = Spotify.parseTrackId(rawTrackId)
-    const isSpotify = (p.bus_name || "").includes("spotify")
+    const esSpotify = estado.esSpotify
     setIsAd(ad)
+    setTitle(estado.titulo)
+    setArtist(estado.artista)
 
-    if (ad) {
-      // Nuevo anuncio dentro del bloque solo si cambió el trackid (el mismo
-      // anuncio persiste varios ticks de 1 s mientras suena).
-      if (rawTrackId !== lastAdTrackId) {
-        adIndex += 1
-        lastAdTrackId = rawTrackId
-      }
-      setTitle(`Anuncio · ${adIndex}`)
-      setArtist("")
-    } else {
-      // Fin del bloque de anuncios: resetea el contador.
-      adIndex = 0
-      lastAdTrackId = null
-      setTitle(p.title || "Sin título")
-      setArtist(p.artist || "Artista desconocido")
-    }
-
-    setLikeVisible(isSpotify && canLike.get() && !ad && id !== null)
+    setLikeVisible(esSpotify && canLike.get() && !ad && id !== null)
 
     // Consultar "liked" solo al CAMBIAR de track (no en cada tick de 1 s).
     if (!ad && id && canLike.get()) {
       if (id !== lastQueriedId) {
         lastQueriedId = id
         setTrackIdState(id)
-        Spotify.isLiked(id).then(setLiked)
+        Spotify.isLiked(id).then((guardada) => {
+          if (!desmontado && lastQueriedId === id) setLiked(guardada)
+        })
       }
     } else {
       lastQueriedId = null
     }
 
-    setIsPlaying(p.playback_status === AstalMpris.PlaybackStatus.PLAYING)
-    // Arte: primero el que da el reproductor; si no hay (Firefox no publica
-    // artUrl para YouTube), lo derivamos de xesam:url.
-    let art = p.cover_art || p.art_url || ""
-    if (!art) {
-      let pageUrl = ""
-      try { pageUrl = p.get_meta?.("xesam:url")?.deep_unpack?.() || "" } catch (_) {}
-      art = youtubeThumb(pageUrl)
-    }
-    resolveCover(art)
+    setIsPlaying(estado.reproduciendo)
+    setCover(estado.caratula)
     setPlayerName(p.identity || p.bus_name.split(".").pop() || "Player")
     const entry = String(p.entry || "").replace(/\.desktop$/i, "")
     const busId = String(p.bus_name || "")
@@ -1581,92 +1575,17 @@ function QsMedia() {
       playerGlyph.set_visible(true)
       playerIcon.set_visible(false)
     } else {
-      const appIcon = resolvePlayerIcon(p)
+      const appIcon = resolverIconoReproductor(p)
       if (appIcon) playerIcon.set_from_gicon(appIcon)
       else playerIcon.set_from_icon_name("audio-x-generic-symbolic")
       playerGlyph.set_visible(false)
       playerIcon.set_visible(true)
     }
-    // Firefox puede aparecer en Astal antes de que Player.length se inicialice. El
-    // metadato MPRIS bruto ya contiene la duración, en microsegundos, así que lo
-    // leemos directamente antes de concluir que este reproductor no tiene progreso.
-    let rawMprisLength: unknown = null
-    try { rawMprisLength = p.get_meta?.("mpris:length")?.deep_unpack?.() } catch (_) {}
-
-    const progressKey = `${p.bus_name || ""}\0${p.trackid || ""}\0${p.title || ""}`
-    const directLength = resolveMediaLengthSeconds(p.length, rawMprisLength)
-    const mediaLength = directLength ?? fallbackLengths.get(progressKey) ?? null
-
-    if (mediaLength !== null) {
-      const mediaPosition = safeMediaPosition(p.position, mediaLength)
-      setHasProgress(true)
-      setProg(mediaPosition / mediaLength)
-      setPositionLabel(formatMediaTime(mediaPosition))
-      setDurationLabel(formatMediaTime(mediaLength))
-    } else {
-      setHasProgress(false)
-      setProg(0)
-      // Conservamos las etiquetas vacías dentro de la fila: sus dos zonas
-      // expansibles mantienen los controles centrados aunque no haya tiempos.
-      setPositionLabel("")
-      setDurationLabel("")
-
-      const isFirefox = String(p.bus_name || "").toLowerCase().includes("firefox")
-      const canPrimeFirefox = isFirefox
-        && quickSettingsVisible.get()
-        && p.playback_status === AstalMpris.PlaybackStatus.PLAYING
-        && p.can_pause
-        && p.can_play
-        && !primedFirefoxTracks.has(progressKey)
-
-      if (canPrimeFirefox) {
-        primedFirefoxTracks.add(progressKey)
-        if (primeFirefoxLength(p.bus_name)) {
-          // Deja que Astal procese PropertiesChanged antes de volver a leer Metadata.
-          GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-            update()
-            return GLib.SOURCE_REMOVE
-          })
-          return
-        }
-      }
-
-      // Algunas versiones de Astal también conservan el Metadata inicial vacío
-      // hasta el primer PropertiesChanged (por ejemplo al pausar Firefox). Consulta
-      // la fuente MPRIS real (con unos pocos reintentos por la carrera inicial) y
-      // conserva el resultado. El límite evita sondear para siempre streams sin fin.
-      const queryAttempts = lengthQueryAttempts.get(progressKey) ?? 0
-      if (queryAttempts < 3 && !pendingLengthQueries.has(progressKey)) {
-        const playerName = String(p.bus_name || "")
-          .replace(/^org\.mpris\.MediaPlayer2\./, "")
-        if (playerName) {
-          lengthQueryAttempts.set(progressKey, queryAttempts + 1)
-          pendingLengthQueries.add(progressKey)
-          execAsync(["playerctl", "-p", playerName, "metadata", "mpris:length"])
-            .then((output) => {
-              const fallbackLength = resolveMediaLengthSeconds(0, output.trim())
-              if (fallbackLength !== null) {
-                fallbackLengths.set(progressKey, fallbackLength)
-                while (fallbackLengths.size > 32) {
-                  const oldest = fallbackLengths.keys().next().value
-                  if (oldest === undefined) break
-                  fallbackLengths.delete(oldest)
-                }
-              }
-              pendingLengthQueries.delete(progressKey)
-              if (fallbackLength !== null) update()
-            })
-            .catch(() => pendingLengthQueries.delete(progressKey))
-        }
-      }
-    }
-
-    // Fallback theme for non-cover UI. The background filter uses the real cover color.
-    setThemeIdx(0)
+    actualizarDuracion()
   }
 
   const switchPlayer = (step: -1 | 1) => {
-    const players = mpris.players
+    const players = reproductoresMultimedia.get()
     if (players.length <= 1 || switchingPlayer) return
 
     const widget = mediaContentWidget
@@ -1682,8 +1601,10 @@ function QsMedia() {
     const enterClass = `switch-enter-${direction}`
     widget.add_css_class(exitClass)
 
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 110, () => {
-      const currentPlayers = mpris.players
+    const idSalida = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 110, () => {
+      temporizadoresTransitorios.delete(idSalida)
+      if (desmontado) return GLib.SOURCE_REMOVE
+      const currentPlayers = reproductoresMultimedia.get()
       if (currentPlayers.length > 1) {
         setPlayerIndex((playerIndex.get() + step + currentPlayers.length) % currentPlayers.length)
         update()
@@ -1693,23 +1614,29 @@ function QsMedia() {
       // después retiramos la clase para que la transición base lo lleve al centro.
       widget.remove_css_class(exitClass)
       widget.add_css_class(enterClass)
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, () => {
+      const idEntrada = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, () => {
+        temporizadoresTransitorios.delete(idEntrada)
+        if (desmontado) return GLib.SOURCE_REMOVE
         widget.remove_css_class(enterClass)
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 130, () => {
+        const idFin = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 130, () => {
+          temporizadoresTransitorios.delete(idFin)
           switchingPlayer = false
           return GLib.SOURCE_REMOVE
         })
+        temporizadoresTransitorios.add(idFin)
         return GLib.SOURCE_REMOVE
       })
+      temporizadoresTransitorios.add(idEntrada)
       return GLib.SOURCE_REMOVE
     })
+    temporizadoresTransitorios.add(idSalida)
   }
 
   const nextPlayer = () => switchPlayer(1)
   const prevPlayer = () => switchPlayer(-1)
 
   const focusPlayerWindow = () => {
-    const player = mpris.players[playerIndex.get()]
+    const player = reproductoresMultimedia.get()[playerIndex.get()]
     const client = findMediaClient(player, hypr.get_clients?.() ?? [])
     if (!client?.address) return
 
@@ -1725,12 +1652,13 @@ function QsMedia() {
   // (y por monitor) para no hacer nada. Mismo patrón que clockTimer/netSpeedTimer.
   update()
   let mediaTimer: number | null = null
-  quickSettingsVisible.subscribe(() => {
+  const cancelarRevision = revisionMultimedia.subscribe(update)
+  const cancelarVisibilidad = quickSettingsVisible.subscribe(() => {
     if (quickSettingsVisible.get()) {
       update()
       if (mediaTimer === null) {
         mediaTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-          update()
+          actualizarPosicion()
           return GLib.SOURCE_CONTINUE
         })
       }
@@ -1739,8 +1667,6 @@ function QsMedia() {
       mediaTimer = null
     }
   })
-
-  const curTheme = themeIdx((i) => MEDIA_THEMES[i])
 
   // Fondo con Gtk.Picture (el background-image CSS no renderiza en este contenedor).
   const coverPicture = new Gtk.Picture()
@@ -1782,8 +1708,8 @@ function QsMedia() {
       coverPicture.set_paintable(Gdk.Texture.new_for_pixbuf(pixbuf))
     } catch (_) { coverPicture.set_paintable(null) }
   }
-  cover.subscribe(applyCover)
-  isAdState.subscribe(applyCover)
+  const cancelarCaratula = cover.subscribe(applyCover)
+  const cancelarAnuncioCaratula = isAdState.subscribe(applyCover)
   applyCover()
 
   const colorFilter = new Gtk.DrawingArea()
@@ -1806,9 +1732,9 @@ function QsMedia() {
     cr.paint()
   })
   const queueColorFilter = () => colorFilter.queue_draw()
-  cover.subscribe(queueColorFilter)
-  isAdState.subscribe(queueColorFilter)
-  coverAccent.subscribe(queueColorFilter)
+  const cancelarFiltroCaratula = cover.subscribe(queueColorFilter)
+  const cancelarFiltroAnuncio = isAdState.subscribe(queueColorFilter)
+  const cancelarFiltroAcento = coverAccent.subscribe(queueColorFilter)
 
   const coverScrim = new Gtk.DrawingArea()
   coverScrim.set_can_target(false)
@@ -1836,8 +1762,8 @@ function QsMedia() {
     }
   })
   const queueCoverScrim = () => coverScrim.queue_draw()
-  cover.subscribe(queueCoverScrim)
-  isAdState.subscribe(queueCoverScrim)
+  const cancelarScrimCaratula = cover.subscribe(queueCoverScrim)
+  const cancelarScrimAnuncio = isAdState.subscribe(queueCoverScrim)
 
   const progressArea = new Gtk.DrawingArea()
   progressArea.set_can_target(false)
@@ -1870,8 +1796,8 @@ function QsMedia() {
     cr.fill()
   })
   const queueProgress = () => progressArea.queue_draw()
-  prog.subscribe(queueProgress)
-  coverAccent.subscribe(queueProgress)
+  const cancelarProgreso = prog.subscribe(queueProgress)
+  const cancelarProgresoAcento = coverAccent.subscribe(queueProgress)
 
   const mediaContent = (
     <box
@@ -1958,13 +1884,15 @@ function QsMedia() {
                 if (!id) return
                 const next = !liked.get()
                 setLiked(next) // optimista
-                Spotify.setLiked(id, next).then((ok) => { if (!ok) setLiked(!next) })
+                Spotify.setLiked(id, next).then((ok) => {
+                  if (!desmontado && !ok && trackId.get() === id) setLiked(!next)
+                })
               }}
             >
               <label label={liked((v) => v ? "󰋑" : "󰋕")} />
             </button>
             <button cssClasses={["qs-media-btn"]} onClicked={() => {
-              const p = mpris.players[playerIndex.get()]
+              const p = reproductoresMultimedia.get()[playerIndex.get()]
               if (p) {
                 const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
                 execAsync(["playerctl", "-p", name, "previous"]).catch(() => {})
@@ -1973,13 +1901,13 @@ function QsMedia() {
               <label label="󰒮" />
             </button>
             <button cssClasses={["qs-media-btn"]} onClicked={() => {
-              const p = mpris.players[playerIndex.get()]
+              const p = reproductoresMultimedia.get()[playerIndex.get()]
               if (p) p.play_pause()
             }}>
               <label label={isPlaying((v) => v ? "󰏤" : "󰐊")} />
             </button>
             <button cssClasses={["qs-media-btn"]} onClicked={() => {
-              const p = mpris.players[playerIndex.get()]
+              const p = reproductoresMultimedia.get()[playerIndex.get()]
               if (p) {
                 const name = p.bus_name.replace("org.mpris.MediaPlayer2.", "")
                 execAsync(["playerctl", "-p", name, "next"]).catch(() => {})
@@ -2001,6 +1929,25 @@ function QsMedia() {
       </box>
     </box>
   )
+
+  onCleanup(() => {
+    desmontado = true
+    cancelarRevision()
+    cancelarVisibilidad()
+    cancelarCaratula()
+    cancelarAnuncioCaratula()
+    cancelarFiltroCaratula()
+    cancelarFiltroAnuncio()
+    cancelarFiltroAcento()
+    cancelarScrimCaratula()
+    cancelarScrimAnuncio()
+    cancelarProgreso()
+    cancelarProgresoAcento()
+    if (mediaTimer !== null) GLib.source_remove(mediaTimer)
+    for (const id of temporizadoresTransitorios) GLib.source_remove(id)
+    temporizadoresTransitorios.clear()
+    pendingLengthQueries.clear()
+  })
 
   return (
     <box
@@ -2082,10 +2029,6 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
   qsView.subscribe(syncRefresh)
 
   const endpoints = createBinding(wp.audio, isSpk ? "speakers" : "microphones")
-  // Vestigial en las dos versiones originales (ninguna lo leía), se conserva
-  // solo para no cambiar el comportamiento reactivo existente.
-  const defaultEndpoint = createBinding(wp.audio, isSpk ? "defaultSpeaker" : "defaultMicrophone")
-
   // Local state for immediate visual update on click (don't wait for WirePlumber signal)
   const [localDefaultId, setLocalDefaultId] = createState<number | null>(
     (isSpk ? wp.audio.defaultSpeaker?.id : wp.audio.defaultMicrophone?.id) ?? null

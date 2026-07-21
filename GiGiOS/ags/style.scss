@@ -102,8 +102,8 @@ window.qs-window scrolledwindow > overshoot,
   // El bar oculto SIGUE MAPEADO (baja con un `marginTop` negativo, no se desmapea),
   // así que una `animation: … infinite` de dentro mantiene vivo su reloj de frames
   // y repinta a la tasa del monitor —240 Hz aquí— con el bar fuera de pantalla. Es
-  // el mismo problema que SpotifyNowPlaying resuelve gateando su `add_tick_callback`
-  // con `barVisible`, pero las animaciones CSS se saltan todo ese gating: son del
+  // el mismo problema que OndaSpotify resuelve gateando su `add_tick_callback`
+  // con la visibilidad local, pero las animaciones CSS se saltan ese control: son del
   // stylesheet, no de JS. Se paran aquí, que es el único sitio que las alcanza.
   // Cubre micro en uso / captura de pantalla (`.recording`) y batería cargando o
   // baja (`battery-seg-blink`) — las tres condiciones pueden durar horas.
@@ -356,12 +356,6 @@ popover.ws-preview-popover {
   box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
   border-radius: 8px;
   padding: 4px 10px;
-}
-
-.focused-client {
-  padding: 0 6px;
-  color: $text;
-  font-size: 16px;
 }
 
 /* Games tray — purple container to the right of the workspaces. Muestra un icono
@@ -999,40 +993,6 @@ popover.tray-overflow-popover.closing > contents {
 .mic-indicator .icon {
   font-family: $font-icon;
   font-size: 16px;
-}
-
-.notifications {
-  padding: 0 5px;
-  color: $text-dim;
-
-  .icon-active {
-    font-family: $font-icon;
-    font-size: 16px;
-    color: $violet;
-  }
-
-  .icon-desactive {
-    font-family: $font-icon;
-    font-size: 16px;
-    color: rgba($text, 0.45);
-  }
-
-  .label-number-notis {
-    font-family: $font-icon;
-    font-size: 10px;
-    color: $violet;
-    font-weight: 700;
-  }
-
-  &.has-notifs {
-    color: $violet;
-  }
-
-  .badge {
-    color: $violet;
-    font-size: 10px;
-    margin-left: 2px;
-  }
 }
 
 .network {

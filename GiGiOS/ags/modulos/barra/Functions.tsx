@@ -1,20 +1,22 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
-import { createState, With } from "ags"
+import { createState } from "ags"
 import {
   closeAllPanels,
   functionsMenuVisible,
   panelAutoClose,
   setFunctionsMenuVisible,
 } from "../../estado/shell"
-import { BAR_FUNCTIONS, type BarFunction } from "./functions/state"
+import { BAR_FUNCTIONS } from "./functions/state"
+import FilaFuncion from "./functions/FilaFuncion"
 import { barTopMargin } from "../ajustes/preferences"
+import { crearCicloVida } from "../../utilidades/cicloVida"
 
 // 150 se quedaba corto desde que el Wake up despliega "Minutos + campo" y
 // "Pantalla + ON/OFF" bajo su fila.
-const MENU_WIDTH = 185
+const ANCHO_MENU = 185
 
-function toggleFunctionsMenu() {
+function alternarMenuFunciones() {
   if (functionsMenuVisible.get()) {
     setFunctionsMenuVisible(false)
   } else {
@@ -23,67 +25,19 @@ function toggleFunctionsMenu() {
   }
 }
 
-// Chip derecho: el texto propio de la función (Wake up enseña su cuenta atrás) o
-// el ON/OFF de serie.
-function StateChip({ item, on }: { item: BarFunction; on: boolean }) {
-  if (!item.status) return <label label={on ? "ON" : "OFF"} />
-  return <With value={item.status}>{(text: string) => <label label={text} />}</With>
-}
-
-function FunctionRow({ item }: { item: BarFunction }) {
-  return (
-    // Cada <With> dentro de su propio <box>. Un <With> que se remonta se inserta al
-    // FINAL de su contenedor, no en su hueco: sin estas cajas, encender una función
-    // mandaría su fila al final del menú (y la dejaría por debajo de su propio
-    // desplegable). Mismo remedio que CpuRam / ScreencastIndicator en Bar.tsx.
-    <box orientation={Gtk.Orientation.VERTICAL}>
-      <box>
-        <With value={item.enabled}>
-          {(on: boolean) => (
-            <button
-              cssClasses={on ? ["fn-menu-button", "active"] : ["fn-menu-button"]}
-              focusable={false}
-              hexpand
-              onClicked={() => item.toggle(!item.enabled.get())}
-            >
-              <box cssClasses={["fn-menu-row"]} spacing={6}>
-                <label
-                  cssClasses={["fn-menu-label"]}
-                  label={item.label}
-                  xalign={0}
-                  hexpand
-                />
-                <box cssClasses={["fn-menu-state"]}>
-                  <StateChip item={item} on={on} />
-                </box>
-              </box>
-            </button>
-          )}
-        </With>
-      </box>
-      {item.expand ? (
-        <box>
-          <With value={item.enabled}>
-            {(on: boolean) => on && item.expand!()}
-          </With>
-        </box>
-      ) : null}
-    </box>
-  )
-}
-
 export function FunctionsMenu(gdkmonitor: Gdk.Monitor) {
+  const cicloVida = crearCicloVida()
   const { TOP, LEFT } = Astal.WindowAnchor
-  const autoClose = panelAutoClose(() => setFunctionsMenuVisible(false), 300, functionsMenuVisible)
-  const [keyboardActive, setKeyboardActive] = createState(false)
+  const autoCierre = panelAutoClose(() => setFunctionsMenuVisible(false), 300, functionsMenuVisible)
+  const [tecladoActivo, establecerTecladoActivo] = createState(false)
 
   // No pedir foco al mapear: con el puntero aún sobre el botón del bar,
   // Hyprland no redirige el siguiente clic hasta recibir motion.
-  functionsMenuVisible.subscribe(() => setKeyboardActive(false))
+  cicloVida.suscribir(functionsMenuVisible, () => establecerTecladoActivo(false))
 
-  const handleEnter = () => {
-    autoClose.onEnter()
-    setKeyboardActive(true)
+  const manejarEntrada = () => {
+    autoCierre.onEnter()
+    establecerTecladoActivo(true)
   }
 
   return (
@@ -93,11 +47,11 @@ export function FunctionsMenu(gdkmonitor: Gdk.Monitor) {
       gdkmonitor={gdkmonitor}
       layer={Astal.Layer.TOP}
       exclusivity={Astal.Exclusivity.NORMAL}
-      keymode={keyboardActive((active) =>
-        active ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
+      keymode={tecladoActivo((activo) =>
+        activo ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
       anchor={TOP | LEFT}
       application={app}
-      widthRequest={MENU_WIDTH}
+      widthRequest={ANCHO_MENU}
       marginTop={barTopMargin(37)}
       marginLeft={47}
       decorated={false}
@@ -113,8 +67,8 @@ export function FunctionsMenu(gdkmonitor: Gdk.Monitor) {
         }}
       />
       <box cssClasses={["fn-menu"]} orientation={Gtk.Orientation.VERTICAL}>
-        <Gtk.EventControllerMotion onEnter={handleEnter} onLeave={autoClose.onLeave} />
-        {BAR_FUNCTIONS.map((item) => <FunctionRow item={item} />)}
+        <Gtk.EventControllerMotion onEnter={manejarEntrada} onLeave={autoCierre.onLeave} />
+        {BAR_FUNCTIONS.map((funcion) => <FilaFuncion funcion={funcion} />)}
       </box>
     </window>
   )
@@ -125,7 +79,7 @@ export default function Functions() {
     <button
       cssClasses={["bar-pill-btn", "own-functions-button"]}
       focusable={false}
-      onClicked={toggleFunctionsMenu}
+      onClicked={alternarMenuFunciones}
     >
       <box cssClasses={["bar-pill", "own-functions"]} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}>
         <label label="󰣇" halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} hexpand />

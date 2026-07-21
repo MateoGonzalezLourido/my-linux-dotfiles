@@ -3,8 +3,10 @@ import { Gtk } from "ags/gtk4"
 import AstalNotifd from "gi://AstalNotifd"
 import { notifications, notifPanelVisible } from "../notificaciones/store"
 import { alternarPanelNotificaciones } from "../../estado/shell"
+import { crearCicloVida } from "../../utilidades/cicloVida"
 
 export default function NotificationButton() {
+  const cicloVida = crearCicloVida()
   const notifd = AstalNotifd.get_default()
 
   const getUnread    = () => notifications.get().filter(n => !n.read).length
@@ -29,11 +31,9 @@ export default function NotificationButton() {
     setHasNotifs(getHasNotifs())
   }
 
-  notifd.connect("notify::dont-disturb", update)
-  notifd.connect("notified", update)
-  notifd.connect("resolved", update)
-  notifications.subscribe(update)
-  notifPanelVisible.subscribe(update)
+  cicloVida.conectarSenales(notifd, ["notify::dont-disturb", "notified", "resolved"], update)
+  cicloVida.suscribir(notifications, update)
+  cicloVida.suscribir(notifPanelVisible, update)
 
   return (
     <button

@@ -8,39 +8,13 @@
 // No hay polling aquí: hypr/scripts/updates-monitor.sh escribe
 // ~/.config/gigios/updates.json y esto lo observa con un Gio.FileMonitor, igual que
 // el bar-toggle de state.tsx.
-import GLib from "gi://GLib"
-import Gio from "gi://Gio"
-import { createState, onCleanup } from "ags"
+import { onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
-import { openBarMenu, closeBarMenu, panelAutoClose } from "../../estado/shell"
-
-const UPDATES_PATH = `${GLib.get_user_config_dir()}/gigios/updates.json`
-
-type PkgUpd = { name: string; from: string; to: string }
-type UpdatesData = { system: number; kernel: PkgUpd[]; gpu: PkgUpd[]; updateCmd: string; systemSample: string[] }
-
-const EMPTY: UpdatesData = { system: 0, kernel: [], gpu: [], updateCmd: "", systemSample: [] }
-
-// Lee updates.json de forma defensiva: ausente/corrupto → sin actualizaciones.
-function readUpdates(): UpdatesData {
-  const pkgs = (v: any): PkgUpd[] =>
-    Array.isArray(v) ? v.filter((p: any) => p && typeof p.name === "string") : []
-  try {
-    const [ok, content] = GLib.file_get_contents(UPDATES_PATH)
-    if (!ok) return EMPTY
-    const j = JSON.parse(new TextDecoder().decode(content))
-    return {
-      system: typeof j.system === "number" ? j.system : 0,
-      kernel: pkgs(j.kernel),
-      gpu: pkgs(j.gpu),
-      updateCmd: typeof j.updateCmd === "string" ? j.updateCmd : "",
-      systemSample: Array.isArray(j.systemSample) ? j.systemSample.filter((s: any) => typeof s === "string") : [],
-    }
-  } catch (_) {
-    return EMPTY
-  }
-}
+import { panelAutoClose } from "../../estado/shell"
+import { datosActualizaciones } from "../../servicios/sistema/actualizaciones"
+import { crearControlPopoverAnclado } from "./componentes/PopoverAnclado"
+import type { ControlVisibilidadBarra } from "./visibilidad"
 
 // Abre la actualización en la primera terminal disponible (kitty = $terminal del
 // sistema; fallback foot/alacritty/wezterm/xterm). --hold/read mantienen la ventana
@@ -68,20 +42,8 @@ const KIND_META: Record<Kind, { icon: string; title: string; noun: string }> = {
   gpu: { icon: "󰢮", title: "Actualización de drivers de GPU", noun: "drivers de GPU" },
 }
 
-export default function UpdatesButton() {
-  const [data, setData] = createState(readUpdates())
-
-  // ── Observación de updates.json (un solo monitor para ambos iconos) ─────────
-  let monitor: Gio.FileMonitor | null = null
-  try {
-    const file = Gio.file_new_for_path(UPDATES_PATH)
-    monitor = file.monitor(Gio.FileMonitorFlags.NONE, null)
-    monitor.connect("changed", () => setData(readUpdates()))
-  } catch (e) {
-    console.error("[updates] monitor:", e)
-  }
-
-  const popovers: Gtk.Popover[] = []
+export default function UpdatesButton({ visibilidad }: { visibilidad: ControlVisibilidadBarra }) {
+  const data = datosActualizaciones
 
   // Construye uno de los dos iconos. Cada uno tiene su propio popover, anclado a sí
   // mismo, y se muestra solo si su categoría tiene paquetes pendientes.
@@ -91,7 +53,16 @@ export default function UpdatesButton() {
 
     let activePopover: Gtk.Popover | null = null
     let btnRef: Gtk.Widget | null = null
+    const controlMenu = crearControlPopoverAnclado(visibilidad)
     const autoClose = panelAutoClose(() => { if (activePopover) activePopover.popdown() }, 250)
+
+    const finalizarPopover = (popover: Gtk.Popover) => {
+      if (activePopover === popover) {
+        activePopover = null
+        controlMenu.cerrar()
+      }
+      try { popover.unparent() } catch (_) {}
+    }
 
     const buildCard = () => {
       const d = data.get()
@@ -152,17 +123,21 @@ export default function UpdatesButton() {
       pop.set_child(buildCard())
       pop.set_parent(btnRef)
       activePopover = pop
-      popovers.push(pop)
-      openBarMenu()
-      pop.connect("closed", () => {
-        activePopover = null
-        const i = popovers.indexOf(pop)
-        if (i >= 0) popovers.splice(i, 1)
-        try { pop.unparent() } catch (_) {}
-        closeBarMenu()
-      })
+      controlMenu.abrir()
+      pop.connect("closed", () => finalizarPopover(pop))
       pop.popup()
     }
+
+    onCleanup(() => {
+      autoClose.dispose()
+      const popover = activePopover
+      if (popover) {
+        try { popover.popdown() } catch (_) {}
+        finalizarPopover(popover)
+      }
+      controlMenu.cerrar()
+      btnRef = null
+    })
 
     return (
       <button
@@ -189,11 +164,6 @@ export default function UpdatesButton() {
       </button>
     )
   }
-
-  onCleanup(() => {
-    if (monitor) { try { monitor.cancel() } catch (_) {} monitor = null }
-    for (const p of [...popovers]) { try { p.popdown() } catch (_) {} }
-  })
 
   return (
     <box spacing={0}>

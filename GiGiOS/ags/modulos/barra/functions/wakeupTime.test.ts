@@ -19,6 +19,7 @@ test("parseMinutes lee un número de minutos", () => {
 test("parseMinutes topa el plazo en 24 h", () => {
   assert.equal(parseMinutes(String(MAX_MINUTES + 1)), MAX_MINUTES)
   assert.equal(parseMinutes("999999"), MAX_MINUTES)
+  assert.equal(parseMinutes("9".repeat(400)), MAX_MINUTES)
 })
 
 test("'0' es sin límite, no un Wake up que se apaga al instante", () => {
@@ -61,6 +62,8 @@ test("formatRemaining redondea hacia arriba y no baja de cero", () => {
   assert.equal(formatRemaining(1799.4), "30:00")
   assert.equal(formatRemaining(0), "0:00")
   assert.equal(formatRemaining(-5), "0:00")
+  assert.equal(formatRemaining(Number.NaN), "0:00")
+  assert.equal(formatRemaining(Number.POSITIVE_INFINITY), "0:00")
 })
 
 test("chipText refleja los tres estados de la fila", () => {

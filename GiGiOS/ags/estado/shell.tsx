@@ -1,18 +1,12 @@
-import { createState } from "ags"
+import { createState, onCleanup } from "ags"
 import { notifPanelVisible, openNotifPanel, closeNotifPanel } from "../modulos/notificaciones/store"
 import GLib from "gi://GLib"
 
 export const [calendarVisible, setCalendarVisible] = createState(false)
 export function toggleCalendar() { setCalendarVisible(!calendarVisible.get()) }
 
-export const [widgetsRefresh, setWidgetsRefresh] = createState(false)
-export const [barVisible, setBarVisible] = createState(false)
 export const [nightLightActive, setNightLightActive] = createState(false)
 export const [nightLightTemp, setNightLightTemp] = createState(4500)
-export const [isMenuOpen, setIsMenuOpen] = createState(false)
-export const [isWsDragging, setIsWsDragging] = createState(false)
-export const [isWsPreview, setIsWsPreview] = createState(false)
-
 export const [osdVisible, setOsdVisible] = createState(false)
 export const [micOsdVisible, setMicOsdVisible] = createState(false)
 
@@ -48,8 +42,8 @@ export function alternarPanelAjustes() {
 // por debajo de los toplevels) y suelta el teclado. Sigue viéndose detrás, así
 // que no se pierde el contexto, y vuelve sola a OVERLAY al terminar.
 //
-// Ref-contado como openBarMenu(): dos operaciones privilegiadas solapadas no
-// pueden devolver la ventana arriba mientras la otra sigue pidiendo contraseña.
+// Su propio contador de referencias evita que dos operaciones solapadas
+// devuelvan la ventana arriba mientras la otra sigue pidiendo contraseña.
 export const [privilegedPromptActive, setPrivilegedPromptActive] = createState(false)
 let _privilegedCount = 0
 export async function withPrivilegedPrompt<T>(fn: () => Promise<T>): Promise<T> {
@@ -75,16 +69,14 @@ import { orionVisible } from "../modulos/orion/state"
 // Única fuente de verdad. Para que un panel nuevo mantenga la barra visible
 // mientras está abierto, basta con añadir su estado a este array (antes la lista
 // se duplicaba en get() y subscribe(), con riesgo de que divergieran).
-type PanelState = { get: () => boolean; subscribe: (cb: (v: boolean) => void) => unknown }
+type PanelState = { get: () => boolean; subscribe: (cb: () => void) => unknown }
 
 const panelStates: PanelState[] = [
   powerMenuVisible,
   quickSettingsVisible,
   functionsMenuVisible,
   trayMenuVisible,
-  isMenuOpen,
   notifPanelVisible,
-  isWsPreview,
   calendarVisible,
   orionVisible,
 ]
@@ -93,7 +85,11 @@ export const anyPanelVisible = {
   get: () => panelStates.some((s) => s.get()),
   subscribe: (cb: (v: boolean) => void) => {
     const notify = () => cb(panelStates.some((s) => s.get()))
-    panelStates.forEach((s) => s.subscribe(notify))
+    const bajas = panelStates
+      .map((s) => s.subscribe(notify))
+      .filter((baja): baja is () => void => typeof baja === "function")
+
+    return () => bajas.forEach((baja) => baja())
   },
 }
 
@@ -113,19 +109,31 @@ export const anyPanelVisible = {
 //   2. Un "leave" disparado mientras el panel ya no es visible (unmap) se ignora,
 //      evitando que un panel que se está cerrando arme un closeAllPanels tardío
 //      que arrastre al panel recién abierto.
-type BoolAccessor = { get: () => boolean; subscribe: (cb: (v: boolean) => void) => unknown }
+type BoolAccessor = { get: () => boolean; subscribe: (cb: () => void) => unknown }
+
 export function panelAutoClose(close: () => void, graceMs = 300, visible?: BoolAccessor) {
   let timer: number | null = null
   let hasEntered = false
+  let disposed = false
   const cancel = () => {
     if (timer !== null) { GLib.source_remove(timer); timer = null }
   }
   // Cada vez que el panel se abre, exige un nuevo "enter" real antes de auto-cerrar.
-  if (visible) {
-    visible.subscribe(() => {
+  const bajaVisible = visible
+    ? visible.subscribe(() => {
       if (visible.get()) { hasEntered = false; cancel() }
     })
+    : null
+
+  const dispose = () => {
+    if (disposed) return
+    disposed = true
+    cancel()
+    if (typeof bajaVisible === "function") bajaVisible()
   }
+
+  onCleanup(dispose)
+
   return {
     onEnter: () => { hasEntered = true; cancel() },
     onLeave: () => {
@@ -138,23 +146,9 @@ export function panelAutoClose(close: () => void, graceMs = 300, visible?: BoolA
         return GLib.SOURCE_REMOVE
       })
     },
+    cancel,
+    dispose,
   }
-}
-
-// ── Menús/popovers transitorios anclados al bar ───────────────────────────────
-// Menús de contexto del tray, popover de CPU/RAM, etc. Al abrirse roban el
-// puntero y el bar recibe un "leave", así que necesitan mantenerlo visible.
-// isMenuOpen (en panelStates) ya lo logra, pero con un contador de referencias
-// soportamos varios abiertos a la vez sin que el cierre de uno apague el estado
-// mientras otro sigue abierto. Usa openBarMenu()/closeBarMenu() en pareja.
-let _barMenuCount = 0
-export function openBarMenu() {
-  _barMenuCount++
-  setIsMenuOpen(true)
-}
-export function closeBarMenu() {
-  _barMenuCount = Math.max(0, _barMenuCount - 1)
-  if (_barMenuCount === 0) setIsMenuOpen(false)
 }
 
 export function openPowerMenu() {
@@ -196,35 +190,15 @@ export function alternarPanelNotificaciones() {
   }
 }
 
-// ── Teclado del bar (solo durante el renumerado de workspaces) ───────────────
-// El bar es una capa layer-shell siempre mapeada; pedir teclado (keymode
-// ON_DEMAND) permite al compositor darle el foco y, al arrancar sesión, quedárselo
-// (había que clicar la app recién abierta). El bar NO necesita teclado salvo por el
-// renumerado de workspaces (Workspaces.tsx: Ctrl+long-press → teclas 1–9). Así que
-// mantenemos el keymode en NONE y solo lo elevamos a ON_DEMAND mientras un
-// renumerado está activo. Ref-contado por si hubiera solapamiento entre botones.
-export const [barKeyboardActive, setBarKeyboardActive] = createState(false)
-let _barKbCount = 0
-export function beginBarKeyboard() {
-  _barKbCount++
-  if (_barKbCount === 1) setBarKeyboardActive(true)
-}
-export function endBarKeyboard() {
-  if (_barKbCount === 0) return
-  _barKbCount--
-  if (_barKbCount === 0) setBarKeyboardActive(false)
-}
-
 // ── Toggle manual de la barra ────────────────────────────────────────────────
-export const [barPinnedByKey, setBarPinnedByKey] = createState(false)
-export const [barOcultaPorTecla, setBarOcultaPorTecla] = createState(false)
+// La petición es global porque llega por IPC, pero cada Bar decide localmente si le
+// corresponde comparando su salida con el monitor enfocado de Hyprland.
+export const [solicitudAlternarBar, setSolicitudAlternarBar] = createState(0)
 
 /** Invierte la visibilidad real: muestra y fija la barra si estaba oculta, o la
  * oculta aunque el auto-ocultado esté desactivado si estaba visible. */
 export function alternarBarPorTecla() {
-  const ocultar = barVisible.get()
-  setBarPinnedByKey(!ocultar)
-  setBarOcultaPorTecla(ocultar)
+  setSolicitudAlternarBar(solicitudAlternarBar.get() + 1)
 }
 
 // ── Brillo ───────────────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 import AstalWp from "gi://AstalWp"
 import { createState } from "ags"
 import { Gtk, Gdk } from "ags/gtk4"
-import { barVisible, widgetsRefresh } from "../../estado/shell"
-
-const HEADSET_ICON = "󰋋"   // nf-md-headphones
+import { crearCicloVida } from "../../utilidades/cicloVida"
+import { auricularSilenciado, iconoVolumen } from "./volumenDatos"
+import type { EstadoVisibilidadBarra } from "./visibilidad"
 
 // ¿La salida por defecto son auriculares/cascos (BT o cable)?
 //
@@ -20,45 +20,22 @@ const HEADSET_ICON = "󰋋"   // nf-md-headphones
 // "audio-headphones"), así que la búsqueda une icon + name + description + ruta
 // activa para cubrir ambos casos. Ojo: la ruta ACTIVA (`route`), no la lista
 // `routes` — ahí los auriculares siguen figurando aunque suene por los altavoces.
-function isHeadset(s: AstalWp.Endpoint | null): boolean {
-  if (!s) return false
-  const route = s.route
-  const hay = `${s.icon ?? ""} ${s.name ?? ""} ${s.description ?? ""} ` +
-              `${route?.name ?? ""} ${route?.description ?? ""}`
-  return /head(set|phone)|auric|earbud|earphone|hands[-_ ]?free/.test(hay.toLowerCase())
-}
-
-const isMutedVol = (s: AstalWp.Endpoint) => s.mute || s.volume === 0
-
-// Cascos silenciados: mostramos el mismo 󰋋 y le pintamos una diagonal encima
-// (ver slashArea). El glifo propio "headphones-off" sale tofu en esta Meslo.
-const isHeadsetMuted = (s: AstalWp.Endpoint | null) => !!s && isHeadset(s) && isMutedVol(s)
-
-function speakerIcon(s: AstalWp.Endpoint | null): string {
-  if (!s) return "󰝟"
-  const head = isHeadset(s)
-  if (isMutedVol(s)) return head ? HEADSET_ICON : "󰝟"   // 󰋋 (se tacha con la diagonal)
-  if (head) return HEADSET_ICON
-  if (s.volume < 0.25) return "󰕿"
-  if (s.volume < 0.50) return "󰖀"
-  return "󰕾"
-}
-
-export default function Volume() {
+export default function Volume({ visibilidad }: { visibilidad: EstadoVisibilidadBarra }) {
+  const cicloVida = crearCicloVida()
   const wp = AstalWp.get_default()
   if (!wp?.audio) return (<box />)
   const audio = wp.audio
 
   let speaker: AstalWp.Endpoint | null = audio.defaultSpeaker ?? null
 
-  const [icon, setIcon]   = createState(speakerIcon(speaker))
+  const [icon, setIcon]   = createState(iconoVolumen(speaker))
   const [appearance, setAppearance] = createState(
     speaker ? (speaker.mute ? "muted" : "normal") : "no-output",
   )
   const [tooltip, setTooltip] = createState(
     speaker ? `${Math.round(speaker.volume * 100)}` : "Sin dispositivo de salida",
   )
-  const [slashed, setSlashed] = createState(isHeadsetMuted(speaker))
+  const [slashed, setSlashed] = createState(auricularSilenciado(speaker))
 
   // Diagonal (esquina inferior-izq → superior-der) sobre el icono de cascos.
   // Trazo con "recorte": primero una línea del color del bar (efecto de corte) y
@@ -90,63 +67,51 @@ export default function Volume() {
     cr.setSourceRGBA(8 / 255, 8 / 255, 12 / 255, 1);          band(1.5)
     cr.setSourceRGBA(226 / 255, 226 / 255, 226 / 255, 0.9);   band(0.8)
   })
-  slashed.subscribe(() => { slashArea.set_visible(slashed.get()); slashArea.queue_draw() })
+  cicloVida.suscribir(slashed, () => { slashArea.set_visible(slashed.get()); slashArea.queue_draw() })
 
   const sync = () => {
-    setIcon(speakerIcon(speaker))
+    setIcon(iconoVolumen(speaker))
     setAppearance(speaker ? (speaker.mute ? "muted" : "normal") : "no-output")
     setTooltip(speaker ? `${Math.round(speaker.volume * 100)}` : "Sin dispositivo de salida")
-    setSlashed(isHeadsetMuted(speaker))
+    setSlashed(auricularSilenciado(speaker))
   }
 
-  // Cachea con el bar oculto: no re-renderiza, mantiene el último estado.
-  const update = () => { if (!barVisible.get()) return; sync() }
+  // Cachea con esta barra oculta: no re-renderiza, mantiene el último estado.
+  const update = () => { if (!visibilidad.visible.get()) return; sync() }
 
   // El altavoz por defecto puede cambiar (auriculares, BT, cambio de salida en QS).
   // Hay que re-enganchar las señales al nuevo dispositivo y actualizar la referencia
   // `speaker`: si no, el icono quedaría del dispositivo viejo y —peor— el clic/scroll
   // controlaría el volumen del dispositivo equivocado. La referencia se actualiza
-  // siempre (para las interacciones); el render respeta barVisible vía update().
-  let volId = 0, muteId = 0, iconId = 0, descId = 0, routeId = 0
+  // siempre (para las interacciones); el render respeta su visibilidad local.
+  let desconectarSpeaker: (() => void) | null = null
   const bindSpeaker = (s: AstalWp.Endpoint | null) => {
-    if (speaker && volId) {
-      speaker.disconnect(volId); speaker.disconnect(muteId)
-      speaker.disconnect(iconId); speaker.disconnect(descId)
-      speaker.disconnect(routeId)
-    }
+    desconectarSpeaker?.()
     speaker = s
-    volId = muteId = iconId = descId = routeId = 0
-    if (speaker) {
-      volId  = speaker.connect("notify::volume", update)
-      muteId = speaker.connect("notify::mute",   update)
-      // notify::icon / ::description delatan los cascos BT y su poblado tardío en
-      // el arranque, pero NO el jack: ahí el sink no cambia (ver isHeadset).
-      iconId = speaker.connect("notify::icon",        update)
-      descId = speaker.connect("notify::description", update)
-      // notify::route es EL evento del cable — el único que se emite al enchufar o
-      // desenchufar el jack cuando el puerto cambia sin cambiar de sink. Sin esto,
-      // isHeadset ya vería la ruta correcta pero nadie la volvería a leer: el icono
-      // se quedaría congelado hasta el siguiente cambio de volumen.
-      routeId = speaker.connect("notify::route", update)
-    }
+    desconectarSpeaker = speaker ? cicloVida.conectarSenales(speaker, [
+      "notify::volume",
+      "notify::mute",
+      "notify::icon",
+      "notify::description",
+      "notify::route",
+    ], update) : null
     update()
   }
   bindSpeaker(speaker)
 
-  audio.connect("notify::default-speaker", () => bindSpeaker(audio.defaultSpeaker ?? null))
+  cicloVida.conectarSenales(audio, ["notify::default-speaker"], () => bindSpeaker(audio.defaultSpeaker ?? null))
 
   // Al arrancar, WirePlumber puede no haber poblado aún icon/name/description del
-  // endpoint, y además barVisible es false los primeros ~2s (update() se ignora),
+  // endpoint, y además la barra puede ocultarse al arrancar (update() se ignora),
   // así que la detección de cascos fallaba hasta el primer hover. Forzamos varios
-  // sync() diferidos —sync() no está gateado por barVisible— para fijar el estado
+  // sync() diferidos —sync() no está condicionado por la visibilidad— para fijar el estado
   // correcto desde el inicio.
-  setTimeout(sync, 400)
-  setTimeout(sync, 1200)
-  setTimeout(sync, 3000)
+  const temporizadores = [400, 1200, 3000].map((retraso) => setTimeout(sync, retraso))
+  cicloVida.registrar(() => temporizadores.forEach(clearTimeout))
 
   // Al volver visible, sincronizar con el estado real del hardware.
   // gnim invoca el callback sin argumentos → hay que leer .get().
-  widgetsRefresh.subscribe(() => { if (widgetsRefresh.get()) sync() })
+  cicloVida.suscribir(visibilidad.refrescar, () => { if (visibilidad.refrescar.get()) sync() })
 
   const toggleMute = () => { if (speaker) speaker.mute = !speaker.mute }
 

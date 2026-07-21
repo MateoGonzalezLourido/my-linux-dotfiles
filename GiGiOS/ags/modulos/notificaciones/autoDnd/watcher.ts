@@ -18,10 +18,13 @@
 
 import AstalHyprland from "gi://AstalHyprland"
 import AstalNotifd from "gi://AstalNotifd"
-import GLib from "gi://GLib"
 import { shouldSilence } from "./detect.ts"
-import { isGameClient } from "../../barra/games/evidence.ts"
 import { autoDndEnabled, autoDndFullscreenApps } from "../../ajustes/preferences.ts"
+import {
+  esClienteRegistradoComoJuego,
+  iniciarRegistroJuegos,
+  revisionVentanas,
+} from "../../../servicios/juegos/registro"
 
 let started = false
 
@@ -48,13 +51,14 @@ function conditionActive(hypr: AstalHyprland.Hyprland): boolean {
     hypr.get_clients?.() ?? [],
     autoDndFullscreenApps.get(),
     activeWs,
-    isGameClient,
+    esClienteRegistradoComoJuego,
   )
 }
 
 function evaluate(): void {
   const notifd = AstalNotifd.get_default()
   const hypr = AstalHyprland.get_default()
+  iniciarRegistroJuegos()
 
   if (!autoDndEnabled.get()) return
 
@@ -103,35 +107,8 @@ export function initAutoDnd(): void {
     }
   })
 
-  // Eventos de ventanas de Hyprland que pueden cambiar la condición.
-  hypr.connect("client-added", (_s: unknown, client: AstalHyprland.Client) => {
-    evaluate()
-    // class / fullscreen pueden resolverse un instante después del mapeo; un único
-    // re-chequeo tardío, sólo si la clase aún no está lista (no cuesta nada abrir
-    // ventanas normales que sí traen clase).
-    if (!client || !client.class) {
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 700, () => {
-        evaluate()
-        return GLib.SOURCE_REMOVE
-      })
-    }
-  })
-  hypr.connect("client-removed", () => evaluate())
-  hypr.connect("event", (_s: unknown, name: string) => {
-    // fullscreen: cambia la condición en el workspace actual.
-    // workspace(v2)/focusedmon: cambia CUÁL es el workspace activo, así que un
-    // juego que estaba "fuera de vista" puede pasar a estarlo (o al revés).
-    if (
-      name === "fullscreen" ||
-      name === "workspace" ||
-      name === "workspacev2" ||
-      name === "focusedmon"
-    ) {
-      evaluate()
-    }
-  })
-  // Señal directa por si el backend no emite el "event" anterior en algún caso.
-  hypr.connect("notify::focused-workspace", () => evaluate())
+  // El registro singleton ya concentra los eventos Hyprland y los reintentos tardíos.
+  revisionVentanas.subscribe(evaluate)
 
   // Cambios de la preferencia.
   autoDndEnabled.subscribe(() => {

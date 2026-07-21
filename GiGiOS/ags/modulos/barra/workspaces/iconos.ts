@@ -1,0 +1,68 @@
+import { obtenerEntradaEscritorio } from "../../../servicios/aplicaciones/entradasEscritorio"
+import { obtenerGlifoAplicacion } from "../../../servicios/aplicaciones/glifos"
+import {
+  obtenerIconoGenericoAplicacion,
+  obtenerIconoOriginalAplicacion,
+  obtenerNombreIconoAplicacion,
+} from "../../../servicios/aplicaciones/iconos"
+import { esClienteJuego } from "../../../servicios/juegos/evidencia"
+import { describirJuego, GLIFO_JUEGO } from "../../../servicios/juegos/iconos"
+import { buildWorkspaceTooltip } from "../workspaceTooltip"
+import type { ClienteEscritorio, IconoClienteEscritorio } from "./modelo"
+
+function construirDescripcion(cliente: ClienteEscritorio): string {
+  const claseAplicacion = cliente.class ?? ""
+  const nombreEntrada = obtenerEntradaEscritorio(cliente)?.nombre ?? ""
+  const nombreAplicacion = nombreEntrada
+    || (esClienteJuego(cliente) ? describirJuego(cliente).nombre : "")
+  return buildWorkspaceTooltip({
+    appName: nombreAplicacion,
+    className: claseAplicacion,
+    initialClass: cliente.initialClass ?? cliente.initial_class,
+    title: cliente.title,
+  })
+}
+
+export function obtenerIconosClientesEscritorio(
+  clientes: readonly ClienteEscritorio[],
+): IconoClienteEscritorio[] {
+  return clientes
+    .filter((cliente) => !!cliente.class)
+    .map((cliente) => {
+      const claseAplicacion = cliente.class ?? ""
+      const comunes = {
+        direccion: cliente.address,
+        claseAplicacion,
+        descripcion: construirDescripcion(cliente),
+      }
+      const glifo = obtenerGlifoAplicacion(
+        claseAplicacion,
+        cliente.initialClass ?? cliente.initial_class,
+      )
+      if (glifo) return { ...comunes, icono: glifo, iconoGio: null, esGlifo: true }
+
+      const iconoOriginal = obtenerIconoOriginalAplicacion(cliente)
+      if (iconoOriginal) {
+        return {
+          ...comunes,
+          icono: iconoOriginal.to_string() ?? claseAplicacion,
+          iconoGio: iconoOriginal,
+          esGlifo: false,
+        }
+      }
+
+      const nombreIcono = obtenerNombreIconoAplicacion(cliente)
+      if (nombreIcono) {
+        return { ...comunes, icono: nombreIcono, iconoGio: null, esGlifo: false }
+      }
+      if (esClienteJuego(cliente)) {
+        return { ...comunes, icono: GLIFO_JUEGO, iconoGio: null, esGlifo: true }
+      }
+      return {
+        ...comunes,
+        icono: obtenerIconoGenericoAplicacion(cliente),
+        iconoGio: null,
+        esGlifo: false,
+      }
+    })
+}

@@ -1,22 +1,23 @@
 import AstalHyprland from "gi://AstalHyprland"
 import Gio from "gi://Gio"
-import GLib from "gi://GLib"
-import { createState, For, onCleanup } from "ags"
+import { For, onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 
-import { isGameClient } from "./evidence"
-import { describeGame, GAME_GLYPH } from "./icon"
-import { FULLSCREEN_REAL } from "./detect"
-import { openBarMenu, closeBarMenu, panelAutoClose } from "../../../estado/shell"
+import { describirJuego, GLIFO_JUEGO } from "../../../servicios/juegos/iconos"
+import { PANTALLA_COMPLETA_REAL } from "../../../servicios/juegos/deteccion"
+import { clientesJuego, iniciarRegistroJuegos } from "../../../servicios/juegos/registro"
+import { panelAutoClose } from "../../../estado/shell"
+import { crearControlPopoverAnclado } from "../componentes/PopoverAnclado"
+import type { ControlVisibilidadBarra } from "../visibilidad"
 
 // Pastilla morada a la derecha de los workspaces: un mini-icono de mando fijo a la
 // izquierda y, a su derecha, un icono POR JUEGO en ejecución — el icono real de la
 // app (entrada .desktop / tema de iconos / steam_icon_<appid>), no un mando genérico.
 // Clic izquierdo: ir al juego. Clic derecho: menú con sus acciones.
 //
-// La detección (./detect + ./evidence) es automática y todo esto es event-driven: sin
-// polling, y sin temporizadores vivos mientras no haya juego.
+// El registro singleton de servicios/juegos concentra la detección para toda la sesión;
+// esta vista solo deriva nombre, icono y acciones, sin polling propio.
 
 interface GameEntry {
   address: string
@@ -27,93 +28,20 @@ interface GameEntry {
 }
 
 function toEntry(c: any): GameEntry {
-  const look = describeGame(c)
+  const apariencia = describirJuego(c)
   return {
     address: c.address ?? "",
     class: c.class ?? "",
-    name: look.name,
-    gicon: look.gicon,
-    iconName: look.iconName,
+    name: apariencia.nombre,
+    gicon: apariencia.icono,
+    iconName: apariencia.nombreIcono,
   }
 }
 
-export default function GamesIndicator() {
+export default function GamesIndicator({ visibilidad }: { visibilidad: ControlVisibilidadBarra }) {
   const hypr = AstalHyprland.get_default()
-
-  // Fuente de verdad: address -> juego. La lista pintada se deriva de ella.
-  const games = new Map<string, GameEntry>()
-  // Suscripciones al título de cada juego (el nombre real de un juego de Steam llega
-  // a veces después del mapeo de la ventana): hay que soltarlas al cerrarse.
-  const titleHooks = new Map<string, { client: any; id: number }>()
-
-  const [list, setList] = createState<GameEntry[]>([])
-  const sync = () => setList([...games.values()])
-
-  const popovers: Gtk.Popover[] = []
-
-  // Añade un cliente si es un juego y no está ya. Devuelve si cambió el conjunto.
-  // Nunca quita: un juego detectado vive hasta que su ventana se cierra.
-  const addIfGame = (c: any): boolean => {
-    if (!c || !c.address || games.has(c.address)) return false
-    if (!isGameClient(c)) return false
-
-    games.set(c.address, toEntry(c))
-
-    // El título puede llegar tarde (Steam mapea la ventana y luego la titula), y de él
-    // sale el nombre del juego cuando no hay entrada .desktop.
-    try {
-      const id = c.connect("notify::title", () => {
-        const cur = games.get(c.address)
-        if (!cur) return
-        const look = describeGame(c)
-        if (look.name === cur.name && look.iconName === cur.iconName) return
-        games.set(c.address, { ...cur, name: look.name, gicon: look.gicon, iconName: look.iconName })
-        sync()
-      })
-      titleHooks.set(c.address, { client: c, id })
-    } catch (_) {}
-
-    sync()
-    return true
-  }
-
-  const forget = (address: string) => {
-    const hook = titleHooks.get(address)
-    if (hook) {
-      try { hook.client.disconnect(hook.id) } catch (_) {}
-      titleHooks.delete(address)
-    }
-    if (games.delete(address)) sync()
-  }
-
-  // Barrido único al arrancar el shell, por si ya hay juegos abiertos.
-  for (const c of (hypr.get_clients?.() ?? [])) addIfGame(c)
-
-  hypr.connect("client-added", (_s, client) => {
-    if (addIfGame(client)) return
-    // class / fullscreen pueden resolverse un instante después del mapeo. UN solo
-    // re-chequeo tardío, y solo si la clase aún no está — abrir ventanas normales (un
-    // terminal, un editor) no arranca ningún temporizador.
-    if (!client || !client.class) {
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
-        addIfGame(client)
-        return GLib.SOURCE_REMOVE
-      })
-    }
-  })
-
-  // client-removed pasa la dirección (string), no un objeto Client.
-  hypr.connect("client-removed", (_s, address: string) => forget(address))
-
-  // Muchos juegos nativos solo se vuelven detectables al ir a pantalla completa.
-  // Hyprland no expone una señal de fullscreen ya parseada, así que filtramos el
-  // stream genérico `event`. La guarda es una comparación de strings O(1), así que en
-  // reposo no cuesta nada. Este camino solo AÑADE: un juego ya detectado se queda
-  // hasta que su ventana cierra, así que salir de fullscreen no hace parpadear nada.
-  hypr.connect("event", (_s, name: string) => {
-    if (name !== "fullscreen") return
-    addIfGame(hypr.focusedClient)
-  })
+  iniciarRegistroJuegos()
+  const list = clientesJuego((clientes) => clientes.map(toEntry))
 
   // Ir al juego: enfocar su ventana (lo que te lleva a su workspace) y, si no está ya
   // en pantalla completa de verdad, ponerla (estado leído en vivo de la caché).
@@ -125,7 +53,7 @@ export default function GamesIndicator() {
         const live = hypr.get_clients().find((c: any) => c.address === address)
         // `fullscreen` es un modo, no un bool: 1 es MAXIMIZADO. Solo saltamos a
         // fullscreen de verdad si no lo está ya.
-        if (live && (live.fullscreen ?? 0) < FULLSCREEN_REAL) {
+        if (live && (live.fullscreen ?? 0) < PANTALLA_COMPLETA_REAL) {
           return execAsync(["hyprctl", "dispatch", "fullscreen", "0"])
         }
       })
@@ -137,21 +65,21 @@ export default function GamesIndicator() {
     execAsync(["hyprctl", "dispatch", "closewindow", `address:${addr}`]).catch(() => {})
   }
 
-  onCleanup(() => {
-    for (const address of [...titleHooks.keys()]) {
-      const hook = titleHooks.get(address)
-      if (hook) { try { hook.client.disconnect(hook.id) } catch (_) {} }
-    }
-    titleHooks.clear()
-    for (const p of [...popovers]) { try { p.popdown() } catch (_) {} }
-  })
-
   // Un botón por juego: icono real de la app y, con el clic derecho, sus acciones.
   const GameButton = (entry: GameEntry) => {
     let btnRef: Gtk.Widget | null = null
     let activePopover: Gtk.Popover | null = null
+    const controlMenu = crearControlPopoverAnclado(visibilidad)
     const autoClose = panelAutoClose(() => { if (activePopover) activePopover.popdown() }, 250)
     const tooltipName = entry.name.replace(/(?:\s*\([^()]*\))+\s*$/, "").trim() || entry.name
+
+    const finalizarPopover = (popover: Gtk.Popover) => {
+      if (activePopover === popover) {
+        activePopover = null
+        controlMenu.cerrar()
+      }
+      try { popover.unparent() } catch (_) {}
+    }
 
     // Menú GTK nativo, como el menuModel de las apps en segundo plano. Así las
     // filas, estados de hover, tipografía y espaciado los pinta `.tray-popover`.
@@ -195,17 +123,21 @@ export default function GamesIndicator() {
       pop.add_controller(motion)
 
       activePopover = pop
-      popovers.push(pop)
-      openBarMenu()
-      pop.connect("closed", () => {
-        activePopover = null
-        const i = popovers.indexOf(pop)
-        if (i >= 0) popovers.splice(i, 1)
-        try { pop.unparent() } catch (_) {}
-        closeBarMenu()
-      })
+      controlMenu.abrir()
+      pop.connect("closed", () => finalizarPopover(pop))
       pop.popup()
     }
+
+    onCleanup(() => {
+      autoClose.dispose()
+      const popover = activePopover
+      if (popover) {
+        try { popover.popdown() } catch (_) {}
+        finalizarPopover(popover)
+      }
+      controlMenu.cerrar()
+      btnRef = null
+    })
 
     return (
       <button
@@ -224,7 +156,7 @@ export default function GamesIndicator() {
         ) : entry.iconName ? (
           <image iconName={entry.iconName} pixelSize={18} cssClasses={["game-tray-img"]} />
         ) : (
-          <label cssClasses={["game-tray-glyph"]} label={GAME_GLYPH} />
+          <label cssClasses={["game-tray-glyph"]} label={GLIFO_JUEGO} />
         )}
       </button>
     )

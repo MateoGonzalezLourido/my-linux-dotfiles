@@ -3,7 +3,7 @@
 //
 // DND should be silenced when either:
 //   1. a running client is a game (reuses the games heuristic in
-//      modulos/barra/games/detect.ts), or
+//      servicios/juegos/deteccion.ts), or
 //   2. a running client is fullscreen AND its class matches one of the
 //      user-configured "fullscreen apps" (e.g. mpv, a browser watching a movie).
 //
@@ -16,13 +16,17 @@
 // are actually looking at, so shouldSilence() filters clients to the focused
 // workspace (see the `activeWorkspaceId` argument).
 
-import { isGame, FULLSCREEN_REAL, type GameClientLike } from "../../barra/games/detect.ts"
+import {
+  esJuego,
+  PANTALLA_COMPLETA_REAL,
+  type ClienteJuegoLike,
+} from "../../../servicios/juegos/deteccion.ts"
 
 export interface WorkspaceRef {
   id?: number | null
 }
 
-export type DndClientLike = GameClientLike & {
+export type DndClientLike = ClienteJuegoLike & {
   workspace?: WorkspaceRef | null
 }
 
@@ -52,7 +56,7 @@ export function matchesFullscreenApp(
   apps: readonly string[],
 ): boolean {
   if (!c) return false
-  const isFullscreen = (c.fullscreen ?? 0) >= FULLSCREEN_REAL
+  const isFullscreen = (c.fullscreen ?? 0) >= PANTALLA_COMPLETA_REAL
   if (!isFullscreen) return false
 
   const cls = (c.class ?? "").toLowerCase()
@@ -78,7 +82,7 @@ export function shouldSilence(
   clients: readonly (DndClientLike | null | undefined)[] | null | undefined,
   apps: readonly string[],
   activeWorkspaceId?: number | null,
-  isGameFn: (c: DndClientLike | null | undefined) => boolean = isGame,
+  isGameFn: (c: DndClientLike | null | undefined) => boolean = esJuego,
 ): boolean {
   if (!clients) return false
   for (const c of clients) {

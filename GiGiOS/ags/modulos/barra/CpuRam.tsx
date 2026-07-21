@@ -1,203 +1,135 @@
-import { createState, createEffect, onCleanup } from "ags"
-import { readFileAsync } from "ags/file"
 import { Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
-import { widgetsRefresh, openBarMenu, closeBarMenu, panelAutoClose } from "../../estado/shell"
+import { panelAutoClose } from "../../estado/shell"
+import {
+  adquirirDetalleProcesos,
+  adquirirMetricas,
+  procesoCpu,
+  procesoRam,
+  ramUsadaGiB,
+  usoCpu,
+} from "../../servicios/sistema/recursos"
+import { crearCicloVida } from "../../utilidades/cicloVida"
+import { crearControlPopoverAnclado } from "./componentes/PopoverAnclado"
+import type { ControlVisibilidadBarra } from "./visibilidad"
 
-// Lee /proc/stat y devuelve los jiffies acumulados desde el arranque. El uso de
-// CPU NO se puede calcular de una sola muestra (eso da el promedio desde el boot,
-// prácticamente constante); hay que comparar el delta entre dos muestras.
-async function readCpuSample(): Promise<{ total: number; idle: number } | null> {
-  try {
-    const parts = (await readFileAsync("/proc/stat")).split("\n")[0].trim().split(/\s+/).slice(1).map(Number)
-    const idle = parts[3] + (parts[4] || 0) // idle + iowait = tiempo no ocupado
-    const total = parts.reduce((a, b) => a + b, 0)
-    return { total, idle }
-  } catch { return null }
-}
+export default function CpuRam({ visibilidad }: { visibilidad: ControlVisibilidadBarra }) {
+  const cicloVida = crearCicloVida()
+  const controlMenu = crearControlPopoverAnclado(visibilidad)
+  let popoverActivo: Gtk.Popover | null = null
+  let etiquetaCpu: Gtk.Label | null = null
+  let etiquetaRam: Gtk.Label | null = null
+  let soltarMetricas: (() => void) | null = null
+  let soltarDetalle: (() => void) | null = null
 
-// GiB usados según MemAvailable (estimación del kernel de RAM realmente libre,
-// más fiable que total-free-buffers-cached, que infravalora lo disponible).
-async function ramUsedGb(): Promise<number | null> {
-  try {
-    const lines = (await readFileAsync("/proc/meminfo")).split("\n")
-    const get = (k: string) => parseInt(lines.find((l) => l.startsWith(k))?.split(/\s+/)[1] ?? "0")
-    const total = get("MemTotal:")
-    const avail = get("MemAvailable:")
-    return (total - avail) / 1024 / 1024
-  } catch { return null }
-}
+  const autoCierre = panelAutoClose(() => { if (popoverActivo) popoverActivo.popdown() }, 250)
 
-export default function CpuRam() {
-  const [cpu, setCpu] = createState(0)
-  const [ram, setRam] = createState<number | string>(0)
-  const [cpuTop, setCpuTop] = createState("Cargando…")
-  const [ramTop, setRamTop] = createState("Cargando…")
-
-  let activePopover: Gtk.Popover | null = null
-  let activeCpuLbl: Gtk.Label | null = null
-  let activeRamLbl: Gtk.Label | null = null
-
-  // Auto-cierre por hover: se mantiene mientras el ratón esté sobre el popover o
-  // sobre el botón que lo invoca; se cierra (con gracia) al salir de ambas zonas,
-  // igual que un panel. Sustituye al antiguo timer fijo de 3.5s.
-  const autoClose = panelAutoClose(() => { if (activePopover) activePopover.popdown() }, 250)
-
-  cpuTop.subscribe((t: string) => { if (activeCpuLbl) activeCpuLbl.set_label(t) })
-  ramTop.subscribe((t: string) => { if (activeRamLbl) activeRamLbl.set_label(t) })
-
-  // Tarjeta del popover: cabecera + dos filas (CPU / RAM) con icono y proceso top.
-  const buildPopupCard = () => {
-    const card = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 0 })
-    card.add_css_class("cpuram-popup")
-
-    const cardMotion = new Gtk.EventControllerMotion()
-    cardMotion.connect("enter", () => autoClose.onEnter())
-    cardMotion.connect("leave", () => autoClose.onLeave())
-    card.add_controller(cardMotion)
-
-    const header = new Gtk.Label({ label: "Procesos top", xalign: 0 })
-    header.add_css_class("cpuram-popup-header")
-    card.append(header)
-
-    const mkRow = (icon: string, kind: string, initial: string) => {
-      const row = new Gtk.Box({ spacing: 8 })
-      row.add_css_class("cpuram-popup-row")
-      const ic = new Gtk.Label({ label: icon })
-      ic.add_css_class("cpuram-popup-ic")
-      ic.add_css_class(kind)
-      const val = new Gtk.Label({ label: initial, xalign: 0 })
-      val.add_css_class("cpuram-popup-val")
-      row.append(ic)
-      row.append(val)
-      card.append(row)
-      return val
-    }
-
-    activeCpuLbl = mkRow("󰻠", "cpu", cpuTop.get())
-    activeRamLbl = mkRow("󰍛", "ram", ramTop.get())
-    return card
+  const finalizarPopover = (popover: Gtk.Popover) => {
+    if (popoverActivo !== popover) return
+    popoverActivo = null
+    etiquetaCpu = null
+    etiquetaRam = null
+    soltarDetalle?.()
+    soltarDetalle = null
+    controlMenu.cerrar()
+    try { popover.unparent() } catch (_) {}
   }
 
-  const openPopover = (anchor: Gtk.Widget) => {
-    if (activePopover) {
-      activePopover.popdown()
-      try { activePopover.unparent() } catch (_) {}
-      activePopover = null
-      activeCpuLbl = null
-      activeRamLbl = null
+  cicloVida.suscribir(procesoCpu, (texto) => etiquetaCpu?.set_label(texto))
+  cicloVida.suscribir(procesoRam, (texto) => etiquetaRam?.set_label(texto))
+
+  const sincronizarConsumo = () => {
+    if (visibilidad.refrescar.get()) {
+      if (!soltarMetricas) soltarMetricas = adquirirMetricas()
+    } else {
+      soltarMetricas?.()
+      soltarMetricas = null
+    }
+  }
+  cicloVida.suscribir(visibilidad.refrescar, sincronizarConsumo)
+  sincronizarConsumo()
+  cicloVida.registrar(() => {
+    soltarMetricas?.()
+    soltarMetricas = null
+    soltarDetalle?.()
+    soltarDetalle = null
+    autoCierre.dispose()
+    const popover = popoverActivo
+    if (popover) {
+      try { popover.popdown() } catch (_) {}
+      finalizarPopover(popover)
+    }
+    controlMenu.cerrar()
+  })
+
+  const construirTarjeta = () => {
+    const tarjeta = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 0 })
+    tarjeta.add_css_class("cpuram-popup")
+
+    const movimiento = new Gtk.EventControllerMotion()
+    movimiento.connect("enter", autoCierre.onEnter)
+    movimiento.connect("leave", autoCierre.onLeave)
+    tarjeta.add_controller(movimiento)
+
+    const cabecera = new Gtk.Label({ label: "Procesos top", xalign: 0 })
+    cabecera.add_css_class("cpuram-popup-header")
+    tarjeta.append(cabecera)
+
+    const crearFila = (icono: string, tipo: string, texto: string) => {
+      const fila = new Gtk.Box({ spacing: 8 })
+      fila.add_css_class("cpuram-popup-row")
+      const iconoLabel = new Gtk.Label({ label: icono })
+      iconoLabel.add_css_class("cpuram-popup-ic")
+      iconoLabel.add_css_class(tipo)
+      const valor = new Gtk.Label({ label: texto, xalign: 0 })
+      valor.add_css_class("cpuram-popup-val")
+      fila.append(iconoLabel)
+      fila.append(valor)
+      tarjeta.append(fila)
+      return valor
+    }
+
+    etiquetaCpu = crearFila("󰻠", "cpu", procesoCpu.get())
+    etiquetaRam = crearFila("󰍛", "ram", procesoRam.get())
+    return tarjeta
+  }
+
+  const alternarPopover = (ancla: Gtk.Widget) => {
+    if (popoverActivo) {
+      popoverActivo.popdown()
       return
     }
 
-    const pop = new Gtk.Popover()
-    pop.add_css_class("cpuram-popover")
-    pop.set_has_arrow(true)
-    pop.set_autohide(false)
-    pop.set_position(Gtk.PositionType.TOP)
-    pop.set_child(buildPopupCard())
-    pop.set_parent(anchor)
-    activePopover = pop
-    openBarMenu()
+    const popover = new Gtk.Popover()
+    popover.add_css_class("cpuram-popover")
+    popover.set_has_arrow(true)
+    popover.set_autohide(false)
+    popover.set_position(Gtk.PositionType.TOP)
+    popover.set_child(construirTarjeta())
+    popover.set_parent(ancla)
+    popoverActivo = popover
+    soltarDetalle = adquirirDetalleProcesos()
+    controlMenu.abrir()
 
-    pop.connect("closed", () => {
-      activePopover = null
-      activeCpuLbl = null
-      activeRamLbl = null
-      try { pop.unparent() } catch (_) {}
-      closeBarMenu()
-    })
-
-    pop.popup()
+    popover.connect("closed", () => finalizarPopover(popover))
+    popover.popup()
   }
-
-  // Muestra anterior de /proc/stat para el cálculo por delta. Persiste entre
-  // ocultado/mostrado a propósito: la primera lectura tras reaparecer promedia el
-  // intervalo oculto, dando de inmediato un valor útil en vez de un 0 transitorio.
-  let prevCpu: { total: number; idle: number } | null = null
-
-  const pollCpuRam = async () => {
-    const [sample, ramGb] = await Promise.all([readCpuSample(), ramUsedGb()])
-    if (sample) {
-      if (prevCpu) {
-        const dTotal = sample.total - prevCpu.total
-        const dIdle = sample.idle - prevCpu.idle
-        if (dTotal > 0) setCpu(Math.max(0, Math.min(100, Math.round(100 * (1 - dIdle / dTotal)))))
-      }
-      prevCpu = sample
-    }
-    if (ramGb !== null) setRam(ramGb.toFixed(1))
-  }
-
-  const pollTopProcs = async () => {
-    try {
-      const [cpuOut, ramOut] = await Promise.all([
-        execAsync(["bash", "-c", "ps axch -o pcpu,comm --sort=-pcpu | head -n 1"]),
-        execAsync(["bash", "-c", "ps axch -o rss,comm --sort=-rss | head -n 1"]),
-      ])
-
-      const parseCpu = (out: string) => {
-        const parts = out.trim().split(/\s+/)
-        return `${parts.slice(1).join(" ")} (${parts[0]}%)`
-      }
-
-      const parseRam = (out: string) => {
-        const parts = out.trim().split(/\s+/)
-        const gb = (parseInt(parts[0]) / 1024 / 1024).toFixed(1)
-        return `${parts.slice(1).join(" ")} (${gb}G)`
-      }
-
-      setCpuTop(parseCpu(cpuOut))
-      setRamTop(parseRam(ramOut))
-    } catch {
-      setCpuTop("—")
-      setRamTop("—")
-    }
-  }
-
-  let cpuRamTimer: ReturnType<typeof setInterval> | null = null
-  let topProcsTimer: ReturnType<typeof setInterval> | null = null
-  let wasVisible = false
-
-  createEffect(() => {
-    const visible = widgetsRefresh()
-    if (visible && !wasVisible) {
-      pollCpuRam()
-      pollTopProcs()
-      cpuRamTimer = setInterval(pollCpuRam, 4000)
-      topProcsTimer = setInterval(pollTopProcs, 5000)
-    } else if (!visible && wasVisible) {
-      if (cpuRamTimer !== null) { clearInterval(cpuRamTimer); cpuRamTimer = null }
-      if (topProcsTimer !== null) { clearInterval(topProcsTimer); topProcsTimer = null }
-    }
-    wasVisible = visible
-  })
-
-  // Al desactivar la función CPU/RAM, Bar.tsx desmonta este widget via <With>.
-  // Los setInterval son JS puro y no se paran solos al destruir el widget, así que
-  // los limpiamos aquí explícitamente (y cerramos el popover si estuviera abierto).
-  onCleanup(() => {
-    if (cpuRamTimer !== null) { clearInterval(cpuRamTimer); cpuRamTimer = null }
-    if (topProcsTimer !== null) { clearInterval(topProcsTimer); topProcsTimer = null }
-    // popdown() dispara el handler "closed", que ya hace unparent + closeBarMenu.
-    if (activePopover) { try { activePopover.popdown() } catch (_) {} }
-  })
 
   return (
     <box cssClasses={["bar-pill", "cpuram"]} spacing={3}>
-      {/* Mantiene el popover abierto mientras el ratón esté sobre el botón */}
-      <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
+      <Gtk.EventControllerMotion onEnter={autoCierre.onEnter} onLeave={autoCierre.onLeave} />
       <Gtk.GestureClick
         button={Gdk.BUTTON_PRIMARY}
-        onPressed={(g: any) => openPopover((g as Gtk.GestureClick).get_widget())}
+        onPressed={(gesto: any) => alternarPopover((gesto as Gtk.GestureClick).get_widget())}
       />
       <Gtk.GestureClick
         button={Gdk.BUTTON_SECONDARY}
         onPressed={() => execAsync("kitty --class floating_terminal -e btop").catch(console.error)}
       />
       <label cssClasses={["icon"]} label="󰻠" />
-      <label cssClasses={["label"]} label={cpu((c) => `${c}%`)} />
+      <label cssClasses={["label"]} label={usoCpu((uso) => `${uso}%`)} />
       <label cssClasses={["icon", "icon-sep"]} label="󰍛" />
-      <label cssClasses={["label"]} label={ram((r) => `${r}G`)} />
+      <label cssClasses={["label"]} label={ramUsadaGiB((ram) => `${ram}G`)} />
     </box>
   )
 }

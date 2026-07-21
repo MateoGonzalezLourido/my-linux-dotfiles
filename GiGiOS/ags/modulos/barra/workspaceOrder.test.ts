@@ -73,6 +73,12 @@ test("shows only the focused workspace when the limit is one", () => {
   assert.deepEqual(selectRecentWorkspaces(workspaces, [1, 3], 2, 1).map((workspace) => workspace.id), [2])
 })
 
+test("un límite no finito conserva al menos el workspace enfocado", () => {
+  const workspaces = [1, 2, 3].map((id) => ({ id }))
+  assert.deepEqual(selectRecentWorkspaces(workspaces, [1, 3], 2, Number.NaN).map((workspace) => workspace.id), [2])
+  assert.deepEqual(selectRecentWorkspaces(workspaces, [1, 3], 2, Number.POSITIVE_INFINITY).map((workspace) => workspace.id), [2])
+})
+
 test("fills an incomplete history with available workspaces", () => {
   const workspaces = [1, 2, 3, 4].map((id) => ({ id }))
   assert.deepEqual(

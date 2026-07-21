@@ -1,10 +1,10 @@
 import { createState, type Accessor } from "ags"
 import { Gtk } from "ags/gtk4"
-import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import Interruptor from "../../componentes/Interruptor"
 import { TarjetaAjustes, TextoInformativo, TituloAjuste } from "./componentes"
 import { parseHypridle, writeHypridle, type HypridleConfig, type ListenerKind } from "../../servicios/pantalla/hypridle"
+import { reiniciarHypridle } from "../../servicios/pantalla/reinicioHypridle"
 import textos from "../../textos/ajustes/pantalla.json" with { type: "json" }
 
 const ARCHIVO_HYPRIDLE = `${GLib.get_user_config_dir()}/hypr/hypridle.conf`
@@ -23,7 +23,7 @@ function guardarHypridle(valores: Partial<Record<ListenerKind, { timeout: number
     if (!ok) return
     const salida = writeHypridle(new TextDecoder().decode(contenido), valores)
     GLib.file_set_contents(ARCHIVO_HYPRIDLE, salida)
-    execAsync(["bash", "-c", "pkill hypridle; hypridle &"]).catch(() => {})
+    reiniciarHypridle().catch(() => {})
   } catch (_) { /* un fallo de hypridle no debe cerrar el shell */ }
 }
 

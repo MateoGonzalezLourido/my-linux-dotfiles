@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { isGame } from "./detect.ts"
+import { esJuego as isGame } from "./deteccion.ts"
 
 // ── casos vacíos ──────────────────────────────────────────────────────────────
 
@@ -38,6 +38,12 @@ test("signal is matched case-insensitively", () => {
 test("signal is read from initialClass / initial_class too", () => {
   assert.equal(isGame({ initialClass: "steam_app_9" }), true)
   assert.equal(isGame({ initial_class: "gamescope" }), true)
+})
+
+test("REGRESIÓN: nombres con wine/proton como subcadena no son juegos", () => {
+  assert.equal(isGame({ class: "twine" }), false)
+  assert.equal(isGame({ class: "protonmail-desktop", fullscreen: 2 }), false)
+  assert.equal(isGame({ class: "me.proton.Mail", fullscreen: 2 }), false)
 })
 
 // ── lanzadores: la ventana es el lanzador, no el juego ────────────────────────
@@ -131,6 +137,10 @@ test("no .desktop entry (null / empty categories) falls back to fullscreen", () 
 
 test("a process under steamapps / proton / lutris is a game, windowed and classless", () => {
   assert.equal(
+    isGame({}, { exe: "/home/u/.steam/steamapps/common/half-life/hl2_linux" }),
+    true,
+  )
+  assert.equal(
     isGame({ class: "hl2_linux" }, { exe: "/home/u/.steam/steamapps/common/half-life/hl2_linux" }),
     true,
   )
@@ -146,6 +156,17 @@ test("a process under steamapps / proton / lutris is a game, windowed and classl
 test("the process path does not override the non-game list", () => {
   // Discord vive en /usr/bin; aunque su cmdline mencionara wine, sigue sin ser un juego.
   assert.equal(isGame({ class: "discord" }, { exe: "/opt/discord/discord", cmdline: "wine" }), false)
+})
+
+test("un argumento .exe o una ruta genérica no bastan como evidencia de juego", () => {
+  assert.equal(isGame(
+    { class: "herramienta" },
+    { exe: "/usr/bin/herramienta", cmdline: "herramienta /tmp/informe.exe" },
+  ), false)
+  assert.equal(isGame(
+    { class: "visor" },
+    { exe: "/opt/aplicaciones/visor", cmdline: "visor /home/u/games/manual.pdf" },
+  ), false)
 })
 
 // ── instaladores de wine/proton ───────────────────────────────────────────────

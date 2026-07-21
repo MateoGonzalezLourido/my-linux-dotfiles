@@ -1,8 +1,10 @@
 import { Gtk, Gdk } from "ags/gtk4"
 import { createState } from "ags"
 import AstalWp from "gi://AstalWp"
+import { crearCicloVida } from "../../utilidades/cicloVida"
 
 export default function MicIndicator() {
+    const cicloVida = crearCicloVida()
     // Un ÚNICO estado para la visibilidad, recalculado a mano en cada evento.
     //
     // Antes esto era `createComputed(() => hasMic() && isRecording())` sobre dos
@@ -62,26 +64,27 @@ export default function MicIndicator() {
         // nada volvía a evaluarlo en toda la sesión: el icono ya no aparecía por más
         // que Discord abriera el micro. Recalculando ambas en cada evento, cualquier
         // señal posterior —incluida la del propio recorder— corrige el veredicto.
-        audio.connect("recorder-added", sync)
-        audio.connect("recorder-removed", sync)
-        audio.connect("microphone-added", sync)
-        audio.connect("microphone-removed", sync)
-        audio.connect("device-added", sync)
-        audio.connect("device-removed", sync)
+        cicloVida.conectarSenales(audio, [
+            "recorder-added",
+            "recorder-removed",
+            "microphone-added",
+            "microphone-removed",
+            "device-added",
+            "device-removed",
+        ], sync)
         // Cubre el caso de que ya hubiera una captura al arrancar/recargar AGS
         // (el recorder-added pudo emitirse antes de conectar los handlers).
-        audio.connect("notify::recorders", sync)
-        audio.connect("notify::microphones", sync)
+        cicloVida.conectarSenales(audio, ["notify::recorders", "notify::microphones"], sync)
 
-        let muteId = 0
+        let desconectarMicro: (() => void) | null = null
         const bindMic = (next: AstalWp.Endpoint | null) => {
-            if (mic && muteId) mic.disconnect(muteId)
+            desconectarMicro?.()
             mic = next
-            muteId = mic ? mic.connect("notify::mute", syncMute) : 0
+            desconectarMicro = mic ? cicloVida.conectarSenales(mic, ["notify::mute"], syncMute) : null
             syncMute()
         }
         bindMic(mic)
-        audio.connect("notify::default-microphone", () => bindMic(audio.defaultMicrophone))
+        cicloVida.conectarSenales(audio, ["notify::default-microphone"], () => bindMic(audio.defaultMicrophone))
     }
 
     return (

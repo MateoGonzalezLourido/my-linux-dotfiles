@@ -3,12 +3,13 @@ import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { createComputed, createState } from "ags"
 import AstalWp from "gi://AstalWp"
 import {
-    barVisible, osdVisible, setOsdVisible, micOsdVisible,
+    osdVisible, setOsdVisible, micOsdVisible,
     brightness, brightnessOsdVisible,
 } from "../../estado/shell"
 import { TarjetaMicrofonoOSD } from "./MicOSD"
 import { barAutoHideEnabled, volumeOsdEnabled } from "../ajustes/preferences"
 import { clipWindowInputToContent } from "../../utilidades/inputRegion"
+import { obtenerControlVisibilidadBarra } from "../barra/visibilidad"
 
 const RADIO_ESQUINAS_OSD = 9
 const DURACION_ENTRADA_OSD_MS = 180
@@ -61,6 +62,7 @@ function getBrightnessIcon(v: number) {
 }
 
 export default function OSD(gdkmonitor: Gdk.Monitor) {
+    const visibilidadBarra = obtenerControlVisibilidadBarra(gdkmonitor)
     const wp = AstalWp.get_default()
     const audio = wp?.audio
     let speaker: AstalWp.Endpoint | null = audio?.defaultSpeaker ?? null
@@ -140,7 +142,7 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
             cssClasses={["osd-window"]}
             // Sin auto-ocultado el bar ya tiene zona exclusiva: el compositor nos
             // baja sus 38px, así que solo hace falta el hueco de 8.
-            marginTop={createComputed(() => barAutoHideEnabled() && barVisible() ? 46 : 8)}
+            marginTop={createComputed(() => barAutoHideEnabled() && visibilidadBarra.visible() ? 46 : 8)}
         >
             <box orientation={Gtk.Orientation.HORIZONTAL} halign={Gtk.Align.CENTER}>
                 {/* Todas las tarjetas viven en la misma superficie. La caja homogénea

@@ -1,11 +1,8 @@
 // servicios/energia/gamingState.ts
 //
 // Puente del estado "jugando" hacia DISCO, para que scripts de shell (bash)
-// puedan leerlo. La detección de juego (isGameClient, modulos/barra/games/evidence.ts,
-// que es isGame + evidencia del .desktop y de /proc) ya la usan el indicador de la
-// barra (GamesIndicator) y el auto-DND, pero cada uno
-// la calcula en su propia memoria de AGS y NADA la persiste. Bash no puede leer
-// la memoria de AGS, así que este watcher único la REUTILIZA (no la reimplementa)
+// puedan leerlo. El registro compartido de servicios/juegos ya alimenta el indicador,
+// auto-DND y este puente; aquí solo se persiste el estado para el lado Bash.
 // y escribe ~/.config/gigios/runtime-state.json = { "gaming": bool } cuando
 // cambia. hypr/scripts/oom-monitor.sh lo lee para pausar el escaneo de descargas
 // mientras juegas.
@@ -14,12 +11,15 @@
 // "fullscreen", sin polling). Se arranca una vez desde app.ts vía
 // initGamingState() (igual que initAutoDnd()).
 
-import AstalHyprland from "gi://AstalHyprland"
-import GLib from "gi://GLib"
 import Gio from "gi://Gio"
+import GLib from "gi://GLib"
 import { createState } from "ags"
-import { isGameClient } from "../../modulos/barra/games/evidence"
 import { backgroundJobsSuspended } from "./powerState.ts"
+import {
+  clienteJuegoEnFoco,
+  clientesJuego,
+  iniciarRegistroJuegos,
+} from "../juegos/registro"
 
 const STATE_PATH = `${GLib.get_user_config_dir()}/gigios/runtime-state.json`
 
@@ -100,16 +100,10 @@ function writeFlag(gaming: boolean) {
 export function initGamingState(): void {
   if (started) return
   started = true
-
-  const hypr = AstalHyprland.get_default()
-
-  // Fuente de verdad: direcciones de las ventanas-juego vivas. gaming = size > 0.
-  // Igual que GamesIndicator, un juego detectado vive hasta que su ventana cierra
-  // (salir de fullscreen no lo apaga: sigues en el juego).
-  const games = new Set<string>()
+  iniciarRegistroJuegos()
 
   const recompute = () => {
-    const gaming = games.size > 0
+    const gaming = clientesJuego.get().length > 0
     if (gaming === isGaming.get()) return
     _setGaming(gaming)
     writeFlag(gaming)
@@ -119,25 +113,16 @@ export function initGamingState(): void {
   // cambio de ventana: alt-tabear entre el navegador y el editor no toca este fichero.
   // Al PERDERLO se sella el instante, que es justo el origen de la cuenta de gracia.
   const refreshFocus = () => {
-    const c = hypr.focusedClient
-    const now = games.size > 0 && !!c && games.has(c.address)
+    const now = clienteJuegoEnFoco.get() !== null
     if (now === gameFocused) return
     gameFocused = now
     lastGameFocus = Math.floor(Date.now() / 1000)
     if (isGaming.get()) writeFlag(true)
   }
 
-  const addIfGame = (c: any) => {
-    if (!c || !c.address || games.has(c.address)) return
-    if (!isGameClient(c)) return
-    games.add(c.address)
-    recompute()
-    refreshFocus()   // el juego recién abierto suele nacer con el foco
-  }
-
-  // Barrido inicial + escritura inicial (deja el flag en false si no hay juegos,
-  // para que bash tenga un valor válido desde el arranque del shell).
-  for (const c of (hypr.get_clients?.() ?? [])) addIfGame(c)
+  // El registro compartido ya sembró los clientes existentes antes de publicar.
+  recompute()
+  refreshFocus()
   // Si AGS reinicia con un juego ya delante, el instante del último foco es AHORA:
   // un 0 heredado lo daría por abandonado hace 55 años y no congelaría nada.
   lastGameFocus = Math.floor(Date.now() / 1000)
@@ -146,32 +131,9 @@ export function initGamingState(): void {
   // El ahorro entra y sale sin que pase nada con las ventanas, así que sin esto el
   // fichero solo se actualizaría la próxima vez que abrieras o cerraras un juego.
   backgroundJobsSuspended.subscribe(() => writeFlag(isGaming.get()))
-
-  hypr.connect("client-added", (_s, client) => {
-    addIfGame(client)
-    // class/fullscreen puede resolverse un instante después del mapeo; un único
-    // recheck tardío, y solo si la clase aún no está (no arranca timers al abrir
-    // ventanas normales como un terminal o editor).
-    if (!client || !client.class) {
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
-        addIfGame(client)
-        return GLib.SOURCE_REMOVE
-      })
-    }
+  clientesJuego.subscribe(() => {
+    recompute()
+    refreshFocus()
   })
-
-  // client-removed pasa la dirección (string), no un objeto Client.
-  hypr.connect("client-removed", (_s, address: string) => {
-    if (games.delete(address)) recompute()
-    refreshFocus()   // cerrar el juego que tenía el foco también lo suelta
-  })
-
-  hypr.connect("event", (_s, name: string) => {
-    // Juegos nativos que solo se vuelven detectables al ir a fullscreen.
-    if (name === "fullscreen") { addIfGame(hypr.focusedClient); return }
-    // Cambio de ventana activa: incluye irse a otro workspace, que es el caso que
-    // motivó todo esto. `activewindowv2` da la dirección y `activewindow` la clase;
-    // nos vale cualquiera de los dos porque releemos `focusedClient` de todos modos.
-    if (name === "activewindow" || name === "activewindowv2") refreshFocus()
-  })
+  clienteJuegoEnFoco.subscribe(refreshFocus)
 }

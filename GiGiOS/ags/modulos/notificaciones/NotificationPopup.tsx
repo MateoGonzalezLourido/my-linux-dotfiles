@@ -23,8 +23,9 @@ import {
 import { ingest } from "./ingest.ts"
 import { canFitPopup } from "./popupLayout.ts"
 import { PopupBurstGuard } from "./popupBurst.ts"
-import { barVisible, powerMenuVisible, quickSettingsVisible } from "../../estado/shell"
+import { powerMenuVisible, quickSettingsVisible } from "../../estado/shell"
 import { barAutoHideEnabled } from "../ajustes/preferences"
+import { obtenerControlVisibilidadBarra, type EstadoVisibilidadBarra } from "../barra/visibilidad"
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,8 @@ const PANEL_NAMES = ["notification-panel", "quick-settings", "power-menu"]
 // popup (Orion, calendario, menús de la izquierda...) y activaría el fallback
 // vertical de 260 px aunque ninguna ocupe esta esquina.
 const panelesQueDesplazanPopup = [notifPanelVisible, quickSettingsVisible, powerMenuVisible]
+let visibilidadPopup: EstadoVisibilidadBarra | null = null
+let bajaVisibilidadPopup: (() => void) | null = null
 
 const hayPanelQueDesplazaPopup = (): boolean =>
   panelesQueDesplazanPopup.some((estado) => estado.get())
@@ -75,7 +78,7 @@ function getOpenPanelBottom(): number {
 
 const computeMargin = (): number => {
   if (!hayPanelQueDesplazaPopup()) {
-    return barVisible.get() ? panelOffset() + 16 : 16
+    return visibilidadPopup?.visible.get() ? panelOffset() + 16 : 16
   }
   const bottom = getOpenPanelBottom()
   // Si la altura aún no está disponible (layout pendiente) usamos un fallback
@@ -101,7 +104,6 @@ function scheduleMarginUpdate() {
 }
 
 panelesQueDesplazanPopup.forEach((estado) => estado.subscribe(scheduleMarginUpdate))
-barVisible.subscribe(scheduleMarginUpdate)
 barAutoHideEnabled.subscribe(scheduleMarginUpdate)
 
 // ── Estado imperativo ─────────────────────────────────────────────────────────
@@ -432,6 +434,10 @@ function PopupItem({ notif, onDismiss, registerDismissCb }: {
 export default function NotificationPopup(gdkmonitor: Gdk.Monitor) {
   const { TOP, RIGHT } = Astal.WindowAnchor
   const notifd = AstalNotifd.get_default()
+  bajaVisibilidadPopup?.()
+  visibilidadPopup = obtenerControlVisibilidadBarra(gdkmonitor)
+  bajaVisibilidadPopup = visibilidadPopup.visible.subscribe(scheduleMarginUpdate)
+  setPopupMargin(computeMargin())
 
   if (!notificationSignalConnected) {
     notificationSignalConnected = true

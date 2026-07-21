@@ -1,4 +1,4 @@
-import { createState, createComputed } from "ags"
+import { createState, createComputed, type Accessor } from "ags"
 import { wakeUpActive, wakeUpRemaining, setWakeUpActive } from "./wakeup"
 import { chipText } from "./wakeupTime"
 import WakeUpOptions from "./WakeUpOptions"
@@ -10,57 +10,50 @@ import WakeUpOptions from "./WakeUpOptions"
 // config/system_state.json (eso es para ajustes que deben sobrevivir a reinicios).
 //
 // Para añadir una función nueva: crea su createState (default = valor de arranque)
-// y añade una entrada a BAR_FUNCTIONS. El popover se dibuja iterando ese array, así
+// y añade una entrada a BAR_FUNCTIONS. El menú se dibuja iterando ese array, así
 // que no hay que tocar la UI.
 //
-// Dos extras opcionales por función (los usa Wake up, ver Functions.tsx):
-//   status → texto del chip de la derecha en vez del ON/OFF de serie.
-//   expand → widget que se despliega bajo la fila mientras la función está encendida.
+// Dos extras opcionales por función (los usa Wake up):
+//   estado → texto del chip de la derecha en vez del ON/OFF de serie.
+//   expandir → widget desplegado bajo la fila mientras la función está encendida.
 
 // CPU / RAM: desactivada por defecto. Al desactivarse, Bar.tsx desmonta <CpuRam/>
-// (via <With>), con lo que su polling y sus procesos `ps` dejan de existir.
+// mediante una ranura condicional, con lo que su fuente deja de tener consumidores.
 export const [cpuRamEnabled, setCpuRamEnabled] = createState(false)
 
 // Interfaz mínima de un accessor reactivo (misma convención que PanelState en
 // state.tsx): evita depender del tipo Accessor de gnim.
-type Reactive<T> = { get: () => T; subscribe: (cb: (v: T) => void) => unknown }
-type ToggleState = Reactive<boolean>
+export type EstadoReactivo<T> = Accessor<T>
 
-export type BarFunction = {
-  id: string
-  label: string
-  icon: string
-  enabled: ToggleState
-  toggle: (on: boolean) => void
+export type FuncionBarra = {
+  etiqueta: string
+  habilitada: EstadoReactivo<boolean>
+  alternar: (activa: boolean) => void
   /** Texto del chip derecho. Si falta, la fila enseña ON/OFF. */
-  status?: Reactive<string>
+  estado?: EstadoReactivo<string>
   /** Contenido desplegable bajo la fila, visible solo con la función encendida. */
-  expand?: () => any
+  expandir?: () => any
 }
 
 // Chip del Wake up: la cuenta atrás ("29:58"), ∞ si no tiene plazo, OFF si está
 // apagado. Sale de la lógica pura de wakeupTime.ts (testeada con node).
-const wakeUpChip = createComputed(
+const chipWakeUp = createComputed(
   [wakeUpActive, wakeUpRemaining],
   (active: boolean, remaining: number | null) => chipText(active, remaining),
 )
 
-export const BAR_FUNCTIONS: BarFunction[] = [
+export const BAR_FUNCTIONS: FuncionBarra[] = [
   {
-    id: "cpuram",
-    label: "CPU / RAM",
-    icon: "󰻠",
-    enabled: cpuRamEnabled,
-    toggle: (on) => setCpuRamEnabled(on),
+    etiqueta: "CPU / RAM",
+    habilitada: cpuRamEnabled,
+    alternar: (activa) => setCpuRamEnabled(activa),
   },
   {
-    id: "wakeup",
-    label: "Wake up",
-    icon: "󰅶",
-    enabled: wakeUpActive,
-    toggle: (on) => setWakeUpActive(on),
-    status: wakeUpChip,
+    etiqueta: "Wake up",
+    habilitada: wakeUpActive,
+    alternar: (activa) => setWakeUpActive(activa),
+    estado: chipWakeUp,
     // Referencia al componente, no JSX: este módulo es .ts. Lo instancia Functions.tsx.
-    expand: WakeUpOptions,
+    expandir: WakeUpOptions,
   },
 ]

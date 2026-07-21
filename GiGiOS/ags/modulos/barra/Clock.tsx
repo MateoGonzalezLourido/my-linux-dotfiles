@@ -1,105 +1,95 @@
 import GLib from "gi://GLib"
 import { createState, createEffect } from "ags"
 import { Gtk } from "ags/gtk4"
-import { barVisible, widgetsRefresh, toggleCalendar } from "../../estado/shell.tsx";
+import { toggleCalendar } from "../../estado/shell.tsx";
 import { timeFormat, formatClock } from "../ajustes/preferences"
+import { ticReloj } from "../../servicios/sistema/reloj"
+import { crearCicloVida } from "../../utilidades/cicloVida"
+import type { EstadoVisibilidadBarra } from "./visibilidad"
 
-let cacheLastTimeRendered = ""
-/*NOTA: EL RELOJ NO SE PARA PORQUE SU INTERVAL ES DE 1 MINUTO, EL COSTE ES NULO, SOLO PARAMOS EL RENDER */
-export default function Clock() {
-  const now = GLib.DateTime.new_now_local()
-  const [time, setTime] = createState(formatClock(now))
-  const [stopwatch, setStopwatch] = createState(0)
-  const [running, setRunning] = createState(false)
-  let swInterval: number | null = null
-  let startTime = 0
-  //formato del reloj (12h/24h según preferencia; ver modulos/ajustes/preferences.ts)
-  const string_clock = () => formatClock()
+export default function Clock({ visibilidad }: { visibilidad: EstadoVisibilidadBarra }) {
+  const cicloVida = crearCicloVida()
+  let ultimoTiempoRenderizado = formatClock()
+  const [hora, establecerHora] = createState(ultimoTiempoRenderizado)
+  const [cronometro, establecerCronometro] = createState(0)
+  const [cronometroActivo, establecerCronometroActivo] = createState(false)
+  let intervaloCronometro: number | null = null
+  let inicioCronometro = 0
+  const formatearReloj = () => formatClock()
   // Repinta al instante cuando el usuario cambia el formato en Ajustes > Región, fecha y hora.
-  const unsubFormat = timeFormat.subscribe(() => setTime(string_clock()))
-  let clockInterval: number | null = null
-  //logica de timers para actualizar el reloj
-  GLib.timeout_add(GLib.PRIORITY_DEFAULT, (60 - now.get_second()) * 1000, () => {
-    setTime(string_clock())
+  cicloVida.suscribir(timeFormat, () => establecerHora(formatearReloj()))
+  cicloVida.suscribir(ticReloj, () => establecerHora(formatearReloj()))
 
-    clockInterval = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 60000, () => {
-      setTime(string_clock())
-      return GLib.SOURCE_CONTINUE
-    })
-
-    return GLib.SOURCE_REMOVE
-  })
-
-  function formatSW(secs: number) {
-    const h = Math.floor(secs / 3600)
-    const m = Math.floor((secs % 3600) / 60)
-    const s = secs % 60
-    return h > 0
-      ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-      : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+  function formatearCronometro(segundos: number) {
+    const horas = Math.floor(segundos / 3600)
+    const minutos = Math.floor((segundos % 3600) / 60)
+    const segundosRestantes = segundos % 60
+    return horas > 0
+      ? `${horas}:${String(minutos).padStart(2, "0")}:${String(segundosRestantes).padStart(2, "0")}`
+      : `${String(minutos).padStart(2, "0")}:${String(segundosRestantes).padStart(2, "0")}`
   }
 
-  function tick() {
-    const elapsed = Date.now() - startTime
-    setStopwatch(Math.round(elapsed / 1000))
-    const nextTick = 1000 - (elapsed % 1000)
-    swInterval = GLib.timeout_add(GLib.PRIORITY_HIGH, nextTick, () => {
-      tick()
+  function actualizarCronometro() {
+    const transcurrido = Date.now() - inicioCronometro
+    establecerCronometro(Math.round(transcurrido / 1000))
+    const siguiente = 1000 - (transcurrido % 1000)
+    intervaloCronometro = GLib.timeout_add(GLib.PRIORITY_HIGH, siguiente, () => {
+      actualizarCronometro()
       return GLib.SOURCE_REMOVE
     })
   }
 
-  function startStopwatch() {
-    startTime = Date.now()
-    setStopwatch(0)
-    setRunning(true)
-    tick()
+  function iniciarCronometro() {
+    inicioCronometro = Date.now()
+    establecerCronometro(0)
+    establecerCronometroActivo(true)
+    actualizarCronometro()
   }
 
-  function stopStopwatch() {
-    if (swInterval !== null) {
-      GLib.source_remove(swInterval)
-      swInterval = null
+  function detenerCronometro() {
+    if (intervaloCronometro !== null) {
+      GLib.source_remove(intervaloCronometro)
+      intervaloCronometro = null
     }
-    startTime = 0
-    setRunning(false)
-    setStopwatch(0)
+    inicioCronometro = 0
+    establecerCronometroActivo(false)
+    establecerCronometro(0)
   }
 
-  let wasVisible = widgetsRefresh()
+  let wasVisible = visibilidad.refrescar()
 
-  // Único dependency del efecto: widgetsRefresh (visibilidad). running/time/stopwatch
-  // se leen con .get() (sin trackear) para no re-ejecutar el efecto en cada tick.
+  // Única dependencia del efecto: el refresco local de esta barra. El resto
+  // se lee con .get() para no re-ejecutar el efecto en cada tick.
   createEffect(() => {
-    const visible = widgetsRefresh()
+    const visible = visibilidad.refrescar()
     if (visible && !wasVisible) {
       // Al mostrarse: si el cronómetro corría, reanudar sus ticks por segundo.
-      if (running.get()) {
-        if (swInterval !== null) { GLib.source_remove(swInterval); swInterval = null }
-        tick()
+      if (cronometroActivo.get()) {
+        if (intervaloCronometro !== null) { GLib.source_remove(intervaloCronometro); intervaloCronometro = null }
+        actualizarCronometro()
       }
     } else if (!visible && wasVisible) {
       // Al ocultarse: congelar la etiqueta en lo que se muestra AHORA (antes se
       // cacheaba al mostrarse, quedando hasta 1 min desfasado durante el ocultado)
       // y parar el tick por segundo del cronómetro.
-      cacheLastTimeRendered = running.get() ? formatSW(stopwatch.get()) : time.get()
-      if (swInterval !== null) { GLib.source_remove(swInterval); swInterval = null }
+      ultimoTiempoRenderizado = cronometroActivo.get() ? formatearCronometro(cronometro.get()) : hora.get()
+      if (intervaloCronometro !== null) { GLib.source_remove(intervaloCronometro); intervaloCronometro = null }
     }
     wasVisible = visible
   })
+  cicloVida.registrar(detenerCronometro)
   return (
     <button
       valign={Gtk.Align.CENTER}
       cssClasses={["bar-pill-btn"]}
-      $={(self: Gtk.Button) => self.connect("destroy", () => { if (typeof unsubFormat === "function") unsubFormat() })}
     >
       <box
-        cssClasses={running((r) => r ? ["bar-pill", "clock", "clock-pill", "stopwatch"] : ["bar-pill", "clock", "clock-pill"])}
+        cssClasses={cronometroActivo((activo) => activo ? ["bar-pill", "clock", "clock-pill", "stopwatch"] : ["bar-pill", "clock", "clock-pill"])}
         valign={Gtk.Align.CENTER}
       >
-        <label halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} hexpand label={running((r) => r
-          ? (barVisible() ? formatSW(stopwatch()) : cacheLastTimeRendered)
-          : (barVisible() ? time() : cacheLastTimeRendered)
+        <label halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} hexpand label={cronometroActivo((activo) => activo
+          ? (visibilidad.visible() ? formatearCronometro(cronometro()) : ultimoTiempoRenderizado)
+          : (visibilidad.visible() ? hora() : ultimoTiempoRenderizado)
         )} />
       </box>
       <Gtk.GestureClick
@@ -109,10 +99,10 @@ export default function Clock() {
       <Gtk.GestureClick
         button={3}
         onPressed={() => {
-          if (running()) {
-            stopStopwatch()
+          if (cronometroActivo()) {
+            detenerCronometro()
           } else {
-            startStopwatch()
+            iniciarCronometro()
           }
         }}
       />

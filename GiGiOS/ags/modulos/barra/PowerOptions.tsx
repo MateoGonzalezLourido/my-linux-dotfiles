@@ -3,71 +3,28 @@ import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { powerMenuVisible, closeAllPanels, panelAutoClose } from "../../estado/shell"
+import BotonAccionEnergia from "./componentes/BotonAccionEnergia"
+import { ACCIONES_ENERGIA } from "./componentes/accionesEnergia"
+import { crearCicloVida } from "../../utilidades/cicloVida"
 
 export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
+    const cicloVida = crearCicloVida()
     const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
-    const autoClose = panelAutoClose(closeAllPanels, 300, powerMenuVisible)
-    const [keyboardActive, setKeyboardActive] = createState(false)
+    const autoCierre = panelAutoClose(closeAllPanels, 300, powerMenuVisible)
+    const [tecladoActivo, establecerTecladoActivo] = createState(false)
 
-    powerMenuVisible.subscribe(() => setKeyboardActive(false))
+    cicloVida.suscribir(powerMenuVisible, () => establecerTecladoActivo(false))
 
-    const handlePointerEnter = () => {
-        autoClose.onEnter()
-        setKeyboardActive(true)
+    const manejarEntradaPuntero = () => {
+        autoCierre.onEnter()
+        establecerTecladoActivo(true)
     }
 
-    const handleAction = (command: string) => {
-        execAsync(command)
-            .catch(err => console.error(`Power Action Error: ${err}`))
+    const ejecutarAccion = (comando: string) => {
+        execAsync(comando)
+            .catch(error => console.error(`Error en acción de energía: ${error}`))
         closeAllPanels()
     }
-
-    const PowerButtonAction = ({ id, icon, label, command }: { id: string, icon: string, label: string, command: string }) => (
-        <button
-            cssClasses={["power-button", id]}
-            onClicked={() => handleAction(command)}
-            focusable={false}
-        >
-            <box
-                cssClasses={["power-button-content"]}
-                orientation={Gtk.Orientation.VERTICAL}
-                spacing={8}
-                halign={Gtk.Align.CENTER}
-                valign={Gtk.Align.CENTER}
-                hexpand
-                vexpand
-            >
-                <box
-                    cssClasses={["power-icon-frame"]}
-                    halign={Gtk.Align.CENTER}
-                    valign={Gtk.Align.CENTER}
-                    widthRequest={56}
-                    heightRequest={56}
-                >
-                    <label
-                        cssClasses={["power-icon"]}
-                        label={icon}
-                        halign={Gtk.Align.CENTER}
-                        valign={Gtk.Align.CENTER}
-                        xalign={0.5}
-                        yalign={0.5}
-                        justify={Gtk.Justification.CENTER}
-                        widthRequest={56}
-                        heightRequest={56}
-                        hexpand
-                        vexpand
-                    />
-                </box>
-                <label
-                    cssClasses={["power-label"]}
-                    label={label}
-                    halign={Gtk.Align.CENTER}
-                    xalign={0.5}
-                    hexpand
-                />
-            </box>
-        </button>
-    )
 
     const panel = (
         <box
@@ -77,20 +34,17 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
             valign={Gtk.Align.CENTER}
         >
             <Gtk.EventControllerMotion
-                onEnter={handlePointerEnter}
-                onLeave={autoClose.onLeave}
+                onEnter={manejarEntradaPuntero}
+                onLeave={autoCierre.onLeave}
             />
             <box
                 cssClasses={["power-menu-strip"]}
                 spacing={0}
                 valign={Gtk.Align.CENTER}
             >
-                <PowerButtonAction id="lock" icon="󰌾" label="Bloquear" command="hyprlock" />
-                <PowerButtonAction id="logout" icon="󰍃" label="Salir" command="hyprctl dispatch exit" />
-                <PowerButtonAction id="suspend" icon="󰏤" label="Suspender" command="systemctl suspend" />
-                <PowerButtonAction id="shutdown" icon="󰐥" label="Apagar" command="systemctl poweroff" />
-                <PowerButtonAction id="hibernate" icon="󰒲" label="Hibernar" command="systemctl hibernate" />
-                <PowerButtonAction id="reboot" icon="󰜉" label="Reiniciar" command="systemctl reboot" />
+                {ACCIONES_ENERGIA.map((accion) => (
+                    <BotonAccionEnergia accion={accion} ejecutar={ejecutarAccion} />
+                ))}
             </box>
         </box>
     ) as unknown as Gtk.Widget
@@ -103,8 +57,8 @@ export default function PowerOptions(gdkmonitor: Gdk.Monitor) {
             layer={Astal.Layer.OVERLAY}
             anchor={TOP | BOTTOM | LEFT | RIGHT}
             exclusivity={Astal.Exclusivity.IGNORE}
-            keymode={keyboardActive((active) =>
-                active ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
+            keymode={tecladoActivo((activo) =>
+                activo ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
             application={app}
             cssClasses={["power-window"]}
         >

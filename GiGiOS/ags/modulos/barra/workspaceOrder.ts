@@ -38,7 +38,9 @@ export function selectRecentWorkspaces<T extends WorkspaceRef>(
   requestedLimit: number,
 ): T[] {
   const sorted = [...(workspaces ?? [])].sort((a, b) => a.id - b.id)
-  const limit = Math.max(1, Math.round(requestedLimit))
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.max(1, Math.round(requestedLimit))
+    : 1
   if (sorted.length <= limit) return sorted
 
   const byId = new Map(sorted.map((workspace) => [workspace.id, workspace]))

@@ -20,7 +20,11 @@ export function parseMinutes(text: string): number | null {
   if (t === "") return null
   if (!/^\d+$/.test(t)) return null
   const n = Number(t)
-  if (!Number.isFinite(n) || n <= 0) return null
+  // Una cadena de dígitos enorme puede desbordar Number a Infinity. Sigue siendo
+  // una petición de plazo largo, así que aplica el mismo techo que cualquier valor
+  // superior a 24 h en vez de convertirla accidentalmente en "sin límite".
+  if (!Number.isFinite(n)) return MAX_MINUTES
+  if (n <= 0) return null
   return Math.min(n, MAX_MINUTES)
 }
 
@@ -37,7 +41,7 @@ export function normalizeMinutesText(text: string): string {
  * no "29:59" (el primer tick llega un instante después de armarlo).
  */
 export function formatRemaining(seconds: number): string {
-  const s = Math.max(0, Math.ceil(seconds))
+  const s = Number.isFinite(seconds) ? Math.max(0, Math.ceil(seconds)) : 0
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
   const sec = s % 60
