@@ -1,7 +1,7 @@
 import app from "ags/gtk4/app"
 import style from "./out.css"
-import Bar from "./modulos/barra/Bar"
-import PowerOptions from "./modulos/barra/PowerOptions"
+import Barra from "./modulos/barra/Barra"
+import MenuEnergia from "./modulos/menu-energia/MenuEnergia"
 import OSD, { showOSD } from "./modulos/osd/OSD"
 import { showMicOSD } from "./modulos/osd/MicOSD"
 import QuickSettings from "./modulos/ajustes-rapidos/QuickSettings"
@@ -19,7 +19,7 @@ import { initAutoDnd } from "./modulos/notificaciones/autoDnd/watcher"
 import { initNotifDaemonCheck } from "./modulos/notificaciones/daemonCheck"
 import { initTrayApps } from "./modulos/ajustes/trayApps"
 import { initGamingState } from "./servicios/energia/gamingState"
-import { initWakeUp } from "./modulos/barra/functions/wakeup"
+import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
 import { alternarBarPorTecla, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness } from "./estado/shell"
 
@@ -88,8 +88,8 @@ app.start({
     response("unknown request")
   },
   main() {
-    app.get_monitors().flatMap(Bar)
-    app.get_monitors().map(PowerOptions)
+    app.get_monitors().flatMap(Barra)
+    app.get_monitors().map(MenuEnergia)
     app.get_monitors().map(OSD)
     // Resumen inicial simultáneo: cada tarjeta aplica su propia condición (el
     // volumen se omite si arranca silenciado o a cero, y el brillo si ya está al
@@ -114,7 +114,7 @@ app.start({
     // vetando la suspensión sin que ninguna UI lo enseñe. NO se aparta con los
     // demás (abajo): su único trabajo es limpiar estado heredado peligroso, y es
     // un borrado de fichero — retrasar justo eso no tiene sentido.
-    initWakeUp()
+    inicializarMantenerDespierto()
     // Misma razón, mismo sitio: un registro de GameMode huérfano de un AGS muerto
     // dejaría el gobernador de CPU en `performance` sin UI donde apagarlo. Es un
     // `pkill` acotado a nuestro argv0, así que tampoco tiene sentido apartarlo.

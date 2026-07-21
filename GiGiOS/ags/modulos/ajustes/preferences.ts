@@ -1,7 +1,7 @@
 // modulos/ajustes/preferences.ts
 //
 // Hub de preferencias persistentes de las secciones propias del shell. A diferencia de
-// modulos/barra/functions/state.ts (que vive SOLO en RAM), estas preferencias se
+// modulos/barra/funciones/estado.ts (que vive SOLO en RAM), estas preferencias se
 // persisten en config/preferences.json para sobrevivir a reinicios.
 //
 // Para añadir una preferencia nueva:
@@ -32,13 +32,13 @@ const [spotifyBarEnabled, _setSpotifyBarEnabled] = createState(true)
 export { spotifyBarEnabled }
 
 // Batería de la barra. Si se desactiva, el widget no se monta y por tanto no
-// inicializa AstalBattery ni sus señales. Si se deja activa, Battery.tsx oculta
+// inicializa AstalBattery ni sus señales. Si se deja activa, Bateria.tsx oculta
 // el indicador automáticamente cuando el equipo no expone una batería.
 // Default: activada para conservar el comportamiento existente.
 const [batteryBarEnabled, _setBatteryBarEnabled] = createState(true)
 export { batteryBarEnabled }
 
-// Red de la barra. Al desactivarla, Network.tsx no se monta ni se conecta a las
+// Red de la barra. Al desactivarla, Red.tsx no se monta ni se conecta a las
 // señales de AstalNetwork. Si está activa, el propio widget se oculta cuando no
 // hay ningún enlace Wi-Fi o Ethernet activo.
 const [networkBarEnabled, _setNetworkBarEnabled] = createState(true)
@@ -69,12 +69,12 @@ const [startupVolumeMuted, _setStartupVolumeMuted] = createState(false)
 const [startupMicMuted, _setStartupMicMuted] = createState(false)
 export { startupVolumeMuted, startupMicMuted }
 
-// Apps en segundo plano (SystemTray) de la barra. Desactivada, no se monta el
+// Apps en segundo plano (BandejaSistema) de la barra. Desactivada, no se monta el
 // contenedor ni se renderizan sus iconos, bindings, menús o popovers.
 const [trayBarEnabled, _setTrayBarEnabled] = createState(true)
 export { trayBarEnabled }
 
-// Botón de notificaciones de la barra. Solo controla NotificationButton; el
+// Botón de notificaciones de la barra. Solo controla BotonNotificaciones; el
 // panel, el historial y los controles de Quick Settings siguen disponibles.
 const [notificationBarEnabled, _setNotificationBarEnabled] = createState(true)
 export { notificationBarEnabled }
@@ -113,7 +113,7 @@ const clampWorkspaceVisibleLimit = (value: number): number =>
 
 // Auto-ocultado de la barra. Activado (default) = comportamiento actual: la barra
 // se retrae y vuelve al pasar el ratón por la hotzone superior. Desactivado, la
-// barra queda fija y además pasa a exclusivity EXCLUSIVE (Bar.tsx), de modo que
+// barra queda fija y además pasa a exclusivity EXCLUSIVE (Barra.tsx), de modo que
 // Hyprland le reserva su altura y no tapa las ventanas. Se aplica en caliente.
 const [barAutoHideEnabled, _setBarAutoHideEnabled] = createState(true)
 export { barAutoHideEnabled }
@@ -232,7 +232,7 @@ const [autoDndFullscreenApps, _setAutoDndFullscreenApps] = createState<string[]>
 export { autoDndFullscreenApps }
 
 // Formato del reloj de la barra: "24h" (por defecto, p. ej. 14:30) o "12h"
-// (02:30 PM). Lo lee modulos/barra/Clock.tsx de forma reactiva, así que el cambio
+// (02:30 PM). Lo lee modulos/barra/indicadores/tiempo/Reloj.tsx de forma reactiva, así que el cambio
 // se ve al instante sin reiniciar. Vive en "Región, fecha y hora".
 export type TimeFormat = "24h" | "12h"
 const [timeFormat, _setTimeFormat] = createState<TimeFormat>("24h")

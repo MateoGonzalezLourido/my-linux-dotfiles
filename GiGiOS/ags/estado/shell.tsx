@@ -96,7 +96,7 @@ export const anyPanelVisible = {
 // ── Auto-cierre de paneles al salir el ratón ──────────────────────────────────
 // Devuelve handlers onEnter/onLeave para un <Gtk.EventControllerMotion>. Al
 // salir el puntero del panel se espera graceMs y se cierra; al volver a entrar
-// se cancela. Centraliza el patrón que ya usaban PowerOptions y NotificationPanel
+// se cancela. Centraliza el patrón que ya usaban MenuEnergia y NotificationPanel
 // para que todos los paneles del bar se comporten igual.
 //
 // `visible` (opcional): el estado de visibilidad del panel. Con él se activan dos

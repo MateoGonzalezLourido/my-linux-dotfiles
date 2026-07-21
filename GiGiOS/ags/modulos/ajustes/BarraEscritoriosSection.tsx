@@ -54,7 +54,7 @@ function DeslizadorLimite({ valor, minimo, maximo, alCambiar }: {
   // desmontar con <With> el widget solo se desparenta —los closures de JS lo siguen
   // referenciando—, así que el handler no llegaba a correr y cada visita a la sección
   // dejaba un suscriptor vivo para siempre. <With> sí hace scope.dispose(). Mismo
-  // patrón (y mismo bug) que documenta SpotifyNowPlaying.tsx.
+  // patrón (y mismo bug) que documenta ReproduccionSpotify.tsx.
   onCleanup(valor.subscribe(() => {
     if (ajuste.value !== valor.get()) ajuste.value = valor.get()
   }))

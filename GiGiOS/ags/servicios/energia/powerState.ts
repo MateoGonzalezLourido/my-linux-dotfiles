@@ -112,7 +112,7 @@ export const [notifProcessingSuspended, _setSuspended] = createState(false)
 // wsPreviewSuspended: powerSaveActive AND the user opted in to pausing the workspace preview.
 export const [wsPreviewSuspended, _setWsPreviewSuspended] = createState(false)
 // spotifyBarSuspended: powerSaveActive AND the user opted in to hiding the Spotify pill.
-// Bar.tsx lo usa para DESMONTAR el widget (no solo ocultarlo): la pastilla trae un timer
+// Barra.tsx lo usa para DESMONTAR el widget (no solo ocultarlo): la pastilla trae un timer
 // de 1 s y el waveform engancha el reloj de FRAMES del monitor (240 Hz en este equipo,
 // medido), y un widget meramente invisible seguiría pagando ambos. Al desmontarlo, su
 // handler de "destroy" quita el timer, suelta el tick callback y cancela la suscripción.

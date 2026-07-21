@@ -2,7 +2,7 @@
 # Monitor de actualizaciones del SO + drivers de GPU.
 #
 # Escribe ~/.config/gigios/updates.json con el número de paquetes de sistema y la
-# lista de drivers de GPU pendientes; el widget de la barra (ags UpdatesButton) lo
+# lista de drivers de GPU pendientes; `Actualizaciones` en la barra lo
 # observa con un FileMonitor y muestra un icono + popover cuando hay algo.
 #
 # Todo el sondeo es SOLO LECTURA y SIN SUDO:

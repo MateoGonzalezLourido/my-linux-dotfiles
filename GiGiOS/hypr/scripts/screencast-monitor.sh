@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Monitor de captura de pantalla (compartir + grabar).
 #
-# Escribe ~/.config/gigios/screencast.json; el widget de la barra (ags
-# ScreencastIndicator) lo observa con un FileMonitor y muestra un icono rojo
+# Escribe ~/.config/gigios/screencast.json; `CapturaPantalla` en la barra lo
+# observa con un FileMonitor y muestra un icono rojo
 # mientras algo esté capturando. Mismo patrón que updates-monitor.sh.
 #
 # Un único coordinador conserva por separado los dos estados:

@@ -25,7 +25,7 @@ import { canFitPopup } from "./popupLayout.ts"
 import { PopupBurstGuard } from "./popupBurst.ts"
 import { powerMenuVisible, quickSettingsVisible } from "../../estado/shell"
 import { barAutoHideEnabled } from "../ajustes/preferences"
-import { obtenerControlVisibilidadBarra, type EstadoVisibilidadBarra } from "../barra/visibilidad"
+import { obtenerControlVisibilidadBarra, type EstadoVisibilidadBarra } from "../../estado/visibilidadBarra"
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 

@@ -475,7 +475,7 @@ function AppGroup({ appName, notifs }: { appName: string; notifs: StoredNotifica
           de 150 notificaciones pagaba su árbol entero para no enseñar ni una. El <With>
           va en su propio <box> porque al remontarse se inserta al FINAL de su contenedor,
           no en su hueco — sin la caja, expandir un grupo mandaría sus items por debajo del
-          resto de grupos (mismo remedio que CpuRam/ScreencastIndicator en Bar.tsx).
+          resto de grupos (mismo remedio que Recursos/CapturaPantalla en Barra.tsx).
           El caso plegado devuelve <box />, NO null: <With> no añade nada al fragment ante
           null y el ciclo de disposición cuelga de iterar sus hijos — sin hijo no correrían
           los onCleanup de los items que acabamos de tirar (ver ags/CLAUDE.md). */}

@@ -7,7 +7,7 @@
 # del menú de la barra (el logo Arch) la esté vetando.
 #
 # Estado: ~/.config/gigios/wakeup.json, escrito por AGS
-# (ags/modulos/barra/functions/wakeup.ts):
+# (ags/servicios/energia/mantenerDespierto.ts):
 #   { "active": bool, "until": <epoch seg|null>, "screen": bool, "pid": <pid de AGS> }
 #   until = null  → sin límite (el campo de minutos vacío)
 #   screen = true → el Wake up también protege la pantalla (no se apaga ni bloquea)

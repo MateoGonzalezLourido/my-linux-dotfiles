@@ -1,7 +1,8 @@
 // modulos/ajustes/trayApps.ts
 //
 // Registro + preferencia de visibilidad de las "apps en segundo plano" (los
-// iconos StatusNotifierItem del SystemTray, ver modulos/barra/SystemTray.tsx).
+// iconos StatusNotifierItem de BandejaSistema, ver
+// modulos/barra/bandeja/BandejaSistema.tsx).
 //
 // Dos piezas persistidas en ~/.config/gigios/tray-apps.json:
 //   - known:  toda app que ha aparecido alguna vez en el tray {id, title, iconName}.
@@ -10,7 +11,7 @@
 //             para poder ocultar una app aunque ahora mismo esté cerrada.
 //   - hidden: ids de las apps que el usuario NO quiere ver en el bar.
 //
-// El bar (SystemTray) filtra sus items contra `hiddenTrayApps`; la sección de
+// La barra (BandejaSistema) filtra sus items contra `hiddenTrayApps`; la sección de
 // ajustes (BarraEscritoriosSection) lista `knownTrayApps` con un toggle por app. Ambos estados
 // son reactivos, así que ocultar/mostrar se refleja en vivo sin reiniciar.
 

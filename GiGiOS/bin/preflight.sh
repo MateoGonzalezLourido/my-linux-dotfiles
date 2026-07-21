@@ -16,9 +16,10 @@ required=(
   install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh ags/app.ts ags/style.scss ags/out.css
   mimeapps.list menus/applications.menu kdeglobals qt6ct/qt6ct.conf
   mime/packages/text-x-xresources.xml mime/packages/text-x-codigo.xml
-  ags/modulos/barra/games/evidence.ts ags/modulos/barra/games/icon.ts
-  ags/modulos/barra/workspaceOrder.ts ags/modulos/barra/workspaceOrder.test.ts
-  ags/modulos/barra/workspaceTooltip.ts ags/modulos/barra/workspaceTooltip.test.ts
+  ags/servicios/juegos/evidencia.ts ags/servicios/juegos/iconos.ts
+  ags/modulos/barra/escritorios/orden.ts ags/modulos/barra/escritorios/orden.test.ts
+  ags/modulos/barra/escritorios/descripcion.ts ags/modulos/barra/escritorios/descripcion.test.ts
+  ags/servicios/energia/tiempoMantenerDespierto.ts ags/servicios/energia/tiempoMantenerDespierto.test.ts
   ags/servicios/bluetooth/estadoInicio.ts ags/servicios/bluetooth/estadoInicio.test.ts
   ags/servicios/bluetooth/tileState.ts ags/servicios/bluetooth/tileState.test.ts
   ags/servicios/pantalla/brightness.ts

@@ -9,7 +9,7 @@ import {
 import { TarjetaMicrofonoOSD } from "./MicOSD"
 import { barAutoHideEnabled, volumeOsdEnabled } from "../ajustes/preferences"
 import { clipWindowInputToContent } from "../../utilidades/inputRegion"
-import { obtenerControlVisibilidadBarra } from "../barra/visibilidad"
+import { obtenerControlVisibilidadBarra } from "../../estado/visibilidadBarra"
 
 const RADIO_ESQUINAS_OSD = 9
 const DURACION_ENTRADA_OSD_MS = 180

@@ -253,7 +253,7 @@ Qué usa cada cosa:
 - **`hyprshot`** (capturas, `Print` / `Ctrl+Print` en `keybinds.conf`) ya trae como
   dependencias `grim`, `slurp`, `jq`, `libnotify`, `wl-clipboard` — pero como AGS también
   llama a `grim` directamente (preview de workspace al clic-derecho sobre el número, ver
-  `modulos/barra/Workspaces.tsx`), instálalo igual explícitamente. Opcional: `hyprpicker`
+  `modulos/barra/escritorios/Escritorios.tsx`), instálalo igual explícitamente. Opcional: `hyprpicker`
   (congela pantalla durante la captura).
 - **`rofi`** — lanzador de apps (`SUPER+SPACE` → `hypr/scripts/rofi-launch.py`, requiere
   además `python3`, ya lo trae el sistema base — que es también lo que necesita
@@ -455,7 +455,7 @@ Detalle por script:
 | `wifi-monitor.sh` | desconexión/reconexión WiFi + portal cautivo | `nmcli` (NetworkManager) — event-driven vía `nmcli monitor`, sin polling; detecta interfaz, SSID y estado de conectividad todo por D-Bus, sin `iw`/`iwgetid` |
 | `bt-monitor.sh` | pérdida de conexión Bluetooth | `dbus-monitor` (`dbus`) + `bluetoothctl` (`bluez-utils`) |
 | `usb-monitor.sh` | conectar/desconectar USB | `udevadm` (systemd, ya en el sistema base) |
-| `screencast-monitor.sh` | que algo esté **capturando la pantalla**: compartir (Discord, OBS, Zoom, navegadores) o grabar en local. Enciende el icono de la barra (`ScreencastIndicator`) | **no añade ningún paquete nuevo**: `jq` y `wf-recorder` (§ herramientas), `pw-dump`/`pw-mon` (paquete `pipewire`, ya instalado para el audio) y `xdg-desktop-portal-hyprland` (§ Hyprland). Sin `jq` o sin `pw-dump` el script sale sin escribir y el icono nunca aparece. **Compartir pantalla se detecta a través del portal**, así que el portal es obligatorio para esa mitad; los grabadores locales (`wf-recorder`, `gpu-screen-recorder`, `wl-screenrec`, `obs`) se detectan por proceso y solo hacen falta si los usas |
+| `screencast-monitor.sh` | que algo esté **capturando la pantalla**: compartir (Discord, OBS, Zoom, navegadores) o grabar en local. Enciende `CapturaPantalla` en la barra | **no añade ningún paquete nuevo**: `jq` y `wf-recorder` (§ herramientas), `pw-dump`/`pw-mon` (paquete `pipewire`, ya instalado para el audio) y `xdg-desktop-portal-hyprland` (§ Hyprland). Sin `jq` o sin `pw-dump` el script sale sin escribir y el icono nunca aparece. **Compartir pantalla se detecta a través del portal**, así que el portal es obligatorio para esa mitad; los grabadores locales (`wf-recorder`, `gpu-screen-recorder`, `wl-screenrec`, `obs`) se detectan por proceso y solo hacen falta si los usas |
 | `boot-healthcheck.sh` | chequeo general al arrancar (servicios fallidos, errores de journal, disco, NVIDIA, SMART, batería, fans, audio, bluetooth, USB) | autodescubre hardware, así que no falla si falta algo; pero para chequeos completos quiere `smartctl` (`smartmontools`), `sensors` (`lm_sensors`), `lspci`/`lsusb` (`pciutils`/`usbutils`), `rfkill` (`util-linux`), `aplay` (`alsa-utils`), `nvidia-smi` (`nvidia-utils`) |
 
 ### 8.1 Escaneo antivirus, integridad y sandbox

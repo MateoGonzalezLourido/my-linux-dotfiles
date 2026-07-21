@@ -158,7 +158,7 @@ bloqueo va atado a la pantalla porque hyprlock la taparía, que es justo lo que 
 `windows.conf`; solo una tecla la enciende por su cuenta).
 
 **Estado**: `~/.config/gigios/wakeup.json`, `{active, until, screen, pid}`, escrito por AGS
-(`ags/modulos/barra/functions/wakeup.ts`) y leído por el script — misma dirección que
+(`ags/servicios/energia/mantenerDespierto.ts`) y leído por el script — misma dirección que
 `runtime-state.json`, no al revés que los `*-monitor.sh`. `until` es **epoch absoluto**, no un
 contador: así la puerta resuelve la caducidad sola contra el reloj de pared aunque nadie reescriba
 el fichero, y la cuenta atrás no se desfasa tras una suspensión manual (los timeouts de GLib no
@@ -436,14 +436,14 @@ dispatch rechazado en el código de salida**, responde `ok` en el stdout, así q
 `returncode` daría por bueno un fallo y la app no se lanzaría por ningún camino.
 
 **El lado de la barra**: un traslado silencioso **no emite `notify::clients`** (que es de altas y
-bajas, no de movimientos), así que `ags/modulos/barra/Workspaces.tsx` escucha además **`client-moved`**.
+bajas, no de movimientos), así que `ags/modulos/barra/escritorios/Escritorios.tsx` escucha además **`client-moved`**.
 Sin eso los iconos de la barra se quedaban en el escritorio donde nació la ventana hasta que otra
 cosa forzara un refresco. Ver `ags/CLAUDE.md`.
 
 ### Update monitor (`updates-monitor.sh`)
 
 Checks for pending updates and surfaces the **important** ones as bar icons (AGS
-`modulos/barra/UpdatesButton.tsx`): **two separate icons, one for the kernel (orange Tux) and one
+`modulos/barra/indicadores/sistema/Actualizaciones.tsx`): **two separate icons, one for the kernel (orange Tux) and one
 for GPU drivers (green)**, each shown only when its own category has something pending.
 Ordinary package/dependency updates deliberately show **no icon at all** — they were pure noise;
 they are only listed as context ("Otros: N paquetes") inside the popover. Launched from
@@ -496,7 +496,7 @@ compartir dos horas no reescribe el fichero ni despierta al widget; pero el memo
 cambiado" arranca con un **centinela**, no vacío: si arrancara vacío, el primer sondeo sin nada
 capturando se compararía consigo mismo y no escribiría, dejando en pie el JSON de la sesión
 anterior — un "Discord compartiendo" sobrevivía al reboot y el icono se quedaba encendido). Lo consume
-`ags/modulos/barra/ScreencastIndicator.tsx` con un `Gio.FileMonitor`; fichero ausente = nada
+`ags/modulos/barra/indicadores/sistema/CapturaPantalla.tsx` con un `Gio.FileMonitor`; fichero ausente = nada
 capturando = icono oculto.
 
 Un único coordinador conserva en memoria dos estados, porque las formas de capturar no comparten
@@ -774,7 +774,7 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   (battery read from `/sys/class/power_supply`, ver el aviso de abajo; threshold from
   `~/.config/power-save/config.json`) /
   `dlPauseWhileGaming` (reads `~/.config/gigios/runtime-state.json` `{gaming}`, written by AGS
-  `servicios/energia/gamingState.ts`, which reuses the `isGameClient` heuristic — `ags/modulos/barra/games/`,
+  `servicios/energia/gamingState.ts`, which reuses the `isGameClient` heuristic — `ags/modulos/barra/juegos/`,
   ver `ags/CLAUDE.md`). Deferred work marks nothing, so
   it's picked up when the gate clears. The size cap is `dlMaxScanGB` (default 1 GB), also live.
 

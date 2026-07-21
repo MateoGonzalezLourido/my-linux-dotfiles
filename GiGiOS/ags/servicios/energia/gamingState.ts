@@ -7,7 +7,7 @@
 // cambia. hypr/scripts/oom-monitor.sh lo lee para pausar el escaneo de descargas
 // mientras juegas.
 //
-// Mismo patrón event-driven que GamesIndicator (client-added/removed + evento
+// Mismo patrón dirigido por eventos que IndicadorJuegos (client-added/removed + evento
 // "fullscreen", sin polling). Se arranca una vez desde app.ts vía
 // initGamingState() (igual que initAutoDnd()).
 
@@ -33,7 +33,7 @@ let started = false
 let gameFocused = false
 let lastGameFocus = 0
 
-// Mismo gesto que `ownPid()` en bar/functions/wakeup.ts. Un 0 (no se pudo obtener)
+// Mismo gesto que la lectura de PID en `mantenerDespierto.ts`. Un 0 (no se pudo obtener)
 // no rompe nada: el lado bash no encontrará /proc/0 y hará fail-open, o sea que la
 // congelación deja de aplicarse — que es el modo de fallo que queremos.
 function getPid(): number {
@@ -58,7 +58,7 @@ function getPid(): number {
 // Es la mitad de la cadena; la otra es que initGamingState() reescribe el fichero al
 // arrancar el shell, y hace falta porque los pid se RECICLAN: tras un reinicio el del
 // AGS anterior puede estar ocupado por otro proceso vivo. Mismo patrón que
-// wakeup.json (ver bar/functions/wakeup.ts y CLAUDE.md).
+// wakeup.json (ver mantenerDespierto.ts y CLAUDE.md).
 // `gameFocused` + `lastGameFocus` existen para un caso que `gaming` a secas no sabe
 // distinguir: un juego ABIERTO no es lo mismo que un juego que ESTÁS JUGANDO.
 //
