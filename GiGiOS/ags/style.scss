@@ -3772,7 +3772,7 @@ window.np-window.csd decoration {
   @include empty-text(12px, rgba($text, 0.3));
 }
 
-// Solo lo usa el banner de conflicto de daemon (daemonCheck.ts): el historial vacío "normal"
+// Solo lo usa el banner de conflicto de daemon (daemon/comprobacion.ts): el historial vacío "normal"
 // no lleva subtítulo. Monoespaciada porque el cuerpo son los comandos del arreglo.
 .ns-empty-sub {
   @include empty-text(11px, rgba($text, 0.45));

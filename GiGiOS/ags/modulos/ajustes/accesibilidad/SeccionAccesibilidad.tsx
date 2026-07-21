@@ -1,10 +1,10 @@
 import { Gtk } from "ags/gtk4"
-import { TarjetaAjustes, TextoInformativo, TituloSeccion } from "./componentes"
+import { TarjetaAjustes, TextoInformativo, TituloSeccion } from "../componentes"
 import OpcionDaltonismo from "./OpcionDaltonismo"
-import textos from "../../textos/ajustes/accesibilidad.json" with { type: "json" }
+import textos from "../../../textos/ajustes/accesibilidad.json" with { type: "json" }
 
 /** Correcciones visuales que Hyprland aplica sobre la composición completa. */
-export default function AccessibilitySection() {
+export default function SeccionAccesibilidad() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
       <TituloSeccion titulo={textos.seccion.titulo} />

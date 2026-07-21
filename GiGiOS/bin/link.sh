@@ -179,7 +179,7 @@ done
 
 # ── Foto de perfil ───────────────────────────────────────────────────────────
 # Copia única en el data dir XDG (~/.local/share/gigios/face.png); la leen AGS
-# (modulos/ajustes/avatar.ts) y hyprlock. Fuera del repo y sin versionar, porque es
+# (modulos/ajustes/cuenta/avatar.ts) y hyprlock. Fuera del repo y sin versionar, porque es
 # personal — pero tampoco en ~/.cache: se elige desde Ajustes > Cuenta y no se
 # regenera desde ningún master, así que un limpiador de cache la borraría para
 # siempre. Aquí solo se migra la ubicación vieja; ponerla es cosa de Ajustes.

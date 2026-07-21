@@ -174,7 +174,7 @@ vivo y la puerta lo daría por bueno—, así que además `initWakeUp()` **limpi
 el shell. El Wake up es por sesión, como el resto del menú de funciones.
 
 **Al caducar se reinicia hypridle** (`pkill hypridle; hypridle &`, el mismo gesto que ya hace
-`DisplaySection.tsx` al guardar los tiempos). No es opcional: hypridle **no repite un `on-timeout`
+`ags/modulos/ajustes/pantalla/Inactividad.tsx` al guardar los tiempos). No es opcional: hypridle **no repite un `on-timeout`
 ya disparado** en esa tanda de inactividad, así que un Wake up de 30 min que veta la suspensión en
 el minuto 11 y caduca en el 30 dejaría el PC despierto **para siempre** — nadie volvería a
 intentarlo hasta que tocaras el teclado. Reiniciarlo rearma los contadores desde cero: se suspende
@@ -188,7 +188,8 @@ formato directo (`hyprctl dispatch dpms off` / `hyprlock` / `systemctl suspend`)
 traído de otra máquina. Cubierto por `hypridle.test.ts`.
 
 **Desactivar un tiempo se hace comentando la línea, NUNCA con `timeout = 0`.** Cada fila de Ajustes
-> Pantalla lleva un interruptor que apaga *ese* listener (`IdleRow` en `DisplaySection.tsx` →
+> Pantalla lleva un interruptor que apaga *ese* listener (`FilaInactividad` en
+> `ags/modulos/ajustes/pantalla/Inactividad.tsx` →
 `writeHypridle(…, {enabled:false})` → `# timeout = N   # GIGIOS-OFF`). El 0 no es una forma pobre de
 decir "nunca": es lo contrario. Medido en hypridle 0.1.7 — con `timeout = 0` el listener **se
 registra y se dispara al instante** (`Registered timeout rule for 0s`, y la acción ejecutada ya), o
@@ -244,7 +245,7 @@ conserva su propia pausa `dlPauseWhileGaming` — más específica y ya tiene UI
 de todas** (clamscan recarga ~200 MB de firmas por invocación) y por eso **viene ACTIVADA por
 defecto**, al revés que sus dos hermanas (`dlPauseOnBattery`/`dlPauseInPowerSave` siguen en `false`:
 sacrificar seguridad por autonomía lo decide el usuario). De ahí que los defaults sean **por clave**
-en `securityPrefs.ts` y no uno común. En bash **no puede leerse con `.dlPauseWhileGaming // true`**:
+en `ags/modulos/ajustes/seguridad/preferencias.ts` y no uno común. En bash **no puede leerse con `.dlPauseWhileGaming // true`**:
 el operador `//` de jq trata un `false` literal como ausente, así que apagar la pausa desde la UI no
 habría servido de nada — va con la forma `if has(…)`, el mismo tropiezo ya documentado en
 `battery-monitor.sh`.
@@ -727,7 +728,8 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   cerrarse** (`/usr/lib/gamemode/cpugovctl set performance`, `procsysctl split_lock_mitigate`,
   `gpuclockctl`), así que jugar era una lluvia de avisos críticos "🔓 Escalada de privilegios" —
   la clase de ruido que enseña a ignorar la categoría entera. **No se puede exponer la allowlist
-  en `security.json`**: el `save()` de `securityPrefs.ts` reconstruye ese JSON desde cero, así que
+  en `security.json`**: el guardado de `ags/modulos/ajustes/seguridad/preferencias.ts`
+  reconstruye ese JSON desde cero, así que
   una clave añadida a mano moriría al tocar cualquier switch de la UI. Se amplía editando el array
   en el script — y cada patrón es un agujero permanente, porque una ruta *escribible por el
   usuario* en esa lista es una escalada silenciosa.
@@ -831,7 +833,7 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   to `scan-file.sh` (now also `nice`/`ionice`-wrapped).
 
 **Config**: every scanned category is gated by a boolean in `~/.config/gigios/security.json`
-(written by `ags/modulos/ajustes/SecuritySection.tsx`, absent key = enabled). The bash reads it
+(written by `ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`, absent key = enabled). The bash reads it
 **once at process start** — toggling a switch in the AGS Seguridad tab only takes effect after
 a reboot or manually restarting this script (the UI says so). Journal reads use `-n 0` to skip
 backlog, so a fresh login doesn't re-fire notifications for old events.
@@ -848,7 +850,7 @@ refuses to launch rather than running unsandboxed.
 **`hypr/scripts/scan-file.sh`** — on-demand ClamAV scan of a single path (no size cap; `clamscan -r`
 so it descends into archives), notifying clean / infected / couldn't-scan. Invoked by the "🔍 Escanear"
 button on the oversized-file notification and by the "Analizar un archivo con ClamAV" path field in
-`SecuritySection.tsx`. Both `run-untrusted.sh` and `scan-file.sh` prefer `clamscan` and fall back
+`ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`. Both `run-untrusted.sh` and `scan-file.sh` prefer `clamscan` and fall back
 across engines, and both surface a clear "run `sudo freshclam`" hint when the signature DB is missing.
 
 ## init.sh (hardware state restore)

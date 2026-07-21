@@ -1,12 +1,12 @@
 import { For, onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
-import Interruptor from "../../componentes/Interruptor"
-import { conectarCambioDeslizador } from "../../utilidades/deslizador"
-import { InlineEditableValue } from "../../componentes/InlineEditableValue"
+import Interruptor from "../../../componentes/Interruptor"
+import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
+import { InlineEditableValue } from "../../../componentes/InlineEditableValue"
 import {
   AjusteInterruptor, FilaAjuste, TarjetaAjustes,
   TextoInformativo, TituloAjuste, TituloSeccion,
-} from "./componentes"
+} from "../componentes"
 import {
   barAutoHideEnabled, setBarAutoHideEnabled,
   wsPreviewEnabled, setWsPreviewEnabled,
@@ -23,15 +23,15 @@ import {
   WORKSPACE_APP_LIMIT_MIN, WORKSPACE_APP_LIMIT_MAX,
   workspaceVisibleLimit, setWorkspaceVisibleLimit,
   WORKSPACE_VISIBLE_LIMIT_MIN, WORKSPACE_VISIBLE_LIMIT_MAX,
-} from "./preferences"
+} from "../preferences"
 import {
   knownTrayApps, hiddenTrayApps, trayOverflowAt,
   hideTrayApp, showTrayApp, forgetTrayApp, setTrayOverflowAt,
   type TrayAppInfo,
-} from "./trayApps"
-import textos from "../../textos/ajustes/personalizacion.json" with { type: "json" }
-import textosApps from "../../textos/ajustes/apps.json" with { type: "json" }
-import { formatearTexto } from "../../textos/formatear"
+} from "../trayApps"
+import textos from "../../../textos/ajustes/personalizacion.json" with { type: "json" }
+import textosApps from "../../../textos/ajustes/apps.json" with { type: "json" }
+import { formatearTexto } from "../../../textos/formatear"
 
 function DeslizadorLimite({ valor, minimo, maximo, alCambiar }: {
   valor: any
@@ -115,7 +115,7 @@ function FilaAppBandeja({ app }: { app: TrayAppInfo }) {
 
 type VistaBarra = "barra" | "workspaces"
 
-export default function BarraEscritoriosSection({ vista }: { vista: VistaBarra }) {
+export default function SeccionBarraEscritorios({ vista }: { vista: VistaBarra }) {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
       <TituloSeccion titulo={textos.vistasBarra[vista]} />

@@ -1,14 +1,14 @@
 import { createComputed } from "ags"
 import { Gtk } from "ags/gtk4"
-import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste } from "./componentes"
+import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
 import {
   batteryMonitorEnabled, setBatteryMonitorEnabled,
   tempMonitorEnabled, setTempMonitorEnabled,
   updatesMonitorEnabled, setUpdatesMonitorEnabled,
   updatesPeriodicEnabled, setUpdatesPeriodicEnabled,
   updatesIntervalHours, setUpdatesIntervalHours,
-} from "./preferences"
-import textos from "../../textos/ajustes/personalizacion.json" with { type: "json" }
+} from "../preferences"
+import textos from "../../../textos/ajustes/personalizacion.json" with { type: "json" }
 
 function AjustesActualizaciones() {
   let entradaHoras: Gtk.Entry

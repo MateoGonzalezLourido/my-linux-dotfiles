@@ -1,6 +1,7 @@
 // servicios/dispositivos/printers.ts
 //
-// Lógica del bloque "Impresoras" de Entrada y periféricos (DevicesSection.tsx).
+// Lógica del bloque "Impresoras" de Entrada y periféricos
+// (modulos/ajustes/dispositivos/SeccionDispositivos.tsx).
 // Gestiona el servicio de impresión CUPS a nivel de systemd — nada que ver con
 // la config de Hyprland de devices/service.ts, por eso vive en su propio módulo.
 //
@@ -12,7 +13,7 @@
 //     systemctl is-enabled / is-active y list-unit-files.
 //
 // El patrón (snapshot + busy + refresh + pkexec bash -c) es el mismo que el de
-// modulos/ajustes/datetime.ts (GeoClue), para no reinventar la rueda.
+// modulos/ajustes/fecha-idioma/fechaHora.ts (GeoClue), para no reinventar la rueda.
 
 import { createState } from "ags"
 import { execAsync } from "ags/process"
@@ -60,7 +61,7 @@ export async function refresh() {
   })
 }
 
-// Igual que en settings/datetime.ts: lo de dentro pide contraseña por polkit, y
+// Igual que en modulos/ajustes/fecha-idioma/fechaHora.ts: lo de dentro pide contraseña por polkit, y
 // withPrivilegedPrompt aparta la ventana de Ajustes para que el diálogo se vea.
 async function withBusy<T>(fn: () => Promise<T>): Promise<T> {
   _setPrinterBusy(true)

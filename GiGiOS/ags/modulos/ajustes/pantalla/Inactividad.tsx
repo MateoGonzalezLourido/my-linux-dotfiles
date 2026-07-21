@@ -1,11 +1,11 @@
 import { createState, type Accessor } from "ags"
 import { Gtk } from "ags/gtk4"
 import GLib from "gi://GLib"
-import Interruptor from "../../componentes/Interruptor"
-import { TarjetaAjustes, TextoInformativo, TituloAjuste } from "./componentes"
-import { parseHypridle, writeHypridle, type HypridleConfig, type ListenerKind } from "../../servicios/pantalla/hypridle"
-import { reiniciarHypridle } from "../../servicios/pantalla/reinicioHypridle"
-import textos from "../../textos/ajustes/pantalla.json" with { type: "json" }
+import Interruptor from "../../../componentes/Interruptor"
+import { TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
+import { parseHypridle, writeHypridle, type HypridleConfig, type ListenerKind } from "../../../servicios/pantalla/hypridle"
+import { reiniciarHypridle } from "../../../servicios/pantalla/reinicioHypridle"
+import textos from "../../../textos/ajustes/pantalla.json" with { type: "json" }
 
 const ARCHIVO_HYPRIDLE = `${GLib.get_user_config_dir()}/hypr/hypridle.conf`
 
@@ -57,7 +57,7 @@ function FilaInactividad({ etiqueta, minutos, fijarMinutos, activo, fijarActivo,
   )
 }
 
-export default function InactividadSection() {
+export default function Inactividad() {
   const configuracion = leerHypridle() || {
     dpms: { timeout: 600, enabled: true },
     lock: { timeout: 630, enabled: true },

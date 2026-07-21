@@ -12,13 +12,13 @@
 // releerla cuesta una lectura de 8 KB que ya está en la caché de páginas.
 import { Gtk } from "ags/gtk4"
 import { With, createState, onCleanup } from "ags"
-import { TituloSeccion, TituloSubseccion } from "./componentes"
+import { TituloSeccion, TituloSubseccion } from "../componentes"
 import SupervisionSistema from "./SupervisionSistema"
-import textos from "../../textos/ajustes/sistema.json" with { type: "json" }
+import textos from "../../../textos/ajustes/sistema.json" with { type: "json" }
 import {
   construir, guardarCache, leerCache, sondear,
   type InfoGroup, type SystemSnapshot,
-} from "./systemInfo"
+} from "./informacion"
 
 function InfoGroupView({ group }: { group: InfoGroup }) {
   return (
@@ -40,7 +40,7 @@ function InfoGroupView({ group }: { group: InfoGroup }) {
 
 type VistaSistema = "informacion" | "supervision"
 
-export default function SystemSection({ vista }: { vista: VistaSistema }) {
+export default function SeccionSistema({ vista }: { vista: VistaSistema }) {
   if (vista === "supervision") {
     return (
       <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>

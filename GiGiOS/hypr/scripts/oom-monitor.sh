@@ -25,7 +25,7 @@
 # arrancar (nada de polling de la config), igual que battery-monitor.sh con
 # preferences.json, así que un cambio en la UI solo surte efecto reiniciando el
 # sistema o relanzando este script. Archivo ausente/ilegible → todo ON (por
-# defecto). Fuente: ags/modulos/ajustes/securityPrefs.ts → security.json.
+# defecto). Fuente: ags/modulos/ajustes/seguridad/preferencias.ts → security.json.
 SEC_CONFIG="$HOME/.config/gigios/security.json"
 sec_oomKiller=true   sec_kernelPanic=true   sec_hungTask=true    sec_hwErrors=true
 sec_kernelModules=true sec_cpuThrottling=true sec_diskError=true sec_diskHealth=true
@@ -77,7 +77,8 @@ DELAY_DOWNLOADS=60  # el más caro del script; nada se descarga en el primer min
 # Se comparan como GLOB (no regex) contra el COMMAND= que loguea pkexec, que
 # viene con argumentos: "/usr/lib/gamemode/cpugovctl set performance".
 #
-# NO se puede exponer esto en security.json: ags/modulos/ajustes/securityPrefs.ts
+# NO se puede exponer esto en security.json:
+# ags/modulos/ajustes/seguridad/preferencias.ts
 # reconstruye ese JSON desde cero al guardar, así que una clave añadida a mano
 # desaparecería al tocar cualquier switch de la UI. Para añadir excepciones,
 # amplía esta lista. Ojo: cada patrón es un agujero permanente en la vigilancia,

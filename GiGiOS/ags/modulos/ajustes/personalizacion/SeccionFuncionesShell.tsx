@@ -1,5 +1,5 @@
 import { Gtk } from "ags/gtk4"
-import { AjusteInterruptor, TarjetaAjustes, TituloSeccion } from "./componentes"
+import { AjusteInterruptor, TarjetaAjustes, TituloSeccion } from "../componentes"
 import LimpiezaPortapapeles from "./LimpiezaPortapapeles"
 import {
   startupVolumeMuted, setStartupVolumeMuted,
@@ -14,12 +14,12 @@ import {
   escanerAppsInicio, setEscanerAppsInicio,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
   limpiezaPortapapelesAlIniciar, setLimpiezaPortapapelesAlIniciar,
-} from "./preferences"
-import textos from "../../textos/ajustes/personalizacion.json" with { type: "json" }
+} from "../preferences"
+import textos from "../../../textos/ajustes/personalizacion.json" with { type: "json" }
 
 type VistaFunciones = "personalizacion" | "orion" | "portapapeles"
 
-export default function FuncionesShellSection({ vista }: { vista: VistaFunciones }) {
+export default function SeccionFuncionesShell({ vista }: { vista: VistaFunciones }) {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
       <TituloSeccion titulo={textos.vistasFunciones[vista]} />

@@ -1,20 +1,20 @@
-// modulos/ajustes/DateLanguageSection.tsx
+// modulos/ajustes/fecha-idioma/SeccionFechaIdioma.tsx
 // Sección "Región, fecha y hora" del panel de ajustes.
 // La distribución de teclado vive únicamente en Entrada y periféricos.
 import { Gtk } from "ags/gtk4"
-import Interruptor from "../../componentes/Interruptor"
-import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion } from "./componentes"
-import { createComputed, createState, For, With } from "ags"
-import { DisplaySelect } from "../../servicios/pantalla/controls"
-import { timeFormat, setTimeFormat, type TimeFormat } from "./preferences"
+import Interruptor from "../../../componentes/Interruptor"
+import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion } from "../componentes"
+import { createComputed, createState, For, onCleanup, With } from "ags"
+import { DisplaySelect } from "../../../servicios/pantalla/controls"
+import { timeFormat, setTimeFormat, type TimeFormat } from "../preferences"
 import {
   snapshot, prefs, busy, refresh,
   listLocales, listTimezones, applyLocale, applyTimezone, setNtp, setManualTime,
   setLocationBlocked, setLocationSource, setAutoTimezone,
   refreshAutoLocation, searchCity, setManualLocation, type CityResult,
-} from "./datetime"
-import textos from "../../textos/ajustes/fecha-idioma.json" with { type: "json" }
-import { formatearTexto } from "../../textos/formatear"
+} from "./fechaHora"
+import textos from "../../../textos/ajustes/fecha-idioma.json" with { type: "json" }
+import { formatearTexto } from "../../../textos/formatear"
 
 // Nombre legible de un locale: "es_ES.UTF-8" → "Español (ES)".
 const nombresIdioma = textos.idioma.nombres
@@ -70,12 +70,18 @@ function Segmented({ options, current, onSelect }: {
 
 type VistaFechaIdioma = "idioma" | "fecha" | "ubicacion"
 
-export default function DateLanguageSection({ vista }: { vista: VistaFechaIdioma }) {
+export default function SeccionFechaIdioma({ vista }: { vista: VistaFechaIdioma }) {
   const [locales, setLocales] = createState<string[]>([])
   const [timezones, setTimezones] = createState<string[]>([])
   const [cityQuery, setCityQuery] = createState("")
   const [results, setResults] = createState<CityResult[]>([])
   const [manualTime, setManualTimeInput] = createState("")
+  let activa = true
+  let idBusqueda = 0
+  onCleanup(() => {
+    activa = false
+    idBusqueda++
+  })
 
   const opcionesIdiomas = createComputed(() => {
     const idiomaActual = snapshot().locale
@@ -96,13 +102,24 @@ export default function DateLanguageSection({ vista }: { vista: VistaFechaIdioma
 
   // Carga inicial: estado del sistema + listas de los selectores.
   refresh()
-  if (vista === "idioma") listLocales().then(setLocales)
-  if (vista === "fecha") listTimezones().then(setTimezones)
+  if (vista === "idioma") {
+    listLocales().then((lista) => { if (activa) setLocales(lista) }).catch(() => {})
+  }
+  if (vista === "fecha") {
+    listTimezones().then((lista) => { if (activa) setTimezones(lista) }).catch(() => {})
+  }
 
   const doSearch = () => {
     const q = cityQuery.get()
+    const busquedaActual = ++idBusqueda
     if (!q.trim()) return setResults([])
-    searchCity(q).then(setResults)
+    searchCity(q)
+      .then((resultados) => {
+        if (activa && busquedaActual === idBusqueda) setResults(resultados)
+      })
+      .catch(() => {
+        if (activa && busquedaActual === idBusqueda) setResults([])
+      })
   }
 
   return (

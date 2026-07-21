@@ -1,4 +1,4 @@
-// modulos/ajustes/securityPrefs.ts
+// modulos/ajustes/seguridad/preferencias.ts
 //
 // Preferencias de la sección "Protección" del panel de ajustes general
 // (modulos/ajustes/SettingsPanel.tsx). Cada clave activa/desactiva un tipo de evento que
@@ -14,7 +14,7 @@
 
 import GLib from "gi://GLib"
 import { createState } from "ags"
-import textos from "../../textos/ajustes/seguridad.json" with { type: "json" }
+import textos from "../../../textos/ajustes/seguridad.json" with { type: "json" }
 
 const SEC_PATH = `${GLib.get_user_config_dir()}/gigios/security.json`
 

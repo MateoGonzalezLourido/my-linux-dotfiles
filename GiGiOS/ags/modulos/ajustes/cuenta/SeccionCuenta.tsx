@@ -2,11 +2,11 @@ import { Gtk } from "ags/gtk4"
 import { With, createState } from "ags"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
-import ProfileAvatar from "./ProfileAvatar"
+import ProfileAvatar from "../ProfileAvatar"
 import { AVATAR_PATH, refreshAvatar } from "./avatar"
-import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloSeccion } from "./componentes"
-import textos from "../../textos/ajustes/cuenta.json" with { type: "json" }
-import { formatearTexto } from "../../textos/formatear"
+import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloSeccion } from "../componentes"
+import textos from "../../../textos/ajustes/cuenta.json" with { type: "json" }
+import { formatearTexto } from "../../../textos/formatear"
 
 type Notice = { kind: "idle" | "working" | "ok" | "error"; text: string }
 
@@ -34,7 +34,7 @@ function cleanAdminError(error: unknown): string {
   return message.replace(/^sudo:\s*/i, "") || textos.avisos.operacionFallida
 }
 
-export default function AccountSection() {
+export default function SeccionCuenta() {
   const currentUser = GLib.get_user_name() || textos.seccion.usuarioPredeterminado
   const [loginName, setLoginName] = createState(currentUser)
   const [fullName, setFullName] = createState("")

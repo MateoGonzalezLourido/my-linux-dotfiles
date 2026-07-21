@@ -18,8 +18,8 @@ import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
-import textos from "../../textos/ajustes/sistema.json" with { type: "json" }
-import { formatearTexto } from "../../textos/formatear"
+import textos from "../../../textos/ajustes/sistema.json" with { type: "json" }
+import { formatearTexto } from "../../../textos/formatear"
 
 export interface InfoItem { label: string; value: string }
 export interface InfoGroup { title: string; icon: string; items: InfoItem[] }
@@ -270,7 +270,7 @@ export function guardarCache(probe: Sondeo) {
 interface PciDevice { clase: string; nombre: string; driver: string; modules: string }
 
 /** Trocea `lspci -Dk`: una línea sin sangrar abre dispositivo, las sangradas son sus detalles. */
-export function parsePci(raw: string): PciDevice[] {
+function parsePci(raw: string): PciDevice[] {
   const devices: PciDevice[] = []
   for (const line of raw.split("\n")) {
     if (!line.trim()) continue

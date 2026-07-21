@@ -1,12 +1,12 @@
-// modulos/ajustes/EnergySection.tsx
-// "Energía" section of the general settings panel: power-save threshold + the toggle that
-// suspends notification-filter timers while in power-save.
+// modulos/ajustes/energia/SeccionEnergia.tsx
+// Sección de energía: umbral y funciones que se suspenden durante el ahorro.
 import { Gtk } from "ags/gtk4"
-import { InlineEditableValue } from "../../componentes/InlineEditableValue"
-import { conectarCambioDeslizador } from "../../utilidades/deslizador"
-import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion } from "./componentes"
-import InactividadSection from "./InactividadSection"
-import textos from "../../textos/ajustes/energia.json" with { type: "json" }
+import { onCleanup } from "ags"
+import { InlineEditableValue } from "../../../componentes/InlineEditableValue"
+import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
+import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion } from "../componentes"
+import Inactividad from "../pantalla/Inactividad"
+import textos from "../../../textos/ajustes/energia.json" with { type: "json" }
 import {
   powerSaveThreshold, setPowerSaveThreshold,
   suspendNotifFilters, setSuspendNotifFilters,
@@ -14,19 +14,21 @@ import {
   hideSpotifyBarInPowerSave, setHideSpotifyBarInPowerSave,
   freezeBackgroundInPowerSave, setFreezeBackgroundInPowerSave,
   powerSaveActive, batteryStatusText,
-} from "../../servicios/energia/powerState.ts"
+} from "../../../servicios/energia/powerState.ts"
 
-function ThresholdSlider(): Gtk.Scale {
+function DeslizadorUmbral(): Gtk.Scale {
   const adj = new Gtk.Adjustment({ lower: 0, upper: 100, stepIncrement: 1, pageIncrement: 5 })
   adj.value = powerSaveThreshold.get()
-  powerSaveThreshold.subscribe(() => { if (adj.value !== powerSaveThreshold.get()) adj.value = powerSaveThreshold.get() })
+  onCleanup(powerSaveThreshold.subscribe(() => {
+    if (adj.value !== powerSaveThreshold.get()) adj.value = powerSaveThreshold.get()
+  }))
   const scale = new Gtk.Scale({ orientation: Gtk.Orientation.HORIZONTAL, adjustment: adj, drawValue: false, hexpand: true })
   scale.cssClasses = ["qs-slider", "brightness"]
   conectarCambioDeslizador(scale, setPowerSaveThreshold)
   return scale
 }
 
-export default function EnergySection() {
+export default function SeccionEnergia() {
   const summaryClass = powerSaveActive((active) =>
     active ? ["sp-energy-summary", "active"] : ["sp-energy-summary"]
   )
@@ -61,12 +63,12 @@ export default function EnergySection() {
               tooltip={textos.umbral.tooltip}
             />
           </box>
-          {ThresholdSlider() as unknown as any}
+          {DeslizadorUmbral() as unknown as any}
           <TextoInformativo label={textos.umbral.descripcion} halign={Gtk.Align.START} wrap />
         </box>
       </TarjetaAjustes>
 
-      <InactividadSection />
+      <Inactividad />
 
       <TarjetaAjustes titulo={textos.grupos.modoAhorro} icono="󰌪">
         <AjusteInterruptor titulo={textos.notificaciones.titulo} informacion={textos.notificaciones.descripcion} activo={suspendNotifFilters} alAlternar={() => setSuspendNotifFilters(!suspendNotifFilters.get())} />

@@ -1,19 +1,19 @@
 import { Gtk } from "ags/gtk4"
 import { createState, onCleanup } from "ags"
-import { DisplaySelect } from "../../servicios/pantalla/controls"
-import { conectarCambioDeslizador } from "../../utilidades/deslizador"
-import Interruptor from "../../componentes/Interruptor"
-import { EncabezadoAjuste, FilaAjuste, TarjetaAjustes, TituloSeccion } from "./componentes"
+import { DisplaySelect } from "../../../servicios/pantalla/controls"
+import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
+import Interruptor from "../../../componentes/Interruptor"
+import { EncabezadoAjuste, FilaAjuste, TarjetaAjustes, TituloSeccion } from "../componentes"
 import {
   deviceSettings, updateDeviceSettings, resetDeviceSettings,
   type DeviceSettings,
-} from "../../servicios/dispositivos/service"
+} from "../../../servicios/dispositivos/service"
 import {
   printerStatus, printerBusy, refresh as refreshPrinters,
   setCupsEnabled, openCupsWeb,
-} from "../../servicios/dispositivos/printers"
-import textos from "../../textos/ajustes/dispositivos.json" with { type: "json" }
-import { formatearTexto } from "../../textos/formatear"
+} from "../../../servicios/dispositivos/printers"
+import textos from "../../../textos/ajustes/dispositivos.json" with { type: "json" }
+import { formatearTexto } from "../../../textos/formatear"
 
 type Key = keyof DeviceSettings
 
@@ -39,7 +39,7 @@ function SliderRow({ setting, label, hint, min, max, step, format }: {
   scale.cssClasses = ["qs-slider", "dev-slider"]
   conectarCambioDeslizador(scale, (value) =>
     updateDeviceSettings({ [setting]: Math.round(value / step) * step }))
-  // onCleanup, NUNCA connect("destroy"): ver la nota en BarraEscritoriosSection.tsx.
+  // onCleanup, NUNCA connect("destroy"): ver SeccionBarraEscritorios.tsx.
   // El handler de `destroy` no corría al desmontar con <With>, así que cada visita a
   // Ratón/Touchpad/Teclado/Impresoras añadía un suscriptor permanente a deviceSettings.
   onCleanup(deviceSettings.subscribe(() => { adjustment.value = Number(deviceSettings.get()[setting]) }))
@@ -54,8 +54,8 @@ function SliderRow({ setting, label, hint, min, max, step, format }: {
   )
 }
 
-function SelectRow({ setting, label, hint, choices, reload = false }: {
-  setting: Key, label: string, hint?: string, choices: { value: string | number, label: string }[], reload?: boolean,
+function SelectRow({ setting, label, hint, choices }: {
+  setting: Key, label: string, hint?: string, choices: { value: string | number, label: string }[],
 }) {
   const current = deviceSettings((s) => choices.find(c => String(c.value) === String(s[setting]))?.label ?? String(s[setting]))
   const options = deviceSettings((s) => choices.map(c => ({ ...c, value: String(c.value), active: String(c.value) === String(s[setting]) })))
@@ -64,7 +64,7 @@ function SelectRow({ setting, label, hint, choices, reload = false }: {
       <box cssClasses={["dev-select"]}>
         <DisplaySelect current={current} options={options} onSelect={(v) => {
           const choice = choices.find(c => String(c.value) === v)
-          if (choice) updateDeviceSettings({ [setting]: choice.value } as Partial<DeviceSettings>, reload)
+          if (choice) updateDeviceSettings({ [setting]: choice.value } as Partial<DeviceSettings>)
         }} />
       </box>
     </FilaAjuste>
@@ -72,7 +72,7 @@ function SelectRow({ setting, label, hint, choices, reload = false }: {
 }
 
 // Bloque de impresoras: un interruptor maestro para CUPS, con estado en vivo y
-// acceso al panel web. La lógica de sistema vive en ../devices/printers.
+// acceso al panel web. La lógica de sistema vive en servicios/dispositivos/printers.
 function PrintersCard() {
   const stateLabel = printerStatus((s) => !s.available
     ? textos.impresoras.estado.noInstalado
@@ -120,7 +120,7 @@ function PrintersCard() {
 
 type VistaDispositivos = "raton" | "touchpad" | "teclado" | "impresoras"
 
-export default function DevicesSection({ vista }: { vista: VistaDispositivos }) {
+export default function SeccionDispositivos({ vista }: { vista: VistaDispositivos }) {
   const [confirmReset, setConfirmReset] = createState(false)
   if (vista === "impresoras") refreshPrinters()
   return (

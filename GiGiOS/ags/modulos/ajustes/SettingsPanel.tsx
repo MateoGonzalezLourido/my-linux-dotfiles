@@ -1,6 +1,6 @@
 // modulos/ajustes/SettingsPanel.tsx
-// General settings window opened from the QuickSettings gear. Same full-screen backdrop + centered
-// panel style as the notification settings window, but navigation is a vertical list on the LEFT.
+// Ventana general abierta desde el engranaje de ajustes rápidos. Mantiene el
+// fondo a pantalla completa y el panel centrado, con navegación a la izquierda.
 // El contenido va en un <With> sobre `vistaActiva` (sección, o null si el panel está
 // cerrado): se construye al ABRIR y se desmonta al cerrar, así que con Ajustes cerrado no
 // queda ni un timer ni una suscripción viva. La nav lateral es estática y vive con la
@@ -9,85 +9,26 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { With, createState, createComputed } from "ags"
 import { settingsPanelVisible, setSettingsPanelVisible, privilegedPromptActive } from "../../estado/shell"
-import EnergySection from "./EnergySection"
-import SettingsTabs from "../notificaciones/settings/SettingsTabs"
-import DisplaySection from "./DisplaySection"
-import SystemSection from "./SystemSection"
-import SecuritySection from "./SecuritySection"
-import AccountSection from "./AccountSection"
-import DevicesSection from "./DevicesSection"
-import DateLanguageSection from "./DateLanguageSection"
-import BarraEscritoriosSection from "./BarraEscritoriosSection"
-import FuncionesShellSection from "./FuncionesShellSection"
-import JuegosSection from "./JuegosSection"
-import AccessibilitySection from "./AccessibilitySection"
-import textos from "../../textos/ajustes/general.json" with { type: "json" }
-
-type SectionId =
-  | "account" | "language" | "datetime" | "location"
-  | "display" | "accessibility" | "personalization" | "mouse" | "touchpad" | "keyboard" | "printers" | "energy" | "games"
-  | "bar" | "workspaces" | "orion" | "clipboard" | "notifications"
-  | "monitoring" | "scans" | "supervision" | "system"
-type SeccionNavegacion = { id: SectionId; label: string; icon: string }
-const SECCIONES_NAVEGACION: SeccionNavegacion[] = [
-  { id: "account", label: textos.secciones.cuenta, icon: "󰀄" },
-  { id: "language", label: textos.secciones.idiomaRegion, icon: "󰗊" },
-  { id: "datetime", label: textos.secciones.fechaHora, icon: "󰃭" },
-  { id: "location", label: textos.secciones.ubicacion, icon: "󰍎" },
-  { id: "display", label: textos.secciones.pantalla, icon: "󰍹" },
-  { id: "accessibility", label: textos.secciones.accesibilidad, icon: "󰦧" },
-  { id: "personalization", label: textos.secciones.personalizacion, icon: "󰏘" },
-  { id: "mouse", label: textos.secciones.ratonPuntero, icon: "󰍽" },
-  { id: "touchpad", label: textos.secciones.touchpad, icon: "󰟸" },
-  { id: "keyboard", label: textos.secciones.teclado, icon: "󰌌" },
-  { id: "printers", label: textos.secciones.impresoras, icon: "󰐪" },
-  { id: "energy", label: textos.secciones.energia, icon: "󰁹" },
-  { id: "games", label: textos.secciones.juegos, icon: "󰊴" },
-  { id: "bar", label: textos.secciones.barra, icon: "󰍜" },
-  { id: "workspaces", label: textos.secciones.workspaces, icon: "󰆾" },
-  { id: "orion", label: textos.secciones.orion, icon: "󰆍" },
-  { id: "clipboard", label: textos.secciones.portapapeles, icon: "󰅇" },
-  { id: "notifications", label: textos.secciones.notificaciones, icon: "󰂚" },
-  { id: "monitoring", label: textos.secciones.vigilancia, icon: "󰒃" },
-  { id: "scans", label: textos.secciones.escaneos, icon: "󰇚" },
-  { id: "supervision", label: textos.secciones.supervision, icon: "󰓅" },
-  { id: "system", label: textos.secciones.sistema, icon: "󰌢" },
-]
+import NavegacionAjustes from "./panel/NavegacionAjustes.tsx"
+import { crearContenidoSeccion, type IdSeccion } from "./panel/secciones.tsx"
 
 export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
-  const [section, setSection] = createState<SectionId>("account")
+  const [seccion, establecerSeccion] = createState<IdSeccion>("account")
   // null = panel cerrado → no se construye ninguna sección. La sección elegida se
-  // conserva en `section` entre aperturas; lo que se tira es el árbol de widgets.
-  const vistaActiva = createComputed(() => settingsPanelVisible() ? section() : null)
+  // conserva en `seccion` entre aperturas; lo que se tira es el árbol de widgets.
+  const vistaActiva = createComputed(() => settingsPanelVisible() ? seccion() : null)
   let contenidoDesplazable: Gtk.ScrolledWindow
 
   const panel = (
     <box cssClasses={["sp-panel"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}>
-      {/* left vertical nav */}
-      <box cssClasses={["sp-nav"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-        <label cssClasses={["sp-nav-title"]} label={textos.panel.titulo} halign={Gtk.Align.START} />
-        <Gtk.ScrolledWindow cssClasses={["sp-nav-scroll"]} vexpand hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.NEVER}>
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-            {SECCIONES_NAVEGACION.map(s => (
-              <button
-                    cssClasses={section((cur) => cur === s.id ? ["sp-nav-item", "active"] : ["sp-nav-item"])}
-                    onClicked={() => {
-                      setSection(s.id)
-                      contenidoDesplazable?.get_vadjustment().set_value(0)
-                    }}
-                    valign={Gtk.Align.CENTER}
-                    overflow={Gtk.Overflow.VISIBLE}
-                  >
-                    <box cssClasses={["sp-nav-content"]} spacing={10} valign={Gtk.Align.CENTER} heightRequest={24} overflow={Gtk.Overflow.VISIBLE}>
-                      <label cssClasses={["sp-nav-icon"]} label={s.icon} valign={Gtk.Align.CENTER} heightRequest={22} overflow={Gtk.Overflow.VISIBLE} />
-                      <label cssClasses={["sp-nav-label"]} label={s.label} hexpand halign={Gtk.Align.START} valign={Gtk.Align.CENTER} heightRequest={22} overflow={Gtk.Overflow.VISIBLE} />
-                    </box>
-              </button>
-            ))}
-          </box>
-        </Gtk.ScrolledWindow>
-      </box>
+      <NavegacionAjustes
+        seccion={seccion}
+        seleccionar={(destino) => {
+          establecerSeccion(destino)
+          contenidoDesplazable?.get_vadjustment().set_value(0)
+        }}
+      />
 
       {/* content (scrollable: algunas secciones —Pantalla— son más altas que el panel) */}
       <Gtk.ScrolledWindow
@@ -120,30 +61,9 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
               añade nada al fragment ante null/undefined/false/"", y el ciclo de disposición
               cuelga de iterar los hijos del fragment. Sin hijo no hay dispose. */}
           <With value={vistaActiva}>
-            {(s: SectionId | null) => {
+            {(s: IdSeccion | null) => {
               if (s === null) return <box />
-              if (s === "account") return <AccountSection />
-              if (s === "energy") return <EnergySection />
-              if (s === "games") return <JuegosSection />
-              if (s === "display") return <DisplaySection />
-              if (s === "accessibility") return <AccessibilitySection />
-              if (s === "language") return <DateLanguageSection vista="idioma" />
-              if (s === "datetime") return <DateLanguageSection vista="fecha" />
-              if (s === "location") return <DateLanguageSection vista="ubicacion" />
-              if (s === "mouse") return <DevicesSection vista="raton" />
-              if (s === "touchpad") return <DevicesSection vista="touchpad" />
-              if (s === "keyboard") return <DevicesSection vista="teclado" />
-              if (s === "printers") return <DevicesSection vista="impresoras" />
-              if (s === "bar") return <BarraEscritoriosSection vista="barra" />
-              if (s === "workspaces") return <BarraEscritoriosSection vista="workspaces" />
-              if (s === "personalization") return <FuncionesShellSection vista="personalizacion" />
-              if (s === "orion") return <FuncionesShellSection vista="orion" />
-              if (s === "clipboard") return <FuncionesShellSection vista="portapapeles" />
-              if (s === "monitoring") return <SecuritySection vista="vigilancia" />
-              if (s === "scans") return <SecuritySection vista="escaneos" />
-              if (s === "supervision") return <SystemSection vista="supervision" />
-              if (s === "system") return <SystemSection vista="informacion" />
-              return <SettingsTabs />
+              return crearContenidoSeccion(s) as any
             }}
           </With>
         </box>

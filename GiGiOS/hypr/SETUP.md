@@ -169,7 +169,7 @@ cuando el shell simplemente no recibe una sola notificación.
 Astal *sí* se queja (`proxy.vala: cannot get proxy: dunst is already running`), pero por el
 **stdout de `ags`**: lanzado desde `autostart.conf` ese aviso no llega ni a `hyprland.log` ni al
 journal, así que solo lo ve quien arranca el shell a mano. Por eso el shell **se autodiagnostica**
-desde `ags/modulos/notificaciones/daemonCheck.ts`: comprueba quién tiene el nombre, y si no es él,
+desde `ags/modulos/notificaciones/daemon/comprobacion.ts`: comprueba quién tiene el nombre, y si no es él,
 lanza una notificación crítica (que pinta el propio daemon intruso, que es el que funciona) y
 sustituye el "Historial vacío"/"Sin notificaciones" por un banner que nombra al culpable y da el
 comando exacto. Se apaga solo, sin reiniciar AGS, en cuanto enmascaras al rival.
@@ -523,8 +523,8 @@ Para que la interfaz y las acciones funcionen, el repo debe contener estos archi
 dos scripts `.sh` deben tener permiso de ejecución:
 
 ```text
-GiGiOS/ags/modulos/ajustes/SecuritySection.tsx
-GiGiOS/ags/modulos/ajustes/securityPrefs.ts
+GiGiOS/ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx
+GiGiOS/ags/modulos/ajustes/seguridad/preferencias.ts
 GiGiOS/hypr/scripts/scan-file.sh
 GiGiOS/hypr/scripts/run-untrusted.sh
 ```
@@ -614,7 +614,7 @@ En este repositorio bare usa también:
 
 ```sh
 dotfiles status --short --untracked-files=all -- GiGiOS .github
-dotfiles ls-files GiGiOS/ags/modulos/ajustes/SecuritySection.tsx \
+dotfiles ls-files GiGiOS/ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx \
   GiGiOS/hypr/scripts/scan-file.sh GiGiOS/bin/preflight.sh
 ```
 
@@ -634,14 +634,14 @@ for f in \
   GiGiOS/rofi/config.rasi \
   GiGiOS/hypr/scripts/scan-file.sh \
   GiGiOS/hypr/scripts/run-untrusted.sh \
-  GiGiOS/ags/modulos/ajustes/AccountSection.tsx \
-  GiGiOS/ags/modulos/ajustes/AppsSection.tsx \
-  GiGiOS/ags/modulos/ajustes/DateLanguageSection.tsx \
-  GiGiOS/ags/modulos/ajustes/DevicesSection.tsx \
-  GiGiOS/ags/modulos/ajustes/DisplaySection.tsx \
-  GiGiOS/ags/modulos/ajustes/SecuritySection.tsx \
-  GiGiOS/ags/modulos/ajustes/SystemSection.tsx \
-  GiGiOS/ags/modulos/ajustes/securityPrefs.ts; do
+  GiGiOS/ags/modulos/ajustes/cuenta/SeccionCuenta.tsx \
+  GiGiOS/ags/modulos/notificaciones/settings/AppsTab.tsx \
+  GiGiOS/ags/modulos/ajustes/fecha-idioma/SeccionFechaIdioma.tsx \
+  GiGiOS/ags/modulos/ajustes/dispositivos/SeccionDispositivos.tsx \
+  GiGiOS/ags/modulos/ajustes/pantalla/SeccionPantalla.tsx \
+  GiGiOS/ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx \
+  GiGiOS/ags/modulos/ajustes/sistema/SeccionSistema.tsx \
+  GiGiOS/ags/modulos/ajustes/seguridad/preferencias.ts; do
   test -f "$f" || echo "FALTA: $f"
 done
 ```
@@ -721,8 +721,8 @@ La leen dos sitios, y ninguno se rompe si el archivo no existe:
 
 1. **Pantalla de bloqueo (`hyprlock`)** — `hyprlock.conf`, bloque `image` con
    `path = ~/.local/share/gigios/face.png`. Sin archivo, omite el avatar.
-2. **AGS** — `modulos/ajustes/avatar.ts` exporta `AVATAR_PATH`, que consumen
-   `ProfileAvatar.tsx` (el avatar) y `AccountSection.tsx` (el selector). Sin archivo,
+2. **AGS** — `modulos/ajustes/cuenta/avatar.ts` exporta `AVATAR_PATH`, que consumen
+   `ProfileAvatar.tsx` (el avatar) y `cuenta/SeccionCuenta.tsx` (el selector). Sin archivo,
    AGS cae a mostrar las iniciales del usuario.
 
 Para cambiarla desde una terminal, en vez de por Ajustes:

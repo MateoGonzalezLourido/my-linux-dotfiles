@@ -1,7 +1,7 @@
-import { AjusteInterruptor } from "./componentes"
+import { AjusteInterruptor } from "../componentes"
 import type { ModoDaltonismoActivo } from "./daltonismo"
 import { alternarModoDaltonismo } from "./daltonismo"
-import { modoDaltonismo, setModoDaltonismo } from "./preferences"
+import { modoDaltonismo, setModoDaltonismo } from "../preferences"
 
 type PropiedadesOpcionDaltonismo = {
   modo: ModoDaltonismoActivo

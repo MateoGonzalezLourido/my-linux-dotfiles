@@ -5,13 +5,13 @@ import GLib from "gi://GLib"
 import {
   AjusteInterruptor, TarjetaAjustes, TextoInformativo,
   TituloAjuste, TituloSeccion, TituloSubseccion,
-} from "./componentes"
+} from "../componentes"
 import {
   SECURITY_ITEMS, securityEnabled, setSecurityEnabled, type SecurityKey,
   DL_PAUSE_ITEMS, dlPauseEnabled, setDlPauseEnabled,
   dlMaxScanGB, setDlMaxScanGB,
-} from "./securityPrefs"
-import textos from "../../textos/ajustes/seguridad.json" with { type: "json" }
+} from "./preferencias"
+import textos from "../../../textos/ajustes/seguridad.json" with { type: "json" }
 
 type VistaProteccion = "vigilancia" | "escaneos"
 type Elemento = { key: SecurityKey; label: string; hint: string }
@@ -156,7 +156,7 @@ function Escaneos() {
   )
 }
 
-export default function SecuritySection({ vista }: { vista: VistaProteccion }) {
+export default function SeccionSeguridad({ vista }: { vista: VistaProteccion }) {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={12} cssClasses={["sp-section", "dev-section"]} hexpand>
       <TituloSeccion titulo={textos.vistas[vista]} />

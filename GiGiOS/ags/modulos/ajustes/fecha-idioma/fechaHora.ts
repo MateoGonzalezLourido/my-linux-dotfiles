@@ -1,6 +1,6 @@
-// modulos/ajustes/datetime.ts
+// modulos/ajustes/fecha-idioma/fechaHora.ts
 //
-// Lógica de la sección "Región, fecha y hora" (DateLanguageSection.tsx). Mantiene
+// Lógica de la sección "Región, fecha y hora" (SeccionFechaIdioma.tsx). Mantiene
 // separada la parte de sistema (comandos, ficheros) de la vista JSX.
 //
 // Qué toca y con qué privilegios:
@@ -21,7 +21,7 @@
 import GLib from "gi://GLib"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
-import { withPrivilegedPrompt } from "../../estado/shell"
+import { withPrivilegedPrompt } from "../../../estado/shell"
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
 const ENV_PATH = `${GLib.get_user_config_dir()}/hypr/env.conf`

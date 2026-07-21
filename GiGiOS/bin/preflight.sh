@@ -25,11 +25,11 @@ required=(
   ags/servicios/pantalla/brightness.ts
   ags/servicios/multimedia/mediaClient.ts ags/servicios/multimedia/mediaClient.test.ts
   ags/servicios/multimedia/mediaProgress.ts ags/servicios/multimedia/mediaProgress.test.ts
-  ags/modulos/notificaciones/DaemonConflictBanner.tsx ags/modulos/notificaciones/daemonCheck.ts
+  ags/modulos/notificaciones/daemon/BannerConflicto.tsx ags/modulos/notificaciones/daemon/comprobacion.ts
   ags/modulos/notificaciones/rules/engine.style.test.ts ags/modulos/ajustes/ProfileAvatar.tsx
-  ags/modulos/ajustes/SecuritySection.tsx ags/modulos/ajustes/securityPrefs.ts
-  ags/modulos/ajustes/AccessibilitySection.tsx ags/modulos/ajustes/OpcionDaltonismo.tsx ags/modulos/ajustes/daltonismo.ts
-  ags/modulos/ajustes/daltonismo.test.ts ags/textos/ajustes/accesibilidad.json
+  ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx ags/modulos/ajustes/seguridad/preferencias.ts
+  ags/modulos/ajustes/accesibilidad/SeccionAccesibilidad.tsx ags/modulos/ajustes/accesibilidad/OpcionDaltonismo.tsx ags/modulos/ajustes/accesibilidad/daltonismo.ts
+  ags/modulos/ajustes/accesibilidad/daltonismo.test.ts ags/textos/ajustes/accesibilidad.json
   hypr/hyprland.conf hypr/monitor-settings.conf
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
   hypr/gpu/laptop-hibrida.conf hypr/gpu/sobremesa-nvidia.conf

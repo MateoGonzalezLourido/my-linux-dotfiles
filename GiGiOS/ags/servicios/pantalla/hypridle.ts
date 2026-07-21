@@ -1,5 +1,6 @@
 // Lógica pura de edición de hypridle.conf — SIN imports GTK/GLib (corre bajo
-// node --test). El efecto (leer/escribir/reiniciar) vive en power/InactividadSection.tsx.
+// node --test). El efecto (leer/escribir/reiniciar) vive en
+// modulos/ajustes/pantalla/Inactividad.tsx.
 
 export type ListenerKind = "dpms" | "lock" | "suspend"
 
