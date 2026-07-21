@@ -1325,11 +1325,6 @@ window.qs-window scrolledwindow > overshoot,
   background-color: rgba(0, 0, 0, 0.36);
 }
 
-.stopwatch label {
-  color: #cba6f7;
-  border-color: #cba6f7;
-}
-
 .icon-bare {
   color: rgba(226, 226, 226, 0.45);
   padding: 0 5px;
@@ -1459,12 +1454,6 @@ popover.ws-preview-popover > contents {
   box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
   border-radius: 8px;
   padding: 4px 10px;
-}
-
-.focused-client {
-  padding: 0 6px;
-  color: #e2e2e2;
-  font-size: 16px;
 }
 
 /* Games tray — purple container to the right of the workspaces. Muestra un icono
@@ -2004,35 +1993,6 @@ popover.tray-overflow-popover.closing > contents {
 .mic-indicator .icon {
   font-family: "MesloLGS Nerd Font";
   font-size: 16px;
-}
-
-.notifications {
-  padding: 0 5px;
-  color: rgba(226, 226, 226, 0.45);
-}
-.notifications .icon-active {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 16px;
-  color: #cba6f7;
-}
-.notifications .icon-desactive {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 16px;
-  color: rgba(226, 226, 226, 0.45);
-}
-.notifications .label-number-notis {
-  font-family: "MesloLGS Nerd Font";
-  font-size: 10px;
-  color: #cba6f7;
-  font-weight: 700;
-}
-.notifications.has-notifs {
-  color: #cba6f7;
-}
-.notifications .badge {
-  color: #cba6f7;
-  font-size: 10px;
-  margin-left: 2px;
 }
 
 .network {
@@ -4601,7 +4561,7 @@ window.cal-panel > box {
   border-radius: 8px;
   padding: 3px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  margin: 0 12px;
+  margin: 0 12px 0 0;
 }
 
 .cal-view-tab {
@@ -5044,6 +5004,240 @@ window.cal-panel > box {
 
 .cal-month-view {
   min-width: 380px;
+}
+
+.cal-cuerpo {
+  padding: 0;
+}
+
+.cal-separador-vertical {
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 8px 6px;
+}
+
+.cal-agenda-subtitulo {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.cal-agenda-footer {
+  padding: 8px 10px 4px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cal-day-mas {
+  font-size: 8px;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.cal-day-cell.con-eventos .cal-day-num {
+  font-weight: 600;
+}
+
+.cal-event-origen,
+.cal-event-solo-lectura {
+  font-size: 9px;
+  color: rgba(226, 226, 226, 0.25);
+  font-family: "MesloLGS Nerd Font", monospace;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+.cal-form-error {
+  font-size: 10px;
+  color: #f38ba8;
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.cal-campo-sep {
+  color: rgba(226, 226, 226, 0.25);
+  font-size: 12px;
+}
+
+.cal-spin {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #e2e2e2;
+  font-size: 12px;
+  font-family: "MesloLGS Nerd Font", monospace;
+  padding: 2px 4px;
+}
+.cal-spin:focus {
+  border-color: #89b4fa;
+}
+.cal-spin button {
+  background-color: transparent;
+  color: rgba(226, 226, 226, 0.45);
+  min-width: 16px;
+}
+.cal-spin button:hover {
+  color: #e2e2e2;
+}
+
+.cal-color-muestra {
+  border-radius: 50%;
+}
+
+.cal-btn.primario {
+  background-color: rgba(137, 180, 250, 0.12);
+  color: #89b4fa;
+  border-color: rgba(137, 180, 250, 0.25);
+}
+.cal-btn.primario label {
+  color: #89b4fa;
+}
+.cal-btn.primario:hover {
+  background-color: rgba(137, 180, 250, 0.22);
+}
+
+.cal-icon-btn.peligro {
+  color: #f38ba8;
+}
+.cal-icon-btn.peligro label {
+  color: #f38ba8;
+}
+.cal-icon-btn.peligro:hover {
+  background-color: rgba(243, 139, 168, 0.1);
+}
+
+.cal-icon-btn.aviso label {
+  color: #fab387;
+}
+
+.cal-google-chip {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.reloj-vista {
+  padding: 14px 16px;
+}
+
+.reloj-cabecera {
+  padding-bottom: 4px;
+}
+
+.reloj-hora-grande {
+  font-size: 40px;
+  font-weight: 700;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.reloj-fecha {
+  font-size: 12px;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.reloj-tarjeta {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.reloj-tarjeta-titulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.reloj-temporizador-display,
+.reloj-crono-display {
+  font-size: 30px;
+  font-weight: 700;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.reloj-alarma {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 8px 10px;
+  opacity: 0.55;
+}
+.reloj-alarma.activa {
+  opacity: 1;
+}
+
+.reloj-alarma-hora {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.reloj-alarma-etiqueta {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.reloj-alarma-chip,
+.reloj-alarma-proxima {
+  font-size: 9px;
+  color: rgba(226, 226, 226, 0.25);
+  font-family: "MesloLGS Nerd Font", monospace;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+.reloj-separador {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.25);
+  font-family: "MesloLGS Nerd Font", monospace;
+  margin-top: 6px;
+}
+
+.reloj-dia {
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: transparent;
+  color: rgba(226, 226, 226, 0.45);
+  font-size: 11px;
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+.reloj-dia:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.reloj-dia:checked {
+  background-color: rgba(137, 180, 250, 0.12);
+  border-color: rgba(137, 180, 250, 0.35);
+  color: #89b4fa;
+}
+.reloj-dia:checked label {
+  color: #89b4fa;
+}
+
+.reloj-ayuda {
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.25);
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.reloj-preset {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: transparent;
+  color: rgba(226, 226, 226, 0.45);
+  font-size: 10px;
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+.reloj-preset:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #e2e2e2;
 }
 
 /* ── Notification settings tabs (Phase 3) ───────────────────────────── */

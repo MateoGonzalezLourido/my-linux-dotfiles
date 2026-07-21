@@ -62,6 +62,9 @@ install_packages() {
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
     ttf-meslo-nerd ttf-cascadia-code-nerd rofi cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl
     qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
+    # libcanberra: reproduce el `sound-name` de las notificaciones (alarmas y temporizador del
+    # panel de reloj). Sin él la alerta se ve pero no suena, sin error visible.
+    libcanberra
     nm-connection-editor blueman fish
     kitty firefox dolphin kservice breeze ffmpegthumbs kdegraphics-thumbnailers
     ark 7zip unrar elisa filelight gwenview haruna kate kfind kolourpaint

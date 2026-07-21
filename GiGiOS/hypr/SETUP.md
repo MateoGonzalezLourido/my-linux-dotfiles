@@ -753,7 +753,10 @@ migrar y qué se regenera solo.
 | `~/.config/gigios/notif-cleanup-state.json` | estado del motor de limpieza de notifs |
 | `~/.config/gigios/notif-migrated.json` | marca de migración ya aplicada (evita re-migrar) |
 | `~/.config/gigios/security.json` | interruptores del monitor de seguridad; se leen al iniciar `oom-monitor.sh` |
-| `~/.config/ags/calendar-events.json` | tus eventos del panel de calendario |
+| `~/.config/gigios/calendario.json` | tus eventos del panel de calendario (antes `~/.config/ags/calendar-events.json`, que caía **dentro** del repo; AGS lo migra solo la primera vez y borra el original) |
+| `~/.config/gigios/reloj.json` | tus alarmas (el temporizador y el cronómetro son de sesión y no se guardan) |
+| `~/.config/gigios/google-calendar-creds.json` | credenciales de Google Calendar en texto plano (chmod 600, git-ignored); regenerar con `ags/scripts/google-calendar-auth.sh` |
+| `~/.config/gigios/google-calendar-sync.json` | tokens incrementales de Google; borrarlo solo cuesta una sincronización completa |
 | `~/.config/jarvis/git-repos.json` | repos que Orion conoce para la sección Git (rutas locales — revisa que existan en el PC nuevo) |
 | `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
 | `~/.local/share/orion/profiles/*.json` | sesiones guardadas de Orion (`ProfileManager.ts`) |
@@ -765,8 +768,7 @@ migrar y qué se regenera solo.
 ### 14.2 Config/código del dotfiles — genérico, viaja igual para cualquiera que use este setup
 
 Todo lo demás dentro de `~/.config/hypr/*.conf`, `~/.config/hypr/scripts/`,
-`~/.config/hypr/envs/`, y todo `~/.config/ags/` salvo `calendar-events.json` de la
-tabla anterior: `app.ts`, `modulos/**`, `componentes/**`, `estado/**`, `servicios/**`, `utilidades/**`, `style.scss`
+`~/.config/hypr/envs/`, y todo `~/.config/ags/`: `app.ts`, `modulos/**`, `componentes/**`, `estado/**`, `servicios/**`, `utilidades/**`, `style.scss`
 (→ `out.css` generado, no se edita a mano).
 
 ### 14.3 Fuera de `hypr/` y `ags/`, pero incluidos en este repositorio

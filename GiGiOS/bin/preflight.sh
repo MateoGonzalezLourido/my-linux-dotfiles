@@ -120,6 +120,10 @@ if [[ "$mode" == "--installed" ]]; then
     partitionmanager:partitionmanager simple-scan:simple-scan
     clamscan:clamav firejail:firejail bwrap:bubblewrap gamemoded:gamemode
     xdg-user-dir:xdg-user-dirs
+    # Sonido de las notificaciones (alarmas y temporizador del panel de reloj). Se declara
+    # explícito en vez de confiar en que libcanberra llegue como dependencia transitiva de otra
+    # cosa: sin él, una alarma se ve pero no suena, y el fallo es silencioso por diseño.
+    canberra-gtk-play:libcanberra
   )
   for entry in "${commands[@]}"; do
     command="${entry%%:*}"

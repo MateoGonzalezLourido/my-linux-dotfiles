@@ -207,6 +207,12 @@ fi
 # shell (app_icons.json). Solo migran los JSON de usuario, así que KEEP_IN_REPO
 # se queda donde está — sin esta lista la migración se lo llevaba a
 # ~/.config/gigios/ y AGS dejaba de encontrarlo (workspaces sin iconos).
+#
+# NO se migra aquí ~/.config/ags/calendar-events.json (el almacén viejo del
+# calendario, que también caía dentro del repo por el symlink). Lo hace el propio
+# AGS al arrancar, en modulos/calendario/persistencia/repositorio.ts: solo él sabe
+# convertir el formato antiguo al esquema nuevo, y moverlo a ciegas desde aquí
+# dejaría un fichero que el panel no entiende.
 old_cfg="$HOME/.config/ags/config"
 new_cfg="$HOME/.config/gigios"
 KEEP_IN_REPO=(app_icons.json)

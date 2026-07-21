@@ -67,8 +67,18 @@ User/runtime state is **not** versioned. It lives in `~/.config/gigios/` (`displ
 and `~/.local/share/jarvis/` for the Orion launcher. These are data written/read by widgets
 and scripts at runtime — not code.
 
-`~/.config/gigios/spotify-creds.json` is a **plaintext secret** (chmod 600) and must never be
-committed or copied into the repo. Set it up once via `ags/scripts/spotify-auth.sh`.
+`~/.config/gigios/spotify-creds.json` y `~/.config/gigios/google-calendar-creds.json` son
+**secretos en texto plano** (chmod 600) y no pueden commitearse ni copiarse dentro del repo. Se
+crean una sola vez con `ags/scripts/spotify-auth.sh` y `ags/scripts/google-calendar-auth.sh`.
+
+**El calendario ESCRIBÍA DENTRO DEL REPOSITORIO, y esa es la razón de su migración.** Los eventos
+vivían en `~/.config/ags/calendar-events.json`, y `~/.config/ags` es un symlink a `~/GiGiOS/ags`:
+las citas del usuario —dato personal— caían en el árbol versionado. Hoy van a
+`~/.config/gigios/calendario.json` (eventos + configuración, con `version` de esquema) y
+`~/.config/gigios/reloj.json` (alarmas). `modulos/calendario/persistencia/repositorio.ts` migra el
+fichero antiguo una sola vez y **borra el original**: no destructivo significa que no se pierde
+nada, no que se deje una copia dentro de git. El orden es escribir el destino y solo entonces
+borrar el origen. Las alarmas se persisten; el temporizador y el cronómetro son de sesión.
 
 ## Hyprland structure
 

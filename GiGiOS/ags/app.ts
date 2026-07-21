@@ -8,7 +8,7 @@ import QuickSettings from "./modulos/ajustes-rapidos/QuickSettings"
 import NotificationPopup from "./modulos/notificaciones/NotificationPopup"
 import NotificationPanel from "./modulos/notificaciones/NotificationPanel"
 import SettingsWindow from "./modulos/notificaciones/settings/SettingsWindow"
-import CalendarPanel from "./modulos/calendario/CalendarPanel"
+import PanelCalendario from "./modulos/calendario/PanelCalendario"
 import SettingsPanel from "./modulos/ajustes/SettingsPanel"
 import Orion from "./modulos/orion/Orion"
 import { togglePanel as alternarPanelOrion } from "./modulos/orion/state"
@@ -21,7 +21,8 @@ import { initTrayApps } from "./modulos/ajustes/trayApps"
 import { initGamingState } from "./servicios/energia/gamingState"
 import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
-import { alternarBarPorTecla, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness } from "./estado/shell"
+import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
+import { alternarBarPorTecla, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
 
 app.start({
   css: style,
@@ -85,6 +86,13 @@ app.start({
       response("ok")
       return
     }
+    // El calendario era el único panel sin `request`: solo se abría pinchando el reloj de la barra.
+    // Con la barra autoocultada eso obliga a ir a buscarla, y no había forma de atarlo a una tecla.
+    if (argv.includes("toggle-calendar")) {
+      toggleCalendar()
+      response("ok")
+      return
+    }
     response("unknown request")
   },
   main() {
@@ -108,7 +116,7 @@ app.start({
     if (orionEnabled.get()) {
       app.get_monitors().map(Orion)
     }
-    try { app.get_monitors().map(CalendarPanel) } catch(e) { console.error("[app] CalendarPanel failed:", e) }
+    try { app.get_monitors().map(PanelCalendario) } catch(e) { console.error("[app] PanelCalendario failed:", e) }
     app.get_monitors().map(SettingsPanel)
     // Deja el Wake up apagado: es por sesión, y un wakeup.json heredado seguiría
     // vetando la suspensión sin que ninguna UI lo enseñe. NO se aparta con los
@@ -147,6 +155,11 @@ app.start({
       initGamingState()
       // Después de NotificationPopup: es quien construye el AstalNotifd que reclama el nombre.
       initNotifDaemonCheck()
+      // Arma el temporizador de la próxima alarma. Va aquí y no a t=0 porque NO siembra de
+      // eventos: lee la lista del disco, que no cambia mientras espera, y las alarmas puntuales
+      // vencidas ya se desactivaron al cargar el módulo. Cuatro segundos de margen no pueden
+      // hacer que se pierda un vencimiento: el planificador se arma contra el reloj de pared.
+      inicializarReloj()
     }, 4000)
   },
 })

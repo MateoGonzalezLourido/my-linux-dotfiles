@@ -182,10 +182,6 @@ window.qs-window scrolledwindow > overshoot,
   }
 }
 
-.stopwatch label {
-  color: $violet;
-  border-color: $violet;
-}
 
 .icon-bare {
   color: $text-dim;
@@ -3857,7 +3853,9 @@ window.cal-panel > box {
   border-radius: 8px;
   padding: 3px;
   border: 1px solid $cal-border;
-  margin: 0 12px;
+  // Sin margen a la izquierda: desde que las pestañas son el primer elemento de la cabecera (antes
+  // iban detrás del título «Calendario»), un margen simétrico las despegaba del borde del panel.
+  margin: 0 12px 0 0;
 }
 
 .cal-view-tab {
@@ -4298,6 +4296,236 @@ window.cal-panel > box {
 // ── Month view container ──────────────────────────────────────────────────────
 .cal-month-view {
   min-width: 380px;
+}
+
+// ═══ Panel reconstruido: mes + agenda simultáneos, y sección Reloj ═══════════
+// Convive con las clases de arriba, que se reutilizan tal cual (`.cal-day-cell`,
+// `.cal-dialog-card`, `.cal-form-entry`…). Lo de aquí es lo que no existía cuando el panel tenía
+// una sola columna y ninguna pestaña de reloj.
+
+.cal-cuerpo {
+  padding: 0;
+}
+
+// Separador entre la columna del mes y la de la agenda. Es un box de 1 px y no un `border` para que
+// llegue de arriba abajo sin depender del alto de ninguno de los dos lados.
+.cal-separador-vertical {
+  background-color: $cal-border;
+  margin: 8px 6px;
+}
+
+.cal-agenda-subtitulo {
+  font-size: 11px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+.cal-agenda-footer {
+  padding: 8px 10px 4px 10px;
+  border-top: 1px solid $cal-border;
+}
+
+// Contador «+N» que sustituye al último punto cuando un día tiene más eventos de los que caben.
+.cal-day-mas {
+  font-size: 8px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+.cal-day-cell.con-eventos .cal-day-num {
+  font-weight: 600;
+}
+
+.cal-event-origen,
+.cal-event-solo-lectura {
+  font-size: 9px;
+  color: $cal-text-hint;
+  font-family: $cal-font;
+  background-color: $cal-bg-surface;
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+.cal-form-error {
+  font-size: 10px;
+  color: $cal-danger;
+  font-family: $cal-font;
+}
+
+// ── Campos estructurados de fecha y hora ────────────────────────────────────
+.cal-campo-sep {
+  color: $cal-text-hint;
+  font-size: 12px;
+}
+
+.cal-spin {
+  background-color: $cal-bg-surface;
+  border: 1px solid $cal-border;
+  border-radius: 6px;
+  color: $cal-text;
+  font-size: 12px;
+  font-family: $cal-font;
+  padding: 2px 4px;
+
+  &:focus { border-color: $cal-blue; }
+
+  button {
+    background-color: transparent;
+    color: $cal-text-dim;
+    min-width: 16px;
+    &:hover { color: $cal-text; }
+  }
+}
+
+.cal-color-muestra {
+  border-radius: 50%;
+}
+
+// `.primario` es el nombre nuevo; `.cal-btn-primary` sigue arriba para lo que aún lo use.
+.cal-btn.primario {
+  background-color: $cal-accent-bg;
+  color: $cal-blue;
+  border-color: rgba(137, 180, 250, 0.25);
+  label { color: $cal-blue; }
+  &:hover { background-color: rgba(137, 180, 250, 0.22); }
+}
+
+.cal-icon-btn.peligro {
+  color: $cal-danger;
+  label { color: $cal-danger; }
+  &:hover { background-color: $cal-danger-bg; }
+}
+
+.cal-icon-btn.aviso label { color: $orange; }
+
+.cal-google-chip {
+  font-size: 11px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+// ── Sección Reloj ───────────────────────────────────────────────────────────
+.reloj-vista {
+  padding: 14px 16px;
+}
+
+.reloj-cabecera {
+  padding-bottom: 4px;
+}
+
+.reloj-hora-grande {
+  font-size: 40px;
+  font-weight: 700;
+  color: $cal-text;
+  font-family: $cal-font;
+}
+
+.reloj-fecha {
+  font-size: 12px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+.reloj-tarjeta {
+  background-color: $cal-bg-surface;
+  border: 1px solid $cal-border;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.reloj-tarjeta-titulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: $cal-violet;
+  font-family: $cal-font;
+}
+
+// Las dos cifras grandes van en la misma fuente y tamaño: son la misma clase de dato y saltar de
+// tamaño entre temporizador y cronómetro hacía que la sección pareciera dos pantallas distintas.
+.reloj-temporizador-display,
+.reloj-crono-display {
+  font-size: 30px;
+  font-weight: 700;
+  color: $cal-text;
+  font-family: $cal-font;
+}
+
+.reloj-alarma {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 8px 10px;
+  opacity: 0.55; // por defecto atenuada: la lista distingue activas de inactivas a simple vista
+
+  &.activa { opacity: 1; }
+}
+
+.reloj-alarma-hora {
+  font-size: 20px;
+  font-weight: 700;
+  color: $cal-text;
+  font-family: $cal-font;
+}
+
+.reloj-alarma-etiqueta {
+  font-size: 11px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+.reloj-alarma-chip,
+.reloj-alarma-proxima {
+  font-size: 9px;
+  color: $cal-text-hint;
+  font-family: $cal-font;
+  background-color: $cal-bg-surface;
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+.reloj-separador {
+  font-size: 10px;
+  color: $cal-text-hint;
+  font-family: $cal-font;
+  margin-top: 6px;
+}
+
+.reloj-dia {
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 50%;
+  border: 1px solid $cal-border;
+  background-color: transparent;
+  color: $cal-text-dim;
+  font-size: 11px;
+  font-family: $cal-font;
+
+  &:hover { background-color: $cal-bg-surface2; }
+
+  &:checked {
+    background-color: $cal-accent-bg;
+    border-color: rgba(137, 180, 250, 0.35);
+    color: $cal-blue;
+    label { color: $cal-blue; }
+  }
+}
+
+.reloj-ayuda {
+  font-size: 10px;
+  color: $cal-text-hint;
+  font-family: $cal-font;
+}
+
+.reloj-preset {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid $cal-border;
+  background-color: transparent;
+  color: $cal-text-dim;
+  font-size: 10px;
+  font-family: $cal-font;
+
+  &:hover { background-color: $cal-bg-surface2; color: $cal-text; }
 }
 
 /* ── Notification settings tabs (Phase 3) ───────────────────────────── */

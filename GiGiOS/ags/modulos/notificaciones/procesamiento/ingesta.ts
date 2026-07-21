@@ -10,6 +10,7 @@ import { buildNotifFields, type RawNotif } from "../rules/notifFields.ts"
 import { getCondition } from "../rules/conditions.ts"
 import type { NotifInput } from "../rules/types.ts"
 import { recordNotification } from "../history/historyStore.ts"
+import { reproducirSonidoNotificacion } from "../sonido/reproductor.ts"
 
 /** Unpack a notification's D-Bus hints (a{sv}) into a flat string map for rewrite placeholders.
  *  Only string/number/boolean hint values are kept; complex values (images, byte arrays) skipped. */
@@ -27,6 +28,25 @@ function extractHints(n: AstalNotifd.Notification): Record<string, string> {
   return out
 }
 
+/** Lee un hint suelto como cadena. Mismo motivo que `readSourceHint` para no usar `extractHints`. */
+function readStringHint(n: AstalNotifd.Notification, key: string): string | undefined {
+  try {
+    const v = (n as any).hints?.lookup_value?.(key, null)
+    if (!v) return undefined
+    return (v.get_type_string() === "s" ? v.get_string()[0] : String(v.deep_unpack())) || undefined
+  } catch (_) { return undefined }
+}
+
+/** `suppress-sound` viaja como booleano en el spec, pero hay emisores que mandan 0/1 o "true". */
+function readBoolHint(n: AstalNotifd.Notification, key: string): boolean {
+  try {
+    const v = (n as any).hints?.lookup_value?.(key, null)
+    if (!v) return false
+    const raw = v.deep_unpack()
+    return raw === true || raw === 1 || raw === "true" || raw === "1"
+  } catch (_) { return false }
+}
+
 /** Lee SOLO el hint `x-gigios-source` (lo ponen los scripts de `hypr/scripts/`).
  *  Deliberadamente NO pasa por `extractHints()`: ese hace `recursiveUnpack()` de todo el a{sv},
  *  y un `image-data` trae los píxeles en crudo — materializarlos en JS por cada notificación
@@ -38,6 +58,13 @@ function readSourceHint(n: AstalNotifd.Notification): string | undefined {
     if (!v) return undefined
     return (v.get_type_string() === "s" ? v.get_string()[0] : String(v.deep_unpack())) || undefined
   } catch (_) { return undefined }
+}
+
+/** No molestar, leído del daemon en el momento. No se cachea: el auto-DND lo cambia solo. */
+function noMolestarActivo(): boolean {
+  try {
+    return AstalNotifd.get_default().dontDisturb === true
+  } catch (_) { return false }
 }
 
 const conditionDisposers = new Map<number, (() => void)[]>()
@@ -133,6 +160,18 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
   scheduleStoreSave()
   recordNotification(stored)
   scheduleConditions(stored)
+
+  // Audio. Va DESPUÉS de almacenar y de las reglas: `meta.muteAudio` es su entrada, y una
+  // notificación suprimida (`suppress`) o deduplicada ya salió por arriba sin llegar aquí. Suena
+  // aunque `dontShow` la oculte del popup — «no la enseñes» no es «no me avises».
+  reproducirSonidoNotificacion({
+    soundName: readStringHint(n, "sound-name"),
+    soundFile: readStringHint(n, "sound-file"),
+    suppressSound: readBoolHint(n, "suppress-sound"),
+    noMolestar: noMolestarActivo(),
+    muteAudio: meta.muteAudio,
+    urgencia: input.urgency,
+  })
 
   return stored.meta.dontShow ? null : stored
 }

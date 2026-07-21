@@ -5,7 +5,7 @@ import { Gtk } from "ags/gtk4"
 // clases SCSS (np-*/ns-*/cal-*) vía props, así que este componente no fuerza
 // una convención de nombres nueva. Devuelve Gtk.Widget (no solo JSX.Element)
 // para poder usarse tanto embebido en JSX como llamado directamente en código
-// imperativo (ver modulos/calendario/AgendaView.tsx).
+// imperativo (ver modulos/calendario/calendario/AgendaDia.tsx).
 export default function EmptyState({
   icon,
   title,
