@@ -118,6 +118,11 @@ export default function Actualizaciones({ visibilidad }: { visibilidad: ControlV
       const pop = new Gtk.Popover()
       pop.add_css_class("upd-popover-container")
       pop.set_has_arrow(true)
+      // Sin autohide, igual que Recursos.tsx y la vista previa de escritorios: con el
+      // autohide por defecto GTK toma un grab al hacer popup, el botón recibe al
+      // instante un `leave` y `panelAutoClose` cierra el popover recién abierto. El
+      // cierre lo gobierna el motion controller (botón + tarjeta) y el propio botón.
+      pop.set_autohide(false)
       pop.set_position(Gtk.PositionType.BOTTOM)
       pop.set_child(buildCard())
       pop.set_parent(btnRef)
