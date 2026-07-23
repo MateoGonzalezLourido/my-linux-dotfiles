@@ -97,41 +97,136 @@ fichero antiguo una sola vez y **borra el original**: no destructivo significa q
 nada, no que se deje una copia dentro de git. El orden es escribir el destino y solo entonces
 borrar el origen. Las alarmas se persisten; el temporizador y el cronómetro son de sesión.
 
+## ⚠️ El config es LUA (migrado el 2026-07-23, hyprlang ya retirado del repo)
+
+Desde Hyprland 0.55 hyprlang está deprecado: **si existe `hyprland.lua`, Hyprland lo carga y no
+mira ningún `hyprland.conf`** (no conviven; la comprobación es una sola vez al arrancar). El config
+de esta máquina es **`hypr/hyprland.lua`** + los módulos de **`hypr/gigios/*.lua`**. Los `.conf` de
+hyprlang **ya no están en el repo**: se borraron al terminar la migración, tras verificar la sesión
+real. `git` los conserva si hiciera falta consultarlos.
+
+Los `.conf` que **siguen** en `hypr/` son de **otros programas** —`hypridle`, `hyprlock`,
+`hyprpaper`—, binarios `hypr*` aparte que mantienen hyprlang a propósito. Toda la lógica de
+`idle-action.sh`, la puerta del Wake Up y el truco `# GIGIOS-OFF` sigue exactamente igual.
+
+**Si un arranque sale mal** (desde una TTY con Ctrl+Alt+F2 si no hay escritorio): **un error de Lua
+deja la sesión SIN ATAJOS** salvo el de emergencia (`SUPER + Q`, que aquí abre kitty), así que desde
+esa terminal se arregla el módulo o se recupera con
+`dotfiles checkout -- GiGiOS/hypr`. `--verify-config` solo detecta errores de **parseo**, no de
+ejecución — por eso cada módulo se carga con `util.carga` (require + pcall): uno roto avisa en
+pantalla y el resto sigue, que es lo que evita el escenario "sin atajos" en la práctica.
+`bin/preflight.sh` pasa `--verify-config` sobre `hyprland.lua`, así que un error de sintaxis no
+llega a commitearse.
+
+**Lo que cambia para cualquiera que toque esto:**
+
+- **`hyprctl keyword` YA NO EXISTE** (`keyword can't work with non-legacy parsers. Use eval.`).
+  El equivalente es `hyprctl eval 'hl.config({...})'`.
+- **`hyprctl dispatch` con sintaxis legacy TAMPOCO funciona** — se reinterpreta como código Lua y
+  da error de sintaxis. La forma es `hyprctl dispatch "hl.dsp.exec_cmd('cmd')"`. Ojo: en sesión
+  legacy la forma Lua responde `Invalid dispatcher` **con rc=0**, y en sesión Lua la legacy también
+  falla sin rc útil — **hay que mirar el stdout (`ok`), nunca el código de salida**. Los scripts
+  migrados (`idle-action.sh`, `anclaje.py`, `lanzar-anclado.py`) llevan por eso fallback inline.
+- **`hyprctl binds -j` sigue roto** en 0.56 (JSON inválido); usa la salida de texto.
+- **Los callbacks (`hl.on`, binds con función) tienen timeout de 100 ms**: nada bloqueante dentro.
+  Los `*-monitor.sh` siguen en bash por eso, lanzados igual desde `gigios/autostart.lua`.
+- **Lo que se inlineó** (ya no se invocan sus scripts, que quedan solo para la config legacy):
+  `toggle-gaps-borders.sh` → `GiGiOS.toggle_gaps()`, `aplicar-filtro-daltonismo.sh` →
+  `GiGiOS.daltonismo(modo)`, `boton-apagado.sh` → `GiGiOS.boton_apagado()`,
+  `compact-workspaces.sh` → `GiGiOS.compactar()`, `escaner-apps-inicio.sh` →
+  `gigios/escaner-apps.lua`. Son globals del config, así que **AGS los llama por
+  `hyprctl eval 'GiGiOS.daltonismo("...")'`** (verificado: `eval` comparte el estado Lua del config).
+- **`keybinds-nop.conf` (335 líneas) y `generar-nop-binds.sh` están OBSOLETOS**: los 317 binds
+  sordos los calcula ahora un bucle en `gigios/nop-binds.lua` contra la tabla `usados` que llena el
+  envoltorio `bind()` de `gigios/keybinds.lua`. **Todo atajo nuevo debe pasar por ese envoltorio**,
+  no por `hl.bind` directo (no da error: solo deja un bind sordo duplicado encima). El no-op es
+  `hl.dsp.no_op()` nativo, no el `submap, reset` de antes.
+- **El perfil de GPU ya no se descomenta a mano**: lo elige `~/.config/gigios/gpu-perfil`, un
+  fichero local de una línea (`sobremesa-nvidia`) **fuera del repo** — la elección de máquina es
+  estado local, como manda `docs/anadir-perfiles-por-equipo.md`. Ausente o inválido = ningún perfil
+  + aviso en pantalla (fail-open: el compositor arranca igual).
+- **Los generados por AGS pasan a `.lua`**: `monitor-settings.lua` e `input-settings.lua` (chunks
+  Lua puros, cargados con `util.carga_opcional` = `dofile` + pcall). Ausentes **ya no son error
+  duro** (con `source =` sí lo eran), pero su ausencia sí devolvería la pantalla al comodín
+  (240 Hz → 60, escala 1.25 → 1), así que se generaron a mano al activar y AGS los reescribe al
+  tocar Ajustes.
+- **Sin decodificador JSON nativo** en el intérprete embebido: hay uno vendorizado en
+  `gigios/json.lua` (solo lectura). `io`, `os.execute`, `require` y `dofile` sí están (Lua 5.5), y
+  `package.path` apunta al directorio del config, así que `require("gigios.x")` resuelve solo.
+
+**Trampas medidas al portar** (no las redescubras):
+
+- **`size = "60% 60%"` NO funciona en Lua.** `size`/`move` van al motor de expresiones (muParser),
+  que **no tiene operador `%`**: la regla se registra sin error, no sale nada en el log ni en
+  `configerrors`, y el tamaño sencillamente no se aplica. Se escribe `monitor_w*0.6 monitor_h*0.6`.
+- **`{mouse=true}` no existe** como opción de `hl.bind` pese a aparecer en el ejemplo oficial de
+  `/usr/share/hypr/hyprland.lua`. Los `bindm` van con **`{drag=true}`**.
+- **`cursor:no_hardware_cursors = false` se descarta en silencio** en 0.56 (queda en auto). Por eso
+  `gpu/laptop-hibrida.lua` no la pone.
+- **En `hl.dsp.window.move`, "silent" se dice `follow = false`** (un `silent = true` se ignora), y el
+  selector por string necesita el prefijo `address:` — un `'0x…'` a secas no casa y el dispatcher
+  mueve **la ventana activa**. `hl.get_window("0x…")` devuelve `nil`: el objeto sale de
+  `hl.get_windows()`.
+
+**Lo que se llevó por delante la limpieza** (todo sustituido, nada perdido): los `.conf` portados,
+`keybinds-nop.conf` y `generar-nop-binds.sh`, y los cinco scripts inlineados
+(`toggle-gaps-borders.sh`, `aplicar-filtro-daltonismo.sh`, `boton-apagado.sh`,
+`compact-workspaces.sh`, `escaner-apps-inicio.sh`). `bin/preflight.sh` ya no parsea `source =`:
+valida los `util.carga()` de `hyprland.lua`, los perfiles de `gigios/gpu.lua`, las rutas de
+`gigios/autostart.lua` y que el config pase `--verify-config`.
+
+**La sección "Atajos" de Orion parsea el CONFIG COMO CÓDIGO FUENTE**, y eso era el bloqueante de
+esta limpieza: leía `keybinds.conf` + `variables.conf` como texto. Hoy lee `gigios/keybinds.lua` +
+`gigios/variables.lua` (`ags/modulos/orion/data/keybinds.parse.ts`, puro y con tests de node). El
+Lua trae dos formas que hyprlang no tenía y que el parser **debe** entender: expresiones
+(`mod .. " + SHIFT + F"`) y **bucles** — los 20 atajos de workspace y los 8 de foco/movimiento ya no
+están escritos uno a uno. Sin expandir los bucles la lista perdía 28 de 67 atajos **en silencio**,
+de ahí el test que cuenta.
+
 ## Hyprland structure
 
-For the directory layout, the exact `source=` order, and which script fires from where, see
+For the directory layout, the module load order, and which script fires from where, see
 [`docs/hypr-estructura.md`](docs/hypr-estructura.md) — this section only covers the *why* behind
 specific decisions, not a structural map.
 
-`hypr/hyprland.conf` is a thin entry point that `source`s the split configs (`env`, `monitors`,
-`input`, `windows`, `animations`, `rules`, `keybinds`, `autostart`, `permissions`, …). Note:
+**El razonamiento de abajo sigue vigente aunque la sintaxis haya cambiado**: `gigios/*.lua` es un
+port fiel de los `.conf`, así que donde se lea "`keybinds.conf`" o "un `source =`" hay que entender
+su módulo equivalente. `hypr/hyprland.lua` is a thin entry point that loads the split modules
+(`env`, `monitores`, `input`, `ventanas`, `animaciones`, `reglas`, `keybinds`, `autostart`,
+`permisos`, …). Note:
 
-- **GPU profile is machine-specific**: exactly one file under `hypr/gpu/` is sourced
-  (`laptop-hibrida.conf` / `sobremesa-nvidia.conf` / …). Comment/uncomment per machine.
-- `input-settings.conf` is **generated by AGS** and sourced after `userprefs.conf` — don't
+- **GPU profile is machine-specific**: exactly one module under `hypr/gigios/gpu/` is loaded
+  (`laptop-hibrida.lua` / `sobremesa-nvidia.lua` / …), y **ya no se descomenta a mano** — lo elige
+  `~/.config/gigios/gpu-perfil`, un fichero local de una línea fuera del repo.
+- `input-settings.lua` is **generated by AGS** and loaded after `gigios/userprefs.lua` — don't
   hand-edit it as the source of truth.
-- `monitor-settings.conf` is **también generado por AGS** (Ajustes > Pantalla, vía
-  `ags/servicios/pantalla/service.ts`) y se sourcea **después de `monitors.conf`**, cuya única regla
-  es la comodín `monitor = , preferred, auto, 1`. Resolución/Hz/escala/VRR/posición se aplicaban
+- `monitor-settings.lua` is **también generado por AGS** (Ajustes > Pantalla, vía
+  `ags/servicios/pantalla/service.ts`) y se carga **después de `gigios/monitores.lua`**, cuya única
+  regla es la comodín (preferido, escala 1). Resolución/Hz/escala/VRR/posición se aplicaban
   antes solo **en vivo** (`hyprctl keyword monitor`) y al arrancar AGS, guardándose únicamente en
   `~/.config/gigios/display.json` — que Hyprland no lee. Resultado: cualquier **`hyprctl reload`**
   releía los configs y devolvía la pantalla a modo preferido y escala 1 (240 Hz → 60 Hz, 1.25 → 1),
   sin que AGS se enterara (no hay señal de recarga, y su poller solo observa). Las reglas van por
   `desc:` (estable entre reconexiones, a diferencia de `DP-1`) y una regla concreta gana a la
   comodín. Efecto extra: el compositor ya arranca en el modo bueno, sin el parpadeo de la
-  re-aplicación. `display.json` sigue siendo la fuente de verdad; este `.conf` es un volcado.
+  re-aplicación. `display.json` sigue siendo la fuente de verdad; este `.lua` es un volcado.
+  **Que falte ya no es error duro** (con `source =` sí lo era: sacaba el overlay de Hyprland), pero
+  su ausencia devolvería la pantalla al comodín, así que no lo borres a la ligera.
 - Colour management (`render.cm_enabled`) is deliberately **off** because `hyprsunset` owns the
   KMS CTM for night light; enabling Hyprland's CM too washes out the image.
 
-`hypr/autostart.conf` launches the shell (`ags run ~/.config/ags/`), `hypridle`, `init.sh`,
+`hypr/gigios/autostart.lua` launches the shell (`ags run ~/.config/ags/`), `hypridle`, `init.sh`,
 `wallpaper.sh`, and a set of `hypr/scripts/*-monitor.sh` background daemons (battery, temp,
-ram, disk, oom, wifi, usb, bt, screencast, updates). Use `hyprctl reload` for a normal config
-reload. To restart Hyprland correctly —including re-running every `exec-once` in
-`autostart.conf`— use the newer `hyprctl reload full-reset`; a plain reload does not restart
-those commands. Relaunch AGS separately when its code changes.
+ram, disk, oom, wifi, usb, bt, screencast, updates). Todo ello cuelga de un
+`hl.on("hyprland.start", …)`, que es el equivalente EXACTO de `exec-once`: se dispara una vez por
+sesión y un `reload` **no** lo repite (medido). El código de nivel superior del config sí se
+re-ejecuta en cada reload — esa es la semántica del viejo `exec =`, y es donde vive la llamada a
+`GiGiOS.daltonismo()`. Use `hyprctl reload` for a normal config reload. To restart Hyprland
+correctly —including re-running the autostart— use the newer `hyprctl reload full-reset`; a plain
+reload does not restart those commands. Relaunch AGS separately when its code changes.
 
-**El arranque está ESCALONADO, y `autostart.conf` es el único sitio donde se lee el calendario
-entero.** Todo esto salía a la vez y competía con la carga de Hyprland y del shell con la caché
+**El arranque está ESCALONADO, y `gigios/autostart.lua` es el único sitio donde se lee el
+calendario entero.** Todo esto salía a la vez y competía con la carga de Hyprland y del shell con la caché
 fría. La regla: lo que se ve (wallpaper, AGS, `init.sh`) o lo que no puede perder eventos va a
 t=0; lo que solo consulta el estado del PC se aparta — eventos a t=3..6 (bt, usb, wifi,
 screencast), sondeos a t=8..15 (ram, temp, batería, disco), y lo caro al final (updates t=20,
@@ -197,7 +292,7 @@ a los 11, como siempre. Con la subopción **Pantalla** veta además `dpms-off` *
 bloqueo va atado a la pantalla porque hyprlock la taparía, que es justo lo que la opción evita.
 `on-resume` **no** pasa por la puerta: encender la pantalla al volver no se veta nunca, y es lo
 único que la despierta si vuelves con el ratón (`mouse_move_enables_dpms = false` en
-`windows.conf`; solo una tecla la enciende por su cuenta).
+`gigios/ventanas.lua`; solo una tecla la enciende por su cuenta).
 
 **Estado**: `~/.config/gigios/wakeup.json`, `{active, until, screen, pid}`, escrito por AGS
 (`ags/servicios/energia/mantenerDespierto.ts`) y leído por el script — misma dirección que
@@ -243,16 +338,19 @@ ese 0 llegaría al `.conf` al encender la fila. **El estado del interruptor sale
 no de un `true` fijo**: cuando la UI escribía `enabled: true` a pelo, mover cualquier stepper
 reescribía los tres listeners como activos y resucitaba en silencio un GIGIOS-OFF ya puesto.
 
-### Botón de encendido: `boton-apagado.sh` + `system/logind.conf.d/`
+### Botón de encendido: `gigios/boton-apagado.lua` + `system/logind.conf.d/`
 
 Ajustes > Energía decide qué hace la pulsación **corta** del botón físico (apagar, suspender,
 hibernar, bloquear, apagar la pantalla, abrir el menú de energía, cerrar sesión, reiniciar o
-nada). Lo ejecuta `hypr/scripts/boton-apagado.sh` desde un **`bindl = , XF86PowerOff`** de
-`keybinds.conf` — `bindl` y no `bind` porque el botón tiene que responder también con hyprlock
-puesto, que es justo cuando más se pulsa.
+nada). Lo ejecuta `GiGiOS.boton_apagado()` (`hypr/gigios/boton-apagado.lua`) desde el bind de
+`XF86PowerOff` con **`{ locked = true }`** en `gigios/keybinds.lua` — `locked` (el viejo `bindl`)
+porque el botón tiene que responder también con hyprlock puesto, que es justo cuando más se pulsa.
+Era un script de bash (`boton-apagado.sh`); se inlineó al migrar a Lua, y con él desapareció la
+doble indirección bind → bash → `hyprctl dispatch`.
 
 **El shell NO ejecuta la acción, solo guarda la elección** (`botonApagado` en
-`preferences.json`), y el script la relee **en cada pulsación**. Así el botón sigue funcionando
+`preferences.json`), y el config la relee **en cada pulsación** (`util.leer_json`, no la caché de
+`util.prefs()`). Así el botón sigue funcionando
 con AGS caído (con la acción de fábrica, `apagar`) y cambiar el ajuste no necesita relanzar nada
 — se aparta de la advertencia general de los `*-monitor.sh` porque no hay proceso vivo. La única
 acción que sí pasa por AGS es `menu`, vía `ags request toggle-power-menu`, y bajo hyprlock **no
@@ -407,24 +505,29 @@ trabaja) y el bucle de espera, que **relee ambos motivos** en cada vuelta, así 
 del toggle maestro de AGS no mataría el script hasta acabar la espera. En `oom-monitor` los
 sub-monitores ya duermen en primer plano, así que ahí `sleep` a secas es lo coherente.
 
-### Escáner de apps al iniciar sesión (`escaner-apps-inicio.sh`)
+### Escáner de apps al iniciar sesión (`gigios/escaner-apps.lua`)
 
 Al empezar la sesión se abren ventanas **solas** (autostart, restauración de sesión) y no siempre
 en el escritorio que estás mirando: acabas delante de uno vacío mientras tus apps están en otro.
-Este script mira los primeros 30 s y te lleva donde hayan quedado. `0` ventanas nuevas → no hace
-nada; **un** escritorio destino → salta a él; **dos o más** → llama a `compact-workspaces.sh` y
-salta al destino **más cercano** al activo (empate → id menor).
+Esto mira los primeros 30 s y te lleva donde hayan quedado. `0` ventanas nuevas → no hace nada;
+**un** escritorio destino → salta a él; **dos o más** → llama a `GiGiOS.compactar()` y salta al
+destino **más cercano** al activo (empate → id menor).
+
+**Era un script de bash que parseaba el socket de eventos a mano**, con la trampa de que la
+dirección de `openwindow>>` llega SIN el `0x` que sí trae `hyprctl clients` — cruzar ambas fuentes
+sin normalizar daba cero coincidencias en silencio. Con `hl.on("window.open", …)` la ventana llega
+ya tipada (`win.address` con su `0x`) y esa clase de fallo desaparece de raíz.
 
 **La decisión se toma AL FINAL de los 30 s, no en cada evento, y esa es la diferencia entre la
 función y un tic nervioso.** Saltar según llega cada `openwindow` haría rebotar el escritorio
 activo cuatro o cinco veces mientras arranca la sesión — justo el desconcierto que esto viene a
 quitar. El peaje aceptado es que la corrección llega a los 30 s, no al instante.
 
-**Va a t=0 en `autostart.conf`, y es la excepción al calendario escalonado**: escucha `openwindow`
-en el socket de eventos, y las apps de autostart abren **exactamente ahí**. Retrasarlo no es
-apartarlo del pico de carga, es perderse las ventanas que existe para seguir — el mismo motivo por
-el que `oom-monitor` no se retrasa entero. En reposo cuesta un `nc` bloqueado en un socket, y a los
-30 s muere.
+**Se registra a t=0, y es la excepción al calendario escalonado**: escucha las aperturas de ventana
+desde el propio `hyprland.start`, y las apps de autostart abren **exactamente ahí**. Retrasarlo no
+es apartarlo del pico de carga, es perderse las ventanas que existe para seguir — el mismo motivo
+por el que `oom-monitor` no se retrasa entero. Ya no cuesta ni un proceso: es un callback del
+compositor, y a los 30 s se desuscribe (`sub:remove()`) en vez de morir un `nc`.
 
 **La dirección del evento viene SIN el `0x`** que sí trae `hyprctl clients` (`openwindow>>ADDRESS,
 workspace,class,title`, y hay que cortar en la primera coma: la línea entera trae también
@@ -432,25 +535,26 @@ workspace, clase y título). Cruzar ambas fuentes sin normalizar da cero coincid
 silencio** — el script recolecta bien, resuelve a lista vacía y sale con éxito sin saltar a ningún
 sitio. Fue el primer fallo real y no da ningún error.
 
-**Los escritorios se re-resuelven DESPUÉS de compactar**, porque `compact-workspaces.sh` renumera:
-un id leído antes de compactar apunta a otro sitio (o a nada) al terminar. Solo cuentan las
-ventanas que **no existían** al arrancar el script — lo ya abierto no es un autolanzamiento — y se
-ignoran los escritorios especiales, que no son una posición donde dejar al usuario.
+**Los escritorios se re-resuelven DESPUÉS de compactar**, porque `GiGiOS.compactar()` renumera:
+un id leído antes de compactar apunta a otro sitio (o a nada) al terminar. Como la llamada es
+síncrona, la re-resolución va justo detrás, sin temporizadores de por medio. Solo cuentan las
+ventanas que **no existían** al registrarse (la base se toma con `hl.get_windows()`) — lo ya
+abierto no es un autolanzamiento — y se ignoran los escritorios especiales, que no son una posición
+donde dejar al usuario.
 
-**Es de un solo uso, no un daemon**, así que se aparta de la advertencia general de los
-`*-monitor.sh`: lee su preferencia una vez, mira y muere. No hay proceso vivo que se quede
-ejecutando código viejo, ni hace falta `pkill` + re-exec al cambiar el ajuste — se aplica en la
-próxima sesión, como `limpiezaPortapapelesAlIniciar`.
+**Es de un solo disparo, no un vigilante permanente**, así que se aparta de la advertencia general
+de los `*-monitor.sh`: lee su preferencia al cargar el config, mira 30 s y se desuscribe. No hay
+proceso vivo que se quede ejecutando código viejo, ni hace falta `pkill` + re-exec al cambiar el
+ajuste — se aplica en la próxima sesión, como `limpiezaPortapapelesAlIniciar`.
 
 **Alcance real**: corre al arrancar **Hyprland**, no al volver de una suspensión o hibernación
-(volver no reinicia el compositor, así que no hay `exec-once` que lo lance). Cubre el autostart y
-cualquier restauración de sesión que ocurra tras un arranque completo.
+(volver no reinicia el compositor, así que `hyprland.start` no se vuelve a disparar). Cubre el
+autostart y cualquier restauración de sesión que ocurra tras un arranque completo.
 
-Prefiere el socket de eventos al sondeo porque no forkea nada durante los 30 s — el arranque de
-sesión es cuando más sobra la carga — y cae a sondear cada 2 s si no hay `nc -U` ni `socat`. Que el
-lector no emita **nada** es indistinguible de "30 s sin abrir ventanas", así que se distingue por
-si llegó a hablar: el socket emite por cualquier cosa (foco, cambio de escritorio), de modo que
-callarse significa que no podemos fiarnos, y ahí se recae al sondeo en vez de abandonar.
+La ventana de 30 s la cierra un `hl.timer` de un disparo. Toda la maquinaria que hacía falta en
+bash —leer el socket con `nc -U`/`socat`, el sondeo de repliegue cada 2 s, distinguir "el lector no
+ha dicho nada" de "no se ha abierto ninguna ventana"— desapareció con la reescritura: aquí los
+eventos los entrega el compositor al callback.
 
 **Ajuste**: `escanerAppsInicio` en `~/.config/gigios/preferences.json` (Ajustes > Personalización >
 Ventanas y escritorios). **Ausente = DESACTIVADO**, al revés que la mayoría de claves de este
@@ -516,47 +620,45 @@ bajas, no de movimientos), así que `ags/modulos/barra/escritorios/Escritorios.t
 Sin eso los iconos de la barra se quedaban en el escritorio donde nació la ventana hasta que otra
 cosa forzara un refresco. Ver `ags/CLAUDE.md`.
 
-### SUPER + tecla sin atajo no debe escribirse (`keybinds-nop.conf`)
+### SUPER + tecla sin atajo no debe escribirse (`gigios/nop-binds.lua`)
 
 Con SUPER pulsado, una tecla que **no** forma un atajo llegaba a la aplicación: `SUPER+C` escribía
 una `c`. Es al revés que en Windows, donde la tecla Win sin atajo no hace nada.
 
 **No hay opción global para esto: Hyprland solo se traga una tecla si algún bind la captura.** El
-candidato obvio es `catchall`, y el compositor lo rechaza — medido, no supuesto: `hyprctl keyword
-bind "SUPER,catchall,submap,reset"` responde *«Invalid catchall, catchall keybinds are only allowed
-in submaps»*. Así que la única vía es **enumerar**: `hypr/keybinds-nop.conf` trae un bind "sordo"
-por cada combinación con SUPER que no sea ya un atajo (letras, dígitos, puntuación, F1–F12, teclado
-numérico, navegación y edición; para `SUPER`, `SUPER SHIFT`, `SUPER CTRL` y `SUPER ALT`). Se sourcea
-en `hyprland.conf` **después** de `keybinds.conf`.
+candidato obvio es `catchall`, y el compositor lo rechaza — medido, no supuesto: responde *«Invalid
+catchall, catchall keybinds are only allowed in submaps»*. La API Lua tampoco lo trae:
+`HL.BindOptions` no tiene `catchall` ni `any`. Así que la única vía es **enumerar** una combinación
+por tecla (letras, dígitos, puntuación, F1–F12, teclado numérico, navegación y edición; para
+`SUPER`, `SUPER SHIFT`, `SUPER CTRL` y `SUPER ALT`).
 
-**El no-op es `submap, reset`, y no un `exec`.** Es interno al compositor: cero forks por pulsación,
-al contrario que un `exec, true`. Aquí es literalmente inerte porque **no hay ni un submap** en toda
-la configuración, y nadie —ni AGS— escucha ese evento; si algún día se añade uno, esto deja de ser
-un no-op y hay que cambiar el dispatcher.
+**Antes era un fichero generado de 335 líneas** (`keybinds-nop.conf`) más su generador
+(`generar-nop-binds.sh`), que parseaba `hyprctl binds` para saber qué combinaciones estaban ya
+usadas. Hoy son **~10 líneas de bucle** en `gigios/nop-binds.lua`, y esa es una de las tres cosas
+que pagaron la migración a Lua ella sola: al vivir dentro del mismo config, la lista de "lo que ya
+es un atajo" **no hay que descubrirla** — la tiene delante.
 
-**Lo genera `hypr/scripts/generar-nop-binds.sh` a partir de `hyprctl binds`**, o sea de los atajos
-REALES con `$mainMod` ya expandido, no de un parseo de `keybinds.conf`. Dos trampas que ya mordieron:
+**El envoltorio `bind()` de `gigios/keybinds.lua` es lo que lo sostiene**: anota cada combinación
+(normalizada: mods ordenados y en mayúsculas, así `"SUPER SHIFT + E"` y `"shift+super+e"` casan) en
+una tabla `usados`, que `nop-binds` consulta. **Todo atajo nuevo debe pasar por ese envoltorio**, no
+por `hl.bind` directo. Saltárselo **no da ningún error**: solo deja esa combinación con dos binds
+—el tuyo y un sordo de más—, que Hyprland ejecuta ambos, así que es inofensivo pero deja los sordos
+sin reflejar la realidad. Hay un aviso gordo en la cabecera del módulo por eso.
 
-- **`hyprctl binds -j` está ROTO en 0.56.0** y no sirve para esto. Devuelve los campos desplazados
-  (`modmask: false`, `key: "false"`, `keycode: F`) y ni siquiera es JSON válido: `jq` peta con
-  *Invalid numeric literal*. El script parsea la salida de **texto**. No lo "arregles" a `-j`.
-- **Hay que descartar los binds a `submap`, que son los que genera el propio script.** Sin ese
-  filtro, regenerar con el fichero anterior ya cargado lee sus 317 binds como atajos del usuario,
-  los excluye todos y escribe un fichero **vacío**: la función se apagaría sola en la primera
-  regeneración. Con el filtro es idempotente (verificado: 317 binds en dos pasadas seguidas).
+**El no-op es `hl.dsp.no_op()`, nativo.** Antes era `submap, reset`, que solo era inerte *mientras
+no existiera ningún submap* en toda la configuración — una trampa que había que documentar y que
+aquí desaparece.
 
-**Un bind duplicado no rompe nada, y eso es lo que hace segura la desincronización.** Si añades un
-atajo a `keybinds.conf` y no regeneras, la combinación queda con dos binds y Hyprland **ejecuta los
-dos** — el tuyo y un `submap, reset` que no hace nada. Por eso el fichero puede quedarse viejo sin
-consecuencias: lo peor que pasa es que el atajo nuevo conserve una línea sorda de más.
+**Ya no hay nada que regenerar ni que se pueda desincronizar**: el bucle se recalcula en cada carga
+del config. El gesto de "recoger los atajos nuevos" (activar el ajuste para forzar una
+regeneración) dejó de existir porque dejó de hacer falta.
 
 **Ajuste**: `absorberSuperSinAtajo` en `~/.config/gigios/preferences.json` (Ajustes >
-Personalización > Ventanas y escritorios), ausente = activado. Se aplica **en caliente**: el setter
-llama al script con `on`/`off` y este recarga Hyprland él mismo. Al desactivar, el fichero **no se
-borra** — se deja solo con comentarios, porque un `source =` a un fichero ausente es error **duro**
-en Hyprland y saca el overlay de configuración (mismo motivo por el que se versiona
-`monitor-settings.conf` aunque se regenere solo). Activar **regenera**, así que ese es el gesto con
-el que recoger los atajos añadidos desde la última vez.
+Personalización > Ventanas y escritorios), **ausente = activado** — ojo al leerlo, se comprueba
+`== false` explícitamente, porque un `nil` tiene que activar. Se aplica **en caliente**: el setter
+de AGS escribe la preferencia (síncrono) y dispara `hyprctl reload`, que re-ejecuta el config y
+vuelve a decidir. Desactivado, los sordos sencillamente no se registran: no queda ningún fichero
+residual que borrar ni comentar.
 
 ### Update monitor (`updates-monitor.sh`)
 
@@ -565,7 +667,7 @@ Checks for pending updates and surfaces the **important** ones as bar icons (AGS
 for GPU drivers (green)**, each shown only when its own category has something pending.
 Ordinary package/dependency updates deliberately show **no icon at all** — they were pure noise;
 they are only listed as context ("Otros: N paquetes") inside the popover. Launched from
-`autostart.conf` as `sleep 20 && …/updates-monitor.sh` — el retardo deja que el resto de la
+`gigios/autostart.lua` as `sleep 20 && …/updates-monitor.sh` — el retardo deja que el resto de la
 sesión termine de cargar antes de la primera consulta, que toca **red** y sincroniza una BD
 temporal de pacman (eran 3 s; se subió a 20 al escalonar el arranque). El retardo va ahí y no
 dentro del script porque el toggle maestro de AGS lo re-ejecuta en caliente, y ahí sí se quiere
@@ -806,7 +908,7 @@ revés que el valor DDC, que el monitor graba en su firmware).
 **`brightnessctl` no se invoca desde ningún otro sitio, y es a propósito.** Sin dispositivos de clase
 `backlight` **no falla**: cae al primer dispositivo de clase `leds` y acaba encendiendo el **LED de
 scroll-lock del teclado**, devolviendo 0 — un fallo mudo que la UI no podía detectar. Por eso las
-teclas `XF86MonBrightness*` de `keybinds.conf` ya **no** lo llaman (van por `ags request
+teclas `XF86MonBrightness*` de `gigios/keybinds.lua` ya **no** lo llaman (van por `ags request
 brightness-up|down`, que aplica al backend que haya y enseña el OSD) y la llamada que queda en
 `init.sh` lleva `-c backlight` explícito.
 
@@ -851,7 +953,7 @@ nivel/carga/presencia de batería, así que también funciona en un sobremesa.
 Despite the filename, `hypr/scripts/oom-monitor.sh` is the general **security event monitor** —
 OOM killer is just one of ~16 scanned event types. Five sub-monitors run in parallel (`&` + `wait`):
 
-**No se retrasa entero desde `autostart.conf` — se escalona por dentro, y la asimetría es el
+**No se retrasa entero desde `gigios/autostart.lua` — se escalona por dentro, y la asimetría es el
 diseño.** Sus sub-monitores no corren el mismo riesgo si empiezan tarde. Los que **siguen**
 (`journalctl -kf`/`-f` con `-n 0`, que salta el backlog a propósito, e `inotifywait`) no
 recuperan lo pasado: retrasarlos convertiría un OOM, un `sudo` fallido o un cambio en
@@ -1021,7 +1123,7 @@ across engines, and both surface a clear "run `sudo freshclam`" hint when the si
 ### Comprobación de arranque (`boot-healthcheck.sh`)
 
 Es el `exec-once` más caro del arranque —de ahí que vaya al final del calendario escalonado, a
-`t=30` (ver la sección de `autostart.conf` más arriba)— y por eso está pensado para ser **silencioso
+`t=30` (ver la sección de `gigios/autostart.lua` más arriba)— y por eso está pensado para ser **silencioso
 en una máquina sana**: solo notifica por categoría cuando encuentra un problema, y todo (incluida la
 pasada limpia) queda en `hypr/logs/boot-healthcheck.log` (ignorado por git, ver `.gitignore`).
 Ejecutado a mano responde al instante — el retraso lo pone quien lo lanza, no el script.
@@ -1082,7 +1184,7 @@ como "grabación iniciada" cuando en realidad murió al instante.
 
 `clipboard-history.sh start` arranca el watcher (`wl-paste --watch cliphist store`) con
 **`setsid --fork`**, no con `exec` ni en primer plano: así queda reparentado a init y sobrevive a
-quien lo lanzó — tanto Hyprland (`autostart.conf`) como AGS (`execAsync`) llaman a `start`, y antes
+quien lo lanzó — tanto Hyprland (`gigios/autostart.lua`) como AGS (`execAsync`) llaman a `start`, y antes
 el watcher moría junto con AGS por usar `exec`. Dos patrones de proceso distintos cumplen roles
 distintos: uno general (cualquier límite de `-max-items`) sirve para detectar y **sustituir** un
 watcher que quedó con un límite antiguo sin perder el historial ya guardado (`stop` no vale para
@@ -1102,33 +1204,39 @@ selección exacta. Cancelar (Esc) sale con 0 sin tocar el portapapeles, para no 
 el coste de generar una miniatura bajo demanda, escribiendo ya en la ruta que espera Rofi.
 
 `limpiar-portapapeles.sh` tiene dos entradas: `limpiar` (llamada directa, p. ej. desde AGS) y
-`al-iniciar` (la usa `autostart.conf`, respeta la preferencia `limpiezaPortapapelesAlIniciar`).
+`al-iniciar` (la usa `gigios/autostart.lua`, respeta la preferencia `limpiezaPortapapelesAlIniciar`).
 Borra primero la selección activa de Wayland (`wl-copy --clear`) y solo después el historial
 persistente (`cliphist wipe`) — en ese orden: si el watcher llegara a capturar el clear como una
 entrada nueva, el wipe posterior se la lleva también.
 
 ### Utilidades cortas de un solo uso
 
-- **`aplicar-filtro-daltonismo.sh`** — aplica o quita un shader de pantalla de Hyprland
-  (`decoration:screen_shader`) para protanopia/deuteranopia/tritanopia. Sin sondeo: lo invoca AGS al
-  cambiar el ajuste y Hyprland en cada arranque/recarga para restaurar `modoDaltonismo` de
-  `preferences.json`; sin argumento lee esa preferencia en el momento, sin caché.
-- **`compact-workspaces.sh`** — renumera los escritorios ocupados a IDs consecutivos desde 1,
-  moviendo ventanas en silencio (`movetoworkspacesilent`) y siguiendo al escritorio activo hasta su
+- **`GiGiOS.daltonismo(modo)`** (`gigios/daltonismo.lua`) — aplica o quita un shader de pantalla
+  (`decoration.screen_shader`) para protanopia/deuteranopia/tritanopia. Sin sondeo: lo invoca AGS al
+  cambiar el ajuste (`hyprctl eval`) y el propio `hyprland.lua` en cada arranque/recarga para
+  restaurar `modoDaltonismo` de `preferences.json`; sin argumento lee esa preferencia en el momento,
+  sin caché (`util.leer_json`, no `util.prefs()`).
+- **`GiGiOS.compactar()`** (`gigios/compactar.lua`) — renumera los escritorios ocupados a IDs
+  consecutivos desde 1, moviendo ventanas en silencio y siguiendo al escritorio activo hasta su
   nuevo número. Sale sin hacer nada si no hay ninguna ventana en ningún escritorio. Es el motor que
-  usa `escaner-apps-inicio.sh` cuando detecta dos o más escritorios destino (ver esa sección) — y por
-  lo que esa sección advierte que los IDs deben releerse **después** de compactar.
+  usa `gigios/escaner-apps.lua` cuando detecta dos o más escritorios destino (ver esa sección) — y
+  por lo que esa sección advierte que los IDs deben releerse **después** de compactar. Al ser una
+  llamada Lua síncrona el resultado está disponible al volver (medido: 0,2 ms), sin la carrera que
+  había con el script.
 - **`toggle-orion.sh`** — antes de tocar nada comprueba el ajuste maestro `orion` en
   `preferences.json`: si está desactivado no manda el toggle a AGS, porque deliberadamente no hay
   ninguna ventana registrada que responda. Intenta primero `ags request toggle-orion` y solo si falla
   o no devuelve `"ok"` cae a `ags toggle orion` — cubre la breve ventana de una recarga en la que el
   script enlazado en disco ya se actualizó pero la instancia de AGS en marcha todavía no, sin la cual
   el atajo quedaría inservible justo en ese momento.
-- **`toggle-gaps-borders.sh`** — alterna gaps/rounding a 0 (modo compacto) y de vuelta a valores fijos
-  (`gaps_in 2.5`, `gaps_out 8`, `rounding 6`) marcados por un fichero de estado en
-  `$XDG_RUNTIME_DIR`. Esos valores de "vuelta a la normalidad" están escritos aquí, no leídos de
-  `userprefs.conf` — si algún día cambias los gaps por defecto ahí, hay que replicarlo en este script
-  o el toggle "restaurará" un valor obsoleto.
+- **`GiGiOS.toggle_gaps()`** (definida en `gigios/keybinds.lua`, junto a su bind) — alterna
+  gaps/rounding a 0 (modo compacto) y de vuelta a valores fijos (`gaps_in 2.5`, `gaps_out 8`,
+  `rounding 6`). Esos valores de "vuelta a la normalidad" están escritos ahí, no leídos de
+  `gigios/ventanas.lua` — si algún día cambias los gaps por defecto, hay que replicarlo o el toggle
+  "restaurará" un valor obsoleto. El estado vive en una `local` de Lua, no en un fichero de
+  `$XDG_RUNTIME_DIR`: igual de efímero, y con la ventaja de que un `hyprctl reload` resetea a la vez
+  el flag y los gaps — el esquema viejo restauraba los gaps pero el fichero sobrevivía, así que el
+  siguiente toggle "restauraba" un estado en el que ya estabas.
 - **`wallpaper.sh`** — tres modos: sin argumento (arranque, respeta `randomOnStart`), `--random`
   (botón de Orion) y `<ruta>` (clic en una miniatura de Orion). El campo `current` de
   `~/.config/gigios/wallpaper.json` lo escribe **siempre este script** tras aplicar un fondo, y

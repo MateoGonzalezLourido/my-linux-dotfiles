@@ -104,9 +104,44 @@ export interface RuleInput {
   pref: MonitorPref
 }
 
-// availableModes trae "…@144.00Hz"; hyprctl keyword monitor quiere "…@144.00".
+// availableModes trae "…@144.00Hz"; el campo `mode` de hl.monitor (igual que el
+// de la regla legacy) quiere "…@144.00" — verificado en 0.56 con la instancia
+// anidada: hl.monitor acepta el mismo formato sin el sufijo Hz.
 export function modeToHyprctl(modeString: string): string {
   return modeString.replace(/Hz$/, "")
+}
+
+// Literal de cadena Lua entre comillas dobles. La description de un monitor
+// viene del EDID y se interpola en un chunk: sin escapar, una comilla suelta
+// rompería el fichero generado entero (y con él la config al recargar).
+export function luaString(s: string): string {
+  return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
+}
+
+// Equivalente Lua de buildMonitorRule: una tabla HL.MonitorSpec para
+// `hl.monitor({...})`, tanto en vivo (`hyprctl eval`) como en el
+// monitor-settings.lua generado. Mismos datos y mismos defaults que la regla
+// legacy; los campos ausentes se omiten para que manden los defaults del
+// compositor, igual que hacía la regla corta.
+export function buildMonitorSpecLua(r: RuleInput): string {
+  const { name, position, pref } = r
+  if (pref.enabled === false) return `{ output = ${luaString(name)}, disabled = true }`
+  const mode = pref.mode ? modeToHyprctl(pref.mode) : "preferred"
+  const scale = pref.scale != null ? String(pref.scale) : "auto"
+  const campos = [
+    `output = ${luaString(name)}`,
+    `mode = ${luaString(mode)}`,
+    `position = ${luaString(position || "auto")}`,
+    `scale = ${luaString(scale)}`,
+  ]
+  if (pref.vrr != null) campos.push(`vrr = ${pref.vrr ? 1 : 0}`)
+  if (pref.mirrorOf && pref.mirrorOf !== "none") campos.push(`mirror = ${luaString(pref.mirrorOf)}`)
+  if (pref.transform != null) campos.push(`transform = ${pref.transform}`)
+  if (pref.bitdepth != null) campos.push(`bitdepth = ${pref.bitdepth}`)
+  if (pref.cm) campos.push(`cm = ${luaString(pref.cm)}`)
+  if (pref.sdrBrightness != null) campos.push(`sdrbrightness = ${pref.sdrBrightness}`)
+  if (pref.sdrSaturation != null) campos.push(`sdrsaturation = ${pref.sdrSaturation}`)
+  return `{ ${campos.join(", ")} }`
 }
 
 export function buildMonitorRule(r: RuleInput): string {

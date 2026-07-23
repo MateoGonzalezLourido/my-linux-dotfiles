@@ -30,27 +30,37 @@ required=(
   ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx ags/modulos/ajustes/seguridad/preferencias.ts
   ags/modulos/ajustes/accesibilidad/SeccionAccesibilidad.tsx ags/modulos/ajustes/accesibilidad/OpcionDaltonismo.tsx ags/modulos/ajustes/accesibilidad/daltonismo.ts
   ags/modulos/ajustes/accesibilidad/daltonismo.test.ts ags/textos/ajustes/accesibilidad.json
-  hypr/hyprland.conf hypr/monitor-settings.conf
+  hypr/hyprland.lua hypr/gigios/util.lua hypr/gigios/json.lua hypr/gigios/variables.lua
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
-  hypr/gpu/laptop-hibrida.conf hypr/gpu/sobremesa-nvidia.conf
+  hypr/gigios/gpu.lua hypr/gigios/gpu/laptop-hibrida.lua hypr/gigios/gpu/sobremesa-nvidia.lua
   Wallpapers/sunset.jpg
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
-  hypr/scripts/run-untrusted.sh hypr/scripts/compact-workspaces.sh
-  hypr/scripts/toggle-gaps-borders.sh
+  hypr/scripts/run-untrusted.sh
   system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
-  system/logind.conf.d/99-gigios-powerkey.conf hypr/scripts/boton-apagado.sh
+  system/logind.conf.d/99-gigios-powerkey.conf
   rofi/config.rasi
 )
 for path in "${required[@]}"; do
   [[ -f "$GIGIOS/$path" ]] || fail "falta $path"
 done
 
-# Todas las rutas activas cargadas por Hyprland deben formar parte del checkout.
-while IFS= read -r source; do
-  relative="${source#'~/.config/hypr/'}"
-  [[ -f "$GIGIOS/hypr/$relative" ]] || fail "source de Hyprland ausente: $relative"
-done < <(sed -nE 's/^[[:space:]]*source[[:space:]]*=[[:space:]]*(~\/\.config\/hypr\/[^[:space:]#]+).*/\1/p' "$GIGIOS/hypr/hyprland.conf")
+# Todos los módulos que carga el config Lua deben formar parte del checkout.
+# Bajo hyprlang un `source =` ausente sacaba el overlay de error de Hyprland; en
+# Lua un `require` que falla lo captura `util.carga` y solo avisa en pantalla, así
+# que un módulo perdido en el checkout es MÁS silencioso que antes — de ahí que se
+# valide aquí. `carga_opcional` se excluye a propósito: esos son los ficheros que
+# genera AGS (monitor-settings/input-settings) y su ausencia es legítima.
+while IFS= read -r modulo; do
+  relative="${modulo//.//}"
+  [[ -f "$GIGIOS/hypr/$relative.lua" ]] || fail "módulo Lua de Hyprland ausente: $relative.lua"
+done < <(sed -nE 's/^[[:space:]]*util\.carga\("([^"]+)"\).*/\1/p' "$GIGIOS/hypr/hyprland.lua")
+
+# Los perfiles de GPU no se cargan por nombre fijo (los elige el fichero local
+# ~/.config/gigios/gpu-perfil), así que se validan contra la tabla de válidos.
+while IFS= read -r perfil; do
+  [[ -f "$GIGIOS/hypr/gigios/gpu/$perfil.lua" ]] || fail "perfil de GPU ausente: gigios/gpu/$perfil.lua"
+done < <(sed -nE 's/^[[:space:]]*\["([^"]+)"\][[:space:]]*=[[:space:]]*true.*/\1/p' "$GIGIOS/hypr/gigios/gpu.lua")
 
 while IFS= read -r reference; do
   case "$reference" in
@@ -59,7 +69,16 @@ while IFS= read -r reference; do
     *) continue ;;
   esac
   [[ -e "$target" ]] || fail "autostart ausente: $reference"
-done < <(grep -oE '~/.config/(hypr|inicializador)/[^ ;]+' "$GIGIOS/hypr/autostart.conf" | sort -u)
+done < <(grep -oE '~/.config/(hypr|inicializador)/[^ ;"]+' "$GIGIOS/hypr/gigios/autostart.lua" | sort -u)
+
+# El config Lua tiene que parsear: un error de sintaxis deja la sesión SIN
+# ATAJOS (solo el SUPER+Q de emergencia), así que es lo más caro que puede
+# colarse en un commit. `--verify-config` no detecta errores de EJECUCIÓN, pero
+# los de parseo sí, que son los que introduce una edición a mano.
+if command -v Hyprland >/dev/null 2>&1; then
+  Hyprland --verify-config -c "$GIGIOS/hypr/hyprland.lua" 2>&1 | grep -q 'config ok' \
+    || fail "hypr/hyprland.lua no pasa --verify-config"
+fi
 
 while IFS= read -r script; do
   bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGIOS"/}"
@@ -184,9 +203,9 @@ EOF
     || fail "kdeglobals no activa Breeze Dark para KColorSchemeManager"
   grep -Fqx 'BackgroundNormal=20,22,24' "$GIGIOS/kdeglobals" \
     || fail "kdeglobals no contiene la paleta materializada de Breeze Dark"
-  grep -Fqx 'env = QT_QPA_PLATFORMTHEME,qt6ct' "$GIGIOS/hypr/env.conf" \
+  grep -Fqx 'hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")' "$GIGIOS/hypr/gigios/env.lua" \
     || fail "Hyprland no activa qt6ct como tema de plataforma Qt"
-  grep -Fqx 'env = QT_SCALE_FACTOR,0.9' "$GIGIOS/hypr/env.conf" \
+  grep -Fqx 'hl.env("QT_SCALE_FACTOR", "0.9")' "$GIGIOS/hypr/gigios/env.lua" \
     || fail "Hyprland no configura la densidad compacta de las aplicaciones Qt"
   grep -Fqx 'color_scheme_path=/usr/share/qt6ct/colors/darker.conf' "$GIGIOS/qt6ct/qt6ct.conf" \
     || fail "qt6ct no configura la paleta oscura"

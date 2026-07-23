@@ -92,7 +92,7 @@ export default function ReproduccionSpotify({ visibilidad }: { visibilidad: Esta
 
     const direccion = String(cliente.address)
     const normalizada = direccion.startsWith("0x") ? direccion : `0x${direccion}`
-    execAsync(["hyprctl", "dispatch", "focuswindow", `address:${normalizada}`]).catch(() => {})
+    execAsync(["hyprctl", "dispatch", `hl.dsp.focus({window='address:${normalizada}'})`]).catch(() => {})
   }
 
   onCleanup(() => {

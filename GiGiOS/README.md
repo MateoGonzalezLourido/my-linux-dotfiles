@@ -8,7 +8,7 @@ archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
 ## Recargar o reiniciar Hyprland
 
 Para aplicar únicamente cambios de configuración usa `hyprctl reload`. Para reiniciar
-Hyprland correctamente y volver a ejecutar los `exec-once` de `hypr/autostart.conf`, usa
+Hyprland correctamente y volver a ejecutar el autostart de `hypr/gigios/autostart.lua`, usa
 `hyprctl reload full-reset`; una recarga normal no relanza el autostart.
 
 ## Contenido
@@ -55,7 +55,7 @@ Para añadir otra aplicación con variantes por equipo, sigue la guía
 la estructura, el contrato del selector, integración con el instalador,
 preflight y las pruebas de una instalación limpia.
 
-Antes de iniciar Hyprland, revisa la GPU en `hypr/hyprland.conf`. Por seguridad
+Antes de iniciar Hyprland, elige el perfil de GPU en `~/.config/gigios/gpu-perfil`. Por seguridad
 no se activa ningún perfil específico en una instalación nueva. Los únicos
 pasos deliberadamente manuales son los que necesitan datos o privilegios del
 usuario: Spotify, `sudo freshclam`, `sudo sensors-detect` y fuentes propietarias.

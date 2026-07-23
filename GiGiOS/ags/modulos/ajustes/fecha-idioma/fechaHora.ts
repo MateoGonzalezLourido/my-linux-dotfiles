@@ -4,7 +4,8 @@
 // separada la parte de sistema (comandos, ficheros) de la vista JSX.
 //
 // Qué toca y con qué privilegios:
-//   · Idioma del sistema (LANG)  → bloque gestionado en ~/.config/hypr/env.conf.
+//   · Idioma del sistema (LANG)  → bloque gestionado en ~/.config/hypr/gigios/env.lua
+//     (líneas `hl.env(...)` entre marcadores, dentro de la config Lua de Hyprland).
 //     SIN contraseña; se aplica al reiniciar la sesión (igual que hace KDE).
 //   · Zona horaria y NTP         → timedatectl. Pide contraseña vía polkit
 //     (hyprpolkitagent), como cualquier ajuste de reloj del sistema.
@@ -16,7 +17,7 @@
 //
 // El teclado (distribución/variante) NO se gestiona aquí: es propiedad de
 // servicios/dispositivos/service.ts (deviceSettings). La vista reutiliza ese servicio
-// para no tener dos escritores del mismo input-settings.conf.
+// para no tener dos escritores del mismo input-settings.lua.
 
 import GLib from "gi://GLib"
 import { createState } from "ags"
@@ -24,12 +25,13 @@ import { execAsync } from "ags/process"
 import { withPrivilegedPrompt } from "../../../estado/shell"
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
-const ENV_PATH = `${GLib.get_user_config_dir()}/hypr/env.conf`
+const ENV_PATH = `${GLib.get_user_config_dir()}/hypr/gigios/env.lua`
 const DATA_PATH = `${GLib.get_user_config_dir()}/gigios/datetime.json`
-// Marcadores del bloque de idioma dentro de env.conf. Todo lo que haya entre
-// ellos lo gestiona GiGiOS; el resto del archivo se respeta intacto.
-const LOCALE_BEGIN = "# >>> GiGiOS idioma (no editar a mano) >>>"
-const LOCALE_END = "# <<< GiGiOS idioma <<<"
+// Marcadores del bloque de idioma dentro de gigios/env.lua (comentarios Lua,
+// idénticos a los que ese módulo trae de serie). Todo lo que haya entre ellos lo
+// gestiona GiGiOS; el resto del archivo se respeta intacto.
+const LOCALE_BEGIN = "-- >>> GiGiOS idioma (no editar a mano) >>>"
+const LOCALE_END = "-- <<< GiGiOS idioma <<<"
 
 // ── Tipos ───────────────────────────────────────────────────────────────────
 export type LocationSource = "auto" | "manual"
@@ -128,7 +130,7 @@ function mutatePrefs(patch: Partial<LocationPrefs>) {
 }
 
 // ── Lectura de estado del sistema ───────────────────────────────────────────────
-// LANG efectivo: primero el bloque que gestionamos en env.conf (lo que se
+// LANG efectivo: primero el bloque que gestionamos en gigios/env.lua (lo que se
 // aplicará al reiniciar sesión), luego el entorno actual, luego localectl.
 function readManagedLocale(): string {
   const env = readFile(ENV_PATH)
@@ -136,7 +138,7 @@ function readManagedLocale(): string {
   const end = env.indexOf(LOCALE_END)
   if (begin !== -1 && end > begin) {
     const block = env.slice(begin, end)
-    const m = block.match(/env\s*=\s*LANG\s*,\s*(\S+)/)
+    const m = block.match(/hl\.env\(\s*"LANG"\s*,\s*"([^"]+)"\s*\)/)
     if (m) return m[1]
   }
   return ""
@@ -197,8 +199,8 @@ export function listTimezones(): Promise<string[]> {
 
 // ── Idioma del sistema ──────────────────────────────────────────────────────────
 // Dos partes:
-//   1. Escribir LANG/LC_ALL en el bloque gestionado de env.conf (SIN contraseña;
-//      lo lee la sesión al reiniciar, como hace KDE).
+//   1. Escribir LANG/LC_ALL en el bloque gestionado de gigios/env.lua (SIN
+//      contraseña; lo lee la sesión al reiniciar, como hace KDE).
 //   2. Asegurar que el locale está GENERADO para que las apps puedan usarlo. Si
 //      no aparece en `locale -a`, lo añadimos a /etc/locale.gen y corremos
 //      locale-gen (esto sí pide contraseña vía polkit). Sin este paso, elegir un
@@ -226,8 +228,12 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`
 }
 
-// Escribe (o reemplaza) el bloque gestionado de idioma en env.conf. Sin root.
+// Escribe (o reemplaza) el bloque gestionado de idioma en gigios/env.lua. Sin
+// root. Emite líneas Lua `hl.env("CLAVE", "valor")` — el fichero es un chunk de
+// la config, así que una línea malformada la rompería entera; el valor se escapa
+// por eso mismo, aunque los nombres de locale válidos nunca traen comillas.
 function writeEnvLocale(clean: string) {
+  const luaStr = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
   let env = readFile(ENV_PATH)
   // Quitar cualquier bloque gestionado previo (con o sin salto final).
   const begin = env.indexOf(LOCALE_BEGIN)
@@ -240,12 +246,12 @@ function writeEnvLocale(clean: string) {
     }
   }
   env = env.replace(/\n{3,}$/,"\n").replace(/\s+$/, "")
-  const block = `${LOCALE_BEGIN}\nenv = LANG,${clean}\nenv = LC_ALL,${clean}\n${LOCALE_END}\n`
+  const block = `${LOCALE_BEGIN}\nhl.env("LANG", ${luaStr(clean)})\nhl.env("LC_ALL", ${luaStr(clean)})\n${LOCALE_END}\n`
   const next = env ? `${env}\n\n${block}` : block
   try {
     GLib.mkdir_with_parents(GLib.path_get_dirname(ENV_PATH), 0o755)
     GLib.file_set_contents(ENV_PATH, next)
-  } catch (e) { console.error("[datetime] no se pudo escribir env.conf:", e) }
+  } catch (e) { console.error("[datetime] no se pudo escribir env.lua:", e) }
 }
 
 // ── Zona horaria y NTP (piden contraseña vía polkit) ────────────────────────────

@@ -20,10 +20,14 @@ interface PropiedadesElementoPopup {
 
 function enfocarVentanaAplicacion(nombreAplicacion: string): void {
   const nombreNormalizado = nombreAplicacion.toLowerCase().replace(/\s+/g, "")
+  // Forma Lua de `focuswindow class:… || focuswindow title:…`. El fallback ya no
+  // puede colgar del código de salida: un hl.dsp.focus sin match imprime
+  // «warning: … window not found» en stdout pero sale con rc 0 (verificado en
+  // instancia anidada), así que se compara el stdout con el "ok" del match.
   execAsync([
     "bash", "-c",
-    `hyprctl dispatch focuswindow "class:(?i)${nombreNormalizado}" 2>/dev/null || \
-     hyprctl dispatch focuswindow "title:(?i)${nombreNormalizado}" 2>/dev/null || true`,
+    `[ "$(hyprctl dispatch "hl.dsp.focus({window='class:(?i)${nombreNormalizado}'})" 2>/dev/null)" = "ok" ] || \
+     hyprctl dispatch "hl.dsp.focus({window='title:(?i)${nombreNormalizado}'})" >/dev/null 2>&1 || true`,
   ]).catch(() => {})
 }
 

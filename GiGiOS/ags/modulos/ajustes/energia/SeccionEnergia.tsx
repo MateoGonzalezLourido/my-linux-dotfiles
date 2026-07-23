@@ -62,7 +62,8 @@ const etiquetaAccion = (accion: AccionBotonEncendido) =>
 
 /**
  * Qué hace el botón de encendido físico. El shell solo guarda la elección: quien la
- * ejecuta es `hypr/scripts/boton-apagado.sh` desde un `bindl` de Hyprland, así que
+ * ejecuta es `GiGiOS.boton_apagado()` (`hypr/gigios/boton-apagado.lua`) desde un bind
+ * `{locked = true}` de Hyprland, así que
  * el botón sigue respondiendo con AGS caído o la sesión bloqueada.
  *
  * El aviso no sobra: systemd-logind maneja esa tecla por su cuenta y de fábrica

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Disk space check — one-shot. Runs once at startup (autostart.conf), warns if
+# Disk space check — one-shot. Runs once at startup (gigios/autostart.lua), warns if
 # any real partition is below WARN_GB, then exits. No daemon, no polling, no
 # background process: running low on disk is a once-a-year event, and free
 # space has no event source anyway, so a single login-time check is the right

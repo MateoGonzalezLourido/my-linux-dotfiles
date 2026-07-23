@@ -99,7 +99,49 @@ def hypr_j(*args):
     return json.loads(out)
 
 
+def _forma_lua(args):
+    """Forma Lua (Hyprland 0.56) del dispatcher legacy `args`, o None.
+
+    Solo traduce los tres dispatchers que usa este fichero; cualquier otra cosa
+    devuelve None y dispatch() la manda tal cual por el camino legacy. Firmas
+    verificadas en instancia anidada con config Lua, no supuestas:
+      movetoworkspacesilent N,address:0x… -> hl.dsp.window.move({workspace=N,
+          window='address:0x…', follow=false})  (sin follow SÍ cambia el foco
+          y el workspace activo — follow=false es lo que hace el "silent")
+      movetoworkspace N,address:0x…       -> igual con follow=true
+      focuswindow address:0x…             -> hl.dsp.focus({window='address:0x…'})
+    Las direcciones son hex puro, así que van en el literal sin escapado.
+    """
+    if len(args) != 2:
+        return None
+    dsp, arg = args
+    if dsp in ("movetoworkspacesilent", "movetoworkspace"):
+        ws, _, addr = arg.partition(",")
+        if not (ws.isdigit() and addr.startswith("address:0x")):
+            return None
+        follow = "false" if dsp == "movetoworkspacesilent" else "true"
+        return (f"hl.dsp.window.move({{workspace={ws}, "
+                f"window='{addr}', follow={follow}}})")
+    if dsp == "focuswindow" and arg.startswith("address:0x"):
+        return f"hl.dsp.focus({{window='{arg}'}})"
+    return None
+
+
 def dispatch(*args):
+    """Manda un dispatcher probando primero la forma Lua y cayendo a la legacy.
+
+    Bajo config Lua la sintaxis legacy se reinterpreta como código Lua y falla;
+    bajo config legacy (la sesión actual hasta el próximo reinicio) es la forma
+    Lua la que responde "Invalid dispatcher". El éxito se decide por el stdout
+    ("ok"), no por el código de salida: hyprctl bajo config legacy rechaza un
+    dispatcher inválido con rc=0.
+    """
+    lua = _forma_lua(args)
+    if lua is not None:
+        r = subprocess.run(["hyprctl", "dispatch", lua],
+                           capture_output=True, text=True)
+        if r.returncode == 0 and r.stdout.strip().startswith("ok"):
+            return
     subprocess.run(["hyprctl", "dispatch", *args],
                    capture_output=True, text=True)
 

@@ -11,7 +11,7 @@ GiGiOS es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos rea
 - `bin/link.sh --force`: hace copia de seguridad de los archivos en conflicto y luego crea los enlaces.
 - `ags quit` seguido de `ags run ~/.config/ags/app.ts`: detiene primero cualquier instancia de AGS y después lanza o recarga el shell tras cambios en la interfaz.
 - `hyprctl reload`: aplica cambios de configuración de Hyprland sin reiniciar los `exec-once`.
-- `hyprctl reload full-reset`: reinicia Hyprland correctamente y vuelve a ejecutar los `exec-once` de `hypr/autostart.conf`; usarlo cuando haya que actualizar el autostart o reiniciar el compositor.
+- `hyprctl reload full-reset`: reinicia Hyprland correctamente y vuelve a ejecutar el autostart de `hypr/gigios/autostart.lua`; usarlo cuando haya que actualizar el autostart o reiniciar el compositor.
 - `node --test $(rg --files ags -g '*.test.ts')`: ejecuta todas las pruebas TypeScript locales.
 
 ## Control de versiones

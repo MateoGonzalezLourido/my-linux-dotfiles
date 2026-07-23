@@ -7,7 +7,7 @@ Este es un shell de escritorio AGS v2/Astal para Hyprland/Wayland, escrito en Ty
 ## Comandos de compilación, prueba y desarrollo
 
 - `ags quit` seguido de `ags run ~/.config/ags/app.ts`: detiene primero cualquier instancia de AGS y después lanza o recarga el shell localmente.
-- `hyprctl reload full-reset`: reinicia Hyprland y vuelve a ejecutar los `exec-once` de `hypr/autostart.conf`; una recarga normal (`hyprctl reload`) no actualiza el autostart.
+- `hyprctl reload full-reset`: reinicia Hyprland y vuelve a ejecutar el autostart de `hypr/gigios/autostart.lua`; una recarga normal (`hyprctl reload`) no actualiza el autostart.
 - `node --test $(rg --files modulos servicios textos -g '*.test.ts')`: ejecuta toda la suite de lógica pura.
 - `node --test modulos/notificaciones/rules/engine.evaluate.test.ts`: ejecuta un único archivo de pruebas mientras iteras.
 

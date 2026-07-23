@@ -59,9 +59,11 @@ export default function BotonEscritorio({
 
   const alternarPantallaCompleta = (direccion: string) => {
     const direccionNormalizada = direccion.startsWith("0x") ? direccion : `0x${direccion}`
-    execAsync(["hyprctl", "dispatch", "workspace", String(escritorio.id)])
-      .then(() => execAsync(["hyprctl", "dispatch", "focuswindow", `address:${direccionNormalizada}`]))
-      .then(() => execAsync(["hyprctl", "dispatch", "fullscreen", "0"]))
+    // Formas Lua de los dispatchers legacy (workspace / focuswindow / fullscreen 0),
+    // verificadas en instancia anidada; `mode='fullscreen'` + toggle = `fullscreen 0`.
+    execAsync(["hyprctl", "dispatch", `hl.dsp.focus({workspace=${escritorio.id}})`])
+      .then(() => execAsync(["hyprctl", "dispatch", `hl.dsp.focus({window='address:${direccionNormalizada}'})`]))
+      .then(() => execAsync(["hyprctl", "dispatch", "hl.dsp.window.fullscreen({mode='fullscreen', action='toggle'})"]))
       .catch(() => {})
   }
 

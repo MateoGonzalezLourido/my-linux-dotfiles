@@ -7,7 +7,7 @@
 #   start   arranca el watcher `wl-paste --watch cliphist store` si la pref lo
 #           permite y no hay ya uno. Se lanza DESACOPLADO (setsid --fork) para
 #           que sobreviva a reinicios de quien lo invoque: tanto Hyprland
-#           (autostart.conf) como AGS (execAsync) lo llaman, y antes el watcher
+#           (gigios/autostart.lua) como AGS (execAsync) lo llaman, y antes el watcher
 #           moría con AGS al usar `exec`.
 #   stop    mata el watcher, cierra el selector y borra el historial guardado.
 #   picker  abre el selector Rofi (SUPER+V). Toggle: si ya está abierto, lo cierra.

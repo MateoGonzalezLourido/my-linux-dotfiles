@@ -27,7 +27,6 @@ import {
 } from "../personalizacion/fondoShell"
 
 const PREFS_PATH = `${GLib.get_user_config_dir()}/gigios/preferences.json`
-const SCRIPT_DALTONISMO = `${GLib.get_user_config_dir()}/hypr/scripts/aplicar-filtro-daltonismo.sh`
 
 // ── Estado reactivo ───────────────────────────────────────────────────────────
 // Preview de workspace: captura con grim al cambiar de workspace + popover al
@@ -166,7 +165,7 @@ const [clipboardHistoryEnabled, _setClipboardHistoryEnabled] = createState(true)
 export { clipboardHistoryEnabled }
 
 // Limpieza del portapapeles al comenzar la sesión de Hyprland. La consume el
-// script limpiar-portapapeles.sh desde autostart.conf. Default: desactivada.
+// script limpiar-portapapeles.sh desde gigios/autostart.lua. Default: desactivada.
 const [limpiezaPortapapelesAlIniciar, _setLimpiezaPortapapelesAlIniciar] = createState(false)
 export { limpiezaPortapapelesAlIniciar }
 
@@ -183,21 +182,22 @@ export { limpiezaPortapapelesAlIniciar }
 const [anclarVentanasRofi, _setAnclarVentanasRofi] = createState(true)
 export { anclarVentanasRofi }
 
-// Escáner de apps al iniciar sesión (scripts/escaner-apps-inicio.sh). Vigila 30 s
+// Escáner de apps al iniciar sesión (gigios/escaner-apps.lua). Vigila 30 s
 // las ventanas que se abren solas (autostart, restauración de sesión) y al terminar
 // salta al escritorio donde hayan quedado. El script NO es un daemon: nace en
-// autostart.conf, mira y muere, así que lee esta clave una vez y el cambio se
+// gigios/autostart.lua, mira y muere, así que lee esta clave una vez y el cambio se
 // aplica en la próxima sesión — no hace falta pkill ni re-exec.
 // Default: DESACTIVADO, porque mover el escritorio activo por su cuenta es
 // intrusivo y debe optarse a ello.
 const [escanerAppsInicio, _setEscanerAppsInicio] = createState(false)
 export { escanerAppsInicio }
 
-// Absorber SUPER + tecla que no sea un atajo (hypr/keybinds-nop.conf). Hyprland
+// Absorber SUPER + tecla que no sea un atajo (hypr/gigios/nop-binds.lua). Hyprland
 // solo se traga una tecla si algún bind la captura, así que sin esto SUPER+C
 // escribe una "c" en la aplicación; `catchall` no sirve porque el compositor
-// solo lo admite dentro de un submap. El fichero lo genera el script a partir de
-// `hyprctl binds`, o sea de los atajos REALES, para no duplicar ninguno.
+// solo lo admite dentro de un submap. Bajo config Lua los binds sordos se
+// recalculan SOLOS en cada recarga: el módulo lee esta preferencia y enumera los
+// atajos ya registrados, así que no hay fichero generado ni script de por medio.
 // Default: activado.
 const [absorberSuperSinAtajo, _setAbsorberSuperSinAtajo] = createState(true)
 export { absorberSuperSinAtajo }
@@ -274,7 +274,7 @@ const [modoDaltonismo, _setModoDaltonismo] = createState<ModoDaltonismo>("ningun
 export { modoDaltonismo }
 
 // Acción del botón de encendido físico. Quien la ejecuta es
-// hypr/scripts/boton-apagado.sh (bindl sobre XF86PowerOff), que relee esta clave
+// hypr/gigios/boton-apagado.lua (bindl sobre XF86PowerOff), que relee esta clave
 // en cada pulsación: no hay proceso al que relanzar, así que el setter solo
 // persiste. El valor de fábrica es "apagar", que es lo que hacía logind antes.
 const [botonApagado, _setBotonApagado] = createState<AccionBotonEncendido>(ACCION_BOTON_PREDETERMINADA)
@@ -544,17 +544,15 @@ export function setEscanerAppsInicio(on: boolean) {
   _setEscanerAppsInicio(on)
   save()
 }
-// Se aplica en CALIENTE: el script escribe keybinds-nop.conf (con los binds al
-// activar, solo comentarios al desactivar) y recarga Hyprland él mismo. El
-// fichero no se borra nunca al apagar — `source` a un fichero ausente es error
-// duro en Hyprland y sacaría el overlay de configuración.
-// Activar además REGENERA, así que es el gesto con el que recoger los atajos que
-// hayas añadido a keybinds.conf desde la última vez.
+// Se aplica en CALIENTE: gigios/nop-binds.lua relee esta preferencia y recalcula
+// los binds sordos en CADA recarga (enumerando los atajos ya registrados por los
+// módulos anteriores), así que basta con persistir y recargar — ya no hay
+// fichero generado ni script que regenerar, y los atajos nuevos de keybinds se
+// recogen solos en la misma recarga.
 export function setAbsorberSuperSinAtajo(on: boolean) {
   _setAbsorberSuperSinAtajo(on)
-  save()
-  const script = `${GLib.get_user_config_dir()}/hypr/scripts/generar-nop-binds.sh`
-  execAsync([script, on ? "on" : "off"]).catch(() => {})
+  save()   // síncrono: preferences.json ya está en disco cuando el reload lo relea
+  execAsync(["hyprctl", "reload"]).catch(() => {})
 }
 export function setOrionEnabled(on: boolean) {
   _setOrionEnabled(on)
@@ -600,9 +598,11 @@ export function setModoDaltonismo(modo: ModoDaltonismo) {
   if (modoDaltonismo.get() === siguiente) return
   _setModoDaltonismo(siguiente)
   save()
-  // El script también se ejecuta desde hyprland.conf en cada recarga. Pasarle
-  // el modo aquí evita releer el JSON en el camino interactivo.
-  execAsync([SCRIPT_DALTONISMO, siguiente]).catch((error) => {
+  // GiGiOS.daltonismo la define gigios/daltonismo.lua en la config de Hyprland y
+  // es visible desde eval (comparte el estado Lua del config). El propio config
+  // la re-ejecuta en cada recarga para restaurar el modo guardado; pasárselo aquí
+  // evita releer el JSON en el camino interactivo. Mismos nombres de modo.
+  execAsync(["hyprctl", "eval", `GiGiOS.daltonismo("${siguiente}")`]).catch((error) => {
     console.error("[accesibilidad] No se pudo aplicar la corrección de color:", error)
   })
 }

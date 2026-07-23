@@ -59,24 +59,53 @@ import sys
 import anclaje
 
 
+def _literal_lua(texto):
+    """`texto` como literal de cadena Lua entre comillas simples.
+
+    El comando de un `.desktop` puede traer comillas de los dos tipos y
+    barras invertidas; se escapa lo que rompería el literal en vez de usar
+    corchetes largos `[[…]]`, que fallarían con un `]]` dentro del comando.
+    Verificado en anidada: el escapado entrega el comando byte a byte al shell
+    que exec_cmd lanza por debajo (redirecciones incluidas).
+    """
+    return "'" + (texto.replace("\\", "\\\\").replace("'", "\\'")
+                  .replace("\n", "\\n").replace("\r", "\\r")) + "'"
+
+
+def _dispatch_ok(*args):
+    """¿Respondió hyprctl "ok" a este dispatch?
+
+    hyprctl responde "ok" y NO usa el código de salida para señalar un dispatch
+    rechazado, así que mirar solo el returncode daría por bueno un fallo.
+    """
+    try:
+        r = subprocess.run(["hyprctl", "dispatch", *args],
+                           capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0 and r.stdout.strip().startswith("ok")
+
+
 def lanzar_con_regla(cmd, ws):
     """Lanza `cmd` con la ventana ya fijada al workspace `ws`. ¿Salió bien?
 
     Solo para workspaces normales: los especiales (scratchpad) tienen id negativo
     y no se nombran así en una regla, de modo que ahí se devuelve False y se cae
     al lanzamiento normal, con el observador haciendo su trabajo de siempre.
+
+    Prueba primero la forma Lua de Hyprland 0.56 — verificada en anidada:
+    `hl.dsp.exec_cmd('<cmd>', {workspace='N silent'})` hace nacer la ventana en
+    el workspace pedido sin robar el foco — y cae a la sintaxis legacy si no
+    responde "ok": la sesión puede seguir en config hyprlang hasta el próximo
+    reinicio, y este script nace de cero en cada lanzamiento, así que tiene que
+    hablar con ambas.
     """
     if not isinstance(ws, int) or ws < 1:
         return False
-    try:
-        r = subprocess.run(
-            ["hyprctl", "dispatch", "exec", f"[workspace {ws} silent] {cmd}"],
-            capture_output=True, text=True, timeout=5)
-    except (OSError, subprocess.SubprocessError):
-        return False
-    # hyprctl responde "ok" y NO usa el código de salida para señalar un dispatch
-    # rechazado, así que mirar solo el returncode daría por bueno un fallo.
-    return r.returncode == 0 and r.stdout.strip().startswith("ok")
+    if _dispatch_ok(
+            f"hl.dsp.exec_cmd({_literal_lua(cmd)}, {{workspace='{ws} silent'}})"):
+        return True
+    return _dispatch_ok("exec", f"[workspace {ws} silent] {cmd}")
 
 
 def lanzar_normal(cmd):

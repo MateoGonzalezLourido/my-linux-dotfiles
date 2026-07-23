@@ -45,16 +45,16 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
   // en pantalla completa de verdad, ponerla (estado leído en vivo de la caché).
   const enfocarJuego = (direccion: string, activarPantallaCompleta: boolean) => {
     const direccionNormalizada = direccion.startsWith("0x") ? direccion : `0x${direccion}`
-    execAsync(["hyprctl", "dispatch", "focuswindow", `address:${direccionNormalizada}`])
+    execAsync(["hyprctl", "dispatch", `hl.dsp.focus({window='address:${direccionNormalizada}'})`])
       .then(() => {
         if (!activarPantallaCompleta) return
         const clienteActual = hyprland.get_clients().find(
           (cliente: any) => cliente.address === direccion,
         )
         // `fullscreen` es un modo, no un bool: 1 es MAXIMIZADO. Solo saltamos a
-        // fullscreen de verdad si no lo está ya.
+        // fullscreen de verdad si no lo está ya (con la guarda, toggle == poner).
         if (clienteActual && (clienteActual.fullscreen ?? 0) < PANTALLA_COMPLETA_REAL) {
-          return execAsync(["hyprctl", "dispatch", "fullscreen", "0"])
+          return execAsync(["hyprctl", "dispatch", "hl.dsp.window.fullscreen({mode='fullscreen', action='toggle'})"])
         }
       })
       .catch(() => {})
@@ -62,7 +62,7 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
 
   const cerrarJuego = (direccion: string) => {
     const direccionNormalizada = direccion.startsWith("0x") ? direccion : `0x${direccion}`
-    execAsync(["hyprctl", "dispatch", "closewindow", `address:${direccionNormalizada}`])
+    execAsync(["hyprctl", "dispatch", `hl.dsp.window.close({window='address:${direccionNormalizada}'})`])
       .catch(() => {})
   }
 

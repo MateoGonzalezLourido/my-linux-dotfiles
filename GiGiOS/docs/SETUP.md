@@ -55,10 +55,10 @@ estén disponibles.
 
 Solo quedan estas decisiones personales:
 
-1. **GPU:** antes de abrir Hyprland, activa como máximo un perfil en
-   `~/GiGiOS/hypr/hyprland.conf`. Déjalos ambos desactivados para Intel o AMD sin NVIDIA;
-   usa `gpu/laptop-hibrida.conf` para un portátil Intel+NVIDIA o
-   `gpu/sobremesa-nvidia.conf` para una NVIDIA como GPU principal. Consulta la §9.
+1. **GPU:** antes de abrir Hyprland, escribe el perfil de esta máquina en
+   `~/.config/gigios/gpu-perfil` (una línea, fuera del repo). Déjalo ausente para Intel o
+   AMD sin NVIDIA; usa `laptop-hibrida` para un portátil Intel+NVIDIA o `sobremesa-nvidia`
+   para una NVIDIA como GPU principal. Consulta la §9.
 2. **Spotify:** ejecuta `~/.config/ags/scripts/spotify-auth.sh` si quieres integrar tu
    cuenta. Es opcional y las credenciales nunca se incluyen en Git.
 3. **Seguridad:** ejecuta una vez `sudo freshclam` para descargar las firmas de ClamAV.
@@ -124,18 +124,18 @@ sudo pacman -S hyprland hyprutils hyprlang
 En el segundo comando acepta retirar las variantes `-git`. No uses
 `--noconfirm`: la respuesta predeterminada de Pacman ante esos conflictos es no
 retirarlas. Verifica después con
-`Hyprland --verify-config -c ~/.config/hypr/hyprland.conf`.
+`Hyprland --verify-config -c ~/.config/hypr/hyprland.lua`.
 
 - `hypridle` gestiona apagar pantalla / bloquear / suspender (`hypridle.conf`).
 - `hyprlock` es la pantalla de bloqueo (`hyprlock.conf`, usa `~/.local/share/gigios/face.png`
   y el label `$USER` — no hace falta nada extra).
-- `hyprpolkitagent` se lanza en `autostart.conf` desde la ruta fija
+- `hyprpolkitagent` se lanza en `gigios/autostart.lua` desde la ruta fija
   `/usr/lib/hyprpolkitagent/hyprpolkitagent`; si el paquete instala el binario en otro
   sitio en la otra distro, ajusta esa línea.
 - `polkit` proporciona `pkexec`, que usan los ajustes de fecha, idioma e impresoras;
   `util-linux` proporciona `rfkill`, usado por el chequeo de hardware.
 - `hyprsunset` es la luz nocturna (la activa `~/.config/inicializador/init.sh` leyendo
-  `~/.config/gigios/display.json`). **Nota de `hyprland.conf`**: `render { cm_enabled = false }`
+  `~/.config/gigios/display.json`). **Nota de `hyprland.lua`**: `render.cm_enabled = false`
   está así a propósito porque el CTM de color management de Hyprland pisa el de
   `hyprsunset` y se ve lavado — no lo actives sin desactivar uno de los dos.
 - `uwsm` gestiona la sesión de Hyprland mediante systemd de usuario.
@@ -167,7 +167,7 @@ no llega a ejecutarse. Síntoma: los popups que ves son los de dunst y **`notifi
 cuando el shell simplemente no recibe una sola notificación.
 
 Astal *sí* se queja (`proxy.vala: cannot get proxy: dunst is already running`), pero por el
-**stdout de `ags`**: lanzado desde `autostart.conf` ese aviso no llega ni a `hyprland.log` ni al
+**stdout de `ags`**: lanzado desde `gigios/autostart.lua` ese aviso no llega ni a `hyprland.log` ni al
 journal, así que solo lo ve quien arranca el shell a mano. Por eso el shell **se autodiagnostica**
 desde `ags/modulos/notificaciones/daemon/comprobacion.ts`: comprueba quién tiene el nombre, y si no es él,
 lanza una notificación crítica (que pinta el propio daemon intruso, que es el que funciona) y
@@ -253,7 +253,7 @@ sudo pacman -S rofi cliphist wl-clipboard imagemagick brightnessctl ddcutil play
 
 Qué usa cada cosa:
 
-- **`hyprshot`** (capturas, `Print` / `Ctrl+Print` en `keybinds.conf`) ya trae como
+- **`hyprshot`** (capturas, `Print` / `Ctrl+Print` en `gigios/keybinds.lua`) ya trae como
   dependencias `grim`, `slurp`, `jq`, `libnotify`, `wl-clipboard` — pero como AGS también
   llama a `grim` directamente (preview de workspace al clic-derecho sobre el número, ver
   `modulos/barra/escritorios/Escritorios.tsx`), instálalo igual explícitamente. Opcional: `hyprpicker`
@@ -298,7 +298,7 @@ Qué usa cada cosa:
 - **`fd`** (opcional) — el escaneo de repos de Orion (`GitService.ts`) lo usa si está, si no
   cae a `find` automáticamente. No es obligatorio pero es más rápido.
 
-Cosas referenciadas en `variables.conf` que son elección de terminal/gestor de archivos, no
+Cosas referenciadas en `gigios/variables.lua` que son elección de terminal/gestor de archivos, no
 dependencias estrictas — cambia estas líneas si usas otra cosa en el PC nuevo:
 
 ```
@@ -375,7 +375,7 @@ sudo pacman -S awww imagemagick
 ```
 
 `awww` (**no confundir con `swww`**) se lanza como
-`awww-daemon` en `autostart.conf`, y `scripts/wallpaper.sh` hace `awww img "$WALLPAPER"`
+`awww-daemon` en `gigios/autostart.lua`, y `scripts/wallpaper.sh` hace `awww img "$WALLPAPER"`
 sobre un fichero elegido al azar de `~/GiGiOS/Wallpapers/*.{jpg,png}`. El repositorio ya
 incluye fondos iniciales; puedes sustituirlos por los tuyos.
 
@@ -397,7 +397,7 @@ falta, rehace lo que esté corrupto y borra las miniaturas de fondos que ya no e
 sudo pacman -S wl-clipboard cliphist imagemagick
 ```
 
-`autostart.conf` lanza `wl-paste --watch cliphist store` para poblar el historial que usa
+`gigios/autostart.lua` lanza `wl-paste --watch cliphist store` para poblar el historial que usa
 `SUPER+V`. El selector Rofi replica el diseño oscuro del lanzador de aplicaciones:
 fondo `#313244` al 90 %, selección `#b4befe` y scrollbar rosa `#f5c2e7` al 70 %.
 Ambos selectores leen `GiGiOS/rofi/config.rasi` mediante su enlace en
@@ -434,7 +434,7 @@ claves (`client_id`, `client_secret`, `refresh_token`).
 
 ## 8. Scripts de monitorización ("escáneres") — `hypr/scripts/`
 
-Todos se lanzan en `autostart.conf` y notifican por `notify-send` (paquete `libnotify`,
+Todos se lanzan en `gigios/autostart.lua` y notifican por `notify-send` (paquete `libnotify`,
 ya cubierto por `hyprshot`/`grim` arriba, pero decláralo explícito):
 
 ```sh
@@ -544,22 +544,27 @@ lspci -k | grep -A3 -E 'VGA|3D|Display'
 ls -l /dev/dri/by-path 2>/dev/null
 ```
 
-Los perfiles viven en `~/.config/hypr/gpu/` y se seleccionan en el bloque **GPU** de
-`hyprland.conf`. Descomenta **solo uno** que corresponda al hardware; nunca cargues dos
-perfiles al mismo tiempo.
+Los perfiles viven en `~/.config/hypr/gigios/gpu/` y se elige **uno** escribiendo su
+nombre en `~/.config/gigios/gpu-perfil`, un fichero local de una línea que **no se
+versiona** (la elección de máquina es estado local, como manda
+[`anadir-perfiles-por-equipo.md`](anadir-perfiles-por-equipo.md)):
 
-- **Portátil Intel + NVIDIA para offload:** usa `gpu/laptop-hibrida.conf`. Hyprland y la
-  pantalla funcionan sobre Intel; los juegos pesados se lanzan con `prime-run`.
-- **Sobremesa NVIDIA:** debería usar `gpu/sobremesa-nvidia.conf`.
-- **Solo AMD o solo Intel:** no cargues ningún perfil NVIDIA. Normalmente Hyprland puede
-  escoger la GPU automáticamente; crea un perfil específico únicamente si necesitas
-  fijar dispositivos o solucionar una particularidad del driver.
+```sh
+echo sobremesa-nvidia > ~/.config/gigios/gpu-perfil
+```
 
-Los perfiles de portátil híbrido y sobremesa NVIDIA están versionados. Ninguno se carga
-por defecto para que el primer arranque sea portable: activa exactamente uno solo si lo
-necesita tu hardware.
+- **Portátil Intel + NVIDIA para offload:** `laptop-hibrida`. Hyprland y la pantalla
+  funcionan sobre Intel; los juegos pesados se lanzan con `prime-run`.
+- **Sobremesa NVIDIA:** `sobremesa-nvidia`.
+- **Solo AMD o solo Intel:** deja el fichero ausente. Normalmente Hyprland puede escoger
+  la GPU automáticamente; crea un perfil específico únicamente si necesitas fijar
+  dispositivos o solucionar una particularidad del driver.
 
-`envs/firefox.conf` solo activa Wayland/EGL y no fuerza un driver VA-API ni desactiva el
+Los perfiles de portátil híbrido y sobremesa NVIDIA están versionados. Sin fichero (o con
+un nombre que no exista) no se aplica ninguno y sale un aviso en pantalla, pero el
+compositor arranca igual: el primer arranque es portable.
+
+`gigios/env-firefox.lua` solo activa Wayland/EGL y no fuerza un driver VA-API ni desactiva el
 sandbox multimedia. Los ajustes exclusivos de NVIDIA están aislados en el perfil de
 sobremesa. Las preferencias internas se gestionan por separado con
 `bin/firefox-profile.sh`, que enlaza el `user.js` compuesto al perfil
@@ -576,7 +581,7 @@ sudo pacman -S libva-nvidia-driver
 
 Estas no son paquetes, son configuración/datos ligados al hardware o cuenta actuales:
 
-- **`monitors.conf`** usa actualmente el fallback genérico
+- **`gigios/monitores.lua`** usa actualmente el fallback genérico
   (`monitor = , preferred, auto, 1`), adecuado para el monitor 2560×1440 de 27 pulgadas.
   Después puedes ajustar resolución, frecuencia, posición o escala desde AGS; usa
   `hyprctl monitors` para comprobar el descriptor y los valores aplicados.
@@ -661,7 +666,7 @@ La instalación completa está al principio de esta guía. Como lista de comprob
 3. Corre `spotify-auth.sh` una vez (§7) para regenerar las credenciales.
 4. Corre
    `sudo freshclam` y `sudo sensors-detect` cuando corresponda.
-5. Ajusta `monitors.conf`, el avatar opcional y los fondos si quieres personalizarlos.
+5. Ajusta `gigios/monitores.lua`, el avatar opcional y los fondos si quieres personalizarlos.
 6. Restaura
    `~/.config/gigios/` solo si quieres conservar el mismo estado y recarga Hyprland
    (`hyprctl reload full-reset` o vuelve a iniciar sesión). `hyprctl reload` hace una recarga
@@ -671,7 +676,7 @@ La instalación completa está al principio de esta guía. Como lista de comprob
 
 ## 12. Cómo poner fondos de pantalla (`~/GiGiOS/Wallpapers`)
 
-El wallpaper lo gestiona `awww` (daemon `awww-daemon`, lanzado en `autostart.conf`) más
+El wallpaper lo gestiona `awww` (daemon `awww-daemon`, lanzado en `gigios/autostart.lua`) más
 `hypr/scripts/wallpaper.sh`, que también se lanza una vez al arrancar la sesión.
 
 **Para tener fondos disponibles:**
@@ -696,7 +701,7 @@ El wallpaper lo gestiona `awww` (daemon `awww-daemon`, lanzado en `autostart.con
 awww img ~/GiGiOS/Wallpapers/mi-foto-favorita.png --transition-type grow --transition-duration 1.5
 ```
 
-No hay atajo de teclado asignado para esto en `keybinds.conf` — si quieres uno, se añadiría
+No hay atajo de teclado asignado para esto en `gigios/keybinds.lua` — si quieres uno, se añadiría
 algo como `bind = $mainMod, W, exec, ~/.config/hypr/scripts/wallpaper.sh` (no está puesto
 actualmente, solo como referencia si lo quieres tú mismo).
 
@@ -783,7 +788,7 @@ directorios que sueles copiar**:
 |---|---|
 | `~/.config/hypr/scripts/compact-workspaces.sh` | compacta workspaces (`SUPER+SHIFT+N`); incluido en GiGiOS |
 | `~/.config/hypr/scripts/toggle-gaps-borders.sh` | alterna gaps (`SUPER+SHIFT+E`); incluido en GiGiOS |
-| `~/.config/inicializador/init.sh` | lo lanza `autostart.conf`; está versionado en `GiGiOS/inicializador/` y `GiGiOS/bin/link.sh` crea el enlace |
+| `~/.config/inicializador/init.sh` | lo lanza `gigios/autostart.lua`; está versionado en `GiGiOS/inicializador/` y `GiGiOS/bin/link.sh` crea el enlace |
 | `~/.local/share/fonts/SF Pro Display/*.otf` | fuente del lock screen, no empaquetada (§3) |
 | `~/.local/share/fonts/steelfish outline regular/*.otf` | fuente del lock screen, no empaquetada (§3) |
 

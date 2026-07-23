@@ -6,7 +6,7 @@
 import { createState } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
-import { buildMonitorRule, monitorNeedsUpdate } from "./modes"
+import { buildMonitorSpecLua, monitorNeedsUpdate } from "./modes"
 import type { MonitorPref } from "./modes"
 import { activeSetpoint, activeRuleFor, normalizeRules } from "./schedule"
 import type { NightRule } from "./schedule"
@@ -124,33 +124,41 @@ export function saveDisplayConfig() {
 
 // ── Volcado a la config de Hyprland ──────────────────────────────────────────
 // display.json es la fuente de verdad de AGS, pero Hyprland no la lee. Los ajustes
-// se aplicaban SOLO en vivo (`hyprctl keyword monitor`) y al arrancar AGS, y como
-// `monitors.conf` no lleva más que la regla comodín (`monitor = , preferred, auto, 1`),
-// cualquier `hyprctl reload` releía los configs y devolvía el monitor a modo preferido
-// y escala 1 — 240 Hz → 60 Hz, 1.25 → 1 — sin que AGS se enterara (no hay señal de
-// recarga a la que suscribirse, y su poller solo observa; no re-aplica).
+// se aplicaban SOLO en vivo y al arrancar AGS, y como el comodín de monitores no
+// lleva más que `preferred/auto/1`, cualquier `hyprctl reload` re-ejecutaba la
+// config y devolvía el monitor a modo preferido y escala 1 — 240 Hz → 60 Hz,
+// 1.25 → 1 — sin que AGS se enterara (no hay señal de recarga a la que
+// suscribirse, y su poller solo observa; no re-aplica).
 //
-// Así que las prefs se vuelcan también a un .conf generado que `hyprland.conf` sourcea
-// DESPUÉS de monitors.conf (mismo patrón que `input-settings.conf`). Las reglas van por
-// `desc:` — no por conector (DP-1), que baila entre reconexiones — y una regla concreta
-// gana a la comodín, que sigue cubriendo los monitores sin preferencia guardada. Efecto
-// extra: el compositor arranca ya en el modo bueno, sin el parpadeo de la re-aplicación.
-const MONITOR_CONF_PATH = `${GLib.get_home_dir()}/.config/hypr/monitor-settings.conf`
+// Así que las prefs se vuelcan también a un chunk Lua generado,
+// monitor-settings.lua, que hyprland.lua carga con carga protegida
+// (util.carga_opcional: ausente o roto no tumba la config) DESPUÉS del comodín
+// de gigios/monitores.lua (mismo patrón que `input-settings.lua`). Las specs van
+// por `desc:` — no por conector (DP-1), que baila entre reconexiones — y una
+// spec concreta gana a la comodín, que sigue cubriendo los monitores sin
+// preferencia guardada. Efecto extra: el compositor arranca ya en el modo bueno,
+// sin el parpadeo de la re-aplicación. El antiguo monitor-settings.conf deja de
+// escribirse; queda en el repo solo para la config legacy.
+const MONITOR_LUA_PATH = `${GLib.get_home_dir()}/.config/hypr/monitor-settings.lua`
 
-function writeMonitorConf() {
+function writeMonitorLua() {
   try {
     const lines = [
-      "# Generado por AGS · Ajustes > Pantalla. No editar a mano.",
-      "# Lo sourcea hyprland.conf después de monitors.conf: una regla `desc:` concreta",
-      "# gana a la comodín de ahí, que sigue cubriendo los monitores sin preferencia.",
+      "-- Generado por AGS · Ajustes > Pantalla. No editar a mano.",
+      "-- Chunk Lua puro: lo carga hyprland.lua con carga protegida (util.carga_opcional)",
+      "-- después del comodín de gigios/monitores.lua — una spec con `desc:` concreta gana",
+      "-- a la comodín, que sigue cubriendo los monitores sin preferencia.",
       "",
     ]
     for (const [description, pref] of Object.entries(monitorPrefs)) {
       if (!description) continue
       const position = pref.position && pref.position !== "auto" ? pref.position : "auto"
-      lines.push(`monitor = ${buildMonitorRule({ name: `desc:${description}`, position, pref })}`)
+      lines.push(`hl.monitor(${buildMonitorSpecLua({ name: `desc:${description}`, position, pref })})`)
     }
-    GLib.file_set_contents(MONITOR_CONF_PATH, lines.join("\n") + "\n")
+    // Escritura síncrona a propósito: cuando un `hyprctl reload` re-ejecute la
+    // config Lua, este fichero ya está completo en disco — no hay ventana en la
+    // que el reload pueda leerlo a medio escribir.
+    GLib.file_set_contents(MONITOR_LUA_PATH, lines.join("\n") + "\n")
   } catch (e) { /* no-op: el ajuste ya está aplicado en vivo */ }
 }
 
@@ -158,7 +166,7 @@ export function saveMonitorPref(description: string, pref: MonitorPref) {
   if (!description) return
   monitorPrefs[description] = pref
   saveDisplayConfig()
-  writeMonitorConf()
+  writeMonitorLua()
 }
 
 // ── Poller de monitores (ref-counted) ────────────────────────────────────────
@@ -247,24 +255,25 @@ export function applyPatch(mon: any, patch: Partial<MonitorPref>) {
   const position = resolved.position && resolved.position !== "auto"
     ? resolved.position
     : `${mon.x}x${mon.y}`
-  // Persistir la posición REAL, no la del patch: `hyprctl keyword` la resuelve sola,
-  // pero el .conf generado se lee sin nadie que la resuelva, y con "auto" un layout
-  // multi-monitor se recolocaría solo al recargar.
+  // Persistir la posición REAL, no la del patch: en vivo el compositor la resuelve
+  // solo, pero el monitor-settings.lua generado se lee sin nadie que la resuelva,
+  // y con "auto" un layout multi-monitor se recolocaría solo al recargar.
   resolved.position = position
-  const rule = buildMonitorRule({ name: mon.name, position, pref: resolved })
+  const spec = buildMonitorSpecLua({ name: mon.name, position, pref: resolved })
   saveMonitorPref(mon.description, resolved)
-  execAsync(["hyprctl", "keyword", "monitor", rule]).catch(() => {})
+  // Bajo config Lua no existe `hyprctl keyword`: el cambio en vivo va por eval.
+  execAsync(["hyprctl", "eval", `hl.monitor(${spec})`]).catch(() => {})
     .then(() => { GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => { refreshMonitors(); return GLib.SOURCE_REMOVE }) })
 }
 
 // ── Ajustes globales en vivo ─────────────────────────────────────────────────
 export function applyGlobalVrr(mode: number) {
   setGlobalVrrMode(mode); saveDisplayConfig()
-  execAsync(["hyprctl", "keyword", "misc:vrr", String(mode)]).catch(() => {})
+  execAsync(["hyprctl", "eval", `hl.config({ misc = { vrr = ${mode} } })`]).catch(() => {})
 }
 export function applyAllowTearing(on: boolean) {
   setAllowTearing(on); saveDisplayConfig()
-  execAsync(["hyprctl", "keyword", "general:allow_tearing", on ? "1" : "0"]).catch(() => {})
+  execAsync(["hyprctl", "eval", `hl.config({ general = { allow_tearing = ${on ? "true" : "false"} } })`]).catch(() => {})
 }
 
 // ── Luz nocturna + brillo: manual (fijo) + franjas (programadas) + maestro "ahora" ─
@@ -542,9 +551,9 @@ export function initDisplayService() {
   }
 
   // Re-aplicar preferencias por monitor (solo lo que difiera, para no pelear con
-  // monitors.conf ni parpadear). Con monitor-settings.conf en su sitio esto ya no
-  // debería tener nada que hacer — se queda como red por si el .conf falta (máquina
-  // recién clonada) o la regla `desc:` no casa. Y de paso regenera el .conf, para
+  // el comodín ni parpadear). Con monitor-settings.lua en su sitio esto ya no
+  // debería tener nada que hacer — se queda como red por si el .lua falta (máquina
+  // recién clonada) o la spec `desc:` no casa. Y de paso regenera el .lua, para
   // que las prefs guardadas antes de que existiera se vuelquen solas, sin que haya
   // que tocar ningún ajuste. idle_add = siguiente tick, sin delay fijo.
   GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
@@ -561,10 +570,10 @@ export function initDisplayService() {
           // solo al recargar). La tomamos de la real.
           if (!pref.position) { pref.position = `${mon.x}x${mon.y}`; backfilled = true }
           if (!monitorNeedsUpdate(mon, pref)) continue
-          execAsync(["hyprctl", "keyword", "monitor", buildMonitorRule({ name: mon.name, position: pref.position, pref })]).catch(() => {})
+          execAsync(["hyprctl", "eval", `hl.monitor(${buildMonitorSpecLua({ name: mon.name, position: pref.position, pref })})`]).catch(() => {})
         }
         if (backfilled) saveDisplayConfig()
-        writeMonitorConf()
+        writeMonitorLua()
       }).catch(() => {})
     }
     return GLib.SOURCE_REMOVE
@@ -572,8 +581,8 @@ export function initDisplayService() {
 
   // Globales
   const g = config.global
-  if (g.vrrMode !== 0) execAsync(["hyprctl", "keyword", "misc:vrr", String(g.vrrMode)]).catch(() => {})
-  if (g.allowTearing) execAsync(["hyprctl", "keyword", "general:allow_tearing", "1"]).catch(() => {})
+  if (g.vrrMode !== 0) execAsync(["hyprctl", "eval", `hl.config({ misc = { vrr = ${g.vrrMode} } })`]).catch(() => {})
+  if (g.allowTearing) execAsync(["hyprctl", "eval", "hl.config({ general = { allow_tearing = true } })"]).catch(() => {})
 
   // Reconciliación cada 60 s (para que las reglas cambien de franja: temp y brillo)
   GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => { applyRules(); return GLib.SOURCE_CONTINUE })

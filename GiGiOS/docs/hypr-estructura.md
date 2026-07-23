@@ -1,116 +1,151 @@
 # Estructura de `hypr/`
 
 Mapa de qué hay en `hypr/` y en qué orden se carga. Para instalar, ver
-[SETUP.md](SETUP.md); para el **porqué** de cada decisión de diseño (por qué un
-monitor se escalona así, por qué un `.conf` se genera y no se edita a mano, qué
-falla si tocas X sin saber Y) ver la sección `## Hyprland structure` de
+[SETUP.md](SETUP.md); para el **porqué** de cada decisión de diseño (por qué el
+arranque se escalona así, por qué un fichero se genera y no se edita a mano, qué
+falla si tocas X sin saber Y) ver las secciones de Hyprland de
 [`../CLAUDE.md`](../CLAUDE.md), que este documento no duplica.
+
+> **El config es Lua, no hyprlang.** Desde Hyprland 0.55, si existe
+> `hyprland.lua` el compositor lo carga y **no mira ningún `hyprland.conf`**. Los
+> `.conf` de hyprlang se borraron al terminar la migración (2026-07-23); `git`
+> los conserva si hiciera falta consultarlos. Los `.conf` que siguen aquí son de
+> **otros programas** (`hypridle`, `hyprlock`, `hyprpaper`), que mantienen
+> hyprlang a propósito.
 
 ## Árbol de directorios
 
 ```text
 hypr/                       (symlink: ~/.config/hypr)
-├── hyprland.conf            punto de entrada; solo `render{}` + `source=`
-├── *.conf                   configs sourceados por hyprland.conf (ver tabla)
-├── hypridle.conf            NO se sourcea — lo lanza autostart.conf aparte
-├── hyprlock.conf            NO se sourcea — lo invoca hypridle/idle-action.sh
-├── hyprpaper.conf           vacío, sin uso (el wallpaper va por awww, no hyprpaper)
-├── core.conf                vacío, sin uso — no aparece en ningún `source=`
-├── gpu/                      perfiles de GPU; se descomenta uno solo en hyprland.conf
-│   ├── laptop-hibrida.conf
-│   ├── sobremesa-nvidia.conf
-│   └── nvidia-vieja-hyde.conf
-├── envs/
-│   └── firefox.conf         variables Wayland/Firefox, portables entre GPUs
-├── shaders/                  shaders de corrección de color (daltonismo)
+├── hyprland.lua             punto de entrada; render{} + la lista de módulos
+├── gigios/                  los módulos del config (ver tabla)
+│   ├── util.lua             carga protegida, lectura de JSON, avisos en pantalla
+│   ├── json.lua             decodificador JSON vendorizado (Hyprland no trae uno)
+│   ├── variables.lua        nombres de app y rutas (las viejas `$variables`)
+│   └── gpu/                 un módulo por hardware; lo elige un fichero local
+│       ├── laptop-hibrida.lua
+│       ├── sobremesa-nvidia.lua
+│       └── nvidia-vieja-hyde.lua
+├── monitor-settings.lua     GENERADO por AGS (Ajustes > Pantalla)
+├── input-settings.lua       GENERADO por AGS (Ajustes > Dispositivos)
+├── hypridle.conf            otro binario; lo lanza el autostart
+├── hyprlock.conf            otro binario; lo invoca hypridle/idle-action.sh
+├── hyprpaper.conf           vacío, sin uso (el wallpaper va por awww)
+├── shaders/                 shaders de corrección de color (daltonismo)
 │   └── daltonismo-{protanopia,deuteranopia,tritanopia}.frag
-├── scripts/                  todo el código de scripting (ver abajo)
+├── scripts/                 todo el código de scripting (ver abajo)
 │   ├── lib/
 │   │   └── gaming-gate.sh   se SOURCEA desde otros scripts, no se ejecuta solo
-│   └── __pycache__/          generado por Python, gitignored
-├── logs/                     runtime, gitignored (`boot-healthcheck.log`)
-└── docs/superpowers/          specs de diseño de features puntuales, gitignored
+│   └── __pycache__/         generado por Python, gitignored
+└── logs/                    runtime, gitignored (`boot-healthcheck.log`)
 ```
 
-`monitor-settings.conf` e `input-settings.conf` (listados en la tabla siguiente)
-también viven en esta carpeta pero **los genera AGS**, no se editan a mano — ver
-la nota de cada uno.
+## Carga de `hyprland.lua`
 
-## Carga de `hyprland.conf`
+`hyprland.lua` no configura casi nada por sí mismo: fija `render.cm_enabled = false`
+(lo gestiona `hyprsunset`, no Hyprland — ver `CLAUDE.md`) y carga los módulos de
+`gigios/` en este orden exacto. Cada uno entra por `util.carga()` (`require` +
+`pcall`): **un módulo roto avisa en pantalla y no tumba el resto**, porque un
+error de Lua sin capturar deja la sesión sin atajos.
 
-`hyprland.conf` no configura casi nada por sí mismo: fija `render.cm_enabled = false`
-(lo gestiona `hyprsunset`, no Hyprland — ver `CLAUDE.md`) y hace `source=` de todo
-lo demás, en este orden exacto:
-
-| # | Archivo | Contenido | Quién lo edita |
+| # | Módulo | Contenido | Quién lo edita |
 | --- | --- | --- | --- |
-| 1 | `env.conf` | Variables de entorno del sistema (cursor, `LC_TIME`) | a mano |
-| 2 | `variables.conf` | Variables internas de Hyprland (`$mainMod`, `$terminal`, …) | a mano |
-| 3 | `monitors.conf` | Regla comodín: preferido, escala 1 (fallback) | a mano |
-| 4 | `monitor-settings.conf` | Resolución/Hz/escala/VRR por monitor concreto (`desc:`) | **AGS** (Ajustes > Pantalla) |
-| 5 | `input.conf` | Teclado, ratón, touchpad (valores base) | a mano |
-| 6 | `windows.conf` | Gaps, bordes, redondeo, `layout` | a mano |
-| 7 | `animations.conf` | Curvas y animaciones | a mano |
-| 8 | `rules.conf` | `windowrule`/`windowrulev2` (tearing, flotantes, opacidad…) | a mano |
-| 9 | `keybinds.conf` | Todos los `bind =` | a mano |
-| 9b | `keybinds-nop.conf` | Binds sordos: absorbe SUPER + tecla que no sea atajo | **script** (`generar-nop-binds.sh`) |
-| 10 | `autostart.conf` | Todos los `exec-once =`, con el calendario escalonado | a mano |
-| 11 | `permissions.conf` | `permission =` (requiere reinicio de Hyprland) | a mano |
-| 12 | `gpu/<una-sola>.conf` | Perfil de GPU de esta máquina — el resto queda comentado | a mano, por máquina |
-| 13 | `gaming.conf` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
-| 14 | `userprefs.conf` | Overrides personales sueltos | a mano |
-| 15 | `input-settings.conf` | Teclado/ratón/touchpad concretos, va DESPUÉS de `userprefs.conf` a propósito | **AGS** (Ajustes > Dispositivos) |
-| 16 | `envs/firefox.conf` | Variables portables Firefox+Wayland | a mano |
+| 1 | `gigios/env.lua` | Variables de entorno del sistema (cursor, Qt, `LC_TIME`) | a mano — **salvo el bloque de idioma**, que reescribe AGS |
+| 2 | `gigios/monitores.lua` | Regla comodín: preferido, escala 1 (fallback) | a mano |
+| 3 | `monitor-settings.lua` | Resolución/Hz/escala/VRR por monitor concreto (`desc:`) | **AGS** (Ajustes > Pantalla) |
+| 4 | `gigios/input.lua` | Teclado, ratón, touchpad y gestos (valores base) | a mano |
+| 5 | `gigios/ventanas.lua` | Gaps, bordes, sombras, blur, `layout` | a mano |
+| 6 | `gigios/animaciones.lua` | Curvas y animaciones | a mano |
+| 7 | `gigios/reglas.lua` | Reglas de ventana y de capa | a mano |
+| 8 | `gigios/compactar.lua` | `GiGiOS.compactar()` — renumera escritorios | a mano |
+| 9 | `gigios/boton-apagado.lua` | `GiGiOS.boton_apagado()` — el botón físico | a mano |
+| 10 | `gigios/daltonismo.lua` | `GiGiOS.daltonismo(modo)` — shader de accesibilidad | a mano |
+| 11 | `gigios/keybinds.lua` | Todos los atajos + `GiGiOS.toggle_gaps()` | a mano |
+| 12 | `gigios/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
+| 13 | `gigios/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
+| 14 | `gigios/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
+| 15 | `gigios/gpu.lua` | Elige el perfil de GPU y carga `gigios/gpu/<perfil>.lua` | **fichero local**, ver abajo |
+| 16 | `gigios/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
+| 17 | `gigios/userprefs.lua` | Overrides personales sueltos | a mano |
+| 18 | `input-settings.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | **AGS** (Ajustes > Dispositivos) |
+| 19 | `gigios/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
+| 20 | `gigios/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
 
-Tras el último `source=`, hay un `exec = aplicar-filtro-daltonismo.sh` (con
-`exec`, no `exec-once`): reaplica el shader de accesibilidad también en cada
-`hyprctl reload`, no solo al arrancar.
+**El orden no es estético**: `monitor-settings` pisa al comodín de monitores,
+`input-settings` pisa a `userprefs`, y `nop-binds` va el último porque necesita
+saber qué combinaciones ya usó `keybinds`.
 
-**`core.conf` y `hyprpaper.conf` existen pero están vacíos y no aparecen en
-ningún `source=`** — son restos sin uso, no una pieza escondida de la
-configuración. El wallpaper lo gestiona `awww` (`awww-daemon` +
-`scripts/wallpaper.sh`), no `hyprpaper`.
+Al final, `hyprland.lua` llama a `GiGiOS.daltonismo()` — el equivalente al viejo
+`exec =`: reaplica el shader de accesibilidad también en cada `hyprctl reload`,
+no solo al arrancar.
 
-## `hypridle.conf` / `hyprlock.conf`: fuera de la cadena de `source=`
+**Los dos ficheros generados se cargan con `util.carga_opcional`** (`dofile` +
+`pcall`): que falten no es error — se degrada al comodín. Ojo: eso significa
+240 Hz → 60 y escala 1.25 → 1, así que no los borres a la ligera; AGS los
+reescribe al tocar Ajustes.
 
-Ninguno de los dos lo sourcea `hyprland.conf`. `hypridle.conf` lo lanza
-`autostart.conf` como binario aparte (`exec-once = hypridle`), y sus
+## `hyprpaper.conf` está vacío y sin uso
+
+No lo lanza nadie. El wallpaper lo gestiona `awww` (`awww-daemon` +
+`scripts/wallpaper.sh`).
+
+## `hypridle.conf` / `hyprlock.conf`: otros programas, otro formato
+
+Son binarios `hypr*` **separados del compositor** y siguen en hyprlang a
+propósito (así lo dice el anuncio oficial de Hyprland 0.55: no necesitan un
+lenguaje Turing-completo). `hypridle` lo lanza `gigios/autostart.lua`, y sus
 `on-timeout` no ejecutan la acción directamente sino que pasan por
 `scripts/idle-action.sh` (la puerta del "Wake up" — ver `CLAUDE.md`).
 `hyprlock.conf` no se lanza nunca por sí solo: lo invoca `hypridle` (`lock_cmd`,
 `before_sleep_cmd`) o el propio `idle-action.sh` en su rama `lock`.
 
-## `hypr/gpu/`
+## Perfiles de GPU: `gigios/gpu/`
 
-Tres perfiles, uno por hardware. `hyprland.conf` debe tener **exactamente uno**
-sin comentar (`sobremesa-nvidia.conf` en este equipo). Cambiar de máquina =
-comentar el actual y descomentar el nuevo antes de arrancar Hyprland.
+Tres módulos, uno por hardware. **Ya no se descomenta una línea**: el perfil de
+cada máquina lo dice `~/.config/gigios/gpu-perfil`, un fichero local de una línea
+**fuera del repo** (la elección de máquina es estado local, como manda
+[`anadir-perfiles-por-equipo.md`](anadir-perfiles-por-equipo.md)):
+
+```sh
+echo sobremesa-nvidia > ~/.config/gigios/gpu-perfil
+```
+
+Ausente o con un nombre inválido = no se aplica ningún perfil y sale un aviso en
+pantalla; el compositor arranca igual (fail-open).
 
 ## `hypr/scripts/`: categorías
 
 No todos arrancan igual. Cuatro disparadores distintos:
 
-**1. Daemons de `autostart.conf`**, con el calendario escalonado (motivo completo
-en la cabecera de ese archivo y en `CLAUDE.md`):
+**1. Daemons de `gigios/autostart.lua`**, con el calendario escalonado (motivo
+completo en la cabecera de ese módulo y en `CLAUDE.md`):
 
 | t= | Script | Por qué ahí |
 | --- | --- | --- |
-| 0 | `wallpaper.sh`, `limpiar-portapapeles.sh` + `clipboard-history.sh start`, `oom-monitor.sh`, `escaner-apps-inicio.sh` | se ve, o no puede perder eventos |
+| 0 | `wallpaper.sh`, `limpiar-portapapeles.sh` + `clipboard-history.sh start`, `oom-monitor.sh` | se ve, o no puede perder eventos |
 | 3–6 | `bt-monitor.sh`, `usb-monitor.sh`, `wifi-monitor.sh`, `screencast-monitor.sh` | dirigidos por eventos, compiten con el servicio al que se enganchan |
 | 8–15 | `ram-monitor.sh`, `temp-monitor.sh`, `battery-monitor.sh`, `disk-monitor.sh` | sondeos de estado, nada urgente al segundo 0 |
 | 20–30 | `updates-monitor.sh`, `boot-healthcheck.sh` | lo caro (red, journal completo, SMART) |
 
-**2. Atajos de teclado** (`keybinds.conf`): `rofi-launch.py` (`SUPER+SPACE`),
-`clipboard-history.sh picker` (`SUPER+V`), `grabar-pantalla.sh` /
-`grabar-pantalla.sh ventana` (`CTRL+SHIFT+F` / `CTRL+SHIFT+S`),
-`toggle-orion.sh` (`SUPER+ALT+SPACE`), `toggle-gaps-borders.sh`,
-`compact-workspaces.sh` (`SUPER+SHIFT+N`).
+El escáner de apps de inicio ya no es un script: vive en
+`gigios/escaner-apps.lua`, que escucha `window.open` con datos ya tipados en vez
+de parsear el socket de eventos a mano.
+
+**2. Atajos de teclado** (`gigios/keybinds.lua`): `rofi-launch.py`
+(`SUPER+SPACE`), `clipboard-history.sh picker` (`SUPER+V`), `grabar-pantalla.sh`
+/ `grabar-pantalla.sh ventana` (`CTRL+SHIFT+F` / `CTRL+SHIFT+S`),
+`toggle-orion.sh` (`SUPER+ALT+SPACE`).
+
+Cuatro atajos **ya no llaman a ningún script**: son funciones Lua dentro del
+propio config — pegar ventanas (`GiGiOS.toggle_gaps`), compactar escritorios
+(`GiGiOS.compactar`), el botón de encendido (`GiGiOS.boton_apagado`) y el filtro
+de daltonismo (`GiGiOS.daltonismo`). AGS las invoca por
+`hyprctl eval 'GiGiOS.<fn>(…)'`.
 
 **3. Invocados por AGS** (toggles de Ajustes, con `pkill` + re-exec en caliente
 donde aplica): `updates-monitor.sh`, `screencast-monitor.sh` (interruptores
-maestros), `aplicar-filtro-daltonismo.sh` (Ajustes > Accesibilidad),
-`wallpaper.sh <ruta>` / `--random` (Orion), `lanzar-anclado.py` (lanzador de
-Orion).
+maestros), `wallpaper.sh <ruta>` / `--random` (Orion), `lanzar-anclado.py`
+(lanzador de Orion).
 
 `usb-monitor.sh` llama él mismo a `usb-eject.sh` (botón "Expulsar" de la
 notificación de conexión) y a `usb-repair.sh` (automático en cuanto detecta un
@@ -137,7 +172,7 @@ cambio su propia pausa independiente (`dlPauseWhileGaming`), no esta librería
 
 - [`SETUP.md`](SETUP.md) — instalación en una máquina nueva, perfil de GPU,
   pasos manuales.
-- [`../CLAUDE.md`](../CLAUDE.md), sección `## Hyprland structure` — el porqué
-  detrás de cada script y cada decisión no obvia (por qué el hint
+- [`../CLAUDE.md`](../CLAUDE.md) — el porqué detrás de cada script y cada
+  decisión no obvia (las trampas medidas de la API Lua, el hint
   `x-gigios-source`, por qué `gaming-gate.sh` congela lo que congela y no más,
   la puerta del Wake up, USB, brillo, seguridad…).

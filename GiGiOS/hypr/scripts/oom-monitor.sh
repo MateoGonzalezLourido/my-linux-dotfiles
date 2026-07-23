@@ -47,8 +47,8 @@ if command -v jq >/dev/null 2>&1 && [[ -f "$SEC_CONFIG" ]]; then
     done < <(jq -r 'to_entries[] | "\(.key)=\(.value)"' "$SEC_CONFIG" 2>/dev/null)
 fi
 
-# ── Escalonado de arranque (ver hypr/autostart.conf) ──────────────────────────
-# Este script NO se retrasa entero desde autostart.conf, y esa asimetría es el
+# ── Escalonado de arranque (ver hypr/gigios/autostart.lua) ──────────────────────────
+# Este script NO se retrasa entero desde gigios/autostart.lua, y esa asimetría es el
 # diseño: sus 6 sub-monitores no corren el mismo riesgo si empiezan tarde.
 #
 #   - kernel/system/files → SIN retardo. Siguen el journal con `-n 0` (que salta el

@@ -71,7 +71,7 @@ app.start({
       response("ok")
       return
     }
-    // Lo usa hypr/scripts/boton-apagado.sh cuando el botón de encendido físico
+    // Lo usa GiGiOS.boton_apagado() (hypr/gigios/boton-apagado.lua) cuando el botón físico
     // está configurado para abrir el menú en vez de ejecutar una acción directa.
     if (argv.includes("toggle-power-menu")) {
       alternarMenuEnergia()

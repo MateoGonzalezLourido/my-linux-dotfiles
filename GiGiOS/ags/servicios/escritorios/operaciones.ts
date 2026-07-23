@@ -21,15 +21,17 @@ async function leerClientes(): Promise<ClienteHyprctl[]> {
 
 async function ejecutarPlan(plan: PlanMovimientoEscritorios) {
   for (const movimiento of plan.movimientos) {
+    // Equivalente Lua de `movetoworkspacesilent`: sin `follow=false`, window.move
+    // ARRASTRA el foco al workspace destino (verificado en instancia anidada), que
+    // es justo lo que "silent" evita.
     await execAsync([
       "hyprctl",
       "dispatch",
-      "movetoworkspacesilent",
-      `${movimiento.idDestino},address:${movimiento.direccion}`,
+      `hl.dsp.window.move({workspace='${movimiento.idDestino}', window='address:${movimiento.direccion}', follow=false})`,
     ])
   }
   if (plan.idFocoDestino !== null) {
-    await execAsync(["hyprctl", "dispatch", "workspace", String(plan.idFocoDestino)])
+    await execAsync(["hyprctl", "dispatch", `hl.dsp.focus({workspace=${plan.idFocoDestino}})`])
   }
 }
 

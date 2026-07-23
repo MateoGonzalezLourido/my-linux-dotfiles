@@ -67,8 +67,19 @@ blocked() {
   esac
 }
 
+# Apagar la pantalla hablando primero la forma Lua de Hyprland 0.56
+# (`hl.dsp.dpms('off')`, verificada en instancia anidada) y cayendo a la legacy
+# si no responde "ok" — la sesión puede seguir en config hyprlang hasta el
+# próximo reinicio, y este script se relee en cada on-timeout, así que tiene que
+# funcionar en ambas. Se mira el stdout y no el código de salida porque hyprctl
+# bajo config legacy responde "Invalid dispatcher" con rc=0.
+dpms_off() {
+  [[ "$(hyprctl dispatch "hl.dsp.dpms('off')" 2>/dev/null)" == ok* ]] \
+    || hyprctl dispatch dpms off
+}
+
 case ${1:-} in
-  dpms-off) blocked dpms-off || hyprctl dispatch dpms off ;;
+  dpms-off) blocked dpms-off || dpms_off ;;
   lock)     blocked lock     || hyprlock ;;
   suspend)  blocked suspend  || systemctl suspend ;;
   *)

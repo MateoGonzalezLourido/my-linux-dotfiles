@@ -1658,7 +1658,7 @@ function QsMedia() {
     const address = String(client.address)
     const normalized = address.startsWith("0x") ? address : `0x${address}`
     closeAllPanels()
-    execAsync(["hyprctl", "dispatch", "focuswindow", `address:${normalized}`]).catch(() => {})
+    execAsync(["hyprctl", "dispatch", `hl.dsp.focus({window='address:${normalized}'})`]).catch(() => {})
   }
 
   // El sondeo de posición solo corre con el panel abierto: al cerrar se REMUEVE el
