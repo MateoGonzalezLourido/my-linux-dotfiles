@@ -245,7 +245,7 @@ Cópialas y corre `fc-cache -f` en el PC destino.
 ## 4. Bar / atajos / herramientas de escritorio
 
 ```sh
-sudo pacman -S rofi cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl qalculate-gtk \
+sudo pacman -S rofi rofimoji wtype noto-fonts-emoji cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl qalculate-gtk \
   wf-recorder grim slurp jq bc hyprshot nm-connection-editor blueman fish git curl \
   btop upower libgudev cups geoclue mesa-utils lshw fd github-cli \
   udisks2 lsof ntfsprogs dosfstools exfatprogs kmod
@@ -263,8 +263,10 @@ Qué usa cada cosa:
   `hypr/scripts/lanzar-anclado.py`, el camino por el que Orion abre sus apps; los dos
   comparten el motor de anclaje `hypr/scripts/anclaje.py`) y selector del portapapeles (`SUPER+V`,
   con `cliphist` + `wl-clipboard`). Ambos comparten el diseño versionado en
-  `GiGiOS/rofi/config.rasi`. Las miniaturas de imágenes binarias requieren
-  `imagemagick`.
+  `GiGiOS/rofi/config.rasi`. El selector de emojis (`SUPER+.`) usa `rofimoji`,
+  `wtype` y `noto-fonts-emoji`; inserta mediante un pegado temporal y restaura
+  después el contenido anterior del portapapeles. Las miniaturas de imágenes
+  binarias requieren `imagemagick`.
 - **`playerctl`** / **`brightnessctl`** — teclas multimedia y brillo.
 - **`ddcutil`** — brillo de **monitores externos** (sobremesa), por DDC/CI. Necesita además el módulo
   `i2c-dev` cargado en cada arranque, cosa que hace `/etc/modules-load.d/i2c-dev.conf` — lo instala
@@ -400,8 +402,9 @@ sudo pacman -S wl-clipboard cliphist imagemagick
 `gigios/autostart.lua` lanza `wl-paste --watch cliphist store` para poblar el historial que usa
 `SUPER+V`. El selector Rofi replica el diseño oscuro del lanzador de aplicaciones:
 fondo `#313244` al 90 %, selección `#b4befe` y scrollbar rosa `#f5c2e7` al 70 %.
-Ambos selectores leen `GiGiOS/rofi/config.rasi` mediante su enlace en
-`~/.config/rofi`; cada uno solo aporta su propio placeholder. La búsqueda difusa del
+El lanzador, el portapapeles y la cuadrícula de emojis leen
+`GiGiOS/rofi/config.rasi` mediante sus enlaces en `~/.config/rofi`; cada uno
+solo aporta su distribución, placeholder y opciones de búsqueda. La búsqueda difusa del
 portapapeles conserva el orden cronológico de `cliphist`. El watcher fija un máximo de
 500 elementos y el selector los numera de `1` a `500`, desde el más reciente hasta el
 más antiguo, sin mostrar el identificador interno utilizado para decodificarlos.
@@ -639,7 +642,9 @@ for f in \
   GiGiOS/hypr/scripts/clipboard-history.sh \
   GiGiOS/hypr/scripts/limpiar-portapapeles.sh \
   GiGiOS/hypr/scripts/miniatura-portapapeles.sh \
+  GiGiOS/hypr/scripts/emoji-picker.sh \
   GiGiOS/rofi/config.rasi \
+  GiGiOS/rofi/emoji-grid.rasi \
   GiGiOS/hypr/scripts/scan-file.sh \
   GiGiOS/hypr/scripts/run-untrusted.sh \
   GiGiOS/ags/modulos/ajustes/cuenta/SeccionCuenta.tsx \

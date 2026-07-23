@@ -1,0 +1,57 @@
+/**
+ * Cuadrícula del selector de emojis (SUPER+.).
+ * Importa el diseño compartido para conservar la misma ventana que el
+ * portapapeles y solo cambia la distribución de los resultados.
+ */
+
+@import "config"
+
+window {
+    width: 560px;
+    location: center;
+    anchor: center;
+    border: 2px;
+    border-radius: 14px;
+    padding: 14px;
+}
+
+mainbox {
+    spacing: 12px;
+}
+
+inputbar {
+    padding: 10px 12px;
+    border: 1px;
+    border-radius: 9px;
+}
+
+listview {
+    columns: 8;
+    lines: 5;
+    spacing: 11px;
+    scrollbar: false;
+    cycle: true;
+    dynamic: true;
+    layout: vertical;
+    flow: horizontal;
+    reverse: false;
+    fixed-height: true;
+    fixed-columns: true;
+}
+
+element {
+    orientation: vertical;
+    background-color: transparent;
+    border-radius: 9px;
+    padding: 2px;
+}
+
+element-text {
+    expand: false;
+    background-color: transparent;
+    vertical-align: 0.5;
+    horizontal-align: 0.5;
+    font: "MesloLGS Nerd Font 16";
+    margin: 3px 0px 0px 3px;
+    padding: 0px;
+}

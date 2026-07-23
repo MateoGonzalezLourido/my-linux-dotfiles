@@ -132,7 +132,8 @@ El escáner de apps de inicio ya no es un script: vive en
 de parsear el socket de eventos a mano.
 
 **2. Atajos de teclado** (`gigios/keybinds.lua`): `rofi-launch.py`
-(`SUPER+SPACE`), `clipboard-history.sh picker` (`SUPER+V`), `grabar-pantalla.sh`
+(`SUPER+SPACE`), `clipboard-history.sh picker` (`SUPER+V`), `emoji-picker.sh`
+(`SUPER+.`), `grabar-pantalla.sh`
 / `grabar-pantalla.sh ventana` (`CTRL+SHIFT+F` / `CTRL+SHIFT+S`),
 `toggle-orion.sh` (`SUPER+ALT+SPACE`).
 

@@ -64,7 +64,8 @@ install_packages() {
     hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland qt6ct
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
-    ttf-meslo-nerd ttf-cascadia-code-nerd rofi cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl
+    ttf-meslo-nerd ttf-cascadia-code-nerd noto-fonts-emoji
+    rofi rofimoji wtype cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl
     qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
     # libcanberra: reproduce el `sound-name` de las notificaciones (alarmas y temporizador del
     # panel de reloj). Sin él la alerta se ve pero no suena, sin error visible.

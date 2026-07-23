@@ -23,6 +23,7 @@ LINKS=(
   "hypr::$HOME/.config/hypr"
   "inicializador::$HOME/.config/inicializador"
   "rofi/config.rasi::$HOME/.config/rofi/config.rasi"
+  "rofi/emoji-grid.rasi::$HOME/.config/rofi/emoji-grid.rasi"
   "mimeapps.list::$HOME/.config/mimeapps.list"
   "menus/applications.menu::$HOME/.config/menus/applications.menu"
   "kdeglobals::$HOME/.config/kdeglobals"

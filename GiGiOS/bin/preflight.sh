@@ -34,12 +34,12 @@ required=(
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
   hypr/gigios/gpu.lua hypr/gigios/gpu/laptop-hibrida.lua hypr/gigios/gpu/sobremesa-nvidia.lua
   Wallpapers/sunset.jpg
-  hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/scan-file.sh
+  hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
   hypr/scripts/run-untrusted.sh
   system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
   system/logind.conf.d/99-gigios-powerkey.conf
-  rofi/config.rasi
+  rofi/config.rasi rofi/emoji-grid.rasi
 )
 for path in "${required[@]}"; do
   [[ -f "$GIGIOS/$path" ]] || fail "falta $path"
@@ -117,7 +117,7 @@ if [[ "$mode" == "--installed" ]]; then
   # comando de reparación directamente utilizable en Arch/CachyOS.
   commands=(
     hyprctl:hyprland hyprlock:hyprlock hypridle:hypridle hyprsunset:hyprsunset
-    uwsm:uwsm sass:dart-sass jq:jq rofi:rofi magick:imagemagick
+    uwsm:uwsm sass:dart-sass jq:jq rofi:rofi rofimoji:rofimoji wtype:wtype magick:imagemagick
     cliphist:cliphist wl-copy:wl-clipboard wl-paste:wl-clipboard
     brightnessctl:brightnessctl ddcutil:ddcutil playerctl:playerctl wpctl:wireplumber
     pactl:libpulse pw-metadata:pipewire wf-recorder:wf-recorder grim:grim
@@ -151,6 +151,9 @@ if [[ "$mode" == "--installed" ]]; then
     command -v "$command" >/dev/null 2>&1 \
       || fail "falta '$command' (Arch/CachyOS: sudo pacman -S --needed $package)"
   done
+
+  fc-match 'Noto Color Emoji' 2>/dev/null | grep -qi 'NotoColorEmoji' \
+    || fail "falta Noto Color Emoji (sudo pacman -S --needed noto-fonts-emoji)"
 
   # No basta con que el binario exista: el tramo bajo del slider de brillo atenúa por
   # SOFTWARE reduciendo el gamma (la CTM del KMS), y eso lo aplica hyprsunset. Sin soporte

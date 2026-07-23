@@ -1,7 +1,7 @@
 /**
- * Diseño compartido por el lanzador de aplicaciones (SUPER+SPACE) y el
- * historial del portapapeles (SUPER+V). Cada selector define únicamente su
- * placeholder y sus opciones de búsqueda.
+ * Diseño compartido por el lanzador de aplicaciones (SUPER+SPACE), el
+ * historial del portapapeles (SUPER+V) y el selector de emojis (SUPER+.).
+ * Cada selector define únicamente su distribución, placeholder y búsqueda.
  */
 
 * {
