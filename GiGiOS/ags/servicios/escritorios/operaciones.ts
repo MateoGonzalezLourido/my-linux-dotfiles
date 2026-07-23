@@ -13,6 +13,14 @@ import {
 
 let colaOperaciones: Promise<void> = Promise.resolve()
 
+export async function enfocarEscritorio(idEscritorio: number): Promise<void> {
+  await execAsync([
+    "hyprctl",
+    "dispatch",
+    `hl.dsp.focus({workspace=${idEscritorio}})`,
+  ])
+}
+
 async function leerClientes(): Promise<ClienteHyprctl[]> {
   const datos: unknown = JSON.parse(await execAsync(["hyprctl", "clients", "-j"]))
   if (!Array.isArray(datos)) throw new Error("hyprctl clients no devolvió una lista")
@@ -31,7 +39,7 @@ async function ejecutarPlan(plan: PlanMovimientoEscritorios) {
     ])
   }
   if (plan.idFocoDestino !== null) {
-    await execAsync(["hyprctl", "dispatch", `hl.dsp.focus({workspace=${plan.idFocoDestino}})`])
+    await enfocarEscritorio(plan.idFocoDestino)
   }
 }
 

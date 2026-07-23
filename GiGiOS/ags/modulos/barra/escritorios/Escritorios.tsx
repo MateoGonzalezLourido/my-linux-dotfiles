@@ -8,7 +8,11 @@ import {
   obtenerHyprland,
   suscribirDatosEscritorios,
 } from "../../../servicios/escritorios/controlador"
-import { desplazarEscritorios, intercambiarEscritorios } from "../../../servicios/escritorios/operaciones"
+import {
+  desplazarEscritorios,
+  enfocarEscritorio,
+  intercambiarEscritorios,
+} from "../../../servicios/escritorios/operaciones"
 import type { EstadoVisibilidadBarra } from "../../../estado/visibilidadBarra"
 import {
   ordenarClientesEscritorio,
@@ -130,7 +134,13 @@ export default function Escritorios(
       const clientes = clientesPorEscritorio.get(escritorio.id) ?? []
       return {
         id: escritorio.id,
-        enfocar: () => escritorio.focus(),
+        // Astal 0.1 todavía traduce Workspace.focus() al dispatcher legacy
+        // `workspace N`, inválido cuando Hyprland carga configuración Lua.
+        enfocar: () => {
+          void enfocarEscritorio(escritorio.id).catch((error) => {
+            console.error(`No se pudo enfocar el escritorio ${escritorio.id}`, error)
+          })
+        },
         tieneClientes: clientes.length > 0,
         clientes: obtenerIconosClientesEscritorio(ordenarClientesEscritorio(clientes)),
       }
