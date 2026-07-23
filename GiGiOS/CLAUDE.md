@@ -18,7 +18,8 @@ XDG paths via **symlinks**, not copies. The three big components are:
 Supporting dirs: `Wallpapers/` (used directly by `wallpaper.sh`, no symlink),
 `bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
 `system/` (ficheros que van a `/etc`, **no** se symlinkean: se instalan con `sudo` — la regla udev de
-escritura en USB y la carga del módulo `i2c-dev`; ver las secciones de USB y de brillo).
+escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP y la cesión del botón de encendido
+a Hyprland; ver las secciones de USB, de brillo, de TLP y del botón de encendido).
 
 `mime/`, `qt6ct/`, `menus/`, `kdeglobals`, `mimeapps.list` en la raíz no son un componente
 propio: son fragmentos sueltos de integración de escritorio (tema Qt, asociación de apps, menú
@@ -241,6 +242,39 @@ usuario. De ahí el suelo de 1 min al leer el fichero: un listener ausente parse
 ese 0 llegaría al `.conf` al encender la fila. **El estado del interruptor sale de `parseHypridle`,
 no de un `true` fijo**: cuando la UI escribía `enabled: true` a pelo, mover cualquier stepper
 reescribía los tres listeners como activos y resucitaba en silencio un GIGIOS-OFF ya puesto.
+
+### Botón de encendido: `boton-apagado.sh` + `system/logind.conf.d/`
+
+Ajustes > Energía decide qué hace la pulsación **corta** del botón físico (apagar, suspender,
+hibernar, bloquear, apagar la pantalla, abrir el menú de energía, cerrar sesión, reiniciar o
+nada). Lo ejecuta `hypr/scripts/boton-apagado.sh` desde un **`bindl = , XF86PowerOff`** de
+`keybinds.conf` — `bindl` y no `bind` porque el botón tiene que responder también con hyprlock
+puesto, que es justo cuando más se pulsa.
+
+**El shell NO ejecuta la acción, solo guarda la elección** (`botonApagado` en
+`preferences.json`), y el script la relee **en cada pulsación**. Así el botón sigue funcionando
+con AGS caído (con la acción de fábrica, `apagar`) y cambiar el ajuste no necesita relanzar nada
+— se aparta de la advertencia general de los `*-monitor.sh` porque no hay proceso vivo. La única
+acción que sí pasa por AGS es `menu`, vía `ags request toggle-power-menu`, y bajo hyprlock **no
+se hace**: el menú quedaría dibujado por debajo del bloqueo y abierto al desbloquear.
+
+**Sin ceder la tecla, el bind se ejecuta pero NO se nota — y ese es el modo de fallo.**
+`systemd-logind` maneja esa misma tecla por su cuenta (`HandlePowerKey`, **`poweroff` de
+fábrica**) a nivel de **asiento**, leyendo el evento de entrada sin pasar por el compositor. O
+sea que las dos acciones ocurren a la vez y gana el apagado de logind: elijas lo que elijas, el
+PC se apaga, y sin ningún error por ningún lado. De ahí `system/logind.conf.d/99-gigios-powerkey.conf`
+(`HandlePowerKey=ignore`), que como la regla udev de USB y el `i2c-dev` va a `/etc` y **no se
+symlinkea**: lo copia `install.sh` (paso 9) y recarga con **`systemctl reload systemd-logind`**
+— `reload`, no `restart`, que puede llevarse la sesión por delante. La pulsación **larga** se
+deja como esté (`HandlePowerKeyLongPress`, `ignore` por defecto): es la salida de emergencia del
+firmware y no debe depender de que el shell responda.
+
+**La UI comprueba la propiedad REAL de logind, no la presencia del fichero**: `busctl --system
+get-property … HandlePowerKey` (sin privilegios), en `ags/servicios/energia/botonEncendido.ts`.
+El fichero puede estar en otro sitio, o el valor cambiado a mano, así que preguntar a logind es
+la única respuesta que no miente. El aviso solo sale cuando la elección **de verdad no puede
+cumplirse**: con `apagar` el resultado es el mismo venga de quien venga, y avisar ahí sería ruido.
+Un `null` (no se pudo consultar) **no** avisa — no poder comprobarlo no es saber que está mal.
 
 ### Notificaciones de los scripts: el hint `x-gigios-source`
 
@@ -482,6 +516,48 @@ bajas, no de movimientos), así que `ags/modulos/barra/escritorios/Escritorios.t
 Sin eso los iconos de la barra se quedaban en el escritorio donde nació la ventana hasta que otra
 cosa forzara un refresco. Ver `ags/CLAUDE.md`.
 
+### SUPER + tecla sin atajo no debe escribirse (`keybinds-nop.conf`)
+
+Con SUPER pulsado, una tecla que **no** forma un atajo llegaba a la aplicación: `SUPER+C` escribía
+una `c`. Es al revés que en Windows, donde la tecla Win sin atajo no hace nada.
+
+**No hay opción global para esto: Hyprland solo se traga una tecla si algún bind la captura.** El
+candidato obvio es `catchall`, y el compositor lo rechaza — medido, no supuesto: `hyprctl keyword
+bind "SUPER,catchall,submap,reset"` responde *«Invalid catchall, catchall keybinds are only allowed
+in submaps»*. Así que la única vía es **enumerar**: `hypr/keybinds-nop.conf` trae un bind "sordo"
+por cada combinación con SUPER que no sea ya un atajo (letras, dígitos, puntuación, F1–F12, teclado
+numérico, navegación y edición; para `SUPER`, `SUPER SHIFT`, `SUPER CTRL` y `SUPER ALT`). Se sourcea
+en `hyprland.conf` **después** de `keybinds.conf`.
+
+**El no-op es `submap, reset`, y no un `exec`.** Es interno al compositor: cero forks por pulsación,
+al contrario que un `exec, true`. Aquí es literalmente inerte porque **no hay ni un submap** en toda
+la configuración, y nadie —ni AGS— escucha ese evento; si algún día se añade uno, esto deja de ser
+un no-op y hay que cambiar el dispatcher.
+
+**Lo genera `hypr/scripts/generar-nop-binds.sh` a partir de `hyprctl binds`**, o sea de los atajos
+REALES con `$mainMod` ya expandido, no de un parseo de `keybinds.conf`. Dos trampas que ya mordieron:
+
+- **`hyprctl binds -j` está ROTO en 0.56.0** y no sirve para esto. Devuelve los campos desplazados
+  (`modmask: false`, `key: "false"`, `keycode: F`) y ni siquiera es JSON válido: `jq` peta con
+  *Invalid numeric literal*. El script parsea la salida de **texto**. No lo "arregles" a `-j`.
+- **Hay que descartar los binds a `submap`, que son los que genera el propio script.** Sin ese
+  filtro, regenerar con el fichero anterior ya cargado lee sus 317 binds como atajos del usuario,
+  los excluye todos y escribe un fichero **vacío**: la función se apagaría sola en la primera
+  regeneración. Con el filtro es idempotente (verificado: 317 binds en dos pasadas seguidas).
+
+**Un bind duplicado no rompe nada, y eso es lo que hace segura la desincronización.** Si añades un
+atajo a `keybinds.conf` y no regeneras, la combinación queda con dos binds y Hyprland **ejecuta los
+dos** — el tuyo y un `submap, reset` que no hace nada. Por eso el fichero puede quedarse viejo sin
+consecuencias: lo peor que pasa es que el atajo nuevo conserve una línea sorda de más.
+
+**Ajuste**: `absorberSuperSinAtajo` en `~/.config/gigios/preferences.json` (Ajustes >
+Personalización > Ventanas y escritorios), ausente = activado. Se aplica **en caliente**: el setter
+llama al script con `on`/`off` y este recarga Hyprland él mismo. Al desactivar, el fichero **no se
+borra** — se deja solo con comentarios, porque un `source =` a un fichero ausente es error **duro**
+en Hyprland y saca el overlay de configuración (mismo motivo por el que se versiona
+`monitor-settings.conf` aunque se regenere solo). Activar **regenera**, así que ese es el gesto con
+el que recoger los atajos añadidos desde la última vez.
+
 ### Update monitor (`updates-monitor.sh`)
 
 Checks for pending updates and surfaces the **important** ones as bar icons (AGS
@@ -715,12 +791,60 @@ El **acceso** a los nodos no requiere nada más: la regla udev que ya trae el pa
 `i2c` ni relogear. Medido en esta máquina (RTX 3060 + ASUS XG27AQDMES por DP): bus `/dev/i2c-3`,
 VCP 10 soportado, rango 0–100.
 
+**El brillo por hardware tiene un SUELO, y por debajo atenúa el gamma.** `setvcp 10 0` es el
+mínimo que acepta la electrónica del panel — en el OLED de esta máquina, todavía claramente
+luminoso. Así que el slider está partido en dos tramos: por encima de un suelo manda el hardware
+(DDC/backlight) y por debajo se atenúa el **gamma**, que aplica `hyprsunset` sobre la CTM del KMS.
+Es el mismo proceso que sostiene la luz nocturna, y por eso `applyNight()` en
+`ags/servicios/pantalla/service.ts` es el **único dueño** y reconcilia los dos canales juntos: lo
+mantiene vivo si lo pide cualquiera de los dos, y usa una temperatura neutra (6000 K) cuando solo
+hace falta para el gamma — si no, bajar el brillo encendería de paso la luz nocturna. La lógica del
+reparto es pura y probada (`ags/servicios/pantalla/atenuacion.ts`); ver `ags/CLAUDE.md` para el
+detalle, incluida la restauración desde disco (el gamma no deja residuo: muere con la sesión, al
+revés que el valor DDC, que el monitor graba en su firmware).
+
 **`brightnessctl` no se invoca desde ningún otro sitio, y es a propósito.** Sin dispositivos de clase
 `backlight` **no falla**: cae al primer dispositivo de clase `leds` y acaba encendiendo el **LED de
 scroll-lock del teclado**, devolviendo 0 — un fallo mudo que la UI no podía detectar. Por eso las
 teclas `XF86MonBrightness*` de `keybinds.conf` ya **no** lo llaman (van por `ags request
 brightness-up|down`, que aplica al backend que haya y enseña el OSD) y la llamada que queda en
 `init.sh` lleva `-c backlight` explícito.
+
+### Perfiles TLP conmutables (`system/tlp/` + `servicios/energia/tlp.ts`)
+
+Ajustes > Energía ofrece un selector **Normal/Ahorro** que cambia el perfil TLP en batería. El
+problema de fondo es el mismo que el del brillo DDC y la regla udev de USB: **`tlp.conf` vive en
+`/etc` y aplicarlo (`tlp start`) necesita root, pero AGS corre como usuario**. La regla de oro del
+repo prohíbe que algo que toca root sea un symlink al árbol escribible por el usuario (escalada
+silenciosa), así que la estructura separa **fuente versionada** de **copia de confianza root-owned**:
+
+- **Fuente (versionada, la editas tú):** `system/tlp/{normal,ahorro}.conf` (perfiles completos que
+  se intercambian **enteros**), `system/tlp/gigios-tlp-apply.sh` (el helper) y
+  `system/tlp/sudoers-gigios-tlp` (la regla, con `__GIGIOS_USER__` de placeholder).
+- **Instalado por `install.sh` paso 6, todo root-owned:** helper → `/usr/local/bin/gigios-tlp-apply`
+  (755); perfiles → `/etc/gigios/tlp/{normal,ahorro}.conf` (644); regla → `/etc/sudoers.d/gigios-tlp`
+  (440), generada sustituyendo el usuario real y **validada con `visudo -cf` ANTES de instalarla** (una
+  regla sudoers malformada rompe `sudo` en toda la máquina). Se instala **solo si `tlp` está presente**;
+  en un equipo sin TLP la función queda oculta.
+
+**El flujo:** AGS ejecuta `sudo -n /usr/local/bin/gigios-tlp-apply {normal|ahorro}`, que copia
+`/etc/gigios/tlp/<modo>.conf` → `/etc/tlp.conf` (atómico, tmp+`mv`), lanza `tlp start` y anota el modo
+en `/etc/gigios/tlp/active` (world-readable, que AGS relee al arrancar sin sudo). **`install.sh` NO
+toca `/etc/tlp.conf`** — eso lo hace el helper la primera vez que el usuario elige un perfil; si tenías
+un `tlp.conf` afinado, pega su contenido en `system/tlp/normal.conf` antes de reinstalar.
+
+**Por qué es seguro y no una escalada:** todo lo que `sudo` toca es root-owned, y la regla sudoers
+casa el comando **exacto con argumento fijo** (`normal`/`ahorro`), no un script en `~/.config`. Editar
+la copia del repo no cambia lo que corre como root hasta reinstalar con `sudo` a propósito. El `-n` de
+`sudo` evita colgarse pidiendo contraseña: sin la regla, falla en el acto.
+
+**Lado AGS (`servicios/energia/tlp.ts`):** `tlpAvailable` exige `tlp` + el helper + batería presente
+(mismo patrón que el brillo sin backend DDC — la tarjeta se oculta entera si falta algo). El estado
+inicial sale de leer `/etc/gigios/tlp/active` directamente. `tlpBusy` bloquea el selector mientras el
+helper corre (evita dos `tlp start` a la vez). Es un **selector manual e independiente** del "Forzar
+modo ahorro" y del umbral de batería. **Forzar modo ahorro** (`forcePowerSave` en
+`~/.config/power-save/config.json`) es lo otro nuevo: hace `powerSaveActive` verdadero ignorando
+nivel/carga/presencia de batería, así que también funciona en un sobremesa.
 
 ### Security monitor (`oom-monitor.sh`) + sandboxed launcher (`run-untrusted.sh`)
 

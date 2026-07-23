@@ -88,17 +88,19 @@ export function VistaMes(): Gtk.Widget {
 
   return (
     <box cssClasses={["cal-month-view"]} orientation={Gtk.Orientation.VERTICAL}>
-      <box cssClasses={["cal-month-nav"]} spacing={4}>
+      <box cssClasses={["cal-month-nav"]} spacing={6}>
         {tituloMes}
-        <button cssClasses={["cal-icon-btn"]} tooltipText="Volver a hoy" onClicked={() => irAHoy()}>
+        <button cssClasses={["cal-btn", "cal-hoy"]} onClicked={() => irAHoy()}>
           <label label="Hoy" cssClasses={["cal-today-label"]} />
         </button>
-        <button cssClasses={["cal-icon-btn"]} tooltipText="Mes anterior" onClicked={() => irAMesRelativo(-1)}>
-          <label label="‹" />
-        </button>
-        <button cssClasses={["cal-icon-btn"]} tooltipText="Mes siguiente" onClicked={() => irAMesRelativo(1)}>
-          <label label="›" />
-        </button>
+        <box cssClasses={["cal-month-stepper"]} spacing={1}>
+          <button cssClasses={["cal-month-arrow"]} onClicked={() => irAMesRelativo(-1)}>
+            <label cssClasses={["cal-month-arrow-icono"]} label="‹" />
+          </button>
+          <button cssClasses={["cal-month-arrow"]} onClicked={() => irAMesRelativo(1)}>
+            <label cssClasses={["cal-month-arrow-icono"]} label="›" />
+          </button>
+        </box>
       </box>
       {cabeceraDias}
       {contenedorRejilla}

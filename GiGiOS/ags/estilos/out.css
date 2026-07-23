@@ -1198,6 +1198,22 @@ popover.background {
   transform: scale(1.02);
 }
 
+.Orion.fondo-shell-grafito .orion-panel {
+  background: rgba(24, 24, 32, 0.94);
+}
+.Orion.fondo-shell-grafito .ns,
+.Orion.fondo-shell-grafito .sys-strip-fixed,
+.Orion.fondo-shell-grafito .apps-cat-btn,
+.Orion.fondo-shell-grafito .apps-mode-toggle,
+.Orion.fondo-shell-grafito .git-icon-btn,
+.Orion.fondo-shell-grafito .git-icon-btn-sm,
+.Orion.fondo-shell-grafito .git-tab,
+.Orion.fondo-shell-grafito .git-manage-confirm,
+.Orion.fondo-shell-grafito .git-saved-view,
+.Orion.fondo-shell-grafito .git-saved-rm {
+  background: rgb(24, 24, 32);
+}
+
 .np-panel button, popover.upd-popover-container > contents, .qs-wifi-list-scroll scrollbar,
 .qs-wifi-list-scroll scrollbar slider,
 .qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, .game-tray .game-tray-icon, popover.ws-preview-popover > contents {
@@ -1208,6 +1224,8 @@ popover.background {
 
 window.qs-window scrolledwindow > undershoot,
 window.qs-window scrolledwindow > overshoot,
+window.cal-window scrolledwindow > undershoot,
+window.cal-window scrolledwindow > overshoot,
 .Orion scrolledwindow > undershoot,
 .Orion scrolledwindow > overshoot,
 .sp-window scrolledwindow > undershoot,
@@ -3641,6 +3659,9 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
 .bar-pill.nb-pill .nb-icon.gm-icon.active {
   color: #cba6f7;
 }
+.bar-pill.nb-pill .nb-icon.ps-icon.active {
+  color: #a6e3a1;
+}
 .bar-pill.nb-pill.panel-open {
   background-color: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.075);
@@ -4502,14 +4523,14 @@ window.np-window.csd decoration {
   font-family: "MesloLGS Nerd Font", monospace;
 }
 
-window.cal-panel,
-window.cal-panel.background,
-window.cal-panel.csd {
+window.cal-window,
+window.cal-window.background,
+window.cal-window.csd {
   background-color: transparent;
 }
 
-window.cal-panel decoration,
-window.cal-panel.csd decoration {
+window.cal-window decoration,
+window.cal-window.csd decoration {
   box-shadow: none;
   margin: 0;
   border-radius: 0;
@@ -4517,18 +4538,28 @@ window.cal-panel.csd decoration {
   border-width: 0;
 }
 
-window.cal-panel > box {
-  background-color: rgb(8, 8, 12);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+.cal-wrapper {
+  background-color: transparent;
+}
+
+.cal-bar-connector {
+  background-color: transparent;
+  background-image: radial-gradient(circle at 100% 100%, transparent 18px, rgba(8, 8, 12, 0.94) 18.5px);
+  min-width: 18px;
+  min-height: 18px;
+}
+
+.cal-superficie {
+  background-color: rgba(8, 8, 12, 0.94);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .cal-panel {
-  background-color: rgb(8, 8, 12);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(8, 8, 12, 0.94);
   font-family: "MesloLGS Nerd Font", monospace;
-  font-size: 13px;
+  font-size: 12px;
   color: #e2e2e2;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6);
+  box-shadow: none;
 }
 .cal-panel * {
   color: #e2e2e2;
@@ -4542,51 +4573,84 @@ window.cal-panel > box {
   transition: all 120ms ease;
 }
 
-.cal-titlebar {
-  padding: 12px 16px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(255, 255, 255, 0.01);
-  min-height: 46px;
+.cal-panel scrollbar {
+  background: transparent;
+  border: 0;
+  min-width: 4px;
+  margin: 2px;
+}
+.cal-panel scrollbar slider {
+  background: rgba(226, 226, 226, 0.14);
+  border: 0;
+  border-radius: 999px;
+  min-width: 3px;
+  min-height: 24px;
 }
 
-.cal-panel-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #e2e2e2;
-  margin: 0;
+.cal-titlebar {
+  padding: 3px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background-color: rgba(255, 255, 255, 0.015);
+  min-height: 32px;
+}
+.cal-titlebar > .cal-icon-btn {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 2px 6px;
 }
 
 .cal-view-tabs {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: transparent;
   border-radius: 8px;
-  padding: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  margin: 0 12px 0 0;
+  padding: 1px;
+  border: 1px solid rgba(226, 226, 226, 0.055);
+  margin: 0;
 }
 
-.cal-view-tab {
-  padding: 4px 14px;
+.cal-panel .cal-view-tab {
+  padding: 2px 8px;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(226, 226, 226, 0.45);
-  transition: background 150ms, color 150ms;
+  border: 1px solid transparent;
+  min-height: 24px;
   background-color: transparent;
-  border-width: 0;
+  transition: background 150ms, border-color 150ms;
 }
-.cal-view-tab:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+.cal-panel .cal-view-tab:hover {
+  background-color: rgba(255, 255, 255, 0.055);
+}
+.cal-panel .cal-view-tab:hover .cal-view-tab-icono,
+.cal-panel .cal-view-tab:hover .cal-view-tab-texto {
   color: #e2e2e2;
 }
-.cal-view-tab.active {
-  background-color: rgba(137, 180, 250, 0.15);
-  color: #89b4fa;
-  border: 1px solid rgba(137, 180, 250, 0.25);
+.cal-panel .cal-view-tab.active {
+  background-color: rgba(203, 166, 247, 0.13);
+  border-color: rgba(203, 166, 247, 0.22);
+  box-shadow: inset 0 1px 0 rgba(203, 166, 247, 0.07);
+}
+.cal-panel .cal-view-tab.active .cal-view-tab-icono,
+.cal-panel .cal-view-tab.active .cal-view-tab-texto {
+  color: #cba6f7;
+}
+
+.cal-view-tab-icono {
+  min-width: 12px;
+  color: rgba(226, 226, 226, 0.32);
+  font-family: "MesloLGS Nerd Font";
+  font-size: 11px;
+  margin: 0;
+}
+
+.cal-view-tab-texto {
+  color: rgba(226, 226, 226, 0.56);
+  font-size: 10px;
+  font-weight: 600;
+  margin: 0;
 }
 
 .cal-month-nav {
-  padding: 14px 16px 10px;
-  min-height: 48px;
+  padding: 11px 12px 7px;
+  min-height: 42px;
+  background-color: rgba(255, 255, 255, 0.012);
 }
 
 .cal-month-title {
@@ -4598,28 +4662,61 @@ window.cal-panel > box {
 }
 
 .cal-today-label {
-  font-size: 11px;
-  color: rgba(226, 226, 226, 0.45);
-  padding: 3px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.56);
+  padding: 0;
+}
+
+.cal-btn.cal-hoy {
+  padding: 4px 9px;
+  min-height: 26px;
+  border-radius: 7px;
+}
+
+.cal-month-stepper {
+  padding: 1px;
+  border: 0;
   border-radius: 6px;
+  background-color: transparent;
+}
+
+.cal-panel .cal-month-arrow {
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 5px;
+  background-color: transparent;
+}
+.cal-panel .cal-month-arrow:hover {
+  background-color: rgba(255, 255, 255, 0.055);
+}
+.cal-panel .cal-month-arrow:hover .cal-month-arrow-icono {
+  color: #e2e2e2;
+}
+
+.cal-month-arrow-icono {
+  color: rgba(226, 226, 226, 0.56);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
 }
 
 .cal-weekday-headers {
-  padding: 0 14px 4px;
+  padding: 0 10px 3px;
 }
 
 .cal-wd-label {
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: rgba(226, 226, 226, 0.25);
-  min-width: 46px;
-  padding: 4px 2px;
+  color: rgba(226, 226, 226, 0.32);
+  min-width: 40px;
+  padding: 3px 2px;
   margin: 0;
 }
 
 .cal-days-grid {
-  padding: 0 14px 14px;
+  padding: 0 10px 10px;
 }
 
 .cal-month-grid {
@@ -4627,36 +4724,36 @@ window.cal-panel > box {
 }
 
 .cal-day-cell {
-  min-width: 46px;
-  min-height: 50px;
-  border-radius: 8px;
-  padding: 5px 3px 3px;
+  min-width: 40px;
+  min-height: 43px;
+  border-radius: 9px;
+  padding: 3px 2px 2px;
   background-color: transparent;
   border-width: 0;
 }
 .cal-day-cell:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.055);
 }
 .cal-day-cell.other-month .cal-day-num {
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.32);
 }
 .cal-day-cell.today {
-  background-color: rgba(137, 180, 250, 0.12);
+  background-color: rgba(203, 166, 247, 0.07);
 }
 .cal-day-cell.today .cal-day-num {
-  color: #89b4fa;
+  color: #cba6f7;
   font-weight: 700;
 }
 .cal-day-cell.selected {
-  background-color: rgba(137, 180, 250, 0.25);
-  border: 1px solid rgba(137, 180, 250, 0.4);
+  background-color: rgba(203, 166, 247, 0.13);
+  border: 1px solid rgba(203, 166, 247, 0.28);
 }
 .cal-day-cell.selected .cal-day-num {
-  color: #89b4fa;
+  color: #cba6f7;
   font-weight: 700;
 }
 .cal-day-cell.selected:hover {
-  background-color: rgba(137, 180, 250, 0.35);
+  background-color: rgba(203, 166, 247, 0.2);
 }
 
 .cal-day-num {
@@ -4678,14 +4775,27 @@ window.cal-panel > box {
 
 .cal-agenda-view {
   padding: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  min-width: 320px;
+  border-left: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  min-width: 300px;
+  min-height: 0;
+}
+.cal-agenda-view > scrolledwindow {
+  background-color: rgba(0, 0, 0, 0.09);
 }
 
 .cal-agenda-header {
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  min-height: 48px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  min-height: 0;
+  background-color: rgba(203, 166, 247, 0.025);
+  box-shadow: inset 0 1px 0 rgba(203, 166, 247, 0.025);
+}
+.cal-agenda-header > .cal-icon-btn {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 16px;
 }
 
 .cal-agenda-title {
@@ -4695,39 +4805,16 @@ window.cal-panel > box {
   margin: 0;
 }
 
-.cal-agenda-list {
-  padding: 0 14px;
-}
-
-.cal-agenda-date-header {
-  padding: 12px 4px 6px;
-}
-.cal-agenda-date-header.today .cal-agenda-date-label {
-  color: #89b4fa;
-  font-weight: 700;
-}
-.cal-agenda-date-header.past .cal-agenda-date-label {
-  color: rgba(226, 226, 226, 0.25);
-}
-
-.cal-agenda-date-label {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #e2e2e2;
-  margin: 0;
-}
-
 .cal-agenda-day-events {
-  padding: 0 0 4px 8px;
+  padding: 8px 10px 6px;
 }
 
 .cal-agenda-event-row {
-  background-color: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
-  padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 4px;
+  background-color: rgba(255, 255, 255, 0.025);
+  border-radius: 10px;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 5px;
 }
 .cal-agenda-event-row:hover .cal-event-actions {
   opacity: 1;
@@ -4748,13 +4835,13 @@ window.cal-panel > box {
 
 .cal-event-time {
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.56);
   margin-top: 2px;
 }
 
 .cal-event-desc {
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.32);
   margin-top: 2px;
 }
 
@@ -4764,13 +4851,13 @@ window.cal-panel > box {
 }
 
 .cal-agenda-separator {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.07);
   margin: 6px 0;
   min-height: 1px;
 }
 
 .cal-agenda-empty {
-  padding: 40px 20px;
+  padding: 28px 16px;
 }
 
 .cal-empty-icon {
@@ -4781,33 +4868,33 @@ window.cal-panel > box {
 .cal-empty-title {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.56);
   margin: 0;
 }
 
 .cal-empty-sub {
   font-size: 11px;
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.32);
   margin: 0;
 }
 
 .cal-icon-btn {
-  padding: 5px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 7px;
   background-color: transparent;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.56);
   font-size: 14px;
   transition: background 120ms, color 120ms;
-  min-width: 28px;
-  min-height: 28px;
+  min-width: 27px;
+  min-height: 27px;
 }
 .cal-icon-btn label {
   margin: 0;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.56);
 }
 .cal-icon-btn:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.055);
 }
 .cal-icon-btn:hover label {
   color: #e2e2e2;
@@ -4829,13 +4916,13 @@ window.cal-panel > box {
 }
 
 .cal-btn {
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 7px;
+  font-size: 11px;
   font-weight: 600;
   transition: background 120ms, color 120ms;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(226, 226, 226, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(226, 226, 226, 0.56);
   background-color: transparent;
   font-family: "MesloLGS Nerd Font", monospace;
 }
@@ -4843,22 +4930,8 @@ window.cal-panel > box {
   margin: 0;
 }
 .cal-btn:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.055);
   color: #e2e2e2;
-}
-.cal-btn.cal-btn-primary {
-  background-color: rgba(137, 180, 250, 0.12);
-  color: #89b4fa;
-  border-color: rgba(137, 180, 250, 0.25);
-}
-.cal-btn.cal-btn-primary label {
-  color: #89b4fa;
-}
-.cal-btn.cal-btn-primary:hover {
-  background-color: rgba(137, 180, 250, 0.22);
-}
-.cal-btn.cal-btn-secondary {
-  background-color: rgba(0, 0, 0, 0);
 }
 .cal-btn.small {
   padding: 4px 10px;
@@ -4866,17 +4939,110 @@ window.cal-panel > box {
 }
 
 .cal-dialog-backdrop {
-  background-color: rgba(0, 0, 0, 0.55);
-  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.62);
+  padding: 16px;
 }
 
 .cal-dialog-card {
   background-color: rgba(14, 14, 22, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 14px;
-  padding: 20px;
+  padding: 16px;
   min-width: 300px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.cal-dialog-card.cal-dialog-evento,
+.cal-dialog-card.cal-dialog-alarma {
+  min-width: 0;
+  padding: 10px;
+  background-color: rgba(8, 8, 12, 0.99);
+  border-color: rgba(226, 226, 226, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+}
+.cal-dialog-card.cal-dialog-evento .cal-form-label,
+.cal-dialog-card.cal-dialog-alarma .cal-form-label {
+  min-width: 0;
+}
+.cal-dialog-card.cal-dialog-evento .cal-form-entry,
+.cal-dialog-card.cal-dialog-alarma .cal-form-entry {
+  min-height: 24px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+.cal-dialog-card.cal-dialog-evento .cal-title-entry,
+.cal-dialog-card.cal-dialog-alarma .cal-title-entry {
+  font-size: 11px;
+}
+.cal-dialog-card.cal-dialog-evento .cal-form-error,
+.cal-dialog-card.cal-dialog-alarma .cal-form-error {
+  font-size: 11px;
+}
+.cal-dialog-card.cal-dialog-evento .cal-spin,
+.cal-dialog-card.cal-dialog-alarma .cal-spin {
+  padding: 0 1px;
+  border-radius: 5px;
+  font-size: 10px;
+  min-height: 19px;
+}
+.cal-dialog-card.cal-dialog-evento spinbutton.cal-spin.sin-botones,
+.cal-dialog-card.cal-dialog-alarma spinbutton.cal-spin.sin-botones {
+  min-width: 0;
+  padding: 0;
+}
+.cal-dialog-card.cal-dialog-evento spinbutton.cal-spin.sin-botones text,
+.cal-dialog-card.cal-dialog-alarma spinbutton.cal-spin.sin-botones text {
+  min-width: 0;
+  padding: 0 2px;
+  margin: 0;
+}
+.cal-dialog-card.cal-dialog-evento spinbutton.cal-spin.sin-botones.dos-digitos text,
+.cal-dialog-card.cal-dialog-alarma spinbutton.cal-spin.sin-botones.dos-digitos text {
+  min-width: 28px;
+}
+.cal-dialog-card.cal-dialog-evento spinbutton.cal-spin.sin-botones.cuatro-digitos text,
+.cal-dialog-card.cal-dialog-alarma spinbutton.cal-spin.sin-botones.cuatro-digitos text {
+  min-width: 54px;
+}
+.cal-dialog-card.cal-dialog-evento .cal-campo-sep,
+.cal-dialog-card.cal-dialog-alarma .cal-campo-sep {
+  font-size: 11px;
+}
+.cal-dialog-card.cal-dialog-evento .cal-color-swatch,
+.cal-dialog-card.cal-dialog-alarma .cal-color-swatch {
+  min-width: 22px;
+  min-height: 22px;
+}
+
+.cal-dialog-evento-backdrop,
+.cal-dialog-alarma-backdrop {
+  padding: 6px;
+}
+
+.cal-dialog-card.cal-dialog-alarma {
+  min-width: 330px;
+}
+
+.cal-dialog-scroll,
+.cal-dialog-centro {
+  background-color: transparent;
+}
+
+.cal-dialog-centro {
+  padding: 0;
+}
+
+.cal-dialog-evento-actions,
+.cal-dialog-alarma-actions {
+  padding-top: 2px;
+}
+.cal-dialog-evento-actions .cal-btn,
+.cal-dialog-alarma-actions .cal-btn {
+  min-width: 64px;
+  padding: 4px 10px;
+  font-size: 11px;
 }
 
 .cal-dialog-header {
@@ -4895,17 +5061,33 @@ window.cal-panel > box {
 }
 
 .cal-form-entry {
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 8px;
-  padding: 7px 10px;
+  padding: 6px 9px;
   color: #e2e2e2;
   font-size: 12px;
   font-family: "MesloLGS Nerd Font", monospace;
   transition: border-color 120ms;
 }
 .cal-form-entry:focus {
-  border-color: #89b4fa;
+  border-color: #cba6f7;
+}
+
+.cal-dialog-evento .cal-form-entry:focus,
+.cal-dialog-evento .cal-spin:focus,
+.cal-dialog-alarma .cal-form-entry:focus,
+.cal-dialog-alarma .cal-spin:focus {
+  border-width: 1px;
+  border-color: rgba(203, 166, 247, 0.45);
+  outline: none;
+  box-shadow: none;
+}
+
+.cal-dialog-evento .cal-spin text:focus,
+.cal-dialog-alarma .cal-spin text:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 .cal-title-entry {
@@ -4921,9 +5103,35 @@ window.cal-panel > box {
   /* align children via valign on widgets */
 }
 
+.cal-form-seccion {
+  padding: 6px 0 0;
+  background-color: transparent;
+  border: 0;
+  border-top: 1px solid rgba(226, 226, 226, 0.055);
+  border-radius: 0;
+}
+
+.cal-form-seccion-titulo {
+  color: rgba(203, 166, 247, 0.72);
+  font-family: "MesloLGS Nerd Font", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.cal-form-campo + .cal-form-campo {
+  padding-top: 1px;
+}
+
+.cal-form-opcion {
+  padding: 4px 0 1px;
+  border-top: 1px solid rgba(226, 226, 226, 0.045);
+}
+
 .cal-form-label {
-  font-size: 12px;
-  color: rgba(226, 226, 226, 0.45);
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.56);
   min-width: 80px;
   margin: 0;
 }
@@ -4933,21 +5141,21 @@ window.cal-panel > box {
 }
 
 .cal-time-sep {
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.32);
   font-size: 14px;
   margin: 0;
 }
 
 .cal-panel switch {
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 12px;
   min-width: 40px;
   min-height: 22px;
 }
 .cal-panel switch:checked {
-  background-color: #89b4fa;
-  border-color: #89b4fa;
+  background-color: #cba6f7;
+  border-color: #cba6f7;
 }
 .cal-panel switch slider {
   background-color: #ffffff;
@@ -4959,76 +5167,60 @@ window.cal-panel > box {
 }
 
 .cal-color-row {
-  padding: 4px 0;
+  padding: 2px 0 0;
 }
 
 .cal-color-swatch {
   min-width: 22px;
   min-height: 22px;
   border-radius: 50%;
-  border: 2px solid transparent;
-  transition: border-color 120ms, opacity 120ms;
-  opacity: 0.8;
+  border: 2px solid rgba(226, 226, 226, 0.12);
+  padding: 1px;
+  transition: border-color 120ms, box-shadow 120ms, opacity 120ms;
+  opacity: 0.9;
 }
 .cal-color-swatch:hover {
+  border-color: rgba(226, 226, 226, 0.38);
+  box-shadow: 0 0 0 1px rgba(226, 226, 226, 0.08);
   opacity: 1;
 }
 .cal-color-swatch.active {
-  border-color: #e2e2e2;
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 2px rgba(203, 166, 247, 0.62), 0 0 8px rgba(203, 166, 247, 0.2);
+  opacity: 1;
+}
+.cal-color-swatch.active .cal-color-check {
   opacity: 1;
 }
 
-.cal-color-purple {
-  background-color: #7F77DD;
-}
-
-.cal-color-teal {
-  background-color: #1D9E75;
-}
-
-.cal-color-red {
-  background-color: #E24B4A;
-}
-
-.cal-color-amber {
-  background-color: #BA7517;
-}
-
-.cal-color-blue {
-  background-color: #378ADD;
-}
-
-.cal-color-pink {
-  background-color: #D4537E;
+.cal-color-check {
+  color: #ffffff;
+  font-family: "MesloLGS Nerd Font", monospace;
+  font-size: 10px;
+  font-weight: 800;
+  margin: 0;
+  opacity: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 .cal-month-view {
-  min-width: 380px;
+  min-width: 350px;
+  background-color: rgba(255, 255, 255, 0.008);
 }
 
 .cal-cuerpo {
   padding: 0;
 }
 
-.cal-separador-vertical {
-  background-color: rgba(255, 255, 255, 0.1);
-  margin: 8px 6px;
-}
-
 .cal-agenda-subtitulo {
   font-size: 11px;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.56);
   font-family: "MesloLGS Nerd Font", monospace;
-}
-
-.cal-agenda-footer {
-  padding: 8px 10px 4px 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .cal-day-mas {
   font-size: 8px;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.56);
   font-family: "MesloLGS Nerd Font", monospace;
 }
 
@@ -5039,9 +5231,9 @@ window.cal-panel > box {
 .cal-event-origen,
 .cal-event-solo-lectura {
   font-size: 9px;
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.32);
   font-family: "MesloLGS Nerd Font", monospace;
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(255, 255, 255, 0.025);
   border-radius: 4px;
   padding: 0 5px;
 }
@@ -5053,13 +5245,13 @@ window.cal-panel > box {
 }
 
 .cal-campo-sep {
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.32);
   font-size: 12px;
 }
 
 .cal-spin {
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 6px;
   color: #e2e2e2;
   font-size: 12px;
@@ -5067,11 +5259,11 @@ window.cal-panel > box {
   padding: 2px 4px;
 }
 .cal-spin:focus {
-  border-color: #89b4fa;
+  border-color: #cba6f7;
 }
 .cal-spin button {
   background-color: transparent;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.56);
   min-width: 16px;
 }
 .cal-spin button:hover {
@@ -5082,16 +5274,19 @@ window.cal-panel > box {
   border-radius: 50%;
 }
 
-.cal-btn.primario {
-  background-color: rgba(137, 180, 250, 0.12);
-  color: #89b4fa;
-  border-color: rgba(137, 180, 250, 0.25);
+.cal-btn.primario,
+.cal-icon-btn.primario {
+  background-color: rgba(203, 166, 247, 0.13);
+  color: #cba6f7;
+  border-color: rgba(203, 166, 247, 0.24);
 }
-.cal-btn.primario label {
-  color: #89b4fa;
+.cal-btn.primario label,
+.cal-icon-btn.primario label {
+  color: #cba6f7;
 }
-.cal-btn.primario:hover {
-  background-color: rgba(137, 180, 250, 0.22);
+.cal-btn.primario:hover,
+.cal-icon-btn.primario:hover {
+  background-color: rgba(203, 166, 247, 0.21);
 }
 
 .cal-icon-btn.peligro {
@@ -5109,134 +5304,232 @@ window.cal-panel > box {
 }
 
 .cal-google-chip {
-  font-size: 11px;
-  color: rgba(226, 226, 226, 0.45);
+  font-size: 10px;
+  color: rgba(226, 226, 226, 0.56);
   font-family: "MesloLGS Nerd Font", monospace;
 }
 
 .reloj-vista {
-  padding: 14px 16px;
+  min-height: 0;
+  padding: 8px 10px 10px;
 }
 
 .reloj-cabecera {
-  padding-bottom: 4px;
+  min-height: 32px;
+  padding: 0 3px 6px;
+  border-bottom: 1px solid rgba(226, 226, 226, 0.055);
 }
 
 .reloj-hora-grande {
-  font-size: 40px;
+  font-size: 25px;
+  font-weight: 700;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.reloj-fecha {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.56);
+  font-family: "MesloLGS Nerd Font", monospace;
+}
+
+.reloj-herramientas {
+  min-height: 0;
+}
+
+.reloj-tarjeta {
+  background-color: rgba(226, 226, 226, 0.022);
+  border: 1px solid rgba(226, 226, 226, 0.065);
+  border-radius: 11px;
+  box-shadow: inset 0 1px 0 rgba(226, 226, 226, 0.018);
+}
+
+.reloj-herramienta {
+  padding: 8px;
+}
+.reloj-herramienta .cal-btn {
+  min-height: 24px;
+  padding: 3px 5px;
+  font-size: 10px;
+}
+
+.reloj-tarjeta-titulo {
+  font-size: 11px;
   font-weight: 700;
   color: #e2e2e2;
   font-family: "MesloLGS Nerd Font", monospace;
 }
 
-.reloj-fecha {
-  font-size: 12px;
-  color: rgba(226, 226, 226, 0.45);
-  font-family: "MesloLGS Nerd Font", monospace;
-}
-
-.reloj-tarjeta {
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px 14px;
-}
-
-.reloj-tarjeta-titulo {
-  font-size: 12px;
-  font-weight: 600;
+.reloj-tarjeta-icono {
+  min-width: 15px;
   color: #cba6f7;
   font-family: "MesloLGS Nerd Font", monospace;
+  font-size: 13px;
 }
 
 .reloj-temporizador-display,
 .reloj-crono-display {
-  font-size: 30px;
+  font-size: 21px;
   font-weight: 700;
   color: #e2e2e2;
   font-family: "MesloLGS Nerd Font", monospace;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 0;
+}
+
+.reloj-tarjeta-alarmas {
+  min-height: 0;
+  padding: 0;
+}
+
+.reloj-alarmas-cabecera {
+  min-height: 31px;
+  padding: 6px 9px;
+  background-color: rgba(203, 166, 247, 0.035);
+  border-bottom: 1px solid rgba(226, 226, 226, 0.055);
+}
+
+.reloj-nueva-alarma {
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+.reloj-nueva-alarma .reloj-nueva-alarma-icono {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.reloj-alarmas-scroll {
+  min-height: 0;
+  background-color: transparent;
+}
+.reloj-alarmas-scroll > viewport {
+  background-color: transparent;
+}
+
+.reloj-lista-alarmas {
+  padding: 7px;
 }
 
 .reloj-alarma {
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  padding: 8px 10px;
+  background-color: rgba(226, 226, 226, 0.018);
+  border: 1px solid rgba(226, 226, 226, 0.05);
+  border-radius: 8px;
+  padding: 6px 7px;
   opacity: 0.55;
 }
 .reloj-alarma.activa {
   opacity: 1;
+  background-color: rgba(203, 166, 247, 0.045);
+  border-color: rgba(203, 166, 247, 0.13);
+}
+.reloj-alarma .cal-icon-btn {
+  border-color: transparent;
+  background-color: transparent;
 }
 
 .reloj-alarma-hora {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
   color: #e2e2e2;
   font-family: "MesloLGS Nerd Font", monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .reloj-alarma-etiqueta {
   font-size: 11px;
-  color: rgba(226, 226, 226, 0.45);
+  color: rgba(226, 226, 226, 0.56);
   font-family: "MesloLGS Nerd Font", monospace;
 }
 
 .reloj-alarma-chip,
 .reloj-alarma-proxima {
   font-size: 9px;
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.32);
   font-family: "MesloLGS Nerd Font", monospace;
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(226, 226, 226, 0.035);
   border-radius: 4px;
-  padding: 0 5px;
+  padding: 0 4px;
 }
 
 .reloj-separador {
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.32);
   font-family: "MesloLGS Nerd Font", monospace;
   margin-top: 6px;
 }
 
+.reloj-alarma-datos {
+  min-height: 0;
+}
+.reloj-alarma-datos .cal-form-entry {
+  min-width: 0;
+}
+
+.reloj-alarma-campo-hora {
+  padding: 2px 6px;
+  background-color: rgba(226, 226, 226, 0.025);
+  border: 1px solid rgba(226, 226, 226, 0.06);
+  border-radius: 7px;
+}
+
+.reloj-alarma-repeticion,
+.reloj-alarma-fila-fecha {
+  padding-top: 7px;
+  border-top: 1px solid rgba(226, 226, 226, 0.05);
+}
+
+.reloj-dias {
+  padding: 2px;
+  background-color: rgba(226, 226, 226, 0.035);
+  border: 1px solid rgba(226, 226, 226, 0.065);
+  border-radius: 8px;
+}
+
 .reloj-dia {
-  min-width: 26px;
-  min-height: 26px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 27px;
+  min-height: 24px;
+  border-radius: 6px;
+  border: 0;
   background-color: transparent;
-  color: rgba(226, 226, 226, 0.45);
-  font-size: 11px;
+  color: rgba(226, 226, 226, 0.56);
+  font-size: 10px;
+  font-weight: 600;
   font-family: "MesloLGS Nerd Font", monospace;
 }
 .reloj-dia:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(226, 226, 226, 0.05);
+  color: #e2e2e2;
 }
 .reloj-dia:checked {
-  background-color: rgba(137, 180, 250, 0.12);
-  border-color: rgba(137, 180, 250, 0.35);
-  color: #89b4fa;
+  background-color: rgba(203, 166, 247, 0.16);
+  color: #cba6f7;
 }
 .reloj-dia:checked label {
-  color: #89b4fa;
+  color: #cba6f7;
 }
 
 .reloj-ayuda {
   font-size: 10px;
-  color: rgba(226, 226, 226, 0.25);
+  color: rgba(226, 226, 226, 0.32);
   font-family: "MesloLGS Nerd Font", monospace;
 }
 
 .reloj-preset {
-  padding: 3px 8px;
+  min-height: 20px;
+  padding: 2px 3px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   background-color: transparent;
-  color: rgba(226, 226, 226, 0.45);
-  font-size: 10px;
+  color: rgba(226, 226, 226, 0.56);
+  font-size: 9px;
   font-family: "MesloLGS Nerd Font", monospace;
 }
 .reloj-preset:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(203, 166, 247, 0.09);
+  border-color: rgba(203, 166, 247, 0.2);
   color: #e2e2e2;
 }
 
@@ -5641,6 +5934,16 @@ window.cal-panel > box {
   font-family: "MesloLGS Nerd Font";
 }
 
+.sp-field-hint-warn {
+  color: #fab387;
+}
+
+.sp-field-hint-command {
+  color: rgba(226, 226, 226, 0.75);
+  font-family: monospace;
+  font-size: 10px;
+}
+
 .sp-subsection-title {
   color: #cba6f7;
   font-family: "MesloLGS Nerd Font";
@@ -5966,6 +6269,105 @@ button.dl-city-result:hover {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
 }
 
+.Bar.fondo-shell-grafito {
+  background-color: rgb(24, 24, 32);
+}
+
+window.qs-window.fondo-shell-grafito .qs-bar-connector {
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, rgba(24, 24, 32, 0.94) 18.5px);
+}
+window.qs-window.fondo-shell-grafito .qs-panel {
+  background-color: rgba(24, 24, 32, 0.94);
+}
+window.qs-window.fondo-shell-grafito .qs-tile {
+  background: rgb(24, 24, 32);
+}
+window.qs-window.fondo-shell-grafito .qs-tile:hover {
+  background-color: rgb(32.085, 32.085, 39.805);
+}
+window.qs-window.fondo-shell-grafito .qs-tile.active {
+  background: rgb(21.12, 50.16, 58.76);
+}
+window.qs-window.fondo-shell-grafito .qs-tile.active:hover {
+  background-color: rgb(20.16, 58.88, 67.68);
+}
+window.qs-window.fondo-shell-grafito .qs-media {
+  background-color: rgb(28.52, 30.24, 40.72);
+}
+window.qs-window.fondo-shell-grafito button.qs-inline-value-btn,
+window.qs-window.fondo-shell-grafito entry.qs-inline-number-input,
+window.qs-window.fondo-shell-grafito button.qs-dropdown-header,
+window.qs-window.fondo-shell-grafito button.qs-toggle,
+window.qs-window.fondo-shell-grafito .qs-icon-btn {
+  background: rgb(24, 24, 32);
+}
+window.qs-window.fondo-shell-grafito .qs-sink-item,
+window.qs-window.fondo-shell-grafito .qs-wifi-item {
+  background: rgb(24, 24, 32);
+}
+window.qs-window.fondo-shell-grafito .qs-sink-item:hover,
+window.qs-window.fondo-shell-grafito .qs-wifi-item:hover {
+  background: rgb(37.86, 37.86, 45.38);
+}
+window.qs-window.fondo-shell-grafito .qs-sink-item.active {
+  background: rgb(44.7, 41.28, 72.14);
+}
+window.qs-window.fondo-shell-grafito .qs-wifi-item.active {
+  background: rgb(21.12, 50.16, 58.76);
+}
+window.qs-window.fondo-shell-grafito .qs-wifi-item.portal {
+  background: rgb(58.65, 38.85, 27.2);
+}
+window.qs-window.fondo-shell-grafito .qs-wifi-item.known {
+  background: rgb(30.63, 24.78, 34.19);
+}
+window.qs-window.fondo-shell-grafito .qs-audio-item {
+  background: rgb(30.93, 30.93, 38.69);
+}
+window.qs-window.fondo-shell-grafito .qs-audio-item:hover:not(.active) {
+  background: rgb(40.17, 40.17, 47.61);
+}
+window.qs-window.fondo-shell-grafito .qs-audio-item.active {
+  background: rgb(32.45, 44.28, 60.34);
+}
+
+window.np-window.fondo-shell-grafito .np-bar-connector {
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, rgba(24, 24, 32, 0.94) 18.5px);
+}
+window.np-window.fondo-shell-grafito .np-panel {
+  background: rgba(24, 24, 32, 0.94);
+}
+
+window.cal-window.fondo-shell-grafito .cal-bar-connector {
+  background-image: radial-gradient(circle at 100% 100%, transparent 18px, rgba(24, 24, 32, 0.94) 18.5px);
+}
+window.cal-window.fondo-shell-grafito .cal-superficie,
+window.cal-window.fondo-shell-grafito .cal-panel {
+  background-color: rgba(24, 24, 32, 0.94);
+}
+
+.sp-window.fondo-shell-grafito .sp-panel,
+.nsw-window.fondo-shell-grafito .nsw-panel {
+  background: rgb(24, 24, 32);
+}
+
+.notif-popup-window.fondo-shell-grafito .notif-popup-item:not(.dunst) {
+  background: rgba(24, 24, 32, 0.97);
+}
+
+.sp-fondo-muestra {
+  min-width: 12px;
+  min-height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.sp-fondo-muestra.negro {
+  background: rgb(8, 8, 12);
+}
+.sp-fondo-muestra.grafito {
+  background: rgb(24, 24, 32);
+}
+
 .re-error {
   font-size: 10px;
   color: #f38ba8;
@@ -5975,5 +6377,3 @@ button.dl-city-result:hover {
   border-radius: 6px;
   padding: 6px 8px;
 }
-
-/*# sourceMappingURL=file:///home/paraguayo33/.cache/gigios/out.css.map */

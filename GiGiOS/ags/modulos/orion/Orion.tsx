@@ -24,6 +24,7 @@ import CornerCurve from "./components/shell/CornerCurve"
 import RightPanel from "./components/shell/RightPanel"
 import { clipWindowInputToContent } from "../../utilidades/inputRegion"
 import { NavegacionBusqueda } from "./components/shared/NavegacionBusqueda"
+import { clasesFondoShell } from "../ajustes/preferences"
 
 export default function Orion(gdkmonitor: Gdk.Monitor) {
   const { BOTTOM } = Astal.WindowAnchor
@@ -273,7 +274,7 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
       decorated={false}
       deletable={false}
       marginTop={40}
-      cssClasses={["Orion"]}
+      cssClasses={clasesFondoShell("Orion")}
       $={(self: any) => { refVentana = self }}
     >
       <Gtk.EventControllerKey

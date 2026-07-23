@@ -38,19 +38,20 @@ export function FormularioAlarma({
 
   const campoHora = crearCampoHora(hora, (h) => {
     hora = h
-  })
+  }, { mostrarBotones: false })
   const campoFecha = crearCampoFecha(fecha, (f) => {
     fecha = f
-  })
+  }, { mostrarBotones: false })
 
   const filaFecha = (
-    <box cssClasses={["cal-form-row"]} spacing={8}>
+    <box cssClasses={["cal-form-row", "reloj-alarma-fila-fecha"]} spacing={8}>
       <label cssClasses={["cal-form-label"]} label="Fecha" halign={Gtk.Align.START} valign={Gtk.Align.CENTER} />
+      <box hexpand />
       {campoFecha.widget}
     </box>
   ) as unknown as Gtk.Widget
 
-  const filaDias = new Gtk.Box({ spacing: 4, halign: Gtk.Align.START })
+  const filaDias = new Gtk.Box({ spacing: 2, halign: Gtk.Align.END })
   filaDias.set_css_classes(["reloj-dias"])
   const botonesDia = new Map<DiaSemana, Gtk.ToggleButton>()
 
@@ -102,42 +103,43 @@ export function FormularioAlarma({
   entradaEtiqueta.connect("activate", guardar)
 
   return (
-    <box cssClasses={["cal-dialog-backdrop"]} hexpand vexpand halign={Gtk.Align.FILL} valign={Gtk.Align.FILL}>
+    <box
+      cssClasses={["cal-dialog-backdrop", "cal-dialog-alarma-backdrop"]}
+      hexpand
+      vexpand
+      halign={Gtk.Align.FILL}
+      valign={Gtk.Align.FILL}
+    >
       <box
-        cssClasses={["cal-dialog-card"]}
+        cssClasses={["cal-dialog-card", "cal-dialog-alarma"]}
         orientation={Gtk.Orientation.VERTICAL}
-        spacing={10}
+        spacing={8}
         halign={Gtk.Align.CENTER}
         valign={Gtk.Align.CENTER}
       >
-        <box cssClasses={["cal-dialog-header"]}>
-          <label
-            cssClasses={["cal-dialog-title"]}
-            label={editando ? "Editar alarma" : "Nueva alarma"}
-            hexpand
-            halign={Gtk.Align.START}
-          />
-          <button cssClasses={["cal-icon-btn"]} onClicked={alCerrar}>
-            <label label="✕" />
-          </button>
+        <box cssClasses={["reloj-alarma-datos"]} spacing={7}>
+          <box cssClasses={["reloj-alarma-campo-hora"]} valign={Gtk.Align.CENTER}>
+            {campoHora.widget}
+          </box>
+          {entradaEtiqueta}
         </box>
 
-        <box halign={Gtk.Align.CENTER}>{campoHora.widget}</box>
-        {entradaEtiqueta}
-
-        <box cssClasses={["cal-form-row"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-          <label cssClasses={["cal-form-label"]} label="Repetir" halign={Gtk.Align.START} />
-          {filaDias}
+        <box cssClasses={["cal-form-row", "reloj-alarma-repeticion"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+          <box spacing={8}>
+            <label cssClasses={["cal-form-label"]} label="Repetir" halign={Gtk.Align.START} valign={Gtk.Align.CENTER} />
+            <box hexpand />
+            {filaDias}
+          </box>
           <label
             cssClasses={["reloj-ayuda"]}
-            label="Sin días marcados suena una sola vez"
+            label="Sin días seleccionados, sonará una sola vez"
             halign={Gtk.Align.START}
           />
         </box>
 
         {filaFecha}
 
-        <box cssClasses={["cal-dialog-actions"]} spacing={8} halign={Gtk.Align.END}>
+        <box cssClasses={["cal-dialog-actions", "cal-dialog-alarma-actions"]} spacing={7} halign={Gtk.Align.END}>
           <button cssClasses={["cal-btn"]} onClicked={alCerrar}>
             <label label="Cancelar" />
           </button>

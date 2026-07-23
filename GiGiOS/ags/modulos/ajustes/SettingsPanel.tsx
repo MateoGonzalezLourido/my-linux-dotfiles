@@ -11,6 +11,7 @@ import { With, createState, createComputed } from "ags"
 import { settingsPanelVisible, setSettingsPanelVisible, privilegedPromptActive } from "../../estado/shell"
 import NavegacionAjustes from "./panel/NavegacionAjustes.tsx"
 import { crearContenidoSeccion, type IdSeccion } from "./panel/secciones.tsx"
+import { clasesFondoShell } from "./preferences"
 
 export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
@@ -86,7 +87,7 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
       // diálogo se quedaría sin recibir lo que teclees.
       keymode={privilegedPromptActive(a => a ? Astal.Keymode.NONE : Astal.Keymode.ON_DEMAND)}
       application={app}
-      cssClasses={["sp-window"]}
+      cssClasses={clasesFondoShell("sp-window")}
     >
       <Gtk.EventControllerKey
         onKeyPressed={(_self, keyval) => {

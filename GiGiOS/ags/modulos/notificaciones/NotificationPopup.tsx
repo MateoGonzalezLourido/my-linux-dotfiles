@@ -14,7 +14,7 @@ import {
   obtenerControlVisibilidadBarra,
   type EstadoVisibilidadBarra,
 } from "../../estado/visibilidadBarra"
-import { barAutoHideEnabled } from "../ajustes/preferences"
+import { barAutoHideEnabled, clasesFondoShell } from "../ajustes/preferences"
 import { ingest } from "./procesamiento/ingesta.ts"
 import { crearResumenRafaga } from "./popup/logica.ts"
 import { PopupBurstGuard } from "./popup/rafaga.ts"
@@ -168,6 +168,7 @@ export default function NotificationPopup(monitor: Gdk.Monitor) {
   return (
     <window
       name="notification-popups"
+      namespace="notification-popups"
       gdkmonitor={monitor}
       layer={Astal.Layer.OVERLAY}
       exclusivity={Astal.Exclusivity.NORMAL}
@@ -176,7 +177,7 @@ export default function NotificationPopup(monitor: Gdk.Monitor) {
       marginTop={margenPopup}
       marginRight={16}
       widthRequest={ANCHO_VENTANA_POPUP}
-      cssClasses={["notif-popup-window"]}
+      cssClasses={clasesFondoShell("notif-popup-window")}
       visible={hayPopups}
     >
       {contenedor}

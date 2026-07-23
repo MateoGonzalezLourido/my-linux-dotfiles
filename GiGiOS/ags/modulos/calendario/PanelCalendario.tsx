@@ -2,14 +2,14 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { createComputed, createState, onCleanup } from "ags"
 import { calendarVisible, setCalendarVisible, panelAutoClose } from "../../estado/shell"
-import { barTopMargin } from "../ajustes/preferences"
+import { barTopMargin, clasesFondoShell } from "../ajustes/preferences"
+import { clipWindowInputToContent } from "../../utilidades/inputRegion.ts"
 import { VistaMes } from "./calendario/VistaMes.tsx"
 import { AgendaDia } from "./calendario/AgendaDia.tsx"
 import { FormularioEvento } from "./calendario/FormularioEvento.tsx"
 import { VistaReloj } from "./reloj/VistaReloj.tsx"
 import { EstadoGoogle } from "./google/EstadoGoogle.tsx"
 import {
-  abrirCreacion,
   cerrarEdicion,
   edicion,
   establecerSeccionActiva,
@@ -32,18 +32,22 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
 
   const vistaMes = VistaMes()
   const agenda = AgendaDia()
+  vistaMes.set_hexpand(true)
+  agenda.set_hexpand(true)
+  agenda.set_vexpand(true)
 
   const relojVisible = createComputed(() => calendarVisible() && seccionActiva() === "reloj")
   const vistaReloj = VistaReloj({ visible: relojVisible })
 
   const pila = new Gtk.Stack()
+  pila.set_hexpand(true)
+  pila.set_vexpand(true)
   pila.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
   pila.set_transition_duration(120)
 
   const vistaCalendario = (
-    <box cssClasses={["cal-cuerpo"]} spacing={0} hexpand vexpand>
+    <box cssClasses={["cal-cuerpo"]} orientation={Gtk.Orientation.VERTICAL} spacing={0} hexpand vexpand>
       {vistaMes}
-      <box cssClasses={["cal-separador-vertical"]} widthRequest={1} />
       {agenda}
     </box>
   ) as unknown as Gtk.Widget
@@ -54,8 +58,20 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
 
   const botonCalendario = new Gtk.Button()
   const botonReloj = new Gtk.Button()
-  botonCalendario.set_child(new Gtk.Label({ label: "Calendario" }))
-  botonReloj.set_child(new Gtk.Label({ label: "Reloj" }))
+  const contenidoPestana = (icono: string, texto: string) => {
+    const contenido = new Gtk.Box({ spacing: 6, valign: Gtk.Align.CENTER })
+    const glifo = new Gtk.Label({ label: icono })
+    const etiqueta = new Gtk.Label({ label: texto })
+    glifo.set_css_classes(["cal-view-tab-icono"])
+    etiqueta.set_css_classes(["cal-view-tab-texto"])
+    contenido.append(glifo)
+    contenido.append(etiqueta)
+    return contenido
+  }
+  botonCalendario.set_child(contenidoPestana("󰃭", "Calendario"))
+  botonReloj.set_child(contenidoPestana("󰥔", "Reloj"))
+  botonCalendario.set_valign(Gtk.Align.CENTER)
+  botonReloj.set_valign(Gtk.Align.CENTER)
   botonCalendario.connect("clicked", () => establecerSeccionActiva("calendario"))
   botonReloj.connect("clicked", () => establecerSeccionActiva("reloj"))
 
@@ -82,7 +98,7 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
       formularioVivo = null
     }
     if (hayEdicion.get()) {
-      formularioVivo = FormularioEvento()
+      formularioVivo = FormularioEvento({ altoDisponible: overlay.get_allocated_height() })
       // El fondo oscurecido se estira A MANO: un hijo de `Gtk.Overlay` se mide por su tamaño
       // natural, así que sin esto el velo solo cubría la tarjeta y el resto del panel seguía
       // pareciendo pulsable.
@@ -111,18 +127,24 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
     if (!calendarVisible.get()) cerrarEdicion()
   })
 
-  return <window
+  let superficiePanel: Gtk.Widget | null = null
+  const ventana = <window
     name="calendar-panel"
+    namespace="calendar-panel"
     gdkmonitor={gdkmonitor}
     application={app}
     visible={calendarVisible((v) => v)}
     anchor={LEFT | TOP | BOTTOM}
     layer={Astal.Layer.TOP}
-    exclusivity={Astal.Exclusivity.IGNORE}
+    exclusivity={Astal.Exclusivity.NORMAL}
     keymode={tecladoActivo((activo) => (activo ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE))}
-    marginTop={barTopMargin(37)}
-    widthRequest={780}
-    cssClasses={["cal-panel"]}
+    // Con la barra autoocultable, el compositor no reserva su altura: los 38 px separan este panel
+    // de su borde inferior. Con la barra fija, su zona exclusiva ya hace ese trabajo y el helper
+    // devuelve 0, evitando sumar el hueco dos veces.
+    marginTop={barTopMargin(38)}
+    widthRequest={428}
+    decorated={false}
+    cssClasses={clasesFondoShell("cal-window")}
   >
     <Gtk.EventControllerKey
       onKeyPressed={(_self, keyval) => {
@@ -134,38 +156,42 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
         return true
       }}
     />
-    <box orientation={Gtk.Orientation.VERTICAL}>
-      <Gtk.EventControllerMotion
-        onEnter={() => {
-          calAutoClose.onEnter()
-          establecerTecladoActivo(true)
-        }}
-        onLeave={calAutoClose.onLeave}
-      />
+    <box cssClasses={["cal-wrapper"]} spacing={0} vexpand>
+      <box
+        cssClasses={["cal-panel", "cal-superficie"]}
+        orientation={Gtk.Orientation.VERTICAL}
+        overflow={Gtk.Overflow.HIDDEN}
+        widthRequest={410}
+        vexpand
+        $={(self: Gtk.Widget) => { superficiePanel = self }}
+      >
+        <Gtk.EventControllerMotion
+          onEnter={() => {
+            calAutoClose.onEnter()
+            establecerTecladoActivo(true)
+          }}
+          onLeave={calAutoClose.onLeave}
+        />
 
-      <box cssClasses={["cal-titlebar"]} spacing={6}>
-        <box cssClasses={["cal-view-tabs"]} spacing={2}>
-          {botonCalendario}
-          {botonReloj}
+        <box cssClasses={["cal-titlebar"]} spacing={5}>
+          <box cssClasses={["cal-view-tabs"]} spacing={3} valign={Gtk.Align.CENTER}>
+            {botonCalendario}
+            {botonReloj}
+          </box>
+          <box hexpand />
+          {EstadoGoogle()}
         </box>
-        <box hexpand />
-        {EstadoGoogle()}
-        <button
-          cssClasses={["cal-btn", "primario"]}
-          tooltipText="Crear un evento en el día seleccionado"
-          visible={seccionActiva((s) => s === "calendario")}
-          onClicked={() => abrirCreacion()}
-        >
-          <label label="  Crear" />
-        </button>
-        <button cssClasses={["cal-icon-btn"]} onClicked={() => setCalendarVisible(false)}>
-          <label label="✕" />
-        </button>
-      </box>
 
-      <box hexpand vexpand>
-        {overlay}
+        <box hexpand vexpand>
+          {overlay}
+        </box>
       </box>
+      <box cssClasses={["cal-bar-connector"]} valign={Gtk.Align.START} />
     </box>
   </window>
+
+  // El conector solo pinta su curva superior. El resto de sus 18 px es transparente y debe dejar
+  // pasar los clics, igual que en los paneles de Notificaciones y Ajustes rápidos.
+  clipWindowInputToContent(ventana, superficiePanel)
+  return ventana
 }

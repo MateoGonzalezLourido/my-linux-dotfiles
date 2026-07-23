@@ -15,6 +15,7 @@ const POWER_CONFIG_PATH = `${GLib.get_user_config_dir()}/power-save/config.json`
 
 interface PowerConfig {
   thresholdPct: number         // battery % at/under which power-save turns on (0..100)
+  forcePowerSave: boolean      // when true, power-save is ON regardless of battery level/charging/presence
   suspendNotifFilters: boolean // when true, notification filter timers pause during power-save
   pauseWsPreview: boolean      // when true, the workspace preview (grim capture) pauses during power-save
   hideSpotifyBar: boolean      // when true, the Spotify pill is unmounted during power-save
@@ -22,6 +23,7 @@ interface PowerConfig {
 }
 const DEFAULTS: PowerConfig = {
   thresholdPct: 15,
+  forcePowerSave: false,
   suspendNotifFilters: false,
   pauseWsPreview: true,
   hideSpotifyBar: true,
@@ -35,6 +37,7 @@ function loadConfig(): PowerConfig {
       const data = JSON.parse(new TextDecoder().decode(content))
       return {
         thresholdPct: typeof data.thresholdPct === "number" ? clampPct(data.thresholdPct) : DEFAULTS.thresholdPct,
+        forcePowerSave: !!data.forcePowerSave,
         suspendNotifFilters: !!data.suspendNotifFilters,
         pauseWsPreview: typeof data.pauseWsPreview === "boolean" ? data.pauseWsPreview : DEFAULTS.pauseWsPreview,
         hideSpotifyBar: typeof data.hideSpotifyBar === "boolean" ? data.hideSpotifyBar : DEFAULTS.hideSpotifyBar,
@@ -51,6 +54,7 @@ const initial = loadConfig()
 
 // ── Persisted user settings ────────────────────────────────────────────────────
 export const [powerSaveThreshold, _setThreshold] = createState(initial.thresholdPct)
+export const [forcePowerSave, _setForcePowerSave] = createState(initial.forcePowerSave)
 export const [suspendNotifFilters, _setSuspend] = createState(initial.suspendNotifFilters)
 export const [pauseWsPreviewInPowerSave, _setPauseWsPreview] = createState(initial.pauseWsPreview)
 export const [hideSpotifyBarInPowerSave, _setHideSpotifyBar] = createState(initial.hideSpotifyBar)
@@ -65,6 +69,7 @@ function persist() {
       if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) GLib.mkdir_with_parents(dir, 0o755)
       GLib.file_set_contents(POWER_CONFIG_PATH, JSON.stringify({
         thresholdPct: powerSaveThreshold.get(),
+        forcePowerSave: forcePowerSave.get(),
         suspendNotifFilters: suspendNotifFilters.get(),
         pauseWsPreview: pauseWsPreviewInPowerSave.get(),
         hideSpotifyBar: hideSpotifyBarInPowerSave.get(),
@@ -80,6 +85,11 @@ function persist() {
 
 export function setPowerSaveThreshold(v: number) {
   _setThreshold(clampPct(v))
+  recompute()
+  persist()
+}
+export function setForcePowerSave(v: boolean) {
+  _setForcePowerSave(v)
   recompute()
   persist()
 }
@@ -139,7 +149,9 @@ function recompute() {
     : textos.estado.sinBateria)
 
   // pct > 0 guards against a transient 0 read before the proxy has the real value.
-  const active = present && !charging && pct > 0 && pct <= powerSaveThreshold.get()
+  // forcePowerSave overrides the battery-derived condition: it turns power-save ON regardless
+  // of level/charging/presence, so it also works on a desktop with no battery.
+  const active = forcePowerSave.get() || (present && !charging && pct > 0 && pct <= powerSaveThreshold.get())
   _setPowerSaveActive(active)
   _setSuspended(active && suspendNotifFilters.get())
   _setWsPreviewSuspended(active && pauseWsPreviewInPowerSave.get())

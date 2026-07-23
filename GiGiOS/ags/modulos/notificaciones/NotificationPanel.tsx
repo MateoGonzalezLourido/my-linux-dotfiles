@@ -2,7 +2,7 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { createState } from "ags"
 import GLib from "gi://GLib"
-import { barTopMargin } from "../ajustes/preferences"
+import { barTopMargin, clasesFondoShell } from "../ajustes/preferences"
 import {
   notifications,
   notifPanelVisible,
@@ -233,7 +233,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
       marginTop={barTopMargin(37, -1)}
       marginRight={0}
       decorated={false}
-      cssClasses={["np-window"]}
+      cssClasses={clasesFondoShell("np-window")}
       $={(self: any) => { windowRef = self }}
     >
       <Gtk.EventControllerKey

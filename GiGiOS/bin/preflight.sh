@@ -22,7 +22,7 @@ required=(
   ags/servicios/energia/tiempoMantenerDespierto.ts ags/servicios/energia/tiempoMantenerDespierto.test.ts
   ags/servicios/bluetooth/estadoInicio.ts ags/servicios/bluetooth/estadoInicio.test.ts
   ags/servicios/bluetooth/tileState.ts ags/servicios/bluetooth/tileState.test.ts
-  ags/servicios/pantalla/brightness.ts
+  ags/servicios/pantalla/brightness.ts ags/servicios/pantalla/atenuacion.ts
   ags/servicios/multimedia/mediaClient.ts ags/servicios/multimedia/mediaClient.test.ts
   ags/servicios/multimedia/mediaProgress.ts ags/servicios/multimedia/mediaProgress.test.ts
   ags/modulos/notificaciones/daemon/BannerConflicto.tsx ags/modulos/notificaciones/daemon/comprobacion.ts
@@ -39,6 +39,7 @@ required=(
   hypr/scripts/run-untrusted.sh hypr/scripts/compact-workspaces.sh
   hypr/scripts/toggle-gaps-borders.sh
   system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
+  system/logind.conf.d/99-gigios-powerkey.conf hypr/scripts/boton-apagado.sh
   rofi/config.rasi
 )
 for path in "${required[@]}"; do
@@ -131,6 +132,24 @@ if [[ "$mode" == "--installed" ]]; then
     command -v "$command" >/dev/null 2>&1 \
       || fail "falta '$command' (Arch/CachyOS: sudo pacman -S --needed $package)"
   done
+
+  # No basta con que el binario exista: el tramo bajo del slider de brillo atenúa por
+  # SOFTWARE reduciendo el gamma (la CTM del KMS), y eso lo aplica hyprsunset. Sin soporte
+  # de `--gamma` el fallo es MUDO — `execAsync(...).catch(() => {})` en
+  # `ags/servicios/pantalla/brightness.ts` se traga el error y el slider simplemente deja de
+  # oscurecer por debajo del suelo del monitor, sin nada que lo delate. La luz nocturna sigue
+  # funcionando, así que es degradación y no instalación rota: aviso, no error.
+  # Se mira el `--help` a propósito: no exige que hyprsunset esté corriendo, al contrario que
+  # consultar el IPC (`hyprctl hyprsunset gamma`), que sin demonio vivo no distingue "esta
+  # versión no sabe de gamma" de "ahora mismo no hay luz nocturna encendida".
+  if command -v hyprsunset >/dev/null 2>&1; then
+    if hyprsunset --help 2>&1 | grep -q -- '--gamma'; then
+      ok "hyprsunset soporta --gamma (atenuación por software del brillo)"
+    else
+      warn "hyprsunset sin soporte de --gamma: el brillo no bajará del mínimo del monitor (actualiza hyprsunset)"
+    fi
+  fi
+
   while IFS='|' read -r mime application; do
     grep -Fqx "$mime=$application;" "$GIGIOS/mimeapps.list" \
       || fail "asociación MIME ausente: $mime -> $application"

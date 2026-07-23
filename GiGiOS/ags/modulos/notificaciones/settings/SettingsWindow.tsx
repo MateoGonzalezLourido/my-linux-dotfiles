@@ -5,6 +5,7 @@ import { With } from "ags"
 import { notifSettingsVisible, setNotifSettingsVisible } from "../store"
 import SettingsTabs from "./SettingsTabs.tsx"
 import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
+import { clasesFondoShell } from "../../ajustes/preferences"
 
 export default function SettingsWindow(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
@@ -38,7 +39,7 @@ export default function SettingsWindow(gdkmonitor: Gdk.Monitor) {
       exclusivity={Astal.Exclusivity.IGNORE}
       keymode={Astal.Keymode.ON_DEMAND}
       application={app}
-      cssClasses={["nsw-window"]}
+      cssClasses={clasesFondoShell("nsw-window")}
     >
       <Gtk.EventControllerKey
         onKeyPressed={(_self, keyval) => {

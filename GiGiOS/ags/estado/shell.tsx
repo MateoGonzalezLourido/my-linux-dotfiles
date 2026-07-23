@@ -175,6 +175,12 @@ export function closeAllPanels() {
 }
 
 /** Abre Quick Settings cerrando los demás paneles, o lo cierra si ya está abierto. */
+/** Abre el menú de energía cerrando los demás paneles, o lo cierra si ya está abierto. */
+export function alternarMenuEnergia() {
+  if (powerMenuVisible.get()) closeAllPanels()
+  else openPowerMenu()
+}
+
 export function alternarQuickSettings() {
   if (quickSettingsVisible.get()) closeAllPanels()
   else openQuickSettings()

@@ -1,4 +1,6 @@
+import { onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
+import { fondoShell } from "../../../ajustes/preferences"
 
 const RADIO = 24
 
@@ -13,8 +15,11 @@ export default function CornerCurve({ left = true }: { left?: boolean }): Gtk.Dr
   area.set_valign(Gtk.Align.END)
 
   area.set_draw_func((_area, cr, width, height) => {
-    // Mismo negro casi puro que el resto del shell de Orion.
-    cr.setSourceRGBA(8 / 255, 8 / 255, 12 / 255, 0.94)
+    // La cuña es Cairo, no CSS: consulta la misma preferencia para no dejar una
+    // esquina negra al cambiar el resto del shell a Grafito.
+    const canal = fondoShell.get() === "grafito" ? 24 / 255 : 8 / 255
+    const azul = fondoShell.get() === "grafito" ? 32 / 255 : 12 / 255
+    cr.setSourceRGBA(canal, canal, azul, 0.94)
 
     if (left) {
       cr.moveTo(width, height)
@@ -33,6 +38,8 @@ export default function CornerCurve({ left = true }: { left?: boolean }): Gtk.Dr
     cr.closePath()
     cr.fill()
   })
+
+  onCleanup(fondoShell.subscribe(() => area.queue_draw()))
 
   return area
 }

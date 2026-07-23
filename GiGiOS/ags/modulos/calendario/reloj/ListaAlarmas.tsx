@@ -1,5 +1,6 @@
 import { Gtk } from "ags/gtk4"
-import { onCleanup } from "ags"
+import { createState, onCleanup } from "ags"
+import Interruptor from "../../../componentes/Interruptor.tsx"
 import { alarmas, alternarAlarma, eliminarAlarma } from "./estadoReloj.ts"
 import { textoProximaActivacion, textoRepeticion } from "./planificadorAlarmas.ts"
 import type { Alarma } from "./tipos.ts"
@@ -18,14 +19,10 @@ export function ListaAlarmas({ alEditar }: { alEditar: (alarma: Alarma) => void 
 
   function fila(alarma: Alarma): Gtk.Widget {
     const proxima = textoProximaActivacion(alarma, Date.now())
-    const interruptor = new Gtk.Switch({ active: alarma.activa })
-    interruptor.set_valign(Gtk.Align.CENTER)
-    interruptor.connect("notify::active", () => {
-      if (interruptor.get_active() !== alarma.activa) alternarAlarma(alarma.id)
-    })
+    const [activa] = createState(alarma.activa)
 
     return (
-      <box cssClasses={alarma.activa ? ["reloj-alarma", "activa"] : ["reloj-alarma"]} spacing={10}>
+      <box cssClasses={alarma.activa ? ["reloj-alarma", "activa"] : ["reloj-alarma"]} spacing={7}>
         <box orientation={Gtk.Orientation.VERTICAL} hexpand spacing={1}>
           <label cssClasses={["reloj-alarma-hora"]} label={alarma.hora} halign={Gtk.Align.START} />
           <label
@@ -44,11 +41,11 @@ export function ListaAlarmas({ alEditar }: { alEditar: (alarma: Alarma) => void 
             />
           </box>
         </box>
-        {interruptor}
-        <button cssClasses={["cal-icon-btn"]} tooltipText="Editar" onClicked={() => alEditar(alarma)}>
+        <Interruptor activo={activa} alAlternar={() => alternarAlarma(alarma.id)} />
+        <button cssClasses={["cal-icon-btn", "small"]} tooltipText="Editar" onClicked={() => alEditar(alarma)}>
           <label label="󰏫" />
         </button>
-        <button cssClasses={["cal-icon-btn"]} tooltipText="Eliminar" onClicked={() => eliminarAlarma(alarma.id)}>
+        <button cssClasses={["cal-icon-btn", "small", "peligro"]} tooltipText="Eliminar" onClicked={() => eliminarAlarma(alarma.id)}>
           <label label="󰆴" />
         </button>
       </box>

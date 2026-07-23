@@ -39,15 +39,19 @@ export function Temporizador({ visible }: { visible: Visible }): Gtk.Widget {
   botonCancelar.set_css_classes(["cal-btn"])
   botonCancelar.set_child(new Gtk.Label({ label: "Cancelar" }))
 
-  const filaPresets = new Gtk.Box({ spacing: 4, halign: Gtk.Align.CENTER })
+  const filaPresets = new Gtk.Grid()
   filaPresets.set_css_classes(["reloj-presets"])
-  for (const minutos of PRESETS_MIN) {
+  filaPresets.set_column_homogeneous(true)
+  filaPresets.set_column_spacing(4)
+  filaPresets.set_row_spacing(4)
+  PRESETS_MIN.forEach((minutos, indice) => {
     const boton = new Gtk.Button()
     boton.set_css_classes(["reloj-preset"])
     boton.set_child(new Gtk.Label({ label: `${minutos} min` }))
+    boton.set_hexpand(true)
     boton.connect("clicked", () => fijarDuracionTemporizador(minutos * 60_000))
-    filaPresets.append(boton)
-  }
+    filaPresets.attach(boton, indice % 3, Math.floor(indice / 3), 1, 1)
+  })
 
   let tick: number | null = null
 
@@ -104,11 +108,14 @@ export function Temporizador({ visible }: { visible: Visible }): Gtk.Widget {
   sincronizar()
 
   return (
-    <box cssClasses={["reloj-tarjeta"]} orientation={Gtk.Orientation.VERTICAL} spacing={10}>
-      <label cssClasses={["reloj-tarjeta-titulo"]} label="Temporizador" halign={Gtk.Align.START} />
+    <box cssClasses={["reloj-tarjeta", "reloj-herramienta"]} orientation={Gtk.Orientation.VERTICAL} spacing={7} hexpand>
+      <box spacing={6}>
+        <label cssClasses={["reloj-tarjeta-icono"]} label="󰔛" />
+        <label cssClasses={["reloj-tarjeta-titulo"]} label="Temporizador" halign={Gtk.Align.START} />
+      </box>
       {display}
       {filaPresets}
-      <box spacing={8} halign={Gtk.Align.CENTER}>
+      <box spacing={6} homogeneous>
         {botonPrincipal}
         {botonCancelar}
       </box>

@@ -1,4 +1,6 @@
 import { Gtk } from "ags/gtk4"
+import { createState } from "ags"
+import Interruptor from "../../../componentes/Interruptor.tsx"
 import { COLORES_EVENTO, COLOR_HEX } from "../dominio/tipos.ts"
 import type { BorradorEvento } from "../dominio/tipos.ts"
 import { errorDeCampo, validarEvento } from "../dominio/validacion.ts"
@@ -22,7 +24,7 @@ import { crearCampoFecha, crearCampoHora } from "./campos.tsx"
  *
  * Lo único que sí reacciona es el mensaje de validación, que es una etiqueta y no reconstruye nada.
  */
-export function FormularioEvento(): Gtk.Widget {
+export function FormularioEvento({ altoDisponible = 0 }: { altoDisponible?: number } = {}): Gtk.Widget {
   const actual = edicion.get()
   if (!actual) return new Gtk.Box()
 
@@ -87,25 +89,25 @@ export function FormularioEvento(): Gtk.Widget {
       fechaFin.establecer(iso)
     }
     revalidar()
-  })
+  }, { mostrarBotones: false })
   const horaInicio = crearCampoHora(borrador.inicio.hora ?? "09:00", (h) => {
     borrador.inicio.hora = h
     revalidar()
-  })
+  }, { mostrarBotones: false })
   const fechaFin = crearCampoFecha(borrador.fin.fecha, (iso) => {
     borrador.fin.fecha = iso
     revalidar()
-  })
+  }, { mostrarBotones: false })
   const horaFin = crearCampoHora(borrador.fin.hora ?? "10:00", (h) => {
     borrador.fin.hora = h
     revalidar()
-  })
+  }, { mostrarBotones: false })
 
   // ── Día completo ──────────────────────────────────────────────────────────
-  const interruptorDia = new Gtk.Switch({ active: borrador.todoElDia })
-  interruptorDia.set_valign(Gtk.Align.CENTER)
+  const [todoElDiaActivo, establecerTodoElDiaActivo] = createState(borrador.todoElDia)
 
   function aplicarTodoElDia(activo: boolean) {
+    establecerTodoElDiaActivo(activo)
     borrador.todoElDia = activo
     horaInicio.setSensible(!activo)
     horaFin.setSensible(!activo)
@@ -120,7 +122,11 @@ export function FormularioEvento(): Gtk.Widget {
     }
     revalidar()
   }
-  interruptorDia.connect("notify::active", () => aplicarTodoElDia(interruptorDia.get_active()))
+
+  const interruptorDia = Interruptor({
+    activo: todoElDiaActivo,
+    alAlternar: () => aplicarTodoElDia(!todoElDiaActivo.get()),
+  }) as unknown as Gtk.Widget
 
   // ── Color ─────────────────────────────────────────────────────────────────
   const filaColores = new Gtk.Box({ spacing: 6 })
@@ -131,16 +137,23 @@ export function FormularioEvento(): Gtk.Widget {
     boton.set_css_classes(color === borrador.color ? ["cal-color-swatch", "active"] : ["cal-color-swatch"])
     // El color se pinta inline porque los seis hex viven en `dominio/tipos.ts`, que es también quien
     // los da a los puntos de la rejilla: una segunda copia en SCSS se desincronizaría.
-    boton.set_child(
+    const muestra = new Gtk.Overlay()
+    muestra.set_child(
       (
         <box
           cssClasses={["cal-color-muestra"]}
           css={`background-color: ${COLOR_HEX[color]};`}
-          widthRequest={18}
-          heightRequest={18}
+          widthRequest={16}
+          heightRequest={16}
         />
       ) as unknown as Gtk.Widget,
     )
+    muestra.add_overlay(
+      (
+        <label cssClasses={["cal-color-check"]} label="✓" halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} />
+      ) as unknown as Gtk.Widget,
+    )
+    boton.set_child(muestra)
     boton.set_tooltip_text(color)
     boton.connect("clicked", () => {
       borrador.color = color
@@ -193,57 +206,74 @@ export function FormularioEvento(): Gtk.Widget {
 
   const fila = (etiqueta: string, ...hijos: Gtk.Widget[]) =>
     (
-      <box cssClasses={["cal-form-row"]} spacing={8}>
-        <label cssClasses={["cal-form-label"]} label={etiqueta} halign={Gtk.Align.START} valign={Gtk.Align.CENTER} />
+      <box cssClasses={["cal-form-row", "cal-form-campo"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+        <label cssClasses={["cal-form-label"]} label={etiqueta} halign={Gtk.Align.START} />
+        <box cssClasses={["cal-form-controles"]} spacing={5}>
+          {hijos}
+        </box>
+      </box>
+    ) as unknown as Gtk.Widget
+
+  const seccion = (titulo: string, ...hijos: Gtk.Widget[]) =>
+    (
+      <box cssClasses={["cal-form-seccion"]} orientation={Gtk.Orientation.VERTICAL} spacing={5}>
+        <label cssClasses={["cal-form-seccion-titulo"]} label={titulo} halign={Gtk.Align.START} />
         {hijos}
       </box>
     ) as unknown as Gtk.Widget
 
   return (
-    <box cssClasses={["cal-dialog-backdrop"]} hexpand vexpand halign={Gtk.Align.FILL} valign={Gtk.Align.FILL}>
-      <box
-        cssClasses={["cal-dialog-card"]}
-        orientation={Gtk.Orientation.VERTICAL}
-        spacing={10}
-        halign={Gtk.Align.CENTER}
-        valign={Gtk.Align.CENTER}
+    <box cssClasses={["cal-dialog-backdrop", "cal-dialog-evento-backdrop"]} hexpand vexpand halign={Gtk.Align.FILL} valign={Gtk.Align.FILL}>
+      <Gtk.ScrolledWindow
+        cssClasses={["cal-dialog-scroll"]}
         hexpand
+        vexpand
+        hscrollbarPolicy={Gtk.PolicyType.NEVER}
+        vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+        propagateNaturalHeight={false}
       >
-        <box cssClasses={["cal-dialog-header"]}>
-          <label
-            cssClasses={["cal-dialog-title"]}
-            label={actual.modo === "crear" ? "Nuevo evento" : "Editar evento"}
+        <box
+          cssClasses={["cal-dialog-centro"]}
+          orientation={Gtk.Orientation.VERTICAL}
+          hexpand
+          heightRequest={altoDisponible > 12 ? altoDisponible - 12 : -1}
+        >
+          <box
+            cssClasses={["cal-dialog-card", "cal-dialog-evento"]}
+            orientation={Gtk.Orientation.VERTICAL}
+            spacing={6}
+            halign={Gtk.Align.FILL}
+            valign={Gtk.Align.END}
             hexpand
-            halign={Gtk.Align.START}
-          />
-          <button cssClasses={["cal-icon-btn"]} onClicked={() => cerrarEdicion()}>
-            <label label="✕" />
-          </button>
+          >
+            {entradaTitulo}
+            {errorTitulo}
+
+            {seccion(
+              "FECHA Y HORA",
+              fila("Empieza", fechaInicio.widget, horaInicio.widget),
+              fila("Termina", fechaFin.widget, horaFin.widget),
+              errorFechas,
+              (
+                <box cssClasses={["cal-form-opcion"]} spacing={8}>
+                  <label cssClasses={["cal-form-label"]} label="Todo el día" halign={Gtk.Align.START} hexpand />
+                  {interruptorDia}
+                </box>
+              ) as unknown as Gtk.Widget,
+              fila("Color del evento", filaColores),
+            )}
+
+            {seccion("DETALLES", entradaUbicacion, entradaDescripcion)}
+
+            <box cssClasses={["cal-dialog-actions", "cal-dialog-evento-actions"]} spacing={8} halign={Gtk.Align.END}>
+              <button cssClasses={["cal-btn"]} onClicked={() => cerrarEdicion()}>
+                <label label="Cancelar" />
+              </button>
+              {botonGuardar}
+            </box>
+          </box>
         </box>
-
-        {entradaTitulo}
-        {errorTitulo}
-
-        {fila("Empieza", fechaInicio.widget, horaInicio.widget)}
-        {fila("Termina", fechaFin.widget, horaFin.widget)}
-        {errorFechas}
-
-        <box cssClasses={["cal-form-row"]} spacing={8}>
-          <label cssClasses={["cal-form-label"]} label="Todo el día" halign={Gtk.Align.START} hexpand />
-          {interruptorDia}
-        </box>
-
-        {fila("Color", filaColores)}
-        {entradaUbicacion}
-        {entradaDescripcion}
-
-        <box cssClasses={["cal-dialog-actions"]} spacing={8} halign={Gtk.Align.END}>
-          <button cssClasses={["cal-btn"]} onClicked={() => cerrarEdicion()}>
-            <label label="Cancelar" />
-          </button>
-          {botonGuardar}
-        </box>
-      </box>
+      </Gtk.ScrolledWindow>
     </box>
   ) as unknown as Gtk.Widget
 }

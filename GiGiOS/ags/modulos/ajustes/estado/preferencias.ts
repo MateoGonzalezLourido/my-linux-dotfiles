@@ -15,6 +15,16 @@ import Gio from "gi://Gio"
 import { createComputed, createState } from "ags"
 import { execAsync } from "ags/process"
 import { normalizarModoDaltonismo, type ModoDaltonismo } from "../accesibilidad/daltonismo"
+import {
+  ACCION_BOTON_PREDETERMINADA,
+  normalizarAccionBotonEncendido,
+  type AccionBotonEncendido,
+} from "../../../servicios/energia/botonEncendido"
+import {
+  FONDO_SHELL_PREDETERMINADO,
+  normalizarFondoShell,
+  type FondoShell,
+} from "../personalizacion/fondoShell"
 
 const PREFS_PATH = `${GLib.get_user_config_dir()}/gigios/preferences.json`
 const SCRIPT_DALTONISMO = `${GLib.get_user_config_dir()}/hypr/scripts/aplicar-filtro-daltonismo.sh`
@@ -118,6 +128,16 @@ const clampWorkspaceVisibleLimit = (value: number): number =>
 const [barAutoHideEnabled, _setBarAutoHideEnabled] = createState(true)
 export { barAutoHideEnabled }
 
+// Fondo común de las superficies principales. Se representa mediante una clase
+// reactiva en cada ventana para aplicarlo en caliente sin recompilar ni recargar AGS.
+// Negro conserva el aspecto histórico; Grafito ofrece la alternativa más clara.
+const [fondoShell, _setFondoShell] = createState<FondoShell>(FONDO_SHELL_PREDETERMINADO)
+export { fondoShell }
+
+export function clasesFondoShell(...clasesBase: string[]) {
+  return fondoShell((fondo) => [...clasesBase, `fondo-shell-${fondo}`])
+}
+
 // Margen superior efectivo de una superficie anclada arriba (paneles, popups, OSD).
 // Con auto-ocultado el bar vive en exclusivity NORMAL: no reserva nada, así que cada
 // panel tiene que separarse él mismo los ~38px del bar. Sin auto-ocultado el bar es
@@ -172,6 +192,15 @@ export { anclarVentanasRofi }
 // intrusivo y debe optarse a ello.
 const [escanerAppsInicio, _setEscanerAppsInicio] = createState(false)
 export { escanerAppsInicio }
+
+// Absorber SUPER + tecla que no sea un atajo (hypr/keybinds-nop.conf). Hyprland
+// solo se traga una tecla si algún bind la captura, así que sin esto SUPER+C
+// escribe una "c" en la aplicación; `catchall` no sirve porque el compositor
+// solo lo admite dentro de un submap. El fichero lo genera el script a partir de
+// `hyprctl binds`, o sea de los atajos REALES, para no duplicar ninguno.
+// Default: activado.
+const [absorberSuperSinAtajo, _setAbsorberSuperSinAtajo] = createState(true)
+export { absorberSuperSinAtajo }
 
 // Menú Orion. app.ts consulta este valor antes de importar el módulo: cuando
 // está desactivado no se crea su ventana ni se cargan watchers/servicios de
@@ -244,6 +273,13 @@ export { timeFormat }
 const [modoDaltonismo, _setModoDaltonismo] = createState<ModoDaltonismo>("ninguno")
 export { modoDaltonismo }
 
+// Acción del botón de encendido físico. Quien la ejecuta es
+// hypr/scripts/boton-apagado.sh (bindl sobre XF86PowerOff), que relee esta clave
+// en cada pulsación: no hay proceso al que relanzar, así que el setter solo
+// persiste. El valor de fábrica es "apagar", que es lo que hacía logind antes.
+const [botonApagado, _setBotonApagado] = createState<AccionBotonEncendido>(ACCION_BOTON_PREDETERMINADA)
+export { botonApagado }
+
 // Formatea una hora según la preferencia. En 12h calculamos AM/PM a mano en vez
 // de usar %p: en locales como es_US.UTF-8 %p viene vacío y el reloj quedaría
 // ambiguo ("09:09 " sin sufijo). Así el formato es independiente del idioma.
@@ -298,6 +334,7 @@ function load() {
       _setWorkspaceVisibleLimit(clampWorkspaceVisibleLimit(saved.workspaceVisibleLimit))
     }
     if (typeof saved.barAutoHide === "boolean") _setBarAutoHideEnabled(saved.barAutoHide)
+    _setFondoShell(normalizarFondoShell(saved.fondoShell))
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
@@ -309,6 +346,9 @@ function load() {
     }
     if (typeof saved.escanerAppsInicio === "boolean") {
       _setEscanerAppsInicio(saved.escanerAppsInicio)
+    }
+    if (typeof saved.absorberSuperSinAtajo === "boolean") {
+      _setAbsorberSuperSinAtajo(saved.absorberSuperSinAtajo)
     }
     if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
     if (typeof saved.orionAppsDefault === "boolean") _setOrionAppsDefault(saved.orionAppsDefault)
@@ -327,6 +367,9 @@ function load() {
     }
     if (saved.timeFormat === "12h" || saved.timeFormat === "24h") _setTimeFormat(saved.timeFormat)
     _setModoDaltonismo(normalizarModoDaltonismo(saved.modoDaltonismo))
+    // Sin guarda de `typeof`: normalizar ya devuelve el valor de fábrica ante
+    // cualquier cosa que no sea una acción conocida (ausente incluida).
+    _setBotonApagado(normalizarAccionBotonEncendido(saved.botonApagado))
   } catch (e) { /* archivo ausente o corrupto → nos quedamos con los defaults */ }
 }
 
@@ -354,12 +397,14 @@ function save() {
       workspaceAppLimit: workspaceAppLimit.get(),
       workspaceVisibleLimit: workspaceVisibleLimit.get(),
       barAutoHide: barAutoHideEnabled.get(),
+      fondoShell: fondoShell.get(),
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
       limpiezaPortapapelesAlIniciar: limpiezaPortapapelesAlIniciar.get(),
       anclarVentanasRofi: anclarVentanasRofi.get(),
       escanerAppsInicio: escanerAppsInicio.get(),
+      absorberSuperSinAtajo: absorberSuperSinAtajo.get(),
       orion: orionEnabled.get(),
       orionAppsDefault: orionAppsDefault.get(),
       orionRecordarUltimaSeccion: orionRecordarUltimaSeccion.get(),
@@ -371,6 +416,7 @@ function save() {
       autoDndFullscreenApps: autoDndFullscreenApps.get(),
       timeFormat: timeFormat.get(),
       modoDaltonismo: modoDaltonismo.get(),
+      botonApagado: botonApagado.get(),
     }
     GLib.file_set_contents(PREFS_PATH, JSON.stringify(config, null, 2))
   } catch (e) { /* no-op: un fallo de escritura no debe romper la UI */ }
@@ -464,6 +510,12 @@ export function setBarAutoHideEnabled(on: boolean) {
   _setBarAutoHideEnabled(on)
   save()
 }
+export function setFondoShell(fondo: FondoShell) {
+  const siguiente = normalizarFondoShell(fondo)
+  if (fondoShell.get() === siguiente) return
+  _setFondoShell(siguiente)
+  save()
+}
 export function setBatteryMonitorEnabled(on: boolean) {
   _setBatteryMonitorEnabled(on)
   save()
@@ -491,6 +543,18 @@ export function setAnclarVentanasRofi(on: boolean) {
 export function setEscanerAppsInicio(on: boolean) {
   _setEscanerAppsInicio(on)
   save()
+}
+// Se aplica en CALIENTE: el script escribe keybinds-nop.conf (con los binds al
+// activar, solo comentarios al desactivar) y recarga Hyprland él mismo. El
+// fichero no se borra nunca al apagar — `source` a un fichero ausente es error
+// duro en Hyprland y sacaría el overlay de configuración.
+// Activar además REGENERA, así que es el gesto con el que recoger los atajos que
+// hayas añadido a keybinds.conf desde la última vez.
+export function setAbsorberSuperSinAtajo(on: boolean) {
+  _setAbsorberSuperSinAtajo(on)
+  save()
+  const script = `${GLib.get_user_config_dir()}/hypr/scripts/generar-nop-binds.sh`
+  execAsync([script, on ? "on" : "off"]).catch(() => {})
 }
 export function setOrionEnabled(on: boolean) {
   _setOrionEnabled(on)
@@ -541,6 +605,15 @@ export function setModoDaltonismo(modo: ModoDaltonismo) {
   execAsync([SCRIPT_DALTONISMO, siguiente]).catch((error) => {
     console.error("[accesibilidad] No se pudo aplicar la corrección de color:", error)
   })
+}
+// Sin setter maestro y sin recarga de Hyprland: el bind es fijo (siempre llama al
+// mismo script) y el script relee la preferencia en cada pulsación. Basta con
+// persistirla; el cambio se aplica en la pulsación siguiente.
+export function setBotonApagado(accion: AccionBotonEncendido) {
+  const siguiente = normalizarAccionBotonEncendido(accion)
+  if (botonApagado.get() === siguiente) return
+  _setBotonApagado(siguiente)
+  save()
 }
 export function setAutoDndEnabled(on: boolean) {
   _setAutoDndEnabled(on)

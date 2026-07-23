@@ -22,7 +22,7 @@ import { initGamingState } from "./servicios/energia/gamingState"
 import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
 import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
-import { alternarBarPorTecla, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
+import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
 
 app.start({
   css: style,
@@ -68,6 +68,13 @@ app.start({
     }
     if (argv.includes("toggle-bar")) {
       alternarBarPorTecla()
+      response("ok")
+      return
+    }
+    // Lo usa hypr/scripts/boton-apagado.sh cuando el botón de encendido físico
+    // está configurado para abrir el menú en vez de ejecutar una acción directa.
+    if (argv.includes("toggle-power-menu")) {
+      alternarMenuEnergia()
       response("ok")
       return
     }

@@ -53,6 +53,7 @@ lo demás, en este orden exacto:
 | 7 | `animations.conf` | Curvas y animaciones | a mano |
 | 8 | `rules.conf` | `windowrule`/`windowrulev2` (tearing, flotantes, opacidad…) | a mano |
 | 9 | `keybinds.conf` | Todos los `bind =` | a mano |
+| 9b | `keybinds-nop.conf` | Binds sordos: absorbe SUPER + tecla que no sea atajo | **script** (`generar-nop-binds.sh`) |
 | 10 | `autostart.conf` | Todos los `exec-once =`, con el calendario escalonado | a mano |
 | 11 | `permissions.conf` | `permission =` (requiere reinicio de Hyprland) | a mano |
 | 12 | `gpu/<una-sola>.conf` | Perfil de GPU de esta máquina — el resto queda comentado | a mano, por máquina |

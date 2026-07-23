@@ -6,7 +6,7 @@ import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import ProfileAvatar from "../ajustes/ProfileAvatar"
 import Interruptor from "../../componentes/Interruptor"
-import { barTopMargin } from "../ajustes/preferences"
+import { barTopMargin, clasesFondoShell } from "../ajustes/preferences"
 import AstalWp from "gi://AstalWp"
 import AstalNetwork from "gi://AstalNetwork"
 import AstalBluetooth from "gi://AstalBluetooth"
@@ -30,6 +30,7 @@ import {
 } from "../../estado/shell"
 import { applyBrightness, brightnessSupported } from "../../servicios/pantalla/brightness"
 import { gamemodeAvailable, gamemodeActive, toggleGamemode } from "../../servicios/energia/gamemode"
+import { forcePowerSave, setForcePowerSave } from "../../servicios/energia/powerState"
 import { GLIFO_JUEGO as GAME_GLYPH } from "../../servicios/juegos/iconos"
 import { clipWindowInputToContent } from "../../utilidades/inputRegion"
 import * as Spotify from "../../servicios/spotify/SpotifyService"
@@ -799,6 +800,20 @@ function QsHeader() {
         <label cssClasses={["qs-date"]} label={date} halign={Gtk.Align.START} />
       </box>
       <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} cssClasses={["qs-header-actions"]}>
+        {/* Modo ahorro: fuerza el ahorro de energía (forcePowerSave), el mismo
+            interruptor de Ajustes > Energía. A la izquierda del modo juego. */}
+        <button
+          cssClasses={["bar-pill", "nb-pill"]}
+          tooltipText={forcePowerSave((a) => a
+            ? "Modo ahorro forzado activo · toca para desactivar"
+            : "Modo ahorro · forzar el ahorro de energía")}
+          onClicked={() => setForcePowerSave(!forcePowerSave.get())}
+        >
+          <label
+            cssClasses={forcePowerSave((a) => a ? ["nb-icon", "ps-icon", "active"] : ["nb-icon", "ps-icon"])}
+            label="󰌪"
+          />
+        </button>
         {/* Modo juego (Feral GameMode). Oculto si el paquete no está instalado:
             sin `gamemoded` el botón no podría hacer nada. */}
         <button
@@ -3579,7 +3594,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     marginTop={barTopMargin(PANEL_TOP, -1)}
     marginRight={0}
     decorated={false}
-    cssClasses={["qs-window"]}
+    cssClasses={clasesFondoShell("qs-window")}
     $={(self: any) => { qsWindowRef = self }}
   >
       <Gtk.EventControllerKey

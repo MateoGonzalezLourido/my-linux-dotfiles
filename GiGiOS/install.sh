@@ -318,6 +318,42 @@ if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
   else
     warn "No pude instalar i2c-dev.conf; el brillo por DDC/CI no funcionará hasta hacerlo."
   fi
+  # Botón de encendido: se lo cedemos a Hyprland. Sin esto logind lo maneja él
+  # (HandlePowerKey=poweroff de fábrica), a nivel de asiento y sin pasar por el
+  # compositor, así que el bind se ejecuta pero el apagado de logind lo tapa y la
+  # acción elegida en Ajustes > Energía no se nota nunca (fallo mudo).
+  if sudo install -Dm644 "$SYSTEM_DIR/logind.conf.d/99-gigios-powerkey.conf" \
+       /etc/systemd/logind.conf.d/99-gigios-powerkey.conf; then
+    # `reload` y no `restart`: reiniciar logind puede llevarse la sesión por delante.
+    sudo systemctl reload systemd-logind \
+      || warn "No pude recargar systemd-logind; el botón de encendido usará la acción de logind hasta reiniciar."
+  else
+    warn "No pude ceder el botón de encendido a Hyprland; seguirá apagando el equipo (ver CLAUDE.md, sección del botón de encendido)."
+  fi
+  # TLP: perfiles conmutables Normal/Ahorro. Solo si TLP está instalado (en un
+  # equipo sin TLP la función queda oculta en Ajustes > Energía). Todo lo que toca
+  # root es root-owned: helper en /usr/local/bin, perfiles en /etc/gigios/tlp, y la
+  # regla sudoers acotada al comando exacto. NO se toca /etc/tlp.conf aquí: eso lo
+  # hace el helper cuando el usuario elige un perfil.
+  if command -v tlp >/dev/null 2>&1; then
+    sudo install -Dm755 "$SYSTEM_DIR/tlp/gigios-tlp-apply.sh" /usr/local/bin/gigios-tlp-apply \
+      && sudo install -Dm644 "$SYSTEM_DIR/tlp/normal.conf" /etc/gigios/tlp/normal.conf \
+      && sudo install -Dm644 "$SYSTEM_DIR/tlp/ahorro.conf" /etc/gigios/tlp/ahorro.conf \
+      || warn "No pude instalar los perfiles TLP de GiGiOS."
+    # La regla sudoers se genera con el usuario real y se valida con visudo ANTES de
+    # instalarla: una regla sudoers malformada puede romper sudo en toda la máquina.
+    tlp_sudoers_tmp="$(mktemp)"
+    sed "s/__GIGIOS_USER__/$(id -un)/" "$SYSTEM_DIR/tlp/sudoers-gigios-tlp" > "$tlp_sudoers_tmp"
+    if sudo visudo -cf "$tlp_sudoers_tmp" >/dev/null; then
+      sudo install -Dm440 "$tlp_sudoers_tmp" /etc/sudoers.d/gigios-tlp \
+        || warn "No pude instalar /etc/sudoers.d/gigios-tlp; el cambio de perfil pedirá contraseña."
+    else
+      warn "La regla sudoers de TLP no validó; no la instalo. El cambio de perfil pedirá contraseña."
+    fi
+    rm -f "$tlp_sudoers_tmp"
+  else
+    info "TLP no está instalado; omito los perfiles conmutables de energía (se activarán al instalar 'tlp')."
+  fi
 else
   warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
 fi

@@ -1034,3 +1034,24 @@ popover.background {
 .rice-thumb:hover .rice-thumb-img {
   transform: scale(1.02);
 }
+
+// Variante global más clara. Va al final para prevalecer sobre las superficies
+// opacas declaradas por cada sección sin aumentar la especificidad de todo Orion.
+.Orion.fondo-shell-grafito {
+  .orion-panel { background: rgba(c.$bg-shell-grafito, 0.94); }
+
+  // Estas franjas deben ser opacas para tapar el blur, igual que en el tema
+  // histórico; se actualizan junto al fondo principal para evitar costuras.
+  .ns,
+  .sys-strip-fixed,
+  .apps-cat-btn,
+  .apps-mode-toggle,
+  .git-icon-btn,
+  .git-icon-btn-sm,
+  .git-tab,
+  .git-manage-confirm,
+  .git-saved-view,
+  .git-saved-rm {
+    background: c.$bg-shell-grafito;
+  }
+}

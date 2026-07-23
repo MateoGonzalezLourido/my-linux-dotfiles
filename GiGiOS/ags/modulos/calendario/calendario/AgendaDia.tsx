@@ -50,9 +50,6 @@ export function AgendaDia(): Gtk.Widget {
           <box cssClasses={["cal-agenda-empty"]} orientation={Gtk.Orientation.VERTICAL} spacing={6} valign={Gtk.Align.CENTER} vexpand>
             <label cssClasses={["cal-empty-icon"]} label="󰃭" />
             <label cssClasses={["cal-empty-title"]} label="Nada para este día" />
-            <button cssClasses={["cal-btn", "primario"]} onClicked={() => abrirCreacion(fecha)}>
-              <label label="Añadir el primer evento" />
-            </button>
           </box>
         ) as unknown as Gtk.Widget,
       )
@@ -70,9 +67,18 @@ export function AgendaDia(): Gtk.Widget {
 
   return (
     <box cssClasses={["cal-agenda-view"]} orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-      <box cssClasses={["cal-agenda-header"]} orientation={Gtk.Orientation.VERTICAL} spacing={1}>
-        {titulo}
-        {subtitulo}
+      <box cssClasses={["cal-agenda-header"]} spacing={8}>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand valign={Gtk.Align.CENTER}>
+          {titulo}
+          {subtitulo}
+        </box>
+        <button
+          cssClasses={["cal-icon-btn", "primario"]}
+          valign={Gtk.Align.CENTER}
+          onClicked={() => abrirCreacion(fechaSeleccionada.get())}
+        >
+          <label label="＋" />
+        </button>
       </box>
       <Gtk.ScrolledWindow
         vexpand
@@ -81,15 +87,6 @@ export function AgendaDia(): Gtk.Widget {
       >
         {lista}
       </Gtk.ScrolledWindow>
-      <box cssClasses={["cal-agenda-footer"]}>
-        <button
-          cssClasses={["cal-btn"]}
-          hexpand
-          onClicked={() => abrirCreacion(fechaSeleccionada.get())}
-        >
-          <label label="  Añadir evento" />
-        </button>
-      </box>
     </box>
   ) as unknown as Gtk.Widget
 }

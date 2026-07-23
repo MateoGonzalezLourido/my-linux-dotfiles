@@ -1,6 +1,7 @@
 import { Gtk } from "ags/gtk4"
 import { AjusteInterruptor, TarjetaAjustes, TituloSeccion } from "../componentes"
 import LimpiezaPortapapeles from "./LimpiezaPortapapeles"
+import SelectorFondoShell from "./SelectorFondoShell"
 import {
   startupVolumeMuted, setStartupVolumeMuted,
   startupMicMuted, setStartupMicMuted,
@@ -12,6 +13,7 @@ import {
   orionRecordarUltimaSeccion, setOrionRecordarUltimaSeccion,
   anclarVentanasRofi, setAnclarVentanasRofi,
   escanerAppsInicio, setEscanerAppsInicio,
+  absorberSuperSinAtajo, setAbsorberSuperSinAtajo,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
   limpiezaPortapapelesAlIniciar, setLimpiezaPortapapelesAlIniciar,
 } from "../preferences"
@@ -23,6 +25,10 @@ export default function SeccionFuncionesShell({ vista }: { vista: VistaFunciones
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
       <TituloSeccion titulo={textos.vistasFunciones[vista]} />
+
+      {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.apariencia} icono="󰏘">
+        <SelectorFondoShell />
+      </TarjetaAjustes>}
 
       {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.sonidoInicio} icono="󰍃">
         <AjusteInterruptor titulo={textos.inicioAudio.volumen.titulo} informacion={textos.inicioAudio.volumen.descripcion} activo={startupVolumeMuted} alAlternar={() => setStartupVolumeMuted(!startupVolumeMuted.get())} />
@@ -38,6 +44,7 @@ export default function SeccionFuncionesShell({ vista }: { vista: VistaFunciones
       {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.ventanas} icono="󰖯">
         <AjusteInterruptor titulo={textos.ventanas.anclaje.titulo} informacion={textos.ventanas.anclaje.descripcion} activo={anclarVentanasRofi} alAlternar={() => setAnclarVentanasRofi(!anclarVentanasRofi.get())} />
         <AjusteInterruptor titulo={textos.ventanas.escanerInicio.titulo} informacion={textos.ventanas.escanerInicio.descripcion} activo={escanerAppsInicio} alAlternar={() => setEscanerAppsInicio(!escanerAppsInicio.get())} />
+        <AjusteInterruptor titulo={textos.ventanas.superSordo.titulo} informacion={textos.ventanas.superSordo.descripcion} activo={absorberSuperSinAtajo} alAlternar={() => setAbsorberSuperSinAtajo(!absorberSuperSinAtajo.get())} />
       </TarjetaAjustes>}
 
       {vista === "orion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.orion} icono="󰆍">

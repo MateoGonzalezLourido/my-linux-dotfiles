@@ -29,7 +29,6 @@ export function Cronometro({ visible }: { visible: Visible }): Gtk.Widget {
   const botonReiniciar = new Gtk.Button()
   botonReiniciar.set_css_classes(["cal-btn"])
   botonReiniciar.set_child(new Gtk.Label({ label: "Reiniciar" }))
-  botonReiniciar.set_sensitive(false)
 
   let tick: number | null = null
 
@@ -48,8 +47,6 @@ export function Cronometro({ visible }: { visible: Visible }): Gtk.Widget {
     etiquetaPrincipal.set_label(
       estado === "corriendo" ? "Pausar" : estado === "pausado" ? "Continuar" : "Iniciar",
     )
-    botonReiniciar.set_sensitive(transcurrido(cronometro.get(), Date.now()) > 0)
-
     if (estado === "corriendo" && visible.get()) {
       if (tick === null) {
         tick = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
@@ -79,10 +76,13 @@ export function Cronometro({ visible }: { visible: Visible }): Gtk.Widget {
   sincronizar()
 
   return (
-    <box cssClasses={["reloj-tarjeta"]} orientation={Gtk.Orientation.VERTICAL} spacing={10}>
-      <label cssClasses={["reloj-tarjeta-titulo"]} label="Cronómetro" halign={Gtk.Align.START} />
+    <box cssClasses={["reloj-tarjeta", "reloj-herramienta"]} orientation={Gtk.Orientation.VERTICAL} spacing={7} hexpand>
+      <box spacing={6}>
+        <label cssClasses={["reloj-tarjeta-icono"]} label="󰔟" />
+        <label cssClasses={["reloj-tarjeta-titulo"]} label="Cronómetro" halign={Gtk.Align.START} />
+      </box>
       {etiqueta}
-      <box spacing={8} halign={Gtk.Align.CENTER}>
+      <box spacing={6} homogeneous>
         {botonPrincipal}
         {botonReiniciar}
       </box>

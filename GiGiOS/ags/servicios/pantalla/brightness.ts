@@ -4,6 +4,7 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import GUdev from "gi://GUdev"
 import { brightnessOsdEnabled } from "../../modulos/ajustes/preferences"
+import { repartirBrillo, componerBrillo } from "./atenuacion"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Brillo: DOS hardwares distintos, no uno con dos rutas.
@@ -31,6 +32,12 @@ export const [brightness, setBrightness] = createState(0.5)
  *  constante — los sliders se enganchan a él con `visible={brightnessSupported}`. */
 export const [brightnessSupported, setBrightnessSupported] = createState(false)
 
+/** Factor de gamma pedido por el tramo software del slider (1 = sin atenuar). Publicado
+ *  aquí pero APLICADO en `service.ts`, que es el único dueño del proceso `hyprsunset`:
+ *  la luz nocturna y esto comparten la misma CTM, y dos escritores del mismo proceso se
+ *  pisarían. `service.ts` se suscribe y reconcilia temperatura + gamma de una vez. */
+export const [softwareDim, setSoftwareDim] = createState(1)
+
 let _backend: BrightnessBackend = "none"
 export function brightnessBackend(): BrightnessBackend { return _backend }
 
@@ -54,6 +61,15 @@ function detectBacklight(): string | null {
 }
 
 const BACKLIGHT_PATH = detectBacklight()
+
+/** Adopta una lectura del HARDWARE como valor del slider, o `null` si adoptarla mentiría.
+ *  El hardware solo conoce su propio tramo: en la zona software está clavado en 0 porque
+ *  lo pusimos nosotros, así que componer ese 0 devolvería el slider al suelo y desharía la
+ *  atenuación en cada evento de udev. Un 0 con atenuación activa no es información nueva. */
+function adoptarLecturaHardware(hw: number): number | null {
+  if (hw <= 0 && softwareDim.get() < 1) return null
+  return componerBrillo(hw)
+}
 
 function readBacklightRatio(): number | null {
   if (!BACKLIGHT_PATH) return null
@@ -86,11 +102,16 @@ function watchBacklight() {
     }
 
     const initial = read(dev)
-    if (initial !== null) setBrightness(initial)
+    if (initial !== null) {
+      const v = adoptarLecturaHardware(initial)
+      if (v !== null) setBrightness(v)
+    }
 
     client.connect("uevent", (_c: GUdev.Client, action: string, device: GUdev.Device) => {
       if (action !== "change") return
-      const value = read(device)
+      const raw = read(device)
+      if (raw === null) return
+      const value = adoptarLecturaHardware(raw)
       if (value !== null) setBrightness(value)
     })
   } catch (e) {
@@ -133,7 +154,7 @@ async function detectDdc(): Promise<void> {
     _ddcBus = Number(bus[1])
     _ddcMax = max
     _backend = "ddc"
-    setBrightness(Math.max(0, Math.min(1, current / max)))
+    setBrightness(componerBrillo(current / max))
     setBrightnessSupported(true)
   } catch {
     // sin backend DDC
@@ -170,11 +191,17 @@ function ddcWrite(pct: number) {
 
 // ── API pública ─────────────────────────────────────────────────────────────
 
-/** Fija el brillo (0..1): actualiza el estado y lo aplica al hardware que haya. */
+/** Fija el brillo (0..1): actualiza el estado y lo reparte entre los dos canales.
+ *
+ *  El valor que llega aquí es el COMPUESTO — lo que ve el usuario en el slider y en el OSD.
+ *  `repartirBrillo` lo parte en hardware + gamma: por encima del suelo del monitor manda el
+ *  hardware y el gamma queda intacto; por debajo, el hardware se queda en su mínimo y sigue
+ *  oscureciendo el gamma. Ver `atenuacion.ts` para el porqué del reparto. */
 export function applyBrightness(ratio: number) {
   const value = Math.max(0, Math.min(1, ratio))
   setBrightness(value)
-  const pct = Math.round(value * 100)
+  const { hardware, gamma } = repartirBrillo(value)
+  const pct = Math.round(hardware * 100)
 
   if (_backend === "backlight") {
     // `-c backlight` no es decorativo: sin dispositivos de esa clase, brightnessctl no
@@ -183,6 +210,9 @@ export function applyBrightness(ratio: number) {
   } else if (_backend === "ddc") {
     ddcWrite(pct)
   }
+  // Fuera del `if`: el gamma es independiente del backend de hardware (lo aplica la CTM,
+  // no el panel), así que vale igual para `backlight` y para `ddc`. `service.ts` reconcilia.
+  setSoftwareDim(gamma)
 }
 
 /** Sube/baja el brillo un salto y enseña el OSD. Lo llaman las teclas XF86MonBrightness*
@@ -220,7 +250,10 @@ export function showBrightnessOSD(startup = false) {
     // brightnessctl ya ha terminado cuando llega esta petición IPC: leer sysfs aquí
     // garantiza que cada repetición del atajo refresque el valor aunque udev tarde.
     const current = readBacklightRatio()
-    if (current !== null) setBrightness(current)
+    if (current !== null) {
+      const v = adoptarLecturaHardware(current)   // sysfs solo conoce el tramo hardware
+      if (v !== null) setBrightness(v)
+    }
   }
   const value = brightness.get()
   if (!brightnessOsdEnabled.get() || !Number.isFinite(value) || (startup && value >= 0.999)) {

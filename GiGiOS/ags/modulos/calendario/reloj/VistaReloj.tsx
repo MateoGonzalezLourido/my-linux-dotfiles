@@ -65,31 +65,51 @@ export function VistaReloj({ visible }: { visible: Visible }): Gtk.Widget {
   })
   sincronizar()
 
+  const listaAlarmas = ListaAlarmas({
+    alEditar: (alarma) => establecerEditandoAlarma({ alarma }),
+  })
+
   const contenido = (
-    <Gtk.ScrolledWindow vexpand hscrollbarPolicy={Gtk.PolicyType.NEVER}>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["reloj-vista"]}>
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} cssClasses={["reloj-cabecera"]}>
-          {horaGrande}
-          {fechaHoy}
-        </box>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["reloj-vista"]}>
+      <box spacing={10} cssClasses={["reloj-cabecera"]}>
+        {horaGrande}
+        <box hexpand />
+        <box valign={Gtk.Align.CENTER}>{fechaHoy}</box>
+      </box>
 
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["reloj-tarjeta"]}>
-          <box>
-            <label cssClasses={["reloj-tarjeta-titulo"]} label="Alarmas" hexpand halign={Gtk.Align.START} />
-            <button
-              cssClasses={["cal-btn"]}
-              onClicked={() => establecerEditandoAlarma({ alarma: null })}
-            >
-              <label label="  Nueva" />
-            </button>
-          </box>
-          {ListaAlarmas({ alEditar: (alarma) => establecerEditandoAlarma({ alarma }) })}
-        </box>
-
+      <box homogeneous spacing={8} cssClasses={["reloj-herramientas"]}>
         {Temporizador({ visible })}
         {Cronometro({ visible })}
       </box>
-    </Gtk.ScrolledWindow>
+
+      <box
+        cssClasses={["reloj-tarjeta", "reloj-tarjeta-alarmas"]}
+        orientation={Gtk.Orientation.VERTICAL}
+        vexpand
+      >
+        <box cssClasses={["reloj-alarmas-cabecera"]} spacing={7}>
+          <label cssClasses={["reloj-tarjeta-icono"]} label="󰀠" />
+          <label cssClasses={["reloj-tarjeta-titulo"]} label="Alarmas" hexpand halign={Gtk.Align.START} />
+          <button
+            cssClasses={["cal-btn", "primario", "reloj-nueva-alarma"]}
+            valign={Gtk.Align.CENTER}
+            onClicked={() => establecerEditandoAlarma({ alarma: null })}
+          >
+            <box spacing={4} valign={Gtk.Align.CENTER}>
+              <label cssClasses={["reloj-nueva-alarma-icono"]} label="＋" />
+              <label label="Nueva" />
+            </box>
+          </button>
+        </box>
+        <Gtk.ScrolledWindow
+          vexpand
+          hscrollbarPolicy={Gtk.PolicyType.NEVER}
+          cssClasses={["reloj-alarmas-scroll"]}
+        >
+          {listaAlarmas}
+        </Gtk.ScrolledWindow>
+      </box>
+    </box>
   ) as unknown as Gtk.Widget
 
   // El formulario se monta y desmonta con un overlay propio en vez de vivir siempre oculto: así sus

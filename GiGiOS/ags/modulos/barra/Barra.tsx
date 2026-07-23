@@ -24,7 +24,7 @@ import ReproduccionSpotify from "./multimedia/spotify/ReproduccionSpotify"
 import RanuraCondicionalBarra from "./componentes/RanuraCondicionalBarra"
 import { obtenerControlVisibilidadBarra } from "../../estado/visibilidadBarra"
 import { spotifyBarSuspended } from "../../servicios/energia/powerState"
-import { barAutoHideEnabled, batteryBarEnabled, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "../ajustes/preferences"
+import { barAutoHideEnabled, batteryBarEnabled, fondoShell, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "../ajustes/preferences"
 import { anyPanelVisible, alternarQuickSettings, solicitudAlternarBar } from "../../estado/shell"
 
 export default function Barra(gdkmonitor: Gdk.Monitor) {
@@ -239,7 +239,11 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
     // El hover normal no pide teclado.
     keymode={barKeyboardActive((on) => on ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE)}
     marginTop={visible((v) => v ? 0 : -BAR_HEIGHT)}
-    cssClasses={visible((v) => v ? ["Bar", "bar-visible"] : ["Bar", "bar-hidden"])}
+    cssClasses={createComputed(() => [
+      "Bar",
+      visible() ? "bar-visible" : "bar-hidden",
+      `fondo-shell-${fondoShell()}`,
+    ])}
   >
     <Gtk.EventControllerMotion
       onEnter={trackEnter}

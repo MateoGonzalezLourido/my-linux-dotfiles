@@ -11,7 +11,8 @@ import type { MonitorPref } from "./modes"
 import { activeSetpoint, activeRuleFor, normalizeRules } from "./schedule"
 import type { NightRule } from "./schedule"
 import { parseModetestCaps, parseEdidHdr } from "./caps"
-import { applyBrightness, brightnessSupported } from "./brightness"
+import { applyBrightness, brightnessSupported, softwareDim } from "./brightness"
+import { DIM_FLOOR } from "./atenuacion"
 import {
   brightness,
   nightLightActive, setNightLightActive,
@@ -277,6 +278,16 @@ export function applyAllowTearing(on: boolean) {
 // `lastAppliedTemp === -1` ⇒ hyprsunset apagado.
 let lastAppliedTemp = -1
 
+// Gamma aplicado (0..100). hyprsunset sostiene DOS canales en la misma matriz: temperatura
+// (luz nocturna) y gamma (el tramo software del brillo, ver `atenuacion.ts`). Por eso el
+// proceso tiene UN solo dueño y se reconcilian juntos: dos escritores se pisarían.
+let lastAppliedGamma = 100
+
+/** Temperatura neutra: la que hyprsunset usa por defecto. Es la que se pide cuando el
+ *  proceso hace falta SOLO para el gamma — sin esto, atenuar por software encendería de
+ *  paso la luz nocturna, que es un ajuste distinto que el usuario no ha pedido. */
+const TEMP_NEUTRA = 6000
+
 function nowHM() {
   const d = GLib.DateTime.new_now_local()
   return { h: d.get_hour(), m: d.get_minute() }
@@ -353,6 +364,11 @@ function baseTemp(): number | null {
 let lastBrightnessKey: string | null = config.brightnessWindow?.key ?? null
 let brightnessBeforeWindow: number | null = config.brightnessWindow?.before ?? null   // 0..1
 
+/** La franja en la que nos pilló el apagado, congelada al cargar. `lastBrightnessKey` muta
+ *  en cuanto se reconcilia, así que no sirve para preguntar "¿ya estábamos dentro de esta
+ *  franja al arrancar?" — que es justo lo que necesita la restauración del tramo software. */
+const franjaAlArrancar: string | null = config.brightnessWindow?.key ?? null
+
 function applyScheduledBrightness() {
   const r = rulesOn() ? activeRuleFor(nowHM(), nightRules.get(), "brightness") : null
 
@@ -396,15 +412,34 @@ function applyRules() {
 function applyNight() {
   if (nightOverrideKey !== null && nightOverrideKey !== scheduleKey()) nightOverrideKey = null
   const temp = baseTemp()
+  // `nightOn` sigue colgando SOLO de la temperatura: atenuar por software no es luz
+  // nocturna, y encender su interruptor por bajar el brillo confundiría dos ajustes.
   setNightOn(temp != null)
-  if (temp == null) {
-    if (lastAppliedTemp !== -1) { lastAppliedTemp = -1; execAsync(["pkill", "-HUP", "-x", "hyprsunset"]).catch(() => {}) }
+
+  const gamma = Math.max(1, Math.min(100, Math.round(softwareDim.get() * 100)))
+
+  // hyprsunset hace falta si lo pide CUALQUIERA de los dos canales. Antes solo lo pedía la
+  // luz nocturna, así que atenuar con ella apagada no habría tenido dónde aplicarse.
+  if (temp == null && gamma >= 100) {
+    if (lastAppliedTemp !== -1) {
+      lastAppliedTemp = -1; lastAppliedGamma = 100
+      execAsync(["pkill", "-HUP", "-x", "hyprsunset"]).catch(() => {})
+    }
     return
   }
-  if (temp === lastAppliedTemp) return
-  if (lastAppliedTemp === -1) execAsync(["bash", "-c", `pkill -HUP -x hyprsunset; hyprsunset -t ${temp} &`]).catch(() => {}) // off → on: arrancar
-  else execAsync(["bash", "-c", `hyprctl hyprsunset temperature ${temp}`]).catch(() => {})                         // on → on: cambiar en caliente
-  lastAppliedTemp = temp
+
+  const t = temp ?? TEMP_NEUTRA
+  if (lastAppliedTemp === -1) {
+    // off → on: arrancar ya con los dos canales, para no pintar un fogonazo a brillo pleno
+    // entre el arranque del proceso y el ajuste del gamma.
+    execAsync(["bash", "-c", `pkill -HUP -x hyprsunset; hyprsunset -t ${t} -g ${gamma} &`]).catch(() => {})
+  } else {
+    // on → on: cada canal se cambia en caliente y solo si de verdad se movió.
+    if (t !== lastAppliedTemp) execAsync(["bash", "-c", `hyprctl hyprsunset temperature ${t}`]).catch(() => {})
+    if (gamma !== lastAppliedGamma) execAsync(["bash", "-c", `hyprctl hyprsunset gamma ${gamma}`]).catch(() => {})
+  }
+  lastAppliedTemp = t
+  lastAppliedGamma = gamma
 }
 
 // Maestro de QuickSettings: apaga la luz actual "hasta la próxima" (apaga la fija
@@ -467,6 +502,44 @@ export function initDisplayService() {
   applyRules()
   brightness.subscribe(saveDisplayConfig)
   brightnessSupported.subscribe(applyScheduledBrightness)   // backend DDC: llega ~1 s tarde
+
+  // El tramo software se reconcilia como la temperatura, pero CON DEBOUNCE: arrastrar el
+  // slider por la zona baja emite un cambio por píxel, y cada uno es un `hyprctl`.
+  let gammaDebounce: number | null = null
+  softwareDim.subscribe(() => {
+    if (gammaDebounce !== null) GLib.source_remove(gammaDebounce)
+    gammaDebounce = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
+      applyNight(); gammaDebounce = null; return GLib.SOURCE_REMOVE
+    })
+  })
+
+  // Restaurar el tramo SOFTWARE del brillo guardado. Es la mitad que el hardware no puede
+  // recordar: el gamma lo sostiene `hyprsunset`, que muere con la sesión, mientras que el
+  // monitor sí conserva su propio valor DDC en la firmware. O sea que al arrancar con el
+  // brillo por debajo del suelo, `detectDdc()` lee el mínimo del panel y publica el SUELO
+  // (0.35) — la atenuación se perdía y el slider daba un salto hacia arriba en cada
+  // arranque. Es el reverso exacto del residuo físico que documenta `applyScheduledBrightness`:
+  // allí el hardware recuerda de más, aquí el software no recuerda nada.
+  // Solo la zona software: en la zona hardware el valor real del monitor sigue mandando.
+  if (config.brightness < DIM_FLOOR) {
+    let restaurado = false
+    const restaurar = () => {
+      if (restaurado || !brightnessSupported.get()) return
+      restaurado = true
+      // Se cede el mando a la franja SOLO si va a aplicar algo, y eso pasa únicamente cuando
+      // es NUEVA. Una franja solo actúa AL ENTRAR (ver `applyScheduledBrightness`): si al
+      // arrancar ya estábamos dentro de la misma (su clave coincide con el apunte del disco),
+      // no va a re-aplicar nada, y lo que el usuario dejó a mano dentro de ella es el valor
+      // bueno. Medido: con la franja 00:00-07:00→80 vigente, ceder el mando sin más dejaba el
+      // brillo sin restaurar en cada arranque — gamma a 100 y el slider saltando al suelo.
+      const r = rulesOn() ? activeRuleFor(nowHM(), nightRules.get(), "brightness") : null
+      const claveActiva = r && r.brightness != null ? `${r.start}-${r.end}|${r.brightness}` : null
+      if (claveActiva !== null && claveActiva !== franjaAlArrancar) return
+      applyBrightness(config.brightness)
+    }
+    restaurar()                            // backlight: el backend ya está listo
+    brightnessSupported.subscribe(restaurar)   // ddc: se confirma ~1 s más tarde
+  }
 
   // Re-aplicar preferencias por monitor (solo lo que difiera, para no pelear con
   // monitors.conf ni parpadear). Con monitor-settings.conf en su sitio esto ya no

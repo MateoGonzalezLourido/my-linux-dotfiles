@@ -28,11 +28,11 @@ export function EstadoGoogle(): Gtk.Widget {
   function pintar() {
     const estado = estadoSync.get()
     etiqueta.set_label(
-      estado.fase === "sincronizando" ? "󰑓  Sincronizando"
-        : estado.fase === "sin-configurar" ? "󰃭  Google"
-        : estado.fase === "sin-conexion" ? "󰤭  Sin conexión"
-        : estado.fase === "error" ? "󰀪  Google"
-        : "󰄬  Google",
+      estado.fase === "sincronizando" ? "󰑓"
+        : estado.fase === "sin-configurar" ? "󰃭"
+        : estado.fase === "sin-conexion" ? "󰤭"
+        : estado.fase === "error" ? "󰀪"
+        : "󰄬",
     )
     boton.set_tooltip_text(
       estado.fase === "sin-configurar"
