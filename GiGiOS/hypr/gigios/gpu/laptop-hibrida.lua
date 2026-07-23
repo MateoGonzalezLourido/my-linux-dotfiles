@@ -1,0 +1,42 @@
+-- ============================================================
+--  GPU — LAPTOP HÍBRIDA  (Intel Arc Arrow Lake + NVIDIA RTX 5060)
+--  Elegido por ~/.config/gigios/gpu-perfil (ver gigios/gpu.lua).
+--
+--  Modelo: el COMPOSITOR y la PANTALLA corren en Intel (el eDP cuelga
+--  de i915). La NVIDIA queda SOLO para offload de juegos/render pesado.
+--
+--  Para lanzar un juego en la NVIDIA:
+--      prime-run <juego>
+--      gamemoderun prime-run %command%      (opción de lanzamiento en Steam)
+--      gamescope -f -- prime-run %command%
+--  prime-run ya inyecta __NV_PRIME_RENDER_OFFLOAD, __GLX_VENDOR_LIBRARY_NAME
+--  y __VK_LAYER_NV_optimus por proceso, así que NO hacen falta globales.
+-- ============================================================
+
+-- Intel es la GPU primaria (compositor/pantalla); NVIDIA queda para offload.
+--
+-- NO se fija AQ_DRM_DEVICES a propósito: aquamarine elige como primaria la GPU
+-- que maneja la pantalla eDP — la Intel (i915) — automáticamente. Es lo más
+-- robusto:
+--   - no depende de /dev/dri/cardN (se intercambian entre reinicios),
+--   - no depende de rutas by-path (tienen ':' y rompen el parseo),
+--   - no puede dejar a Hyprland sin GPU: siempre hay una válida → SIEMPRE arranca.
+-- La NVIDIA no tiene pantallas conectadas, así que no se elige como primaria;
+-- queda libre para prime-run y puede dormir para ahorrar batería.
+
+-- IMPORTANTE: aquí NO se ponen GBM_BACKEND=nvidia-drm ni
+-- __GLX_VENDOR_LIBRARY_NAME=nvidia ni LIBVA_DRIVER_NAME=nvidia globales.
+-- El escritorio va en Intel; forzar NVIDIA global mete reverse-PRIME,
+-- gasta batería y rompe la aceleración de vídeo (VA-API) de Intel.
+
+-- Con el compositor en Intel los cursores por hardware funcionan bien.
+--
+-- Aquí faltaría un `cursor:no_hardware_cursors = false` (0 = permitir HW
+-- cursors). NO se pone porque la API Lua DESCARTA el valor para
+-- esta clave concreta — medido en 0.56: con 0, false y "0" (anidada headless,
+-- tanto anidado como clave plana) la opción queda `int: 2, set: false`, o sea
+-- el default auto; `true`/1 sí fijan (los usan los otros dos perfiles). No es
+-- una pérdida: en auto Hyprland solo desactiva los HW cursors sobre NVIDIA,
+-- así que con el compositor en Intel el auto resuelve a lo mismo que el 0
+-- explícito. Si algún día hiciera falta forzarlo de verdad, habría que
+-- reverificar si la clave ya acepta el 0.
