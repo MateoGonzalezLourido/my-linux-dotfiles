@@ -1,7 +1,11 @@
 import Gdk from "gi://Gdk"
 import GdkPixbuf from "gi://GdkPixbuf"
 import GLib from "gi://GLib"
-import { Gtk } from "ags/gtk4"
+import Graphene from "gi://Graphene"
+import { Astal, Gtk } from "ags/gtk4"
+import app from "ags/gtk4/app"
+
+import { barTopMargin } from "../../ajustes/preferences"
 
 const ANCHO_VISTA_PREVIA = 280
 const ALTO_VISTA_PREVIA = 158
@@ -47,12 +51,33 @@ function crearContenidoVistaPrevia(idEscritorio: number, ruta: string): Gtk.Box 
 
 /** Gestiona un único popover por barra, sin referencias compartidas entre monitores. */
 export function crearGestorVistaPreviaEscritorios(
+  monitorGdk: Gdk.Monitor,
   alCambiarVisibilidad: (visible: boolean) => void,
 ) {
-  let popover: Gtk.Popover | null = null
+  const margenSuperior = barTopMargin(38)
+  const geometriaMonitor = monitorGdk.get_geometry()
+  const nombreMonitor = (monitorGdk.get_connector() ?? "monitor")
+    .replace(/[^a-zA-Z0-9_-]/g, "-")
+  const ventana = new Astal.Window({
+    application: app,
+    name: `workspace-preview-${nombreMonitor}`,
+    namespace: "workspace-preview",
+    visible: false,
+    decorated: false,
+    layer: Astal.Layer.TOP,
+    exclusivity: Astal.Exclusivity.NORMAL,
+    anchor: Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT,
+    keymode: Astal.Keymode.NONE,
+    gdkmonitor: monitorGdk,
+    css_classes: ["ws-preview-window"],
+  })
   let ancla: Gtk.Widget | null = null
   let temporizadorCierre: ReturnType<typeof setTimeout> | null = null
   let eliminado = false
+
+  const actualizarMargenSuperior = () => ventana.set_margin_top(margenSuperior.get())
+  actualizarMargenSuperior()
+  const dejarMargenSuperior = margenSuperior.subscribe(actualizarMargenSuperior)
 
   const cancelarCierre = () => {
     if (temporizadorCierre !== null) clearTimeout(temporizadorCierre)
@@ -61,9 +86,10 @@ export function crearGestorVistaPreviaEscritorios(
 
   const cerrar = () => {
     cancelarCierre()
-    if (popover) {
-      try { popover.popdown() } catch (_) {}
-    }
+    ventana.set_visible(false)
+    ventana.set_child(null)
+    ancla = null
+    alCambiarVisibilidad(false)
   }
 
   const alEntrar = () => cancelarCierre()
@@ -74,7 +100,7 @@ export function crearGestorVistaPreviaEscritorios(
 
   const mostrar = (nuevaAncla: Gtk.Widget, idEscritorio: number, ruta: string) => {
     if (eliminado) return
-    if (popover && ancla === nuevaAncla) {
+    if (ventana.get_visible() && ancla === nuevaAncla) {
       cerrar()
       return
     }
@@ -86,27 +112,24 @@ export function crearGestorVistaPreviaEscritorios(
     movimiento.connect("leave", alSalir)
     contenido.add_controller(movimiento)
 
-    const siguientePopover = new Gtk.Popover({
-      has_arrow: false,
-      autohide: false,
-      position: Gtk.PositionType.TOP,
-      child: contenido,
-    })
-    siguientePopover.add_css_class("ws-preview-popover")
-    siguientePopover.set_parent(nuevaAncla)
-    popover = siguientePopover
+    const raiz = nuevaAncla.get_root() as Gtk.Widget | null
+    const [traducido, punto] = raiz
+      ? nuevaAncla.compute_point(raiz, new Graphene.Point({ x: 0, y: 0 }))
+      : [false, new Graphene.Point({ x: 0, y: 0 })]
+    const xAncla = traducido ? punto.x : nuevaAncla.get_allocation().x
+    const margenIzquierdo = Math.round(Math.max(
+      0,
+      Math.min(
+        geometriaMonitor.width - ANCHO_VISTA_PREVIA - 2,
+        xAncla + (nuevaAncla.get_allocated_width() - ANCHO_VISTA_PREVIA) / 2,
+      ),
+    ))
+
+    ventana.set_margin_left(margenIzquierdo)
+    ventana.set_child(contenido)
     ancla = nuevaAncla
     alCambiarVisibilidad(true)
-
-    siguientePopover.connect("closed", () => {
-      if (popover === siguientePopover) {
-        popover = null
-        ancla = null
-        alCambiarVisibilidad(false)
-      }
-      try { siguientePopover.unparent() } catch (_) {}
-    })
-    siguientePopover.popup()
+    ventana.set_visible(true)
   }
 
   return {
@@ -117,12 +140,8 @@ export function crearGestorVistaPreviaEscritorios(
     eliminar: () => {
       eliminado = true
       cerrar()
-      alCambiarVisibilidad(false)
-      if (popover) {
-        try { popover.unparent() } catch (_) {}
-        popover = null
-        ancla = null
-      }
+      dejarMargenSuperior()
+      try { ventana.destroy() } catch (_) {}
     },
   }
 }

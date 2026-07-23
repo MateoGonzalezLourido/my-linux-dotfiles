@@ -1,6 +1,7 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { createComputed, createState, onCleanup } from "ags"
+import GLib from "gi://GLib"
 import { calendarVisible, setCalendarVisible, panelAutoClose } from "../../estado/shell"
 import { barTopMargin, clasesFondoShell } from "../ajustes/preferences"
 import { clipWindowInputToContent } from "../../utilidades/inputRegion.ts"
@@ -29,6 +30,9 @@ import {
  */
 export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
   const { LEFT, TOP, BOTTOM } = Astal.WindowAnchor
+  const DURACION_ENTRADA_MS = 280
+  const DURACION_SALIDA_MS = 300
+  const TOPE_PREPARACION_MS = 120
 
   const vistaMes = VistaMes()
   const agenda = AgendaDia()
@@ -119,12 +123,122 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
   })
 
   const calAutoClose = panelAutoClose(() => setCalendarVisible(false), 300, calendarVisible)
+  const [panelRenderizado, establecerPanelRenderizado] = createState(calendarVisible.get())
   const [tecladoActivo, establecerTecladoActivo] = createState(false)
-  calendarVisible.subscribe(() => {
+  let envoltorioAnimado: Gtk.Widget | null = null
+  let idTickEntrada: number | null = null
+  let temporizadorPreparacion: number | null = null
+  let temporizadorAsentamiento: number | null = null
+  let temporizadorSalida: number | null = null
+  let entradaPendiente = false
+  let recalcularRegionEntrada: (() => void) | null = null
+
+  function cancelarPreparacion(): void {
+    if (idTickEntrada !== null) {
+      envoltorioAnimado?.remove_tick_callback(idTickEntrada)
+      idTickEntrada = null
+    }
+    if (temporizadorPreparacion !== null) {
+      GLib.source_remove(temporizadorPreparacion)
+      temporizadorPreparacion = null
+    }
+  }
+
+  function iniciarEntrada(): void {
+    if (!entradaPendiente) return
+    entradaPendiente = false
+    cancelarPreparacion()
+    envoltorioAnimado?.remove_css_class("cal-preparing")
+    envoltorioAnimado?.add_css_class("cal-entering")
+    // El transform desplaza también la medición usada para la región clicable.
+    // Se vuelve a recortar cuando el panel ya está en su posición definitiva.
+    temporizadorAsentamiento = GLib.timeout_add(
+      GLib.PRIORITY_DEFAULT,
+      DURACION_ENTRADA_MS,
+      () => {
+        recalcularRegionEntrada?.()
+        temporizadorAsentamiento = null
+        return GLib.SOURCE_REMOVE
+      },
+    )
+  }
+
+  function prepararEntrada(): void {
+    entradaPendiente = false
+    cancelarPreparacion()
+    if (temporizadorAsentamiento !== null) {
+      GLib.source_remove(temporizadorAsentamiento)
+      temporizadorAsentamiento = null
+    }
+    envoltorioAnimado?.remove_css_class("cal-leaving")
+    envoltorioAnimado?.remove_css_class("cal-entering")
+    envoltorioAnimado?.add_css_class("cal-preparing")
+    establecerPanelRenderizado(true)
+    entradaPendiente = true
+
+    // Igual que Notificaciones, la entrada espera a que GTK haya medido y pintado
+    // la superficie preparada. El límite evita dejar un panel invisible si el reloj
+    // de frames no llegara a arrancar durante el primer mapeo.
+    let fotogramasVistos = 0
+    idTickEntrada = envoltorioAnimado?.add_tick_callback((widget: Gtk.Widget) => {
+      if (!entradaPendiente) return GLib.SOURCE_REMOVE
+      if ((widget.get_height?.() ?? 0) <= 0) return GLib.SOURCE_CONTINUE
+      if (++fotogramasVistos < 2) return GLib.SOURCE_CONTINUE
+      idTickEntrada = null
+      iniciarEntrada()
+      return GLib.SOURCE_REMOVE
+    }) ?? null
+
+    temporizadorPreparacion = GLib.timeout_add(
+      GLib.PRIORITY_DEFAULT,
+      TOPE_PREPARACION_MS,
+      () => {
+        temporizadorPreparacion = null
+        iniciarEntrada()
+        return GLib.SOURCE_REMOVE
+      },
+    )
+  }
+
+  const bajaVisibilidad = calendarVisible.subscribe(() => {
     establecerTecladoActivo(false)
+    if (calendarVisible.get()) {
+      if (temporizadorSalida !== null) {
+        GLib.source_remove(temporizadorSalida)
+        temporizadorSalida = null
+      }
+      prepararEntrada()
+      return
+    }
+
     // Cerrar el panel cancela una edición a medias. Dejarla viva reabriría el formulario con datos
     // de hace media hora encima de lo que el usuario venga a hacer.
-    if (!calendarVisible.get()) cerrarEdicion()
+    cerrarEdicion()
+    entradaPendiente = false
+    cancelarPreparacion()
+    if (temporizadorAsentamiento !== null) {
+      GLib.source_remove(temporizadorAsentamiento)
+      temporizadorAsentamiento = null
+    }
+    envoltorioAnimado?.remove_css_class("cal-preparing")
+    envoltorioAnimado?.remove_css_class("cal-entering")
+    envoltorioAnimado?.add_css_class("cal-leaving")
+    if (temporizadorSalida !== null) GLib.source_remove(temporizadorSalida)
+    temporizadorSalida = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DURACION_SALIDA_MS, () => {
+      establecerPanelRenderizado(false)
+      envoltorioAnimado?.remove_css_class("cal-leaving")
+      temporizadorSalida = null
+      return GLib.SOURCE_REMOVE
+    })
+  })
+
+  onCleanup(() => {
+    if (typeof bajaVisibilidad === "function") bajaVisibilidad()
+    entradaPendiente = false
+    cancelarPreparacion()
+    for (const temporizador of [temporizadorAsentamiento, temporizadorSalida]) {
+      if (temporizador !== null) GLib.source_remove(temporizador)
+    }
   })
 
   let superficiePanel: Gtk.Widget | null = null
@@ -133,7 +247,7 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
     namespace="calendar-panel"
     gdkmonitor={gdkmonitor}
     application={app}
-    visible={calendarVisible((v) => v)}
+    visible={panelRenderizado}
     anchor={LEFT | TOP | BOTTOM}
     layer={Astal.Layer.TOP}
     exclusivity={Astal.Exclusivity.NORMAL}
@@ -156,7 +270,15 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
         return true
       }}
     />
-    <box cssClasses={["cal-wrapper"]} spacing={0} vexpand>
+    <box
+      cssClasses={["cal-wrapper"]}
+      spacing={0}
+      vexpand
+      $={(self: Gtk.Widget) => {
+        envoltorioAnimado = self
+        if (calendarVisible.get()) prepararEntrada()
+      }}
+    >
       <box
         cssClasses={["cal-panel", "cal-superficie"]}
         orientation={Gtk.Orientation.VERTICAL}
@@ -192,6 +314,6 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
 
   // El conector solo pinta su curva superior. El resto de sus 18 px es transparente y debe dejar
   // pasar los clics, igual que en los paneles de Notificaciones y Ajustes rápidos.
-  clipWindowInputToContent(ventana, superficiePanel)
+  recalcularRegionEntrada = clipWindowInputToContent(ventana, superficiePanel)
   return ventana
 }

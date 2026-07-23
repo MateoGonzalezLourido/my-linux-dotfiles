@@ -20,6 +20,12 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import textos from "../../../textos/ajustes/sistema.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
+import {
+  bitsPorCanal,
+  diagonalPulgadas,
+  identidadMonitor,
+  parsearMonitores,
+} from "./monitores"
 
 export interface InfoItem { label: string; value: string }
 export interface InfoGroup { title: string; icon: string; items: InfoItem[] }
@@ -318,19 +324,61 @@ function parseDisks(raw: string): string[] {
   }).filter(Boolean)
 }
 
-function parseMonitors(raw: string): string[] {
-  try {
-    return (JSON.parse(raw) as any[]).map(m => {
-      const escala = m.scale && m.scale !== 1 ? formatearTexto(textos.etiquetas.escala, { escala: decimal(m.scale, 2) }) : ""
-      return `${m.name} — ${m.width}×${m.height} @ ${decimal(m.refreshRate, 2)} Hz${escala ? ` · ${escala}` : ""}`
-    })
-  } catch (_) { return [] }
-}
-
 function addNumbered(items: InfoItem[], label: string, values: string[]) {
   values.forEach((value, index) => add(items, values.length > 1
     ? formatearTexto(textos.etiquetas.elementoNumerado, { etiqueta: label, numero: index + 1 })
     : label, value))
+}
+
+function etiquetaMonitor(etiqueta: string, indice: number, total: number): string {
+  return total > 1
+    ? formatearTexto(textos.etiquetas.elementoNumerado, { etiqueta, numero: indice + 1 })
+    : etiqueta
+}
+
+/**
+ * Cada salida forma una ficha de filas consecutivas. No se consulta el EDID por
+ * separado: Hyprland ya publica fabricante, modelo y milímetros físicos, así
+ * que reutilizar su único sondeo conserva el coste actual de la sección.
+ */
+function construirMonitores(raw: string): InfoItem[] {
+  const detectados = parsearMonitores(raw)
+  const items: InfoItem[] = []
+
+  detectados.forEach((monitor, indice) => {
+    const etiqueta = (texto: string) => etiquetaMonitor(texto, indice, detectados.length)
+    const resolucion = monitor.ancho && monitor.alto ? `${monitor.ancho}×${monitor.alto}` : ""
+    const frecuencia = monitor.frecuencia
+      ? formatearTexto(textos.etiquetas.hercios, { frecuencia: decimal(monitor.frecuencia, 2) })
+      : ""
+    const diagonal = diagonalPulgadas(monitor)
+    const tamano = monitor.anchoFisico && monitor.altoFisico
+      ? formatearTexto(textos.etiquetas.tamanoMonitor, {
+          ancho: monitor.anchoFisico,
+          alto: monitor.altoFisico,
+          diagonal: diagonal ? decimal(diagonal, 1) : "",
+        })
+      : ""
+    const profundidad = bitsPorCanal(monitor.formatoColor)
+    const color = join(
+      profundidad ? formatearTexto(textos.etiquetas.bitsPorCanal, { bits: profundidad }) : "",
+      monitor.formatoColor,
+    )
+
+    add(items, etiqueta(textos.etiquetas.monitor), identidadMonitor(monitor))
+    add(items, etiqueta(textos.etiquetas.conector), monitor.conector)
+    add(items, etiqueta(textos.etiquetas.resolucionFrecuencia), join(resolucion, frecuencia))
+    add(items, etiqueta(textos.etiquetas.tamanoFisico), tamano)
+    add(items, etiqueta(textos.etiquetas.escalaMonitor), monitor.escala
+      ? formatearTexto(textos.etiquetas.escalaMonitorValor, {
+          factor: decimal(monitor.escala, 2),
+          porcentaje: decimal(monitor.escala * 100, 0),
+        })
+      : "")
+    add(items, etiqueta(textos.etiquetas.profundidadFormato), color)
+  })
+
+  return items
 }
 
 // ─── construcción de la vista ────────────────────────────────────────────────
@@ -391,6 +439,8 @@ export function construir(probe: Sondeo | null): SystemSnapshot {
     vk.apiVersion ? formatearTexto(textos.etiquetas.vulkanApi, { version: vk.apiVersion }) : "",
     join(vk.driverName ?? "", vk.driverInfo ?? "")))
 
+  const monitores = construirMonitores(p.monitors ?? "")
+
   let hyprland = ""
   try {
     const h = JSON.parse(p.hypr ?? "")
@@ -400,7 +450,6 @@ export function construir(probe: Sondeo | null): SystemSnapshot {
   const entorno: InfoItem[] = []
   add(entorno, textos.etiquetas.compositor, hyprland ? `Hyprland ${hyprland}` : "Hyprland")
   add(entorno, textos.etiquetas.sesion, join(s.sessionType, s.desktop))
-  addNumbered(entorno, textos.etiquetas.pantalla, parseMonitors(p.monitors ?? ""))
   add(entorno, textos.etiquetas.ags, firstLine(p.ags ?? "").replace(/^ags version /i, ""))
   add(entorno, textos.etiquetas.gtk, s.gtk)
 
@@ -417,6 +466,7 @@ export function construir(probe: Sondeo | null): SystemSnapshot {
       { title: textos.grupos.memoria, icon: "󰍛", items: memoria },
       { title: textos.grupos.placaBase, icon: "󰘚", items: placa },
       { title: textos.grupos.graficos, icon: "󰢮", items: graficos },
+      { title: textos.grupos.monitores, icon: "󰍹", items: monitores },
       { title: textos.grupos.entorno, icon: "󰖯", items: entorno },
       { title: textos.grupos.controladoresPci, icon: "󰓢", items: dispositivos },
     ].filter(group => group.items.length),

@@ -77,7 +77,10 @@ export default function Escritorios(
     obtenerIdEscritorioActivo,
     vistaPreviaActiva,
   )
-  const vistaPrevia = crearGestorVistaPreviaEscritorios(interaccion.cambiarVistaPrevia)
+  const vistaPrevia = crearGestorVistaPreviaEscritorios(
+    monitorGdk,
+    interaccion.cambiarVistaPrevia,
+  )
   const interaccionesBoton: InteraccionesBotonEscritorio = {
     cambiarArrastre: interaccion.cambiarArrastre,
     adquirirTeclado: interaccion.adquirirTeclado,
