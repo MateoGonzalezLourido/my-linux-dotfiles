@@ -28,6 +28,7 @@ LINKS=(
   "menus/applications.menu::$HOME/.config/menus/applications.menu"
   "kdeglobals::$HOME/.config/kdeglobals"
   "qt6ct/qt6ct.conf::$HOME/.config/qt6ct/qt6ct.conf"
+  "hyprpolkitagent/hyprpolkitagent.conf::$HOME/.config/hyprpolkitagent/hyprpolkitagent.conf"
   "mime/packages/text-x-xresources.xml::$HOME/.local/share/mime/packages/text-x-xresources.xml"
   "mime/packages/text-x-codigo.xml::$HOME/.local/share/mime/packages/text-x-codigo.xml"
 )
