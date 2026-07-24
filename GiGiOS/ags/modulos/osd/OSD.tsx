@@ -154,6 +154,7 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
                         orientation={Gtk.Orientation.HORIZONTAL}
                         halign={Gtk.Align.CENTER}
                         valign={Gtk.Align.START}
+                        overflow={Gtk.Overflow.HIDDEN}
                         spacing={15}
                         $={(self: Gtk.Box) => { tarjetaVolumen = self }}
                     >
@@ -174,6 +175,7 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
                         orientation={Gtk.Orientation.HORIZONTAL}
                         halign={Gtk.Align.CENTER}
                         valign={Gtk.Align.START}
+                        overflow={Gtk.Overflow.HIDDEN}
                         spacing={15}
                         $={(self: Gtk.Box) => { tarjetaBrillo = self }}
                     >
@@ -199,7 +201,10 @@ export default function OSD(gdkmonitor: Gdk.Monitor) {
     recalcularRegionEntrada = clipWindowInputToContent(
         win,
         [tarjetaVolumen, tarjetaBrillo, tarjetaMicrofono],
-        { radioEsquinas: RADIO_ESQUINAS_OSD },
+        {
+            radioEsquinas: RADIO_ESQUINAS_OSD,
+            vaciarAlMapear: true,
+        },
     )
     osdVisible.subscribe(actualizarRegionEntrada)
     brightnessOsdVisible.subscribe(actualizarRegionEntrada)

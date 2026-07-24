@@ -105,6 +105,7 @@ export function TarjetaMicrofonoOSD({
             orientation={Gtk.Orientation.HORIZONTAL}
             halign={Gtk.Align.CENTER}
             valign={Gtk.Align.START}
+            overflow={Gtk.Overflow.HIDDEN}
             spacing={15}
             $={(self: Gtk.Box) => { onSetup?.(self) }}
         >

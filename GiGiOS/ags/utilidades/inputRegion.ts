@@ -8,6 +8,10 @@ interface OpcionesRecorteEntrada {
   /** Recorta cada contenido como un rectángulo redondeado en vez de conservar
    * las esquinas transparentes de su caja de asignación. */
   radioEsquinas?: number
+  /** Deja la superficie sin entrada desde el mismo `map` hasta que GTK haya
+   * asignado el contenido y pueda aplicarse su silueta definitiva. Evita que
+   * aflore durante el primer frame el rectángulo predeterminado de la ventana. */
+  vaciarAlMapear?: boolean
   /** Añade únicamente la silueta pintada de dos curvas laterales pegadas a las
    * esquinas inferiores, sin convertir sus anchos en franjas verticales. */
   radioCurvasInferioresLaterales?: number
@@ -103,6 +107,11 @@ export function clipWindowInputToContent(
   let aplicacionPendiente: number | null = null
   const contenidos = Array.isArray(contenido) ? contenido : [contenido]
 
+  const vaciarRegionEntrada = (surface: any) => {
+    if (!opciones.vaciarAlMapear || !surface) return
+    try { surface.set_input_region(new (cairo as any).Region()) } catch (_) {}
+  }
+
   const apply = () => {
     try {
       const surface = win.get_surface?.()
@@ -188,6 +197,11 @@ export function clipWindowInputToContent(
   const hookSurface = () => {
     const surface = win.get_surface?.()
     if (!surface) return
+    // Algunas ventanas se mapean antes de que GTK termine su primera asignación
+    // (el OSD, por ejemplo, aparece transitoriamente como 200×200). Vaciar aquí
+    // es síncrono con `map`: no queda un frame con la región rectangular por
+    // defecto mientras `scheduleApply()` espera a poder medir el contenido.
+    vaciarRegionEntrada(surface)
     // Evitar manejadores duplicados si la misma superficie persiste entre mapeos.
     if (surfaceHandlers && surfaceHandlers.surface === surface) return
     if (surfaceHandlers) {
@@ -200,6 +214,9 @@ export function clipWindowInputToContent(
     surfaceHandlers = { surface, ids }
   }
 
+  // `realize` ocurre antes del primer `map`: cuando GDK ya ofrece la superficie,
+  // se elimina su rectángulo de entrada incluso antes de anunciarla visible.
+  win.connect("realize", () => vaciarRegionEntrada(win.get_surface?.()))
   win.connect("map", () => { hookSurface(); scheduleApply() })
   if (win.get_mapped?.()) { hookSurface(); scheduleApply() }
 
