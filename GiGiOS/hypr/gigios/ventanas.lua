@@ -52,7 +52,19 @@ hl.config({
 
   -- https://wiki.hypr.land/Configuring/Dwindle-Layout/
   dwindle = {
-    preserve_split = true, -- Probablemente lo quieres.
+    -- preserve_split = true CONGELA la orientación del nodo padre: al arrastrar
+    -- (SUPER + clic izq) la ventana solo INTERCAMBIA posición, nunca cambia de
+    -- horizontal a vertical — había que pasar antes por SUPER + SHIFT + J
+    -- (togglesplit). En false, dwindle recalcula la orientación al reinsertar la
+    -- ventana en el árbol, que es justo lo que hace un drop.
+    preserve_split = false,
+
+    -- Y smart_split es lo que da el control fino al soltar: la orientación sale
+    -- del CUADRANTE de la ventana destino sobre el que sueltas (mitad izq/dcha →
+    -- se parten en vertical, lado a lado; mitad sup/inf → se apilan). Ignora
+    -- preserve_split y force_split por diseño; también aplica al abrir ventana
+    -- nueva, que pasa a nacer partiendo por donde tengas el cursor.
+    smart_split = true,
   },
 
   -- https://wiki.hypr.land/Configuring/Master-Layout/

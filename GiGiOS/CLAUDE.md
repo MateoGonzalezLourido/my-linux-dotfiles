@@ -644,6 +644,56 @@ es también lo que hace seguro leerlo con `.escanerAppsInicio // false` — el t
 mismo resultado por ambos caminos. `GIGIOS_ESCANER_SEGS` acorta la ventana para probarlo sin
 esperar medio minuto, la misma costura que `GIGIOS_USB_PENDING_DIR` en el monitor de USB.
 
+### Tope de ventanas en mosaico por escritorio (`gigios/limite-ventanas.lua`)
+
+Pasadas unas cuantas ventanas en mosaico el escritorio deja de ser útil: dwindle sigue partiendo el
+espacio y acabas con columnas de 200 px. Este módulo pone un techo (**8** por defecto) y, cuando
+una ventana nueva lo rebasaría, la **mueve al primer escritorio con sitio**.
+
+**Hyprland NO tiene esta opción** — no existe ningún `max_tiled_windows` en 0.56 ni en el stub de
+la API Lua (`/usr/share/hypr/stubs/hl.meta.lua`). Lo que sí hay ya es con qué implementarla desde
+el config: `window.open` tipado + `hl.dsp.window.move` con selector por objeto. En hyprlang habría
+sido un daemon leyendo el socket de eventos y cruzando direcciones con `hyprctl clients` —el
+montaje de `escaner-apps.sh`, con su trampa de las address sin `0x`—; aquí son 40 líneas dentro del
+propio config, sin proceso vivo, así que se aparta de la advertencia general de los `*-monitor.sh`
+(no hay nada que `pkill`ear: basta `hyprctl reload`).
+
+**El límite es del MOSAICO, no de ventanas**, y por eso se descuentan tres cosas: las **flotantes**
+(ni cuentan ni se mueven — no compiten por el espacio del layout, y desterrar un diálogo o un PiP
+"porque el escritorio está lleno" no tiene sentido), las **ocultas** (`hidden`, una terminal tragada
+por `swallow`: existe pero no ocupa hueco) y los escritorios **especiales** (el scratchpad no es un
+sitio donde imponer un tope ni donde dejar al usuario). Verificado en vivo con el tope a 2: la
+tercera en mosaico salta, y una cuarta que abre flotante no cuenta ni desplaza a nadie.
+
+**Se sigue a la ventana (`follow = true`), al revés que en `compactar.lua` y en el anclaje.** El
+usuario acaba de lanzar la app, y el peor fallo aquí sería que su ventana desapareciera en silencio
+a un escritorio que no sabe cuál es. El escritorio lleno se queda como estaba y tú vas donde fue la
+ventana. Se cambia con `SEGUIR = false`, pero entonces hay que avisar de algún modo o la app
+parecerá no haber arrancado.
+
+**Con el anclaje hay que ARBITRAR, y el árbitro está en `anclaje.py`, no aquí.** Las dos funciones
+tiraban en direcciones contrarias y ganaba el anclaje por llegar el último: el tope apartaba la
+ventana nueva de un escritorio lleno y te llevaba con ella, y acto seguido el `openwindow` llegaba
+al observador, que la veía "descolocada" respecto al escritorio de lanzamiento y la devolvía **en
+silencio**. Resultado: tú en el escritorio nuevo y la ventana en el viejo —peor que cualquiera de
+las dos funciones por separado, sin ningún error— y la novena ventana otra vez apretujada con las
+ocho. Hoy `_hueco_en()` (en `anclaje.py`) **replica el recuento de este módulo** —solo mosaico, ni
+flotantes ni ocultas, sin contarse a sí misma— y **no ancla si el destino está lleno**. La
+jerarquía: el lanzador decide **dónde nace** la ventana, el tope decide **si ahí cabe**, y manda el
+tope porque es el único de los dos que sabe algo que el lanzador no podía saber al lanzar. Si
+cambias el criterio de recuento de aquí, hay que cambiarlo **en los dos sitios** o vuelve el tira y
+afloja. Verificado en vivo con el tope a 2, por los dos caminos: lanzar sobre un escritorio lleno
+deja la ventana en el nuevo (no vuelve), y lanzar sobre uno con hueco **sigue anclando** como
+siempre.
+
+**Ajuste**: `maxVentanasEscritorio` en `~/.config/gigios/preferences.json`. **Ausente = 8
+(activado)**; un valor **≤ 0 lo desactiva**, y esa vía hace falta precisamente porque el default es
+"encendido" (borrar la clave no lo apaga). Se lee por `util.prefs()`, o sea una vez por ejecución
+del config: cambiarlo pide un `hyprctl reload`. El barrido de candidatos sube desde el escritorio
+actual hasta `WS_MAX` (20) y luego da la vuelta por debajo; un escritorio que aún no existe cuenta
+como vacío y Hyprland lo crea al mover. Si **no hay sitio en ninguno**, la ventana se queda donde
+estaba: apretujar es mejor que mandarla a un escritorio igual de lleno.
+
 ### Anclar las ventanas al escritorio donde las lanzaste (`anclaje.py` + los dos lanzadores)
 
 Abres una app, te vas a otro escritorio mientras carga, y la ventana aparece **donde estás** en vez
@@ -689,6 +739,15 @@ nombre dice "Rofi" por historia —renombrarla apagaría el anclaje en silencio 
 tiene la clave escrita— y no por alcance. Cuando está **desactivado no se pone la regla** tampoco:
 el ajuste significa "que cada ventana aparezca donde yo esté", y fijarla al escritorio de
 lanzamiento sería justo lo que se apagó.
+
+**El anclaje CEDE ante el tope de ventanas por escritorio.** Antes de traerse una ventana al
+escritorio de lanzamiento, `_hueco_en()` comprueba que ahí quepa según `maxVentanasEscritorio`
+(mismo recuento que `gigios/limite-ventanas.lua`: solo mosaico, sin flotantes ni ocultas, sin
+contar la propia ventana); si está lleno, **no la ancla** y la deja donde el tope la puso. Sin eso
+las dos funciones se deshacían mutuamente y te quedabas mirando un escritorio distinto del de tu
+ventana. Ver la sección del tope para el porqué de la jerarquía. Los clientes se piden **una sola
+vez por ventana nueva** y de ahí salen el cliente y el recuento: antes eran dos forks de `hyprctl`
+y, peor, dos instantes distintos.
 
 **Fallos: siempre hacia "se abre sin anclar", nunca hacia "no se abre".** Sin socket, sin Hyprland o
 con un `dispatch` rechazado se relanza por `sh -c`. Ojo con lo último: **`hyprctl` no señala un

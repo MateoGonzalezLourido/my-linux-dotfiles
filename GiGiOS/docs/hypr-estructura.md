@@ -63,13 +63,14 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 11 | `gigios/keybinds.lua` | Todos los atajos + `GiGiOS.toggle_gaps()` | a mano |
 | 12 | `gigios/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
 | 13 | `gigios/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
-| 14 | `gigios/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
-| 15 | `gigios/gpu.lua` | Elige el perfil de GPU y carga `gigios/gpu/<perfil>.lua` | **fichero local**, ver abajo |
-| 16 | `gigios/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
-| 17 | `gigios/userprefs.lua` | Overrides personales sueltos | a mano |
-| 18 | `gigios/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
-| 19 | `gigios/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
-| 20 | `gigios/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
+| 14 | `gigios/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
+| 15 | `gigios/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
+| 16 | `gigios/gpu.lua` | Elige el perfil de GPU y carga `gigios/gpu/<perfil>.lua` | **fichero local**, ver abajo |
+| 17 | `gigios/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
+| 18 | `gigios/userprefs.lua` | Overrides personales sueltos | a mano |
+| 19 | `gigios/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
+| 20 | `gigios/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
+| 21 | `gigios/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
 
 **El orden no es estético**: `gigios/pantalla` pisa al comodín de monitores,
 `gigios/dispositivos` pisa a `userprefs`, y `nop-binds` va el último porque

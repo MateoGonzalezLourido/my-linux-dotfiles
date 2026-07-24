@@ -94,8 +94,35 @@ bind(mod .. " + E", hl.dsp.exec_cmd(vars.fileManager))
 bind(mod .. " + SHIFT + Q", hl.dsp.window.float({ action = "toggle" }))
 
 -- mover ventanas con teclado / mover el foco
+--
+-- El SHIFT + flecha va con un `preselect` DELANTE, y no es adorno: sin él el
+-- lado en el que aterriza la ventana no lo decide la tecla que has pulsado.
+-- dwindle resuelve `movewindow <dir>` sacando la ventana del árbol y volviendo
+-- a insertarla junto a un "punto focal" = 1 px más allá del borde de tu ventana
+-- en esa dirección, a la mitad de ese borde (focalPointForDir). El lado y el eje
+-- del corte salen entonces de en qué CUADRANTE del vecino cae ese punto — un
+-- ángulo, no la dirección. Con dos ventanas coincide; con tres o más deja de
+-- coincidir según las proporciones del vecino, y de ahí que "la misma acción
+-- unas veces haga una cosa y otras otra". Medido: lab1 a la izquierda y lab2/lab3
+-- partiendo la derecha, mover lab3 a la izquierda la dejaba EN MEDIO (a la
+-- derecha de lab1, x=518), no a la izquierda.
+--
+-- `preselect` fija `m_overrideDirection`, que en dwindle tiene prioridad sobre
+-- ese cálculo por cuadrante (y sobre smart_split y force_split): el eje sale de
+-- la dirección — izq/dcha parten en vertical, arriba/abajo apilan — y la ventana
+-- cae en el lado que has pedido. Con el mismo caso: x=8, a la izquierda del todo.
+--
+-- El `preselect none` de después limpia el override. Hyprland ya lo consume al
+-- reinsertar, pero un `movewindow` que no mueve nada (ventana sola, o el borde
+-- del monitor con binds:window_direction_monitor_fallback apagado) sale antes de
+-- tocar el árbol y lo dejaría puesto: la SIGUIENTE ventana que abrieras nacería
+-- en esa dirección sin que nadie la haya pedido.
 for _, d in ipairs({ "left", "right", "up", "down" }) do
-  bind(mod .. " + SHIFT + " .. d, hl.dsp.window.move({ direction = d }))
+  bind(mod .. " + SHIFT + " .. d, function()
+    hl.dispatch(hl.dsp.layout("preselect " .. d))
+    hl.dispatch(hl.dsp.window.move({ direction = d }))
+    hl.dispatch(hl.dsp.layout("preselect none"))
+  end)
   bind(mod .. " + " .. d, hl.dsp.focus({ direction = d }))
 end
 
