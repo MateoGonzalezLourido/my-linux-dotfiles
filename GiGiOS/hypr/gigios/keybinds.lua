@@ -54,7 +54,7 @@ bind(mod .. " + SHIFT + F", hl.dsp.window.fullscreen())
 -- propósito: GiGiOS.compactar la define gigios/compactar.lua y el orden de
 -- carga no debe importar aquí — si ese módulo no cargó, el atajo calla (el
 -- fallo de carga ya avisó por util.carga).
-bind(mod .. " + SHIFT + N", function()
+bind(mod .. " + ALT + C", function()
   if GiGiOS.compactar then GiGiOS.compactar() end
 end)
 
@@ -176,6 +176,23 @@ bind(mod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
 -- lee esa clave (ver la cabecera del módulo).
 bind(mod .. " + mouse:272", hl.dsp.window.drag())
 bind(mod .. " + mouse:273", hl.dsp.window.resize())
+
+-- Dos binds MÁS sobre la misma combinación que el arrastre: gigios/reparto-ventanas.lua
+-- necesita saber cuándo empieza y cuándo acaba para, si la ventana cayó en un
+-- sitio demasiado justo, hacerle hueco a costa de los vecinos. Hyprland ejecuta
+-- TODOS los binds de una combinación, así que conviven con el `bindm` de arriba
+-- (verificado con un ratón virtual por uinput haciendo el arrastre de verdad:
+-- llegan pulsación y soltado, y la ventana se mueve igual). Ojo: esto es
+-- `release`, NO el `drag` de la advertencia de aquí arriba — `drag` fuerza
+-- release Y cambia el camino de la pulsación, que es lo que rompía el primer
+-- arrastre; un bind aparte con release no toca el del dispatcher del ratón.
+-- Enlace tardío (el módulo se carga después que este): si no está, no pasa nada.
+bind(mod .. " + mouse:272", function()
+  if GiGiOS.reparto_arrastre_inicio then GiGiOS.reparto_arrastre_inicio() end
+end)
+bind(mod .. " + mouse:272", function()
+  if GiGiOS.reparto_arrastre_fin then GiGiOS.reparto_arrastre_fin() end
+end, { release = true })
 
 -------------------------------------------------------- teclas multimedia (bindel)
 bind("XF86AudioRaiseVolume",
