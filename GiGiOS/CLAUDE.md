@@ -369,6 +369,55 @@ ese 0 llegaría al `.conf` al encender la fila. **El estado del interruptor sale
 no de un `true` fijo**: cuando la UI escribía `enabled: true` a pelo, mover cualquier stepper
 reescribía los tres listeners como activos y resucitaba en silencio un GIGIOS-OFF ya puesto.
 
+### Diálogo de contraseña de root: hyprpolkitagent, y por qué sigue siendo feo
+
+El agente de polkit —la ventanita que pide la contraseña al necesitar root— **ya es
+hyprpolkitagent**, lanzado desde `gigios/autostart.lua`; `polkit-kde-agent` está instalado como
+arrastre de Plasma pero no corre ni publica servicio D-Bus. O sea que **no hay ninguna migración
+pendiente desde KDE**: si alguien vuelve a plantearla, la respuesta es que ya está hecha.
+
+**No se puede personalizar con la versión de los repos, y el README de GitHub dice lo contrario
+porque documenta `main`.** Upstream reescribió el agente de Qt/QML a hyprtoolkit, pero esa
+reescritura **no tiene tag** (el último sigue siendo v0.1.3), así que `extra/hyprpolkitagent` es el
+Qt viejo: 4 ficheros, ninguno de configuración, y el QML **compilado AOT dentro del binario**
+(se ve en los símbolos, `QmlCacheGeneratedCode::_qt_qml_hpa_qml_main_qml`). No hay fichero que
+editar ni ruta que sobreescribir. Leer la doc de `main` ejecutando el tag viejo es el modo de
+fallo de esta sección.
+
+**La configuración ya está escrita y esperando**: `hypr/hyprtoolkit.conf` (paleta, espejo de
+`ags/estilos/_colores.scss`) y `hyprpolkitagent/hyprpolkitagent.conf` (geometría). El primero **no
+está inerte**: hyprtoolkit 0.5.4 de repos trae el mismo lector, así que esa paleta ya la aplica
+`hyprland-guiutils`. El día que taguen el release, el diálogo de polkit se suma sin tocar nada.
+
+**Se probó la vía AUR y se revirtió a propósito. No lo repitas sin leer esto.** Funcionó —el
+diálogo salía con la paleta— pero el coste de mantenimiento era desproporcionado para una mejora
+estética, y el mecanismo es concreto: el `hyprtoolkit-git` que hay que instalar tiene **el mismo
+nombre y versión que el de chaotic-aur**, así que no cuenta como paquete foráneo (`pacman -Qm` no
+lo lista) y **un `-Syu` normal lo reemplaza por el de chaotic en cuanto publiquen una revisión
+nueva — y ese depende de `aquamarine-git`**, o sea que el backend de render de Hyprland salta a
+rama de desarrollo por pura resolución de dependencias. En paralelo, `hyprpolkitagent-git` se
+recompila en cada `-Syu` contra la hyprtoolkit del momento, y ese acoplamiento entre dos ramas sin
+ABI estable es exactamente lo que falló al intentarlo (`setText`/`setPassword`/`eyeIcon`/
+`setEnabled` no existen en 0.5.4). Cuando eso pase en un `-Syu` de rutina falla **callado**, y lo
+que se queda roto es el agente de autenticación.
+
+**Lo medido durante la prueba, para no redescubrirlo:**
+
+- **El binario CAMBIA DE SITIO entre versiones.** En el 0.1.3 de repos es
+  `/usr/lib/hyprpolkitagent/hyprpolkitagent` (directorio con el ejecutable dentro); en la
+  reescritura, `/usr/lib/hyprpolkitagent` **es** el ejecutable. `gigios/autostart.lua` apunta a la
+  primera. Equivocarse no da ningún error: `hl.exec_cmd` falla en silencio y la sesión se queda sin
+  agente, cosa que no se nota hasta que algo pide root a mitad de sesión.
+- **`window_width` no hace nada** (A/B en 0.1.3.r11): la ventana sale a 460 px pidiendo 500 y
+  pidiendo 700, porque el ancho lo fija el contenido. `window_height` sí manda, con un +8 constante.
+- **El PKGBUILD de AUR de hyprtoolkit-git exige la cadena `-git` entera** (aquamarine, hyprgraphics,
+  hyprwayland-scanner) por conservadurismo del mantenedor, no por necesidad: hyprtoolkit `main`
+  compila y enlaza contra las versiones de repos y produce el **mismo soname**
+  (`libhyprtoolkit.so.5`), que es lo que necesita `hyprland-guiutils`.
+- La otra salida sería escribir el agente dentro de AGS (es un objeto D-Bus
+  `org.freedesktop.PolicyKit1.AuthenticationAgent` más `polkit-agent-helper-1` para el PAM). Se
+  descartó: son cientos de líneas para lo que 18 claves de config darán gratis al llegar el release.
+
 ### Botón de encendido: `gigios/boton-apagado.lua` + `system/logind.conf.d/`
 
 Ajustes > Energía decide qué hace la pulsación **corta** del botón físico (apagar, suspender,

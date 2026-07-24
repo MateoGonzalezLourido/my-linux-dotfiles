@@ -54,6 +54,13 @@ hl.on("hyprland.start", function()
 
   hl.exec_cmd("hypridle")
   hl.exec_cmd("~/.config/inicializador/init.sh")
+  -- OJO A LA RUTA SI ALGÚN DÍA SE ACTUALIZA hyprpolkitagent. Esta es la del
+  -- 0.1.3 de los repos (Qt/QML): un directorio con el ejecutable dentro. La
+  -- reescritura en hyprtoolkit lo MUEVE a /usr/lib/hyprpolkitagent a secas, que
+  -- pasa a ser el propio ejecutable. Medido al probar hyprpolkitagent-git.
+  -- Apuntar mal aquí no da ningún error visible: exec_cmd falla en silencio y la
+  -- sesión se queda sin agente, o sea sin poder autenticar nada por GUI, y no se
+  -- nota hasta que algo pide root ya en mitad de la sesión.
   hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
   hl.exec_cmd([[pkill -f "ags\.js$" 2>/dev/null; sleep 0.3; ags run ~/.config/ags/]])
   hl.exec_cmd("awww-daemon")
