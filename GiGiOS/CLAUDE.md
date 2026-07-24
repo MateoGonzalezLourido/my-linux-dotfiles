@@ -165,8 +165,21 @@ llega a commitearse.
 - **`size = "60% 60%"` NO funciona en Lua.** `size`/`move` van al motor de expresiones (muParser),
   que **no tiene operador `%`**: la regla se registra sin error, no sale nada en el log ni en
   `configerrors`, y el tamaño sencillamente no se aplica. Se escribe `monitor_w*0.6 monitor_h*0.6`.
-- **`{mouse=true}` no existe** como opción de `hl.bind` pese a aparecer en el ejemplo oficial de
-  `/usr/share/hypr/hyprland.lua`. Los `bindm` van con **`{drag=true}`**.
+- **Los `bindm` van SIN OPTS.** Las dos opciones que parecen valer fallan, cada una a su manera.
+  **`{mouse=true}`** —la del ejemplo oficial de `/usr/share/hypr/hyprland.lua`— **no existe**:
+  `hlBind` nunca lee esa clave (medido: `Keybind.mouse` queda `false`), así que es un adorno.
+  **`{drag=true}` sí se lee, y por eso es la peligrosa: se come el PRIMER arrastre de cada sesión**
+  —el segundo y siguientes van—, tanto al mover como al redimensionar. `drag` fuerza
+  `release = true`, y en `handleKeybinds` la **pulsación** de un bind con release solo llega al
+  dispatcher si es un `SPECIALDISPATCHER`; para un handler `__lua` eso significa tener ya puesto
+  `releasePending`, flag que pone el propio dispatcher del ratón **al ejecutarse**. En el primer
+  clic aún es falso: la pulsación se traga sin iniciar nada y solo el soltar (que llega como
+  "terminar arrastre", o sea nada) deja el flag listo para la vez siguiente. El ciclo entero se
+  retrasa un clic, sin ningún error por ningún lado. Sin opts la pulsación entra directa, arranca
+  el arrastre y de paso pone `releasePending` — que es lo que hace entrar también al soltar, el
+  camino que el compositor tiene pensado para los dispatchers de ratón en Lua. Peaje aceptado: un
+  SUPER+clic sin mover inicia y termina el arrastre al instante (inofensivo, y es el
+  comportamiento clásico de `bindm`; con `binds:drag_threshold = 0` no había umbral que perder).
 - **`cursor:no_hardware_cursors = false` se descarta en silencio** en 0.56 (queda en auto). Por eso
   `gpu/laptop-hibrida.lua` no la pone.
 - **En `hl.dsp.window.move`, "silent" se dice `follow = false`** (un `silent = true` se ignora), y el
