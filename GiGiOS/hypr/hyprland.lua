@@ -53,6 +53,7 @@ util.carga("gigios.orion")          -- GiGiOS.toggle_orion()
 util.carga("gigios.keybinds")       -- los atajos reales (+ GiGiOS.toggle_gaps)
 util.carga("gigios.autostart")      -- arranque escalonado (hl.on "hyprland.start")
 util.carga("gigios.escaner-apps")   -- salto al escritorio de las apps de autostart
+util.carga("gigios.reparto-ventanas") -- que una ventana nueva no nazca estrujada
 util.carga("gigios.limite-ventanas") -- tope de ventanas en mosaico por escritorio
 util.carga("gigios.permisos")       -- permisos del ecosistema (screencopy, plugins)
 util.carga("gigios.gpu")            -- perfil por máquina (~/.config/gigios/gpu-perfil)

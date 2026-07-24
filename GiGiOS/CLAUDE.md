@@ -644,6 +644,106 @@ es también lo que hace seguro leerlo con `.escanerAppsInicio // false` — el t
 mismo resultado por ambos caminos. `GIGIOS_ESCANER_SEGS` acorta la ventana para probarlo sin
 esperar medio minuto, la misma costura que `GIGIOS_USB_PENDING_DIR` en el monitor de USB.
 
+### Que una ventana no acabe estrujada, al abrirse o al soltarla (`gigios/reparto-ventanas.lua`)
+
+**El problema es del primer cálculo de tamaño, no del layout en reposo.** dwindle parte siempre la
+ventana objetivo en dos, y el objetivo por defecto es la última que tuvo el foco en ese escritorio,
+así que abrir cuatro terminales seguidas da una progresión geométrica, no un reparto — medido en
+este equipo (escritorio de 2032x1098): **1014 · 504 · 252 · 250**. La quinta habría nacido con
+125 px. Este módulo decide, en `window.open_early` (antes de colocarla, que es el único momento sin
+cirugía sobre el árbol), **qué se parte** y **por qué lado**. Las mismas ocho terminales salen a
+**504x547 cada una** (medido).
+
+**Dos palancas, y la primera sola NO basta.** (1) *Qué*: se enfoca la ventana en mosaico **más
+cercana al ratón de entre las que aún dan una mitad decente** — dwindle toma como objetivo la
+última enfocada, así que enfocar es la única forma de redirigir el corte; el foco se lo lleva la
+ventana nueva al mapearse, así que no se nota. (2) *Por dónde*: `preselect`, que fija dos cosas a la
+vez — el **eje** sale del lado largo del objetivo (ancha → se parte en vertical, alta → se apila,
+que es lo que convierte la progresión en rejilla) y el **lado**, de en qué mitad de esa ventana está
+el ratón, porque `preselect <dir>` coloca la nueva en ese lado. Hace falta porque con `smart_split` el
+eje **no sale de la forma de la ventana, sale del cuadrante del cursor sobre ella**, y al lanzar
+desde Orion o rofi el cursor está donde lo dejaste: el eje sale a suertes y se repite igual ventana
+tras ventana. Medido A/B sobre la misma ventana de 2032x1098: con smart_split, 2032x547 (apilada);
+sin él, 1014x1098 (lo correcto para una apaisada). O sea que enfocar la mayor sin arreglar el eje
+daba ocho tiras de **2032x134**. `preselect` tiene prioridad sobre el cuadrante, sobre `smart_split`
+y sobre `force_split` (ya documentado en `gigios/keybinds.lua`, donde se usa para lo mismo en
+SUPER+SHIFT+dirección), así que no hay que tocar `smart_split`, que sigue mandando en el arrastre.
+
+**La cercanía al ratón es el SEGUNDO criterio, no el primero**, y el orden es lo que lo hace
+funcionar: elegir por cercanía a secas devuelve el problema de partida, porque el hueco pegado al
+cursor suele ser justo la rendija que acabas de crear. Primero se filtran las candidatas por si su
+mitad da la talla y solo entre las que pasan gana la más cercana (a igual distancia, la más grande);
+si no pasa ninguna —escritorio lleno— manda la mayor, porque ahí ya no se puede acercar al ratón sin
+estrujar. Verificado en vivo con el mismo estado de partida y el ratón en las cuatro esquinas: con
+el cursor dentro de una ventana de 506x547 (mitad 506x273 → no da la talla) la nueva sale partiendo
+la de 504x1098 de al lado, **por arriba o por abajo según dónde esté el ratón**; con el cursor a la
+derecha, parte la columna derecha, arriba o abajo igual. `hl.get_cursor_pos()` existe y devuelve
+`{x, y}` — la ausencia de esa función se dio por supuesta al escribir la primera versión y era falsa.
+
+**Es PREVENCIÓN, no una rejilla forzada**: mientras el sitio natural dé un tamaño razonable el
+módulo **no interviene** y manda dwindle con su cuadrante. El listón se mide sobre la **peor mitad
+posible** del objetivo natural — la que sale de partirlo por su lado **corto**, la más achatada de
+las dos —, y se toma la peor porque la real depende del cursor y el cursor no se puede consultar
+desde el config. Con dos ventanas de 1014x1098 la peor mitad es 507x1098 → cabe → la tercera nace
+donde diga tu cursor; con cuatro de 1014x547 es 1014x273 → 273 < 320 → se interviene. Ese es
+justo el punto en el que "una más" empezaba a estrujar.
+
+**En un escritorio que NO se está viendo no se hace nada, y corregir solo el eje allí sale PEOR.**
+Redirigir el corte exige enfocar, y enfocar en un escritorio oculto **arrastra la vista** a él
+(medido: la sesión saltó al ws15 durante las pruebas), cosa que abrir una ventana no justifica. Y
+sin poder redirigir el objetivo, el corte por el lado largo se ceba con la última ventana y la deja
+cuadrada y diminuta: ocho terminales dieron **123x133** frente a las tiras de 252x1098 de dwindle a
+secas. Misma área, peor forma — de ahí que se ceda entero. Afecta a lo que se lanza anclado a otro
+escritorio.
+
+**Otros límites**: no redistribuye lo ya abierto (es el cálculo de la ventana nueva); si la ventana
+acaba flotando por una regla —las reglas aún no están aplicadas en `open_early`— la intervención se
+deshace sola en `window.open` (`preselect none` + devolver el foco), y una red de 2 s cubre que
+`window.open` no llegue nunca, porque **un `preselect` sin consumir se lo come la SIGUIENTE ventana
+que abras**. Con el escritorio ya lleno interviene igual aunque no pueda arreglarlo: partir la mayor
+por su lado largo sigue siendo la opción menos mala. Quien decide que ya no cabe nadie es
+`gigios/limite-ventanas.lua`, que corre después.
+
+**Al SOLTAR una ventana arrastrada (SUPER + arrastrar) manda la otra palanca: quitarle sitio a los
+vecinos.** Es el otro momento en el que un tamaño se decide de golpe — dwindle reinserta la ventana
+partiendo el destino en dos, así que soltarla sobre una ventana ya pequeña la deja en la mitad de
+poco. Aquí el destino **no** se puede elegir (lo has elegido tú con el ratón), así que si la ventana
+cae por debajo de los mínimos se la ensancha con `resizeactive exact`, que mueve las proporciones
+del árbol: el hueco sale de **encoger al vecino**, no de tapar a nadie. Se pide **solo el mínimo**,
+nunca más — el sitio se le quita a otro y pasarse sería resolver un estrujón creando otro. Medido:
+un drop que iba a quedar en 2032x**273** sale en 2032x**320** y el vecino baja de 547 a 223.
+
+**La detección del soltar son dos binds MÁS** sobre `SUPER + mouse:272` (uno normal y otro con
+`{release = true}`) que llaman a `GiGiOS.reparto_arrastre_inicio/fin`. Hyprland ejecuta **todos** los
+binds de una combinación, así que conviven con el `bindm` nativo — verificado con un **ratón virtual
+por uinput** haciendo el arrastre de verdad. Ojo: esto es `release`, **no** el `drag` de la
+advertencia de `keybinds.lua`, que sí se come el primer arrastre de cada sesión.
+
+**AL PULSAR NO SE VALIDA NADA, y ese fue el fallo que costó la tarde.** Cuando llega la pulsación,
+el `bindm` nativo ya se ejecutó y la ventana **está flotando**: así dibuja Hyprland el arrastre (la
+saca del mosaico y la reinserta al soltar). Descartar lo flotante ahí —lo primero que uno escribe—
+hacía que la foto no se tomara nunca y que **todo esto no hiciera nada, sin un solo error**. La
+geometría en ese instante sí es todavía la del mosaico. Las comprobaciones van al soltar, donde el
+estado ya es el bueno; una ventana que **ya** flotaba sigue flotando allí y se descarta entonces.
+
+**El press guarda la geometría para distinguir un arrastre de un SUPER+clic que no movió nada**, y
+la comparación lleva **tolerancia de 16 px**, no una igualdad: un clic sin desplazamiento tampoco
+deja la geometría intacta —Hyprland saca y mete la ventana igual, y las proporciones bailan unos
+píxeles (medido: 223 → 220)—, así que con `==` un simple clic podía acabar ensanchando la ventana.
+Con la tolerancia, tres clics seguidos sobre la más pequeña no mueven nada (medido).
+
+**Trampas medidas**: `at` y `size` de una `HL.Window` son tablas **`{x=, y=}`, no arrays** — un
+`v.size[1]` devuelve `nil` en silencio, el área sale 0 y toda comparación de tamaño pasa a ser
+cierta (el módulo creía que todo cabía y no intervenía nunca, sin un solo error). Y
+`hl.dsp.window.resize` **ignora `window = ...`**: redimensiona **siempre la activa**, también sin
+avisar (medido: pidiendo agrandar tst3 se agrandó tst2). Por eso el drop comprueba que la activa
+siga siendo la ventana que soltaste antes de tocar nada.
+
+**Ajustes** en `~/.config/gigios/preferences.json`, sin UI (como `maxVentanasEscritorio`):
+`repartoVentanas` (**ausente = activado**, se comprueba `== false`), `anchoMinimoVentana` /
+`altoMinimoVentana` (**ausentes = 480x320**; los dos a 0 lo desactivan). Se leen por `util.prefs()`,
+o sea una vez por ejecución del config: cambiarlos pide un `hyprctl reload`.
+
 ### Tope de ventanas en mosaico por escritorio (`gigios/limite-ventanas.lua`)
 
 Pasadas unas cuantas ventanas en mosaico el escritorio deja de ser útil: dwindle sigue partiendo el
