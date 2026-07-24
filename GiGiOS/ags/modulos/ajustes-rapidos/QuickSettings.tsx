@@ -2419,14 +2419,24 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
               marginEnd={10}
             />
             <box cssClasses={["qs-display-monitor-tabs"]} spacing={6} marginStart={10} marginEnd={10}>
-              <For each={monitors}>
+              {/* Indexado por conector: `monitors` se repuebla con objetos NUEVOS en
+                  cada sondeo de `hyprctl monitors -j` (cada 2 s mientras esta vista
+                  está abierta), así que sin clave bastaba mover el foco de pantalla
+                  para rehacer todas las pastillas. El punto de foco es lo único que
+                  cambia, y por eso se lee del state en vez del objeto capturado. */}
+              <For each={monitors} id={(m: any) => m.name}>
                 {(m: any) => (
                   <button
                     cssClasses={selectedName((n) => n === m.name ? ["qs-display-monitor-pill", "active"] : ["qs-display-monitor-pill"])}
                     onClicked={() => setSelectedName(m.name)}
                   >
                     <box spacing={5} valign={Gtk.Align.CENTER}>
-                      <label cssClasses={["qs-display-monitor-dot"]} label="●" visible={m.focused} />
+                      <label
+                        cssClasses={["qs-display-monitor-dot"]}
+                        label="●"
+                        visible={monitors((lista: any[]) =>
+                          !!lista.find((actual: any) => actual.name === m.name)?.focused)}
+                      />
                       <label label={m.name} ellipsize={3} maxWidthChars={14} />
                     </box>
                   </button>

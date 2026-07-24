@@ -725,7 +725,7 @@ entry.fn-menu-minutes {
   border-radius: 7px;
   padding: 0;
   margin: 4px 0;
-  min-height: 28px;
+  min-height: 30px;
 
   // Menú nativo de GTK: el Gtk.MenuButton envuelve el icono en un <button>
   // interno con estilo de tema; lo aplanamos para que solo se vea el icono.
@@ -735,7 +735,7 @@ entry.fn-menu-minutes {
     box-shadow: none;
     outline: none;
     border-radius: 7px;
-    min-height: 28px;
+    min-height: 30px;
     padding: 0 4px;
     transition: background-color 140ms ease;
 
@@ -1407,6 +1407,7 @@ window.qs-window > box,
   background-image: radial-gradient(circle at 0% 100%, transparent 18px, $qs-bg 18.5px);
   min-width: 18px;
   min-height: 18px;
+  transform: translateX(1px);
 }
 
 .qs-panel {
@@ -3141,6 +3142,7 @@ window.np-window.csd decoration {
   background-image: radial-gradient(circle at 0% 100%, transparent 18px, $np-bg 18.5px);
   min-width: 18px;
   min-height: 18px;
+  transform: translateX(1px);
 }
 
 .np-panel {
@@ -3855,6 +3857,7 @@ window.cal-window.csd decoration {
   background-image: radial-gradient(circle at 100% 100%, transparent 18px, $cal-bg 18.5px);
   min-width: 18px;
   min-height: 18px;
+  transform: translateX(-1px);
 }
 
 .cal-superficie {

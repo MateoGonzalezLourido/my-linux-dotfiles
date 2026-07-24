@@ -49,8 +49,8 @@ done
 # Bajo hyprlang un `source =` ausente sacaba el overlay de error de Hyprland; en
 # Lua un `require` que falla lo captura `util.carga` y solo avisa en pantalla, así
 # que un módulo perdido en el checkout es MÁS silencioso que antes — de ahí que se
-# valide aquí. `carga_opcional` se excluye a propósito: esos son los ficheros que
-# genera AGS (monitor-settings/input-settings) y su ausencia es legítima.
+# valide aquí. Ya no hay excepciones: AGS dejó de generar chunks Lua
+# (monitor-settings/input-settings), así que todo lo que se carga está versionado.
 while IFS= read -r modulo; do
   relative="${modulo//.//}"
   [[ -f "$GIGIOS/hypr/$relative.lua" ]] || fail "módulo Lua de Hyprland ausente: $relative.lua"
@@ -429,7 +429,7 @@ EOF
     command -v cachyos-rate-mirrors >/dev/null 2>&1 \
       || fail "falta cachyos-rate-mirrors para los alias update/mirror"
   fi
-  optional_commands=(nvidia-smi gh fd lshw glxinfo sensors smartctl magick)
+  optional_commands=(nvidia-smi gh lshw glxinfo sensors smartctl magick)
   for command in "${optional_commands[@]}"; do
     command -v "$command" >/dev/null 2>&1 || warn "comando opcional no disponible: $command"
   done

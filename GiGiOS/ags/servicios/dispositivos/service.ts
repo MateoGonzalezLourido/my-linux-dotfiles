@@ -36,12 +36,12 @@ export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
   clickfinger: false, middleEmulation: false, dragLock: false,
 }
 
+// ÚNICO fichero que escribe este servicio. Lo lee también el config de Hyprland
+// (hypr/gigios/dispositivos.lua, cargado después de gigios/userprefs.lua para
+// que estas preferencias pisen a las de ahí), así que el dato vive en un solo
+// sitio: aquí ya no se genera ningún chunk Lua. Antes se escribían los dos
+// —devices.json e input-settings.lua— y podían divergir si el segundo fallaba.
 const DATA_PATH = `${GLib.get_user_config_dir()}/gigios/devices.json`
-// Chunk Lua puro generado: lo carga hyprland.lua con carga protegida
-// (util.carga_opcional) DESPUÉS de gigios/userprefs.lua, para que estas
-// preferencias pisen a las de ahí. El antiguo input-settings.conf deja de
-// escribirse; queda en el repo solo para la config legacy.
-const HYPR_PATH = `${GLib.get_user_config_dir()}/hypr/input-settings.lua`
 
 function clamp(value: unknown, min: number, max: number, fallback: number): number {
   const n = Number(value)
@@ -81,43 +81,14 @@ function sameSettings(a: DeviceSettings, b: DeviceSettings): boolean {
 const [deviceSettings, _setDeviceSettings] = createState<DeviceSettings>(read())
 export { deviceSettings }
 
-const yes = (v: boolean) => v ? "true" : "false"
-// Literal de cadena Lua: kb_layout/kb_variant se interpolan en un chunk y una
-// comilla sin escapar rompería el fichero generado (y la config al recargar).
+// Literal de cadena Lua: kb_layout/kb_variant se interpolan en el `hyprctl eval`
+// del aplicado en vivo, y una comilla sin escapar rompería el chunk.
 const luaStr = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
-export function renderHyprInput(s: DeviceSettings): string {
-  // Ojo con los nombres: en Lua el campo es `tap_to_click` (HL.ConfigOpt.Input.Touchpad),
-  // no el `tap-to-click` de hyprlang — verificado con getoption en instancia anidada.
-  return `-- Generado por AGS · Ajustes > Dispositivos. No editar a mano.\n` +
-    `-- Chunk Lua puro: lo carga hyprland.lua con carga protegida (util.carga_opcional)\n` +
-    `-- después de gigios/userprefs.lua, para que estas preferencias pisen a las de ahí.\n` +
-    `hl.env("XCURSOR_SIZE", "${s.tamanoCursor}")\nhl.env("HYPRCURSOR_SIZE", "${s.tamanoCursor}")\n\n` +
-    `hl.config({\n  input = {\n` +
-    `    kb_layout = ${luaStr(s.kbLayout)},\n    kb_variant = ${luaStr(s.kbVariant)},\n` +
-    `    repeat_rate = ${s.repeatRate},\n    repeat_delay = ${s.repeatDelay},\n` +
-    `    numlock_by_default = ${yes(s.numlock)},\n    follow_mouse = ${s.followMouse},\n` +
-    `    sensitivity = ${s.sensitivity.toFixed(2)},\n    accel_profile = ${luaStr(s.accelProfile)},\n` +
-    `    force_no_accel = ${yes(s.forceNoAccel)},\n    left_handed = ${yes(s.leftHanded)},\n` +
-    `    natural_scroll = ${yes(s.mouseNaturalScroll)},\n    scroll_factor = ${s.mouseScrollFactor.toFixed(2)},\n\n` +
-    `    touchpad = {\n      natural_scroll = ${yes(s.touchpadNaturalScroll)},\n` +
-    `      scroll_factor = ${s.touchpadScrollFactor.toFixed(2)},\n      tap_to_click = ${yes(s.tapToClick)},\n` +
-    `      tap_button_map = ${luaStr(s.tapButtonMap)},\n      disable_while_typing = ${yes(s.disableWhileTyping)},\n` +
-    `      clickfinger_behavior = ${yes(s.clickfinger)},\n      middle_button_emulation = ${yes(s.middleEmulation)},\n` +
-    `      drag_lock = ${yes(s.dragLock)},\n    },\n  },\n})\n`
-}
 
 function write(s: DeviceSettings) {
   try {
     GLib.mkdir_with_parents(GLib.path_get_dirname(DATA_PATH), 0o755)
-    GLib.mkdir_with_parents(GLib.path_get_dirname(HYPR_PATH), 0o755)
     GLib.file_set_contents(DATA_PATH, JSON.stringify(s, null, 2))
-    const nextHypr = renderHyprInput(s)
-    let currentHypr = ""
-    try {
-      const [ok, bytes] = GLib.file_get_contents(HYPR_PATH)
-      if (ok) currentHypr = new TextDecoder().decode(bytes)
-    } catch (_) { /* archivo ausente: se creara al guardar */ }
-    if (currentHypr !== nextHypr) GLib.file_set_contents(HYPR_PATH, nextHypr)
   } catch (e) { console.error("[devices] No se pudo guardar:", e) }
 }
 
@@ -127,10 +98,10 @@ export function updateDeviceSettings(patch: Partial<DeviceSettings>, reload = fa
   _setDeviceSettings(next)
   write(next)
   if (patch.tamanoCursor !== undefined) aplicarTamanoCursor(next.tamanoCursor)
-  // El reload puede ir detrás sin más: write() escribe input-settings.lua de forma
+  // El reload puede ir detrás sin más: write() escribe devices.json de forma
   // SÍNCRONA (GLib.file_set_contents), así que cuando el `hyprctl reload` re-ejecute
-  // la config Lua entera el fichero ya está completo en disco — no puede pisar la
-  // sesión con un chunk a medio escribir.
+  // la config Lua entera —y con ella gigios/dispositivos.lua, que lo lee— el
+  // fichero ya está completo en disco.
   if (reload) execAsync(["hyprctl", "reload"]).catch(() => {})
   else {
     // `hyprctl keyword` no existe bajo config Lua: todos los campos cambiados van
@@ -235,11 +206,12 @@ function liveConfigLua(patch: Partial<DeviceSettings>, next: DeviceSettings): st
 export function resetDeviceSettings() {
   const next = { ...DEFAULT_DEVICE_SETTINGS }
   _setDeviceSettings(next)
-  write(next)   // síncrono: el .lua queda completo ANTES del reload de abajo
+  write(next)   // síncrono: devices.json queda completo ANTES del reload de abajo
   aplicarTamanoCursor(next.tamanoCursor)
   execAsync(["hyprctl", "reload"]).catch(() => {})
 }
 
-// No escribimos input-settings.lua al importar este modulo: Hyprland vigila sus
-// archivos de configuracion y cualquier escritura en el arranque de AGS provoca
-// una recarga visible. El archivo se guarda solo cuando el usuario cambia algo.
+// No escribimos nada al importar este módulo: el fichero se guarda solo cuando el
+// usuario cambia algo. Ya no vive bajo ~/.config/hypr (Hyprland vigila sus
+// archivos de configuración y escribir ahí al arrancar AGS provocaba una recarga
+// visible), pero la regla se mantiene: escribir por escribir no aporta nada.

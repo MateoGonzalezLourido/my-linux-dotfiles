@@ -75,6 +75,7 @@ export default function BotonElementoBandeja({
     <menubutton
       cssClasses={["icon-bare", "tray-item"]}
       focusable={false}
+      valign={Gtk.Align.CENTER}
       menuModel={createBinding(elemento, "menuModel")}
       $={(self: Gtk.MenuButton) => {
         boton = self

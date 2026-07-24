@@ -16,8 +16,13 @@ export interface InteraccionesBotonEscritorio {
   liberarTeclado: () => void
 }
 
+// El <For> de Escritorios está indexado por id, así que este componente se
+// construye UNA vez por escritorio y vive mientras ese id siga en la barra. De
+// `escritorio` solo puede leerse lo que no cambia en toda esa vida —`id` (la propia
+// clave) y `enfocar`, que solo depende del id—; los clientes llegan por accessor.
 interface PropiedadesBotonEscritorio {
   escritorio: EscritorioVisible
+  clientes: Accessor<IconoClienteEscritorio[]>
   overlay: Gtk.Overlay
   idEnfocado: Accessor<number>
   direccionEnfocada: Accessor<string>
@@ -37,6 +42,7 @@ function obtenerModificadores(gesto: Gtk.Gesture): number {
 
 export default function BotonEscritorio({
   escritorio,
+  clientes,
   overlay,
   idEnfocado,
   direccionEnfocada,
@@ -52,10 +58,15 @@ export default function BotonEscritorio({
   let controlAlPulsar = false
   let eliminarInteraccion = () => {}
 
-  const clientes = idEnfocado(() => escritorio.clientes)
-  const indiceClienteActivo = direccionEnfocada((direccion) =>
-    clientes().findIndex((cliente) => cliente.direccion === direccion),
-  )
+  // Depende de las DOS fuentes: la dirección enfocada cambia sin que se mueva la
+  // lista (alt-tab dentro del escritorio), pero la lista también cambia sin que se
+  // mueva el foco (reordenar ventanas), y entonces el índice del cliente activo es
+  // otro. Colgarlo solo de `direccionEnfocada` dejaba el resaltado en la ventana
+  // equivocada hasta el siguiente cambio de foco.
+  const indiceClienteActivo = createComputed(() => {
+    const direccion = direccionEnfocada()
+    return clientes().findIndex((cliente) => cliente.direccion === direccion)
+  })
 
   const alternarPantallaCompleta = (direccion: string) => {
     const direccionNormalizada = direccion.startsWith("0x") ? direccion : `0x${direccion}`

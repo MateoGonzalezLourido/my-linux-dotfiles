@@ -13,9 +13,14 @@
 -- el SUPER+Q de emergencia), y `--verify-config` solo detecta errores de
 -- parseo, no de ejecución.
 --
--- EL ORDEN DE CARGA ES SIGNIFICATIVO, no estético: monitor-settings pisa al
--- comodín de monitores, input-settings pisa a userprefs, y los binds sordos van
--- después de TODOS los binds reales (si no, no sabrían cuáles ya están usados).
+-- EL ORDEN DE CARGA ES SIGNIFICATIVO, no estético: gigios.pantalla pisa al
+-- comodín de monitores, gigios.dispositivos pisa a userprefs, y los binds sordos
+-- van después de TODOS los binds reales (si no, no sabrían cuáles ya se usan).
+--
+-- Lo que AGS ajusta desde la UI llega por JSON, no por código generado:
+-- gigios.pantalla lee display.json, gigios.dispositivos lee devices.json y
+-- gigios.env lee el idioma de datetime.json. AGS escribe el dato y este config
+-- decide — ya no hay ficheros .lua generados que cargar (ni que versionar).
 --
 -- `hyprctl keyword` no existe bajo Lua: los cambios en caliente llegan por
 -- `hyprctl eval` (así los aplica AGS) o llamando a las funciones del global
@@ -34,7 +39,7 @@ hl.config({ render = { cm_enabled = false } })
 
 util.carga("gigios.env")            -- variables de entorno (Qt, toolkits, idioma)
 util.carga("gigios.monitores")      -- regla comodín de monitores (el fallback)
-util.carga_opcional("monitor-settings")  -- generado por AGS · Ajustes > Pantalla; pisa al comodín
+util.carga("gigios.pantalla")       -- lee display.json (AGS · Ajustes > Pantalla); pisa al comodín
 util.carga("gigios.input")          -- teclado, ratón, touchpad y gestos
 util.carga("gigios.ventanas")       -- aspecto: gaps, bordes, sombras, blur, layout
 util.carga("gigios.animaciones")    -- curvas y animaciones
@@ -44,6 +49,7 @@ util.carga("gigios.reglas")         -- reglas de ventana y de capa
 util.carga("gigios.compactar")      -- GiGiOS.compactar()
 util.carga("gigios.boton-apagado")  -- GiGiOS.boton_apagado()
 util.carga("gigios.daltonismo")     -- GiGiOS.daltonismo(modo)
+util.carga("gigios.orion")          -- GiGiOS.toggle_orion()
 util.carga("gigios.keybinds")       -- los atajos reales (+ GiGiOS.toggle_gaps)
 util.carga("gigios.autostart")      -- arranque escalonado (hl.on "hyprland.start")
 util.carga("gigios.escaner-apps")   -- salto al escritorio de las apps de autostart
@@ -51,7 +57,7 @@ util.carga("gigios.permisos")       -- permisos del ecosistema (screencopy, plug
 util.carga("gigios.gpu")            -- perfil por máquina (~/.config/gigios/gpu-perfil)
 util.carga("gigios.gaming")         -- ajustes para juegos (tearing, VRR)
 util.carga("gigios.userprefs")      -- preferencias personales (pisan a lo anterior)
-util.carga_opcional("input-settings")    -- generado por AGS · Ajustes > Dispositivos; pisa a userprefs
+util.carga("gigios.dispositivos")   -- lee devices.json (AGS · Ajustes > Dispositivos); pisa a userprefs
 util.carga("gigios.env-firefox")    -- variables de Firefox/Wayland
 
 -- Binds sordos (absorber SUPER+tecla sin atajo): SIEMPRE al final, cuando ya

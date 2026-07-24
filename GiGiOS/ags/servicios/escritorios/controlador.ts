@@ -43,6 +43,14 @@ function conectarSenales() {
     hyprland.connect("client-moved", notificarSuscriptores),
     hyprland.connect("notify::focused-client", notificarSuscriptores),
     hyprland.connect("notify::monitors", reconectar),
+    // Entrar o salir de pantalla completa no altera la lista de clientes ni el foco,
+    // así que ninguna de las señales de arriba se entera. `Workspace.has-fullscreen`
+    // tampoco sirve: medido, no emite `notify::` — y además vale `true` para una
+    // ventana solo MAXIMIZADA, que no es el caso que interesa. Queda el evento crudo
+    // de Hyprland; quien lo consuma decide el modo mirando el cliente.
+    hyprland.connect("event", (_origen: unknown, evento: string) => {
+      if (evento === "fullscreen") notificarSuscriptores()
+    }),
   ]
   reconectarSenalesMonitores()
 }

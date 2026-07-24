@@ -1,9 +1,12 @@
 -- Variables de entorno del sistema: las lee el SO y las apps.
 --
--- OJO: el bloque de idioma de abajo lo reescribe AGS (fechaHora.ts) ENTRE los
--- marcadores «GiGiOS idioma» — no edites ese tramo a mano. Los marcadores se
--- conservan con el texto exacto que el escritor busca (aquí como comentario
--- Lua); cambiarlos deja el bloque huérfano y AGS añadiría uno nuevo debajo.
+-- El idioma (LANG/LC_ALL) NO se escribe aquí: se LEE al final del fichero de
+-- ~/.config/gigios/datetime.json, que es lo que guarda AGS (Ajustes > Región,
+-- fecha y hora). Antes AGS reescribía un bloque entre marcadores DENTRO de este
+-- fichero, que está versionado — estado de máquina ensuciando git, y un
+-- marcador tocado a mano dejaba el bloque huérfano. Ver CLAUDE.md.
+
+local util = require("gigios.util")
 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
@@ -20,7 +23,12 @@ hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 -- la escala del resto del escritorio.
 hl.env("QT_SCALE_FACTOR", "0.9")
 
--- >>> GiGiOS idioma (no editar a mano) >>>
-hl.env("LANG", "es_ES.UTF-8")
-hl.env("LC_ALL", "es_ES.UTF-8")
--- <<< GiGiOS idioma <<<
+-- Idioma elegido en Ajustes. Sin fichero (o sin la clave) se deja el LANG que
+-- traiga la sesión de logind: poner uno de fábrica aquí pisaría en silencio la
+-- configuración del sistema en una máquina que nunca ha tocado este ajuste.
+local dt = util.leer_json(util.HOGAR .. "/.config/gigios/datetime.json")
+local idioma = dt and dt.locale
+if type(idioma) == "string" and idioma ~= "" then
+  hl.env("LANG", idioma)
+  hl.env("LC_ALL", idioma)
+end

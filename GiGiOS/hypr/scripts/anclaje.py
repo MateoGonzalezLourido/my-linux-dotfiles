@@ -99,50 +99,25 @@ def hypr_j(*args):
     return json.loads(out)
 
 
-def _forma_lua(args):
-    """Forma Lua (Hyprland 0.56) del dispatcher legacy `args`, o None.
+def dispatch(lua):
+    """Manda un dispatcher en la forma Lua de Hyprland 0.56.
 
-    Solo traduce los tres dispatchers que usa este fichero; cualquier otra cosa
-    devuelve None y dispatch() la manda tal cual por el camino legacy. Firmas
-    verificadas en instancia anidada con config Lua, no supuestas:
-      movetoworkspacesilent N,address:0x… -> hl.dsp.window.move({workspace=N,
-          window='address:0x…', follow=false})  (sin follow SÍ cambia el foco
-          y el workspace activo — follow=false es lo que hace el "silent")
-      movetoworkspace N,address:0x…       -> igual con follow=true
-      focuswindow address:0x…             -> hl.dsp.focus({window='address:0x…'})
-    Las direcciones son hex puro, así que van en el literal sin escapado.
+    Firmas verificadas en instancia anidada con config Lua, no supuestas:
+      mover en silencio -> hl.dsp.window.move({workspace=N, window='address:0x…',
+          follow=false})  (sin follow SÍ cambia el foco y el workspace activo —
+          `follow=false` es lo que hace el "silent"; un `silent=true` se ignora)
+      mover siguiendo    -> igual con follow=true
+      enfocar            -> hl.dsp.focus({window='address:0x…'})
+    El selector por string necesita el prefijo `address:`; un '0x…' a secas no
+    casa y el dispatcher mueve la VENTANA ACTIVA. Las direcciones son hex puro,
+    así que van en el literal sin escapado.
+
+    Aquí hubo un fallback a la sintaxis legacy, porque durante la migración la
+    sesión viva podía seguir en config hyprlang mientras el script en disco ya
+    era el nuevo. Los `.conf` del compositor ya no existen en el repo, así que
+    esa rama era código muerto que solo servía para tragarse errores.
     """
-    if len(args) != 2:
-        return None
-    dsp, arg = args
-    if dsp in ("movetoworkspacesilent", "movetoworkspace"):
-        ws, _, addr = arg.partition(",")
-        if not (ws.isdigit() and addr.startswith("address:0x")):
-            return None
-        follow = "false" if dsp == "movetoworkspacesilent" else "true"
-        return (f"hl.dsp.window.move({{workspace={ws}, "
-                f"window='{addr}', follow={follow}}})")
-    if dsp == "focuswindow" and arg.startswith("address:0x"):
-        return f"hl.dsp.focus({{window='{arg}'}})"
-    return None
-
-
-def dispatch(*args):
-    """Manda un dispatcher probando primero la forma Lua y cayendo a la legacy.
-
-    Bajo config Lua la sintaxis legacy se reinterpreta como código Lua y falla;
-    bajo config legacy (la sesión actual hasta el próximo reinicio) es la forma
-    Lua la que responde "Invalid dispatcher". El éxito se decide por el stdout
-    ("ok"), no por el código de salida: hyprctl bajo config legacy rechaza un
-    dispatcher inválido con rc=0.
-    """
-    lua = _forma_lua(args)
-    if lua is not None:
-        r = subprocess.run(["hyprctl", "dispatch", lua],
-                           capture_output=True, text=True)
-        if r.returncode == 0 and r.stdout.strip().startswith("ok"):
-            return
-    subprocess.run(["hyprctl", "dispatch", *args],
+    subprocess.run(["hyprctl", "dispatch", lua],
                    capture_output=True, text=True)
 
 
@@ -326,8 +301,8 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                 # app ya abierta al relanzarla) es otra función, no da problemas y
                 # el interruptor no la nombra, así que sigue activa.
                 if anclar and cli["workspace"]["id"] != target_ws:
-                    dispatch("movetoworkspacesilent",
-                             f"{target_ws},address:{addr}")
+                    dispatch(f"hl.dsp.window.move({{workspace={target_ws}, "
+                             f"window='address:{addr}', follow=false}})")
 
             elif event == "urgent":
                 # urgent>>ADDR  (ADDR sin "0x")
@@ -339,6 +314,7 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                     # Relanzamiento single-instance: traer al workspace actual.
                     cli = client_of(addr)
                     if cli and cli["workspace"]["id"] != target_ws:
-                        dispatch("movetoworkspace", f"{target_ws},address:{addr}")
-                    dispatch("focuswindow", f"address:{addr}")
+                        dispatch(f"hl.dsp.window.move({{workspace={target_ws}, "
+                                 f"window='address:{addr}', follow=true}})")
+                    dispatch(f"hl.dsp.focus({{window='address:{addr}'}})")
                     return

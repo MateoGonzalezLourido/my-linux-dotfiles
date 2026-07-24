@@ -3,7 +3,8 @@
 // rofi/fzf), con pesos distintos por campo.
 
 import Gio from "gi://Gio"
-import type { SearchHandler, SearchResult } from "../types"
+import { MAX_RESULTADOS } from "../engine"
+import type { HandlerMatch, SearchHandler, SearchResult } from "../types"
 import { launchApp } from "../../data/launch"
 
 let _cache: Gio.AppInfo[] | null = null
@@ -86,42 +87,49 @@ function scoreApp(app: Gio.AppInfo, q: string): number {
   return 0
 }
 
+// Materializa un `Gio.AppInfo` ya puntuado en una fila de resultados. Solo se
+// llama para las 9 mejores del ganador, así el coste (icono, commandline) no se
+// paga por app ni por el handler perdedor.
+function crearResultado(a: Gio.AppInfo): SearchResult {
+  return {
+    id: a.get_id() ?? a.get_name() ?? Math.random().toString(),
+    title: a.get_name() ?? "",
+    subtitle: a.get_description() ?? undefined,
+    icon: a.get_icon(),
+    meta: {
+      exec: a.get_commandline() ?? "",
+      appId: a.get_id() ?? "",
+      execName: a.get_executable() ?? "",
+    },
+    action: () => {
+      const cmd = (a.get_commandline() ?? "").replace(/%[fFuUdDnNickvmb]/g, "").trim()
+      if (cmd) launchApp(cmd)
+    },
+  }
+}
+
 export const appsHandler: SearchHandler = {
   id: "apps",
   defaultFor: ["inicio"],
   inlineFor: [],
 
-  confidence(query: string): number {
+  // Una sola pasada: puntúa las apps, guarda el orden y deja `build` listo para
+  // materializar solo el top N si este handler entra en la mezcla. Con una sola
+  // letra busca igual (es un lanzador): baja la confianza, no los resultados.
+  match(query: string): HandlerMatch {
     const q = query.toLowerCase()
-    if (q.length < 2) return 0.05
-    const hasMatch = getApps().some(a =>
-      fuzzy(a.get_name() ?? "", q) !== null ||
-      fuzzy(a.get_executable() ?? "", q) !== null
-    )
-    return hasMatch ? 0.75 : 0.10
-  },
 
-  search(query: string): SearchResult[] {
-    const q = query.toLowerCase()
-    return getApps()
+    const ranked = getApps()
       .map(a => ({ a, s: scoreApp(a, q) }))
       .filter(({ s }) => s > 0)
       .sort((x, y) => y.s - x.s)
-      .slice(0, 9)
-      .map(({ a }) => ({
-        id: a.get_id() ?? a.get_name() ?? Math.random().toString(),
-        title: a.get_name() ?? "",
-        subtitle: a.get_description() ?? undefined,
-        icon: a.get_icon(),
-        meta: {
-          exec: a.get_commandline() ?? "",
-          appId: a.get_id() ?? "",
-          execName: a.get_executable() ?? "",
-        },
-        action: () => {
-          const cmd = (a.get_commandline() ?? "").replace(/%[fFuUdDnNickvmb]/g, "").trim()
-          if (cmd) launchApp(cmd)
-        },
-      }))
+
+    const corta = q.length < 2
+    const score = ranked.length > 0 ? (corta ? 0.05 : 0.75) : (corta ? 0 : 0.10)
+
+    return {
+      score,
+      build: () => ranked.slice(0, MAX_RESULTADOS).map(({ a }) => crearResultado(a)),
+    }
   },
 }

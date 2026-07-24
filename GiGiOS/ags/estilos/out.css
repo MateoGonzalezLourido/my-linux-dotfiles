@@ -1,3 +1,4 @@
+@charset "UTF-8";
 .Orion {
   background: transparent;
 }
@@ -12,6 +13,14 @@
   border: none;
   border-radius: 24px 24px 0 0;
   box-shadow: none;
+}
+
+.orion-curva-lateral.izquierda {
+  transform: translateX(1px);
+}
+
+.orion-curva-lateral.derecha {
+  transform: translateX(-1px);
 }
 
 .orion-main {
@@ -685,400 +694,6 @@ popover.background {
   padding: 3px 0;
 }
 
-.git-section {
-  padding: 10px 12px 12px;
-}
-.git-section .git-chip-row {
-  padding: 2px 0;
-}
-.git-section .git-chip {
-  background: rgb(16.645, 16.645, 20.505);
-  border: 0.5px solid rgba(255, 255, 255, 0.055);
-  border-radius: 20px;
-  padding: 3px 10px;
-}
-.git-section .git-chip:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-}
-.git-section .git-chip.git-chip-active {
-  background: rgb(20.9, 25.2, 35.8);
-  border-color: rgba(203, 166, 247, 0.42);
-}
-.git-section .git-chip-name {
-  font-size: 11px;
-  font-weight: 500;
-  color: #e2e2e2;
-}
-.git-section .git-chip-dot {
-  min-width: 6px;
-  min-height: 6px;
-  border-radius: 50%;
-}
-.git-section .git-chip-dot.pill-ok {
-  background: #94e2d5;
-}
-.git-section .git-chip-dot.pill-warn {
-  background: #fab387;
-}
-.git-section .git-chip-dot.pill-err {
-  background: #f38ba8;
-}
-.git-section .git-icon-btn {
-  background: rgb(8, 8, 12);
-  min-width: 26px;
-  min-height: 26px;
-  border-radius: 7px;
-  border: 0.5px solid rgba(255, 255, 255, 0.055);
-  color: rgba(226, 226, 226, 0.32);
-}
-.git-section .git-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-  color: #e2e2e2;
-}
-.git-section .git-icon-btn.git-icon-spin {
-  color: #94e2d5;
-}
-.git-section .git-icon-btn-sm {
-  background: rgb(8, 8, 12);
-  min-width: 20px;
-  min-height: 20px;
-  border-radius: 5px;
-  color: rgba(226, 226, 226, 0.32);
-}
-.git-section .git-icon-btn-sm:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-  color: #e2e2e2;
-}
-.git-section .git-tab,
-.git-section .git-manage-confirm,
-.git-section .git-saved-view,
-.git-section .git-saved-rm {
-  background: rgb(8, 8, 12);
-}
-.git-section .git-tab:hover,
-.git-section .git-manage-confirm:hover,
-.git-section .git-saved-view:hover,
-.git-section .git-saved-rm:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-}
-.git-section .git-status-bar {
-  background: rgb(16.645, 16.645, 20.505);
-  border: 0.5px solid rgba(255, 255, 255, 0.055);
-  border-radius: 11px;
-  padding: 5px 10px;
-}
-.git-section .git-branch-chip {
-  background: rgba(137, 180, 250, 0.08);
-  border-radius: 5px;
-  padding: 1px 7px;
-}
-.git-section .git-branch-ico {
-  color: #89b4fa;
-  min-width: 12px;
-  min-height: 12px;
-}
-.git-section .git-branch-lbl {
-  font-size: 11px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #89b4fa;
-  font-weight: 500;
-}
-.git-section .git-stat-pill {
-  font-size: 10px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  font-weight: 500;
-  padding: 1px 6px;
-  border-radius: 10px;
-}
-.git-section .git-stat-pill.gsp-ahead {
-  background: rgba(148, 226, 213, 0.1);
-  color: #94e2d5;
-}
-.git-section .git-stat-pill.gsp-behind {
-  background: rgba(250, 179, 135, 0.1);
-  color: #fab387;
-}
-.git-section .git-stat-pill.gsp-mod {
-  background: rgba(137, 180, 250, 0.1);
-  color: #89b4fa;
-}
-.git-section .git-stat-pill.gsp-err {
-  background: rgba(243, 139, 168, 0.1);
-  color: #f38ba8;
-}
-.git-section .git-col-card {
-  background: rgb(16.645, 16.645, 20.505);
-  border: 0.5px solid rgba(255, 255, 255, 0.055);
-  border-radius: 11px;
-}
-.git-section .git-col-hdr {
-  padding: 6px 10px;
-  background: rgba(86, 95, 137, 0.06);
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.055);
-}
-.git-section .git-col-title {
-  font-size: 10px;
-  font-weight: 500;
-  color: rgba(226, 226, 226, 0.62);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.git-section .git-empty-lbl {
-  font-size: 11px;
-  color: rgba(226, 226, 226, 0.32);
-  padding: 8px 10px;
-  font-style: italic;
-}
-.git-section .git-ab {
-  font-size: 10px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-.git-section .git-ab-a {
-  color: #94e2d5;
-}
-.git-section .git-ab-b {
-  color: #fab387;
-}
-.git-section .git-commit-row {
-  padding: 5px 10px;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.055);
-}
-.git-section .git-commit-row:last-child {
-  border-bottom: none;
-}
-.git-section .git-commit-hash {
-  font-size: 10px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #89b4fa;
-  min-width: 42px;
-}
-.git-section .git-commit-msg {
-  font-size: 11px;
-  color: #e2e2e2;
-}
-.git-section .git-commit-date {
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.32);
-}
-.git-section .git-files-count {
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.32);
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-.git-section .git-file-row {
-  padding: 4px 8px;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.055);
-}
-.git-section .git-file-row:last-child {
-  border-bottom: none;
-}
-.git-section .git-file-row:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-}
-.git-section .git-file-row.git-file-active {
-  background: rgba(137, 180, 250, 0.07);
-}
-.git-section .git-file-stat {
-  font-size: 10px;
-  font-weight: 600;
-  min-width: 13px;
-  min-height: 13px;
-  border-radius: 3px;
-}
-.git-section .git-file-stat.fs-m {
-  background: rgba(250, 179, 135, 0.15);
-  color: #fab387;
-}
-.git-section .git-file-stat.fs-a {
-  background: rgba(148, 226, 213, 0.15);
-  color: #94e2d5;
-}
-.git-section .git-file-stat.fs-d {
-  background: rgba(243, 139, 168, 0.15);
-  color: #f38ba8;
-}
-.git-section .git-file-stat.fs-u {
-  background: rgba(86, 95, 137, 0.15);
-  color: rgba(226, 226, 226, 0.32);
-}
-.git-section .git-file-name {
-  font-size: 11px;
-  color: #e2e2e2;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-.git-section .git-mini-sep {
-  background: rgba(255, 255, 255, 0.055);
-  min-height: 0.5px;
-  margin: 0 8px;
-}
-.git-section .git-commit-entry {
-  margin: 5px 8px 4px;
-  background: rgb(6.4, 6.4, 9.6);
-  border: 0.5px solid rgba(255, 255, 255, 0.055);
-  border-radius: 6px;
-  font-size: 11px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #e2e2e2;
-  padding: 3px 8px;
-}
-.git-section .git-commit-entry:focus {
-  border-color: rgba(203, 166, 247, 0.42);
-}
-.git-section .git-act-row {
-  padding: 4px 6px;
-}
-.git-section .git-act-btn {
-  background: rgb(8, 8, 12);
-  min-width: 28px;
-  min-height: 28px;
-  border-radius: 7px;
-  border: 0.5px solid rgba(255, 255, 255, 0.055);
-  color: rgba(226, 226, 226, 0.62);
-}
-.git-section .git-act-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-  color: #e2e2e2;
-}
-.git-section .git-act-btn:disabled {
-  color: rgba(226, 226, 226, 0.32);
-  opacity: 0.5;
-}
-.git-section .git-branch-popover {
-  padding: 4px;
-  min-width: 150px;
-}
-.git-section .git-branch-item-btn {
-  border-radius: 5px;
-  padding: 4px 8px;
-}
-.git-section .git-branch-item-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-}
-.git-section .git-branch-item-lbl {
-  font-size: 11px;
-  color: #e2e2e2;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-.git-section .git-branch-active {
-  color: #89b4fa;
-}
-.git-section .git-diff-panel {
-  background: rgb(16.645, 16.645, 20.505);
-  border: 0.5px solid rgba(255, 255, 255, 0.055);
-  border-radius: 11px;
-  margin-top: 2px;
-}
-.git-section .git-diff-file {
-  font-size: 11px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: rgba(226, 226, 226, 0.62);
-}
-.git-section .git-ds-a {
-  font-size: 10px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #94e2d5;
-}
-.git-section .git-ds-r {
-  font-size: 10px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #f38ba8;
-}
-.git-section .git-diff-body {
-  padding: 2px 0;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  font-size: 10px;
-}
-.git-section .git-diff-line {
-  padding: 0 10px;
-  line-height: 1.6;
-}
-.git-section .git-diff-line.dl-add {
-  background: rgba(148, 226, 213, 0.08);
-  color: #94e2d5;
-}
-.git-section .git-diff-line.dl-rem {
-  background: rgba(243, 139, 168, 0.08);
-  color: #f38ba8;
-}
-.git-section .git-diff-line.dl-ctx {
-  color: rgba(226, 226, 226, 0.62);
-}
-.git-section .git-scan-lbl {
-  font-size: 11px;
-  color: rgba(226, 226, 226, 0.62);
-}
-.git-section .git-scan-empty {
-  font-size: 11px;
-  color: rgba(226, 226, 226, 0.32);
-  font-style: italic;
-}
-.git-section .git-disc-item {
-  padding: 5px 6px;
-  border-radius: 7px;
-  border: 0.5px solid rgba(255, 255, 255, 0.055);
-  background: rgb(10.58, 11.44, 16.76);
-}
-.git-section .git-disc-item:hover {
-  background: rgb(26.525, 26.525, 30.225);
-}
-.git-section .git-disc-icon {
-  color: rgba(226, 226, 226, 0.32);
-}
-.git-section .git-disc-name {
-  font-size: 11px;
-  font-weight: 500;
-  color: #e2e2e2;
-}
-.git-section .git-disc-path {
-  font-size: 10px;
-  color: rgba(226, 226, 226, 0.32);
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-}
-.git-section .git-disc-btn {
-  min-width: 20px;
-  min-height: 20px;
-  border-radius: 5px;
-  border: 0.5px solid rgba(255, 255, 255, 0.055);
-  color: rgba(226, 226, 226, 0.32);
-}
-.git-section .git-disc-btn.git-disc-pin:hover {
-  background: rgba(137, 180, 250, 0.12);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-  border-color: rgba(203, 166, 247, 0.42);
-  color: #89b4fa;
-}
-.git-section .git-disc-btn.git-disc-ignore:hover {
-  background: rgba(243, 139, 168, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-  border-color: rgba(243, 139, 168, 0.25);
-  color: #f38ba8;
-}
-.git-section .git-action-bar {
-  font-size: 10px;
-  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
-  color: #94e2d5;
-  padding: 3px 8px;
-  background: rgb(17.8, 23.26, 26.07);
-  border-radius: 8px;
-  border: 0.5px solid rgba(148, 226, 213, 0.15);
-}
-
 .rice-content {
   padding: 12px 14px;
 }
@@ -1204,13 +819,7 @@ popover.background {
 .Orion.fondo-shell-grafito .ns,
 .Orion.fondo-shell-grafito .sys-strip-fixed,
 .Orion.fondo-shell-grafito .apps-cat-btn,
-.Orion.fondo-shell-grafito .apps-mode-toggle,
-.Orion.fondo-shell-grafito .git-icon-btn,
-.Orion.fondo-shell-grafito .git-icon-btn-sm,
-.Orion.fondo-shell-grafito .git-tab,
-.Orion.fondo-shell-grafito .git-manage-confirm,
-.Orion.fondo-shell-grafito .git-saved-view,
-.Orion.fondo-shell-grafito .git-saved-rm {
+.Orion.fondo-shell-grafito .apps-mode-toggle {
   background: rgb(24, 24, 32);
 }
 
@@ -1809,7 +1418,7 @@ entry.fn-menu-minutes selection {
   border-radius: 7px;
   padding: 0;
   margin: 4px 0;
-  min-height: 28px;
+  min-height: 30px;
 }
 .Bar .tray-item > button {
   background-color: transparent;
@@ -1817,7 +1426,7 @@ entry.fn-menu-minutes selection {
   box-shadow: none;
   outline: none;
   border-radius: 7px;
-  min-height: 28px;
+  min-height: 30px;
   padding: 0 4px;
   transition: background-color 140ms ease;
 }
@@ -2381,6 +1990,7 @@ window.qs-window > box,
   background-image: radial-gradient(circle at 0% 100%, transparent 18px, rgba(8, 8, 12, 0.94) 18.5px);
   min-width: 18px;
   min-height: 18px;
+  transform: translateX(1px);
 }
 
 .qs-panel {
@@ -3918,6 +3528,7 @@ window.np-window.csd decoration {
   background-image: radial-gradient(circle at 0% 100%, transparent 18px, rgba(8, 8, 12, 0.94) 18.5px);
   min-width: 18px;
   min-height: 18px;
+  transform: translateX(1px);
 }
 
 .np-panel {
@@ -4604,6 +4215,7 @@ window.cal-window.csd decoration {
   background-image: radial-gradient(circle at 100% 100%, transparent 18px, rgba(8, 8, 12, 0.94) 18.5px);
   min-width: 18px;
   min-height: 18px;
+  transform: translateX(-1px);
 }
 
 .cal-superficie {

@@ -3,7 +3,7 @@
 // evita que cada componente importe a otro directamente.
 
 import { createState } from "ags"
-import { searchEngine } from "./search"
+import { resolveSearch } from "./search"
 import type { SearchResult } from "./search"
 import {
   orionAppsDefault,
@@ -11,9 +11,7 @@ import {
 } from "../ajustes/preferences"
 
 export type SectionId =
-  | "inicio" | "apps" | "sistema" | "git" | "watcher"
-  | "env" | "workflows" | "rice" | "ai"
-  | "mascotas" | "keybinds" | "reactivo"
+  | "inicio" | "apps" | "rice" | "keybinds" | "reactivo"
 
 export const [orionVisible,  setOrionVisible]  = createState(false)
 export const [activeSection,  setActiveSection]  = createState<SectionId>("inicio")
@@ -100,7 +98,7 @@ export function setQuery(query: string) {
     return
   }
 
-  const resolved = searchEngine.resolve(query, activeSection.get())
+  const resolved = resolveSearch(query, activeSection.get())
 
   if (resolved.inline) {
     // Active section handles filtering on its own (e.g. keybinds)
@@ -112,10 +110,10 @@ export function setQuery(query: string) {
   setSearchResults(resolved.results)
   setSection("reactivo")
 
-  // Auto-preview: if the apps handler won and there are results, open the first one
-  const results = resolved.results
-  if (resolved.handlerId === "apps" && results.length > 0) {
-    const first    = results[0]
+  // Auto-preview: if the first result is an app (the list can now mix apps and
+  // shortcuts), open its context in the right panel.
+  const first = resolved.results[0]
+  if (first?.meta?.exec) {
     const execName = first.meta?.execName ?? (first.meta?.exec ?? "").split(" ")[0].split("/").pop() ?? ""
     showAppContext({
       id:       first.id,

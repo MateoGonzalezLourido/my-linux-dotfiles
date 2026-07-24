@@ -176,15 +176,29 @@ export function HomeSection() {
     appsFlow.invalidate_sort()
   }
 
-  favorites.subscribe(() => rebuildApps())
-  rebuildApps()
+  // Carga perezosa (igual que `AppsSection`/`RiceSection`): los tiles de favoritos
+  // y el `_iconCache` (`Gio.AppInfo.get_all()`) se construyen al mostrar Inicio por
+  // primera vez, no al arrancar el shell —donde `NavSections` monta esta sección,
+  // por monitor, aunque no se abra Orion—. Un cambio de favoritos (reordenar por
+  // arrastre) solo reconstruye si la sección ya se abrió; si no, ya se cargará al
+  // abrirla.
+  let cargado = false
+  favorites.subscribe(() => { if (cargado) rebuildApps() })
 
-  return (
+  const root = (
     <box cssClasses={["section-home"]} orientation={Gtk.Orientation.VERTICAL}>
 
       <label label="Aplicaciones" cssClasses={["section-title"]} halign={Gtk.Align.START} />
       {appsFlow as unknown as any}
 
     </box>
-  )
+  ) as unknown as Gtk.Widget
+
+  root.connect("map", () => {
+    if (cargado) return
+    cargado = true
+    rebuildApps()
+  })
+
+  return root
 }

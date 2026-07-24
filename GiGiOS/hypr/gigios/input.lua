@@ -22,7 +22,7 @@ hl.config({
 })
 
 -- Cambiar de workspace deslizando horizontalmente con tres dedos.
--- Se mantiene aquí (y no en input-settings) para no registrarlo dos veces.
+-- Se mantiene aquí (y no en gigios/dispositivos) para no registrarlo dos veces.
 hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 
 -- Ejemplo de config por dispositivo.

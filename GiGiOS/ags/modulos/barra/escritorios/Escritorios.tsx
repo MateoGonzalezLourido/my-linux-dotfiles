@@ -27,7 +27,12 @@ import {
   rutaVistaPreviaEscritorio,
 } from "./capturas"
 import { obtenerIconosClientesEscritorio } from "./iconos"
-import type { ClienteEscritorio, EscritorioVisible } from "./modelo"
+import { sonEscritoriosEquivalentes } from "./modelo"
+import type {
+  ClienteEscritorio,
+  EscritorioVisible,
+  IconoClienteEscritorio,
+} from "./modelo"
 import { crearGestorVistaPreviaEscritorios } from "./gestorVistaPrevia"
 
 export interface InteraccionEscritorios {
@@ -45,6 +50,11 @@ const INTERACCION_NULA: InteraccionEscritorios = {
 }
 
 const vistaPreviaActiva = () => wsPreviewEnabled.get() && !wsPreviewSuspended.get()
+
+/** Identidad estable para el caso "este escritorio no tiene clientes": un literal
+ *  nuevo por evaluación haría que el accessor derivado emitiera un array distinto
+ *  cada vez sin que nada hubiera cambiado. */
+const SIN_CLIENTES: IconoClienteEscritorio[] = []
 
 /** Escritorios de una barra concreta. Todo el estado visual pertenece al monitor. */
 export default function Escritorios(
@@ -68,11 +78,27 @@ export default function Escritorios(
 
   let idsEscritoriosRecientes = recordarEscritorioReciente([], obtenerIdEscritorioActivo())
   let ultimoIdEscritorioActivo = obtenerIdEscritorioActivo()
-  const [escritorios, fijarEscritorios] = createState<EscritorioVisible[]>([])
+  // Igualdad por CONTENIDO, no por identidad de array. `actualizar()` corre ante
+  // cualquier señal de escritorios —incluida `notify::focused-client`, que con
+  // `follow_mouse = 1` salta cada vez que el puntero cruza de una ventana a otra— y
+  // devuelve siempre objetos nuevos. Con el `Object.is` de fábrica, ese cruce del
+  // ratón publicaba una lista "nueva" y reconstruía todos los botones de todas las
+  // barras. El foco vive en `idEnfocado`/`direccionEnfocada`, que sí son suyos.
+  const [escritorios, fijarEscritorios] =
+    createState<EscritorioVisible[]>([], { equals: sonEscritoriosEquivalentes })
   const [escritoriosRenderizados, fijarEscritoriosRenderizados] =
-    createState<EscritorioVisible[]>([])
+    createState<EscritorioVisible[]>([], { equals: sonEscritoriosEquivalentes })
   const [idEnfocado, fijarIdEnfocado] = createState(ultimoIdEscritorioActivo)
   const [direccionEnfocada, fijarDireccionEnfocada] = createState("")
+
+  /** Clientes de un escritorio como accessor vivo. `<For>` está indexado por id, así
+   *  que `BotonEscritorio` se construye UNA vez por escritorio y su prop `escritorio`
+   *  ya no vuelve a llegar: todo lo que cambie durante su vida tiene que entrar por
+   *  aquí. Solo emite cuando la lista publicada cambia de verdad (ver `equals`). */
+  const clientesDeEscritorio = (idEscritorio: number) =>
+    escritoriosRenderizados((lista) =>
+      lista.find((escritorio) => escritorio.id === idEscritorio)?.clientes ?? SIN_CLIENTES,
+    )
 
   // Sin connector se mantiene la lista por geometría, pero grim queda desactivado:
   // no se puede seleccionar con seguridad una salida mediante `-o`.
@@ -153,7 +179,9 @@ export default function Escritorios(
     ).map(({ id, enfocar, clientes }) => ({ id, enfocar, clientes }))
 
     fijarEscritorios(siguientes)
-    if (visibilidad.visible.get()) fijarEscritoriosRenderizados(siguientes)
+    // `escritorios.get()` y no `siguientes`: si el contenido no cambió, el state
+    // conserva el array anterior y ambos quedan en la misma identidad.
+    if (visibilidad.visible.get()) fijarEscritoriosRenderizados(escritorios.get())
   }
 
   const mostrarEstadoOptimista = (siguientes: EscritorioVisible[]) => {
@@ -234,10 +262,16 @@ export default function Escritorios(
   const overlay = new Gtk.Overlay()
   overlay.set_child(
     <box cssClasses={["Workspaces"]} spacing={2}>
-      <For each={escritoriosRenderizados}>
+      {/* Indexado por id: sin `id` el <For> compara por identidad de objeto, y como
+          cada pasada de `actualizar()` devuelve objetos nuevos, abrir una ventana
+          reconstruía TODOS los botones (con sus gestos, arrastres y ranuras de
+          icono) en vez del que cambió. `enfocar` se captura en la primera
+          construcción y no se refresca: solo depende del id, que es la clave. */}
+      <For each={escritoriosRenderizados} id={(escritorio) => escritorio.id}>
         {(escritorio) => (
           <BotonEscritorio
             escritorio={escritorio}
+            clientes={clientesDeEscritorio(escritorio.id)}
             overlay={overlay}
             idEnfocado={idEnfocado}
             direccionEnfocada={direccionEnfocada}

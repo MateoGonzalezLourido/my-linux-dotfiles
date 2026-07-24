@@ -86,7 +86,7 @@ install_packages() {
     alsa-utils inotify-tools dbus kmod
     networkmanager bluez bluez-utils xdg-user-dirs
     clamav firejail bubblewrap xxhash file cups geoclue gamemode
-    mesa-utils lshw fd github-cli
+    mesa-utils lshw github-cli
   )
 
   [[ "$INSTALL_PACKAGES" == 1 ]] || {

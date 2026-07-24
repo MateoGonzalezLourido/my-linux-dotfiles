@@ -23,6 +23,7 @@ import BotonMenuEnergia from "./controles/BotonMenuEnergia"
 import ReproduccionSpotify from "./multimedia/spotify/ReproduccionSpotify"
 import RanuraCondicionalBarra from "./componentes/RanuraCondicionalBarra"
 import { obtenerControlVisibilidadBarra } from "../../estado/visibilidadBarra"
+import { suscribirPantallaCompleta } from "../../servicios/escritorios/pantallaCompleta"
 import { spotifyBarSuspended } from "../../servicios/energia/powerState"
 import { barAutoHideEnabled, batteryBarEnabled, fondoShell, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "../ajustes/preferences"
 import { anyPanelVisible, alternarQuickSettings, solicitudAlternarBar } from "../../estado/shell"
@@ -38,6 +39,8 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
   const [barKeyboardActive, setBarKeyboardActive] = createState(false)
   const [barPinnedByKey, setBarPinnedByKey] = createState(false)
   const [barOcultaPorTecla, setBarOcultaPorTecla] = createState(false)
+  // Hay una ventana en pantalla completa REAL en el escritorio activo de esta salida.
+  const [barTapada, setBarTapada] = createState(false)
   let hideTimer: ReturnType<typeof setTimeout> | null = null
   let showTimer: ReturnType<typeof setTimeout> | null = null
   let startupTimer: ReturnType<typeof setTimeout> | null = null
@@ -115,7 +118,18 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
 
   // Una sola ruta decide la visibilidad local de esta salida.
   const checkVisibility = () => {
-    if (barOcultaPorTecla.get()) {
+    // Pantalla completa real en esta salida: Hyprland ya oculta la barra bajando su
+    // capa a alpha 0, pero la superficie sigue MAPEADA y GTK la sigue renderizando
+    // (~2,5 % de CPU medidos, con y sin pantalla completa: es render, no sondeo — los
+    // widgets ni corren aquí). Bajarla de verdad —misma ruta física que el ocultado
+    // por teclado— la saca de pantalla y GTK deja de dibujarla (~0,07 %). No hay salto
+    // de las ventanas de debajo: en pantalla completa el compositor ya ignora la zona
+    // exclusiva de la barra, así que soltar su reserva no recoloca nada; al salir se
+    // restaura. Va ANTES del pin/hover: durante la pantalla completa la barra no debe
+    // reaparecer al pasar el ratón por arriba.
+    if (barTapada.get()) {
+      hideNow()
+    } else if (barOcultaPorTecla.get()) {
       hideNow()
     } else if (!barAutoHideEnabled.get()) {
       showNow()
@@ -144,6 +158,11 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
   // no vuelve a ocultarse; al reactivarlo, checkVisibility decide (se retraerá si
   // no hay hover ni paneles abiertos).
   bajas.push(barAutoHideEnabled.subscribe(checkVisibility))
+
+  // Actualiza barTapada cuando aparece/desaparece una pantalla completa real en el
+  // escritorio activo de esta salida. checkVisibility (suscrito abajo) hace el resto.
+  bajas.push(suscribirPantallaCompleta(gdkmonitor, setBarTapada))
+  bajas.push(barTapada.subscribe(checkVisibility))
 
   const hyprland = AstalHyprland.get_default()
   const nombreMonitor = gdkmonitor.get_connector() ?? ""
@@ -194,9 +213,14 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
     bajas.forEach((baja) => { if (typeof baja === "function") baja() })
   })
 
+  // La franja para revelar la barra al pasar el ratón por arriba aparece cuando está
+  // retraída, PERO no durante una pantalla completa: ahí la barra se queda abajo a
+  // propósito (la ventana en pantalla completa manda) y no debe reaparecer al rozar.
+  const mostrarHotzone = createComputed([visible, barTapada], (v, tapada) => !v && !tapada)
+
   const hotzone = <window
     name="bar-hotzone"
-    visible={visible((v) => !v)}
+    visible={mostrarHotzone}
     gdkmonitor={gdkmonitor}
     layer={Astal.Layer.TOP}
     exclusivity={Astal.Exclusivity.NORMAL}

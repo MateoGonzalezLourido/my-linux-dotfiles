@@ -26,14 +26,20 @@ function existeEnTema(nombre: string | null | undefined): boolean {
 
 const cacheIconosOriginales = new Map<string, Gio.Icon | null>()
 
+// Los directorios XDG no cambian durante la sesión, así que la lista se arma una
+// sola vez: la recorren tres bucles anidados por cada icono que falla la caché.
+let raicesCacheadas: string[] | null = null
+
 function raicesHicolor(): string[] {
+  if (raicesCacheadas) return raicesCacheadas
   const directorios = [GLib.get_user_data_dir(), ...GLib.get_system_data_dirs()]
   const raices = directorios.map((dir) => GLib.build_filenamev([dir, "icons", "hicolor"]))
   raices.push(
     GLib.build_filenamev([GLib.get_user_data_dir(), "flatpak", "exports", "share", "icons", "hicolor"]),
     "/var/lib/flatpak/exports/share/icons/hicolor",
   )
-  return [...new Set(raices)]
+  raicesCacheadas = [...new Set(raices)]
+  return raicesCacheadas
 }
 
 const DIRECTORIOS_ICONO_ORIGINAL = [

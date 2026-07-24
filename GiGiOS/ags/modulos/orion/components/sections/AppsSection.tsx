@@ -260,7 +260,6 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
     renderMode()
   }
 
-  rebuild("all")
   activeSection.subscribe(sincronizarNavegacion)
 
   const catsScroll = new Gtk.ScrolledWindow()
@@ -278,5 +277,20 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
   root.append(meta)
   root.append(grid)
   root.append(listBox)
+
+  // Carga perezosa: el catálogo (`Gio.AppInfo.get_all()` sobre los ~161 `.desktop`
+  // más un tile con icono por app) se construye al MOSTRAR la sección por primera
+  // vez, no al arrancar el shell. `NavSections` monta todas las secciones de una
+  // vez y Orion se instancia por monitor en el arranque, así que sin esto ese
+  // parseo y sus tiles se pagaban en cada sesión aunque no se abriera Orion.
+  // Mismo patrón que `RiceSection`. El `map` llega durante la animación de
+  // entrada, antes de que el panel sea interactivo, así que las apps ya están
+  // cuando se necesitan para la navegación por teclado.
+  let cargado = false
+  root.connect("map", () => {
+    if (cargado) return
+    cargado = true
+    rebuild("all")
+  })
   return root
 }

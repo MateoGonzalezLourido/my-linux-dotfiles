@@ -171,8 +171,11 @@ bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true })
 -- panel de ajustes (toggle)
 bind(mod .. " + J", hl.dsp.exec_cmd("ags request toggle-settings"))
 bind(mod .. " + SHIFT + J", hl.dsp.layout("togglesplit")) -- dwindle
--- Orion
-bind(mod .. " + ALT + SPACE", hl.dsp.exec_cmd("~/.config/hypr/scripts/toggle-orion.sh"))
+-- Orion. Enlace TARDÍO como los demás GiGiOS.*: lo define gigios/orion.lua, que
+-- comprueba la preferencia `orion` antes de mandar el toggle a AGS.
+bind(mod .. " + ALT + SPACE", function()
+  if GiGiOS.toggle_orion then GiGiOS.toggle_orion() end
+end)
 -- toggle de la barra (muestra/oculta; se auto-oculta al pasar el mouse)
 bind(mod .. " + B", hl.dsp.exec_cmd("ags request toggle-bar"))
 

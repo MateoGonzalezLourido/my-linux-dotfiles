@@ -70,21 +70,9 @@ function M.carga(nombre)
   return res
 end
 
---- Carga de un módulo GENERADO por AGS (monitor-settings, input-settings), que
---- vive junto a hyprland.lua. La AUSENCIA es normal (máquina recién instalada,
---- AGS aún no lo ha escrito) y no avisa; un fichero presente pero roto sí avisa,
---- porque significa que el generador de AGS ha fallado.
-function M.carga_opcional(nombre)
-  local ruta = M.DIR_CONFIG .. nombre .. ".lua"
-  local f = io.open(ruta, "r")
-  if not f then return nil end
-  f:close()
-  local ok, res = pcall(dofile, ruta)
-  if not ok then
-    M.notificar("fichero generado roto: " .. nombre .. ".lua — " .. tostring(res):sub(1, 200))
-    return nil
-  end
-  return res
-end
+-- Aquí vivía carga_opcional(), el dofile protegido de los chunks que AGS
+-- generaba (monitor-settings.lua, input-settings.lua). Ya no hay código
+-- generado: los ajustes de la UI se leen de su JSON con M.leer_json() y los
+-- aplican gigios/pantalla.lua y gigios/dispositivos.lua. Ver CLAUDE.md.
 
 return M

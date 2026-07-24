@@ -22,12 +22,23 @@ export interface SearchContext {
   section: SectionId
 }
 
+/**
+ * Resultado de evaluar un handler en UNA sola pasada. `score` es la relevancia
+ * (mayor gana); `build` materializa las filas y solo lo llama el motor para el
+ * handler ganador — así el perdedor nunca construye objetos `SearchResult`
+ * (que en apps tocan Gio: icono, commandline…). El handler cierra sobre lo que
+ * ya escaneó al puntuar, de modo que `build` no vuelve a recorrer el corpus.
+ */
+export interface HandlerMatch {
+  score: number
+  build: () => SearchResult[]
+}
+
 export interface SearchHandler {
   readonly id: string
   /** Sections where this handler is used by default (gets a score boost) */
   readonly defaultFor: readonly SectionId[]
   /** Sections where results are shown inline — no redirect to reactive */
   readonly inlineFor: readonly SectionId[]
-  confidence(query: string, ctx: SearchContext): number
-  search(query: string, ctx: SearchContext): SearchResult[]
+  match(query: string, ctx: SearchContext): HandlerMatch
 }

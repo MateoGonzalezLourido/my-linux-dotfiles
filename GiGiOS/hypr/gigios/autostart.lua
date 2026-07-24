@@ -19,9 +19,20 @@
 -- un ventilador parado siguen estándolo 20 s después.
 --
 -- Van ESCALONADOS, no todos con el mismo sleep: darles a todos `sleep 5` solo
--- movería la misma avalancha 5 s más tarde. Cada uno tiene su hueco. Los
--- `sleep N &&` se conservan TAL CUAL (no se "mejoran" con hl.timer): los
--- tiempos están medidos y razonados, y el retardo vive en el punto de llamada
+-- movería la misma avalancha 5 s más tarde. Cada uno tiene su hueco.
+--
+-- **Los `sleep N &&` NO se cambian por `hl.timer`, y no es pereza: un
+-- `hyprctl reload` CANCELA los timers pendientes** (medido con un A/B — timer a
+-- 5 s con un reload por medio: no dispara; el mismo timer sin reload: dispara).
+-- O sea que una recarga dentro de los primeros 30 s de sesión se llevaría por
+-- delante todo el arranque escalonado que aún no hubiera saltado —los monitores
+-- no arrancarían nunca, sin un solo error— y recargar justo después de entrar,
+-- mientras se afina algo, es de lo más normal. Un `sleep` es un proceso suelto
+-- que ya no depende del compositor. El único hl.timer del repo (la ventana de
+-- 30 s de gigios/escaner-apps.lua) sí acepta ese riesgo: perderla solo cuesta
+-- que no se salte de escritorio esa vez.
+--
+-- Además, los tiempos están medidos y razonados, y el retardo vive en el punto de llamada
 -- y no dentro de los scripts a propósito — `screencast-monitor` y
 -- `updates-monitor` también los lanza AGS en caliente desde sus interruptores
 -- de Ajustes (pkill + re-exec), y un sleep interno haría que encender el
@@ -55,9 +66,9 @@ hl.on("hyprland.start", function()
   -- ciega en OOM/panic/sudo/SSH. Sus partes caras (SMART, unidades, descargas)
   -- se apartan solas dentro del script.
   hl.exec_cmd("~/.config/hypr/scripts/oom-monitor.sh")
-  -- (el escáner de apps de inicio vive en gigios/escaner-apps.lua,
-  -- que escucha `window.open` nativo desde su propio hl.on("hyprland.start") —
-  -- misma ventana de 30 s, sin socket ni nc. El .sh queda para la sesión legacy.)
+  -- (el escáner de apps de inicio vive en gigios/escaner-apps.lua, que escucha
+  -- `window.open` nativo desde su propio hl.on("hyprland.start") — misma ventana
+  -- de 30 s, sin socket ni nc. Su .sh ya no existe: se borró con la migración.)
 
   -- ── t=3..6 · monitores dirigidos por eventos ───────────────────────────────
   -- Bloquean en un socket (udev/D-Bus/nmcli/PipeWire): en reposo no cuestan
