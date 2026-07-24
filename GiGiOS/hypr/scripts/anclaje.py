@@ -149,6 +149,60 @@ def anclaje_activado():
         return True
 
 
+def limite_mosaico():
+    """Lee `maxVentanasEscritorio` (el tope de gigios/limite-ventanas.lua).
+
+    Ausente = 8, igual que el módulo Lua; <= 0 significa "sin tope". Ver la
+    sección de `_hueco_en` para por qué el anclaje tiene que consultarlo.
+    """
+    ruta = os.path.join(
+        os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")),
+        "gigios", "preferences.json")
+    try:
+        with open(ruta, "rb") as f:
+            valor = json.load(f).get("maxVentanasEscritorio", 8)
+        return int(valor)
+    except (OSError, ValueError, TypeError):
+        return 8
+
+
+def _hueco_en(clientes, ws_id, addr, limite):
+    """¿Cabe `addr` en el escritorio `ws_id` sin rebasar el tope?
+
+    EL ANCLAJE Y EL TOPE TIRABAN EN DIRECCIONES CONTRARIAS, y ganaba el anclaje
+    porque llega el último. Al lanzar sobre un escritorio lleno,
+    `gigios/limite-ventanas.lua` mueve la ventana nueva al siguiente con sitio y
+    te lleva con ella; acto seguido el `openwindow` llegaba aquí, se veía una
+    ventana "descolocada" respecto al escritorio de lanzamiento y se la devolvía
+    en silencio. Resultado: tú en el escritorio nuevo y la ventana en el viejo —
+    peor que cualquiera de las dos funciones por separado, y sin ningún error.
+    Deshacía además justo lo que el tope existe para evitar: la novena ventana
+    volvía a apretujarse con las otras ocho.
+
+    Manda el tope, que es la misma jerarquía que ya documenta CLAUDE.md: el
+    lanzador decide DÓNDE nace la ventana, el tope decide SI ahí cabe — y es el
+    único de los dos que sabe algo que el lanzador no podía saber al lanzar.
+
+    El recuento replica el del módulo Lua y tiene que seguir haciéndolo: solo
+    mosaico (ni flotantes ni ocultas por `swallow`, que no ocupan hueco del
+    layout) y sin contar la propia ventana, que aún no está allí. Con `limite`
+    ventanas ya puestas no cabe: al volver serían limite+1, exactamente lo que
+    el módulo acaba de deshacer, y se entraría en un tira y afloja.
+    """
+    if limite <= 0:
+        return True
+    n = 0
+    for c in clientes:
+        if c["address"] == addr:
+            continue
+        if c.get("floating") or c.get("hidden"):
+            continue
+        ws = c.get("workspace") or {}
+        if ws.get("id") == ws_id:
+            n += 1
+    return n < limite
+
+
 def event_socket_path():
     xdg = os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     sig = os.environ["HYPRLAND_INSTANCE_SIGNATURE"]
@@ -240,10 +294,13 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
         before_classes = {c.get("initialClass", "") for c in hypr_j("clients")
                           if c["address"] in before}
 
-    limite = time.monotonic() + timeout
+    # Tope de mosaico: se lee UNA vez por lanzamiento (el proceso vive 15 s).
+    limite = limite_mosaico()
+
+    fin = time.monotonic() + timeout
     buf = b""
     while True:
-        restante = limite - time.monotonic()
+        restante = fin - time.monotonic()
         if restante <= 0:
             return
         sock.settimeout(restante)
@@ -264,7 +321,12 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                 if addr in before:
                     continue
 
-                cli = client_of(addr)
+                # Una sola consulta de clientes por ventana nueva: de ella salen
+                # el cliente (clase, pid, workspace) y el recuento de mosaico
+                # del escritorio destino. Pedirlas por separado serían dos forks
+                # de hyprctl, y encima de dos instantes distintos.
+                clientes = hypr_j("clients")
+                cli = next((c for c in clientes if c["address"] == addr), None)
                 if cli is None:
                     # El evento llegó antes de que Hyprland publicara el cliente.
                     # Sin clase ni pid no se puede decidir de quién es: se ignora
@@ -300,7 +362,13 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                 # El ajuste apaga SOLO esto. La rama `urgent` de abajo (traerte una
                 # app ya abierta al relanzarla) es otra función, no da problemas y
                 # el interruptor no la nombra, así que sigue activa.
-                if anclar and cli["workspace"]["id"] != target_ws:
+                #
+                # Salvo que el escritorio de lanzamiento esté LLENO: entonces la
+                # ventana ya la apartó gigios/limite-ventanas.lua y traerla de
+                # vuelta sería deshacer el tope y dejarte además mirando otro
+                # escritorio. Ver _hueco_en().
+                if (anclar and cli["workspace"]["id"] != target_ws
+                        and _hueco_en(clientes, target_ws, addr, limite)):
                     dispatch(f"hl.dsp.window.move({{workspace={target_ws}, "
                              f"window='address:{addr}', follow=false}})")
 
