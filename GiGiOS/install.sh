@@ -62,6 +62,11 @@ install_packages() {
     # Mantén esta pila en paquetes estables. qt6ct + Breeze proporcionan el
     # tema Qt; hyprqt6engine-git no es necesario y fuerza bibliotecas -git.
     hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
+    # hyprcursor: Hyprland ya depende de la librería, pero el paso 10 usa el
+    # BINARIO hyprcursor-util (mismo paquete) para generar la mitad hyprcursor
+    # del tema de puntero. Se pide explícito para que sea una dependencia
+    # declarada del instalador y no un efecto colateral de otro paquete.
+    hyprcursor
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland qt6ct
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
     ttf-meslo-nerd ttf-cascadia-code-nerd noto-fonts-emoji
@@ -115,8 +120,12 @@ install_packages() {
   # puro esos paquetes no existen, así que sólo se agregan cuando el repositorio
   # configurado los proporciona. VS Code se instala sólo si ningún paquete ya
   # aporta el comando `code` (por ejemplo visual-studio-code-bin).
+  # bibata-cursor-theme vive en chaotic-aur, no en los repos oficiales: va aquí y
+  # no en la lista dura porque en un Arch puro haría fallar el `pacman -S` ENTERO
+  # y con él el resto de dependencias. Sin él, el paso 10 avisa y el escritorio
+  # arranca igual con el puntero de XCursor.
   local optional_official
-  for optional_official in cachyos-fish-config cachyos-rate-mirrors; do
+  for optional_official in cachyos-fish-config cachyos-rate-mirrors bibata-cursor-theme; do
     pacman -Si "$optional_official" >/dev/null 2>&1 && official+=("$optional_official")
   done
   command -v code >/dev/null 2>&1 || official+=(code)
@@ -359,7 +368,30 @@ else
   warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
 fi
 
-# --- 10. Verificación y notas finales ---
+# --- 10. Mitad hyprcursor del tema de puntero ---
+# El compositor dibuja su cursor con hyprcursor; XWayland y los toolkits siguen
+# con XCursor. Un tema de paquete solo trae la mitad XCursor, y libhyprcursor
+# ante un nombre que no encuentra no falla: coge el primer tema con manifest.hl
+# que haya, por orden de lectura del directorio. Sin esto, el tema que elija el
+# usuario en Ajustes no tendría mitad hyprcursor y el compositor acabaría
+# dibujando OTRO tema. Esto le añade esa mitad a $CURSOR_THEME, dejando un único
+# nombre válido para las dos variables.
+#
+# NO se elige el tema aquí: eso es `temaCursor` en ~/.config/gigios/devices.json,
+# que escribe el usuario desde Ajustes > Dispositivos > Puntero. Generar el tema
+# es preparar el terreno; cambiarle el puntero a alguien que no lo ha pedido, no.
+CURSOR_GEN="$HOME/GiGiOS/bin/generar-hyprcursor.sh"
+CURSOR_THEME="${CURSOR_THEME:-Bibata-Modern-Ice}"
+if [ -x "$CURSOR_GEN" ]; then
+  info "Preparando el tema de puntero '$CURSOR_THEME' para hyprcursor ..."
+  # No es fatal: sin esto el escritorio arranca igual, solo que con el puntero
+  # de XCursor. Un tema que no esté instalado (otra distro, otro nombre) no debe
+  # tumbar una instalación por lo demás correcta.
+  "$CURSOR_GEN" "$CURSOR_THEME" \
+    || warn "No pude generar el tema hyprcursor '$CURSOR_THEME'. Elegí otro con '$CURSOR_GEN --list' y volvé a correrlo."
+fi
+
+# --- 11. Verificación y notas finales ---
 configure_default_shell
 
 if [ -x "$HOME/GiGiOS/bin/preflight.sh" ]; then
@@ -381,6 +413,9 @@ cat <<'EOF'
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:
               dotfiles remote set-url origin git@github.com:MateoGonzalezLourido/my-linux-dotfiles.git
   • Hardware: antes de iniciar Hyprland elegí el perfil GPU; ver docs/SETUP.md.
+  • Puntero:  elegí el tema en Ajustes > Dispositivos > Puntero. Sin elegirlo, el
+              compositor usa el puntero de XCursor; para añadir soporte hyprcursor
+              a otro tema, ~/GiGiOS/bin/generar-hyprcursor.sh --list.
   • Sistema:  ejecutá una vez 'sudo freshclam' y, si necesitás sensores, 'sudo sensors-detect'.
   • Sesión:   cerrá y abrí sesión; después comprobá con 'ags run ~/.config/ags/app.ts'.
 EOF

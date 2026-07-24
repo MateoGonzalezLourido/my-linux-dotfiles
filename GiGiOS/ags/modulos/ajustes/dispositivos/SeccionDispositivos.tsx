@@ -12,6 +12,7 @@ import {
   printerStatus, printerBusy, refresh as refreshPrinters,
   setCupsEnabled, openCupsWeb,
 } from "../../../servicios/dispositivos/printers"
+import { temasHyprcursorDisponibles } from "../../../servicios/dispositivos/cursores"
 import textos from "../../../textos/ajustes/dispositivos.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
 
@@ -69,6 +70,26 @@ function SelectRow({ setting, label, hint, choices }: {
       </box>
     </FilaAjuste>
   )
+}
+
+// Tema del puntero. Solo se ofrecen temas con manifest.hl (hyprcursor): elegir
+// uno sin él dejaría al compositor cayendo a XCursor sin ningún aviso. La lista
+// se calcula UNA vez al construir la fila —instalar un tema es un gesto de
+// terminal, no algo que pase mientras miras esta pantalla— y siempre incluye la
+// elección guardada aunque ese tema ya no esté: si no, abrir Ajustes en una
+// máquina sin él reescribiría el ajuste a "" al primer toque.
+function CursorThemeRow() {
+  const disponibles = temasHyprcursorDisponibles()
+  const guardado = deviceSettings.get().temaCursor
+  const nombres = disponibles.map((t) => t.nombre)
+  if (guardado && !nombres.includes(guardado)) nombres.unshift(guardado)
+
+  const choices = [
+    { value: "", label: textos.puntero.tema.opciones.automatico },
+    ...nombres.map((nombre) => ({ value: nombre, label: nombre })),
+  ]
+  const hint = nombres.length === 0 ? textos.puntero.tema.sinTemas : textos.puntero.tema.descripcion
+  return <SelectRow setting="temaCursor" label={textos.puntero.tema.titulo} hint={hint} choices={choices} />
 }
 
 // Bloque de impresoras: un interruptor maestro para CUPS, con estado en vivo y
@@ -157,6 +178,7 @@ export default function SeccionDispositivos({ vista }: { vista: VistaDispositivo
         </TarjetaAjustes>}
 
         {vista === "raton" && <TarjetaAjustes titulo={textos.tarjetas.puntero} icono="󰆽">
+          <CursorThemeRow />
           <SliderRow setting="tamanoCursor" label={textos.puntero.tamano.titulo} min={16} max={64} step={1} format={v => formatearTexto(textos.formatos.pixeles, { valor: v })} />
           <SelectRow setting="followMouse" label={textos.puntero.foco.titulo} hint={textos.puntero.foco.descripcion} choices={[{ value: 0, label: textos.puntero.foco.opciones.soloClic }, { value: 1, label: textos.puntero.foco.opciones.seguirPuntero }, { value: 2, label: textos.puntero.foco.opciones.focoLibre }, { value: 3, label: textos.puntero.foco.opciones.seguirSinTeclado }]} />
         </TarjetaAjustes>}

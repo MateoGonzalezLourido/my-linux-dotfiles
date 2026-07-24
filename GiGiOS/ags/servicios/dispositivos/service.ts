@@ -1,6 +1,7 @@
 import GLib from "gi://GLib"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
+import { NOMBRE_TEMA_VALIDO, resolverTemaHyprcursor } from "./cursores"
 
 export interface DeviceSettings {
   kbLayout: string
@@ -10,6 +11,8 @@ export interface DeviceSettings {
   numlock: boolean
   followMouse: number
   tamanoCursor: number
+  /** Tema de puntero, o "" = no fijar ninguno (ver DEFAULT_DEVICE_SETTINGS). */
+  temaCursor: string
   sensitivity: number
   accelProfile: "adaptive" | "flat"
   forceNoAccel: boolean
@@ -26,9 +29,14 @@ export interface DeviceSettings {
   dragLock: boolean
 }
 
+// `temaCursor: ""` significa "no fijar tema", no "usar uno de fábrica". Es el
+// mismo criterio que el `locale` de gigios/env.lua: con la clave ausente no se
+// emite ningún hl.env y manda lo que traiga la sesión. Poner aquí un nombre
+// concreto cambiaría el puntero de una máquina que nunca ha tocado el ajuste —
+// y encima nombraría un tema que puede no existir en ella.
 export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
   kbLayout: "es", kbVariant: "", repeatRate: 25, repeatDelay: 600,
-  numlock: true, followMouse: 1, tamanoCursor: 24,
+  numlock: true, followMouse: 1, tamanoCursor: 24, temaCursor: "",
   sensitivity: 0, accelProfile: "adaptive", forceNoAccel: false,
   leftHanded: false, mouseNaturalScroll: false, mouseScrollFactor: 1,
   touchpadNaturalScroll: true, touchpadScrollFactor: 0.4,
@@ -58,6 +66,12 @@ function normalize(raw: Partial<DeviceSettings> = {}): DeviceSettings {
     repeatDelay: Math.round(clamp(raw.repeatDelay, 100, 2000, d.repeatDelay)),
     followMouse: Math.round(clamp(raw.followMouse, 0, 3, d.followMouse)),
     tamanoCursor: Math.round(clamp(raw.tamanoCursor, 16, 64, d.tamanoCursor)),
+    // El nombre acaba en `hyprctl setcursor` y en un literal Lua de hl.env(), así
+    // que se valida aquí una vez en vez de escaparlo en cada punto de uso. NO se
+    // comprueba que el tema exista: un devices.json traído de otra máquina debe
+    // conservar la elección aunque ese tema todavía no esté instalado.
+    temaCursor: typeof raw.temaCursor === "string" && NOMBRE_TEMA_VALIDO.test(raw.temaCursor.trim())
+      ? raw.temaCursor.trim() : d.temaCursor,
     sensitivity: clamp(raw.sensitivity, -1, 1, d.sensitivity),
     mouseScrollFactor: clamp(raw.mouseScrollFactor, 0.1, 5, d.mouseScrollFactor),
     touchpadScrollFactor: clamp(raw.touchpadScrollFactor, 0.1, 5, d.touchpadScrollFactor),
@@ -97,7 +111,9 @@ export function updateDeviceSettings(patch: Partial<DeviceSettings>, reload = fa
   if (sameSettings(deviceSettings.get(), next)) return
   _setDeviceSettings(next)
   write(next)
-  if (patch.tamanoCursor !== undefined) aplicarTamanoCursor(next.tamanoCursor)
+  if (patch.tamanoCursor !== undefined || patch.temaCursor !== undefined) {
+    aplicarCursor(next.tamanoCursor, next.temaCursor)
+  }
   // El reload puede ir detrás sin más: write() escribe devices.json de forma
   // SÍNCRONA (GLib.file_set_contents), así que cuando el `hyprctl reload` re-ejecute
   // la config Lua entera —y con ella gigios/dispositivos.lua, que lo lee— el
@@ -111,46 +127,19 @@ export function updateDeviceSettings(patch: Partial<DeviceSettings>, reload = fa
   }
 }
 
-const RUTAS_ICONOS = [
-  `${GLib.get_user_data_dir()}/icons`,
-  `${GLib.get_home_dir()}/.icons`,
-  ...GLib.get_system_data_dirs().map((ruta) => `${ruta}/icons`),
-]
-
-function leerHerenciasTema(nombre: string): string[] {
-  for (const ruta of RUTAS_ICONOS) {
-    try {
-      const [ok, bytes] = GLib.file_get_contents(`${ruta}/${nombre}/index.theme`)
-      if (!ok) continue
-      const herencias = new TextDecoder().decode(bytes).match(/^Inherits\s*=\s*(.+)$/m)?.[1]
-      if (herencias) return herencias.split(/[;,]/).map((tema) => tema.trim()).filter(Boolean)
-    } catch (_) { /* probar la siguiente ruta */ }
-  }
-  return []
-}
-
-function resolverTemaHyprcursor(nombre: string, visitados = new Set<string>()): string | null {
-  const tema = nombre.trim()
-  if (!/^[A-Za-z0-9._+-]+$/.test(tema) || visitados.has(tema)) return null
-  visitados.add(tema)
-
-  if (RUTAS_ICONOS.some((ruta) => GLib.file_test(`${ruta}/${tema}/manifest.hl`, GLib.FileTest.EXISTS))) return tema
-  for (const heredado of leerHerenciasTema(tema)) {
-    const resuelto = resolverTemaHyprcursor(heredado, visitados)
-    if (resuelto) return resuelto
-  }
-  return null
-}
-
-function aplicarTamanoCursor(tamano: number) {
+// Aplica puntero en vivo. El tema del ajuste manda; con el ajuste vacío se cae a
+// la cadena de siempre (entorno → `default`), que es lo que mantiene el
+// comportamiento anterior en una máquina que aún no lo ha elegido. Ese `default`
+// solo resuelve porque seguimos su `Inherits` nosotros — libhyprcursor no lo
+// hace, y sin nombre resoluble acaba cogiendo un tema cualquiera; ver cursores.ts.
+function aplicarCursor(tamano: number, temaElegido: string) {
   // GTK no sigue `hyprctl setcursor`; GSettings cubre GTK y persiste por su lado.
   execAsync(["gsettings", "set", "org.gnome.desktop.interface", "cursor-size", String(tamano)]).catch(() => {})
 
-  // Hyprland solo acepta temas hyprcursor. Resolvemos también el alias `default`
-  // para no fijar un tema concreto que pueda no existir en otra máquina.
-  const candidatos = [GLib.getenv("HYPRCURSOR_THEME"), GLib.getenv("XCURSOR_THEME"), "default"]
+  const candidatos = [temaElegido, GLib.getenv("HYPRCURSOR_THEME"), GLib.getenv("XCURSOR_THEME"), "default"]
   const tema = candidatos.reduce<string | null>((encontrado, candidato) =>
     encontrado ?? resolverTemaHyprcursor(candidato ?? ""), null)
+
   // HL.ConfigOpt no tiene sección env: las variables van por hl.env(). El --batch
   // admite mezclar `eval …` con `setcursor …` separados por " ; " (verificado en
   // 0.56); lo que NO admite es dispatch con sintaxis legacy.
@@ -158,7 +147,20 @@ function aplicarTamanoCursor(tamano: number) {
     `eval hl.env('XCURSOR_SIZE','${tamano}')`,
     `eval hl.env('HYPRCURSOR_SIZE','${tamano}')`,
   ]
-  if (tema) comandos.push(`setcursor ${tema} ${tamano}`)
+  if (tema) {
+    // Las dos variables van al MISMO nombre a propósito: hyprcursor cubre el
+    // cursor del compositor y XCursor sigue cubriendo XWayland y los toolkits.
+    // hl.env() solo alcanza a los procesos que Hyprland lance a partir de ahora,
+    // así que las apps ya abiertas conservan el tema anterior hasta reiniciarse:
+    // esto es "a partir de aquí", no un cambio retroactivo de toda la sesión.
+    comandos.push(`eval hl.env('XCURSOR_THEME','${tema}')`)
+    comandos.push(`eval hl.env('HYPRCURSOR_THEME','${tema}')`)
+    comandos.push(`setcursor ${tema} ${tamano}`)
+    // GTK tampoco sigue el setcursor para el tema (igual que con el tamaño), y
+    // además es de donde lo lee Hyprland al arrancar si cursor:sync_gsettings_theme
+    // sigue activo — dejarlo desincronizado revive el tema viejo en el próximo login.
+    execAsync(["gsettings", "set", "org.gnome.desktop.interface", "cursor-theme", tema]).catch(() => {})
+  }
   execAsync(["hyprctl", "--batch", comandos.join(" ; ")]).catch(() => {})
 }
 
@@ -207,7 +209,7 @@ export function resetDeviceSettings() {
   const next = { ...DEFAULT_DEVICE_SETTINGS }
   _setDeviceSettings(next)
   write(next)   // síncrono: devices.json queda completo ANTES del reload de abajo
-  aplicarTamanoCursor(next.tamanoCursor)
+  aplicarCursor(next.tamanoCursor, next.temaCursor)
   execAsync(["hyprctl", "reload"]).catch(() => {})
 }
 

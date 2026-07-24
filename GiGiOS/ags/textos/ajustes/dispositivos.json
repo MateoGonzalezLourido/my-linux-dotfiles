@@ -122,6 +122,14 @@
   },
   "puntero": {
     "titulo": "Puntero",
+    "tema": {
+      "titulo": "Tema del puntero",
+      "descripcion": "Solo se listan los temas con soporte hyprcursor, el formato que dibuja el puntero del escritorio. Las apps de XWayland siguen usando la mitad XCursor del mismo tema",
+      "sinTemas": "No hay ningún tema con soporte hyprcursor instalado. Añádeselo a uno con bin/generar-hyprcursor.sh",
+      "opciones": {
+        "automatico": "Automático"
+      }
+    },
     "tamano": {
       "titulo": "Tamaño del puntero"
     },
