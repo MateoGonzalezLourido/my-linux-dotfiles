@@ -7,7 +7,8 @@ import { execAsync } from "ags/process"
 
 import { titulosAppsWorkspaceActivos, workspaceAppLimit } from "../../ajustes/preferences"
 import type { EscritorioVisible, IconoClienteEscritorio } from "./modelo"
-import { claseAplicacionCssSegura } from "./modelo"
+import { claseAplicacionCssSegura, etiquetaEscritorio } from "./modelo"
+import { enfocarEscritorio } from "../../../servicios/escritorios/operaciones"
 import type { GestorVistaPreviaEscritorios } from "./gestorVistaPrevia"
 
 export interface InteraccionesBotonEscritorio {
@@ -72,7 +73,10 @@ export default function BotonEscritorio({
     const direccionNormalizada = direccion.startsWith("0x") ? direccion : `0x${direccion}`
     // Formas Lua de los dispatchers legacy (workspace / focuswindow / fullscreen 0),
     // verificadas en instancia anidada; `mode='fullscreen'` + toggle = `fullscreen 0`.
-    execAsync(["hyprctl", "dispatch", `hl.dsp.focus({workspace=${escritorio.id}})`])
+    // El primer salto va por `enfocarEscritorio` y no por un `focus` a pelo: en un
+    // escritorio especial el focus por id no hace nada (y responde `ok`), así que
+    // el resto de la cadena caía sobre la ventana equivocada.
+    enfocarEscritorio(escritorio.id, escritorio.nombre)
       .then(() => execAsync(["hyprctl", "dispatch", `hl.dsp.focus({window='address:${direccionNormalizada}'})`]))
       .then(() => execAsync(["hyprctl", "dispatch", "hl.dsp.window.fullscreen({mode='fullscreen', action='toggle'})"]))
       .catch(() => {})
@@ -192,7 +196,7 @@ export default function BotonEscritorio({
             margin_start: xBase,
             can_target: false,
           })
-          fantasma.append(new Gtk.Label({ label: String(escritorio.id), css_classes: ["ws-id"] }))
+          fantasma.append(new Gtk.Label({ label: etiquetaEscritorio(escritorio.id), css_classes: ["ws-id"] }))
           overlay.add_overlay(fantasma)
 
           let mitadAncho = 0
@@ -352,7 +356,7 @@ export default function BotonEscritorio({
             )
           }}
         />
-        <label cssClasses={["ws-id"]} label={String(escritorio.id)} />
+        <label cssClasses={["ws-id"]} label={etiquetaEscritorio(escritorio.id)} />
       </button>
       <revealer
         revealChild={clientes((iconos: IconoClienteEscritorio[]) => iconos.length > 0)}

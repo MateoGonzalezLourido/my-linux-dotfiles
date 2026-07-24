@@ -28,6 +28,7 @@ import {
 } from "./capturas"
 import { obtenerIconosClientesEscritorio } from "./iconos"
 import { sonEscritoriosEquivalentes } from "./modelo"
+import { esEscritorioEspecial } from "../../../servicios/escritorios/especiales"
 import type {
   ClienteEscritorio,
   EscritorioVisible,
@@ -165,12 +166,16 @@ export default function Escritorios(
 
     const candidatos = escritoriosLocales.map((escritorio) => {
       const clientes = clientesPorEscritorio.get(escritorio.id) ?? []
+      // El nombre solo se usa para los ESPECIALES, que se abren por nombre y no
+      // por id (ver `enfocarEscritorio`). Para los normales es el id en texto.
+      const nombre = escritorio.name ?? String(escritorio.id)
       return {
         id: escritorio.id,
+        nombre,
         // Astal 0.1 todavía traduce Workspace.focus() al dispatcher legacy
         // `workspace N`, inválido cuando Hyprland carga configuración Lua.
         enfocar: () => {
-          void enfocarEscritorio(escritorio.id).catch((error) => {
+          void enfocarEscritorio(escritorio.id, nombre).catch((error) => {
             console.error(`No se pudo enfocar el escritorio ${escritorio.id}`, error)
           })
         },
@@ -183,7 +188,7 @@ export default function Escritorios(
       idsEscritoriosRecientes,
       idActivo,
       workspaceVisibleLimit.get(),
-    ).map(({ id, enfocar, clientes }) => ({ id, enfocar, clientes }))
+    ).map(({ id, nombre, enfocar, clientes }) => ({ id, nombre, enfocar, clientes }))
 
     fijarEscritorios(siguientes)
     // `escritorios.get()` y no `siguientes`: si el contenido no cambió, el state
@@ -216,19 +221,29 @@ export default function Escritorios(
     mostrarEstadoOptimista(siguientes)
   }
 
+  // Reordenar, intercambiar y renumerar mueven VENTANAS entre escritorios
+  // numerados (ver `servicios/escritorios/plan.ts`). Un especial no tiene sitio en
+  // ese orden —no es una posición, es un cajón— y arrastrarlo habría vaciado el
+  // scratchpad dentro de un escritorio normal. Se ignora en las tres entradas, que
+  // son las tres formas de llegar: arrastrar, CTRL+arrastrar y teclear un número.
+  const involucraEspecial = (primerId: number, segundoId: number) =>
+    esEscritorioEspecial(primerId) || esEscritorioEspecial(segundoId)
+
   const intercambiar = (primerId: number, segundoId: number) => {
+    if (involucraEspecial(primerId, segundoId)) return
     intercambiarVisualmente(primerId, segundoId)
     void intercambiarEscritorios(primerId, segundoId, obtenerIdEscritorioActivo())
   }
 
   const desplazar = (idOrigen: number, idDestino: number) => {
+    if (involucraEspecial(idOrigen, idDestino)) return
     const idsOrdenados = escritorios.get().map((escritorio) => escritorio.id)
     desplazarVisualmente(idOrigen, idDestino)
     void desplazarEscritorios(idOrigen, idDestino, idsOrdenados, obtenerIdEscritorioActivo())
   }
 
   const renumerar = (idOrigen: number, idDestino: number) => {
-    if (idOrigen === idDestino) return
+    if (idOrigen === idDestino || involucraEspecial(idOrigen, idDestino)) return
     const monitor = obtenerMonitorHyprland()
     if (!monitor) return
     const ocupado = hyprland.get_workspaces().find((escritorio) => escritorio.id === idDestino)

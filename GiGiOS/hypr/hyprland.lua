@@ -50,6 +50,7 @@ util.carga("gigios.compactar")      -- GiGiOS.compactar()
 util.carga("gigios.boton-apagado")  -- GiGiOS.boton_apagado()
 util.carga("gigios.daltonismo")     -- GiGiOS.daltonismo(modo)
 util.carga("gigios.orion")          -- GiGiOS.toggle_orion()
+util.carga("gigios.ancla-escritorio") -- GiGiOS.anclar_escritorio() / saltar_ancla()
 util.carga("gigios.keybinds")       -- los atajos reales (+ GiGiOS.toggle_gaps)
 util.carga("gigios.autostart")      -- arranque escalonado (hl.on "hyprland.start")
 util.carga("gigios.escaner-apps")   -- salto al escritorio de las apps de autostart

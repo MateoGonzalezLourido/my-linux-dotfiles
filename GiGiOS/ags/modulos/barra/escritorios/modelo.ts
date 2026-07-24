@@ -1,5 +1,7 @@
 import type Gio from "gi://Gio"
 
+import { esEscritorioEspecial } from "../../../servicios/escritorios/especiales.ts"
+
 /** Forma estructural de AstalHyprland.Client usada por los escritorios. Los nombres de
  * propiedades ingleses pertenecen a la API externa y se conservan como contrato. */
 export interface ClienteEscritorio {
@@ -30,8 +32,19 @@ export interface IconoClienteEscritorio {
 
 export interface EscritorioVisible {
   id: number
+  /** Nombre de Hyprland. Para los normales es el id en texto; los especiales son
+   *  `special:<algo>`, y ahí es el único sitio de donde sacar ese `<algo>`. */
+  nombre: string
   enfocar: () => void
   clientes: IconoClienteEscritorio[]
+}
+
+/** Lo que se pinta en la pastilla. Un especial se enseña como **0**: su id real
+ *  (-98) es un detalle interno de Hyprland que no significa nada para quien mira
+ *  la barra, y ocupaba tres caracteres donde el resto ocupa uno. El 0 encaja
+ *  además a la izquierda del 1, que es donde el orden por id ya lo coloca. */
+export function etiquetaEscritorio(id: number): string {
+  return esEscritorioEspecial(id) ? "0" : String(id)
 }
 
 export function claseAplicacionCssSegura(claseAplicacion: string): string {
@@ -60,10 +73,11 @@ const firmasMemorizadas = new WeakMap<readonly EscritorioVisible[], string>()
  * contenido es lo que hace que un cambio de foco, que no toca la lista, ni
  * siquiera llegue a los widgets.
  *
- * Incluye todo lo que `BotonEscritorio` pinta y nada más: orden e id de cada
- * escritorio y, por cliente, dirección, icono y descripción. `enfocar` queda
+ * Incluye todo lo que `BotonEscritorio` pinta y nada más: orden, id y nombre de
+ * cada escritorio y, por cliente, dirección, icono y descripción. `enfocar` queda
  * fuera a propósito — es una clausura nueva en cada pasada, pero solo depende del
- * id, que sí está en la firma. */
+ * id y del nombre, que sí están en la firma (el nombre entró con los especiales:
+ * abrirlos va por `toggle_special <nombre>`, no por el id). */
 export function firmarEscritorios(
   escritorios: readonly EscritorioVisible[] | null | undefined,
 ): string {
@@ -73,6 +87,7 @@ export function firmarEscritorios(
 
   const firma = [...escritorios].map((escritorio) => [
     String(escritorio.id),
+    escritorio.nombre,
     ...(escritorio.clientes ?? []).map((cliente) => [
       cliente.direccion,
       cliente.claseAplicacion,

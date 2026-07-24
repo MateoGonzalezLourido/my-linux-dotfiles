@@ -124,6 +124,9 @@ const GIGIOS_LABELS: Record<string, string> = {
   toggle_gaps: "Pegar ventanas (toggle)",
   boton_apagado: "Acción del botón de encendido",
   daltonismo: "Filtro de daltonismo",
+  saltar_ancla: "Ir al escritorio ancla / volver",
+  anclar_escritorio: "Anclar este escritorio (toggle)",
+  toggle_orion: "Abrir Orion (toggle)",
 }
 
 const DIRS: Record<string, string> = { left: "←", right: "→", up: "↑", down: "↓", l: "←", r: "→", u: "↑", d: "↓" }
@@ -373,6 +376,8 @@ export function parseKeybindsFrom(fuenteKeybinds: string, fuenteVariables: strin
 
   const orden: string[] = []
   const porGrupo = new Map<string, Keybind[]>()
+  // Global, no por grupo: una combinación es única en toda la configuración.
+  const vistos = new Set<string>()
 
   // `[^\w.]` descarta `hl.bind(`; el `function` descarta la DEFINICIÓN del
   // envoltorio (`local function bind(keys, dsp, opts)`), que si no se cuela
@@ -388,6 +393,22 @@ export function parseKeybindsFrom(fuenteKeybinds: string, fuenteVariables: strin
     const combo = evaluarConcat(llamada.args[0], vars, {})
     if (!combo.trim()) continue
     const { mods, key } = partirCombo(combo)
+    const binding = fmtBinding(mods, key)
+
+    // UNA fila por COMBINACIÓN, no por llamada a bind(). Hyprland ejecuta todos
+    // los binds de una combinación, y el config se apoya en eso: SUPER + clic
+    // izquierdo lleva TRES (el arrastre nativo más los dos enganches con los que
+    // gigios/reparto-ventanas.lua sabe cuándo empieza y acaba). Los enganches no
+    // son atajos que el usuario pueda pulsar por separado, así que listarlos
+    // duplicaba la fila y la llenaba de nombres internos
+    // (`GiGiOS: reparto_arrastre_inicio`). Gana el PRIMERO: es el que describe lo
+    // que la combinación hace de cara al usuario, porque los enganches se
+    // registran después a propósito (conviven con el bindm, no lo sustituyen).
+    // Esto es además lo que hace que el recuento cuadre con la tabla `usados` de
+    // gigios/keybinds.lua, que también es un conjunto de combinaciones.
+    if (vistos.has(binding)) continue
+    vistos.add(binding)
+
     const description = describeDispatcher(llamada.args.slice(1).join(","), vars)
 
     // Línea original de esta llamada → grupo al que pertenece.
@@ -396,7 +417,7 @@ export function parseKeybindsFrom(fuenteKeybinds: string, fuenteVariables: strin
     const grupo = grupoDe[expandido[idx]?.linea ?? 0] ?? "General"
 
     if (!porGrupo.has(grupo)) { porGrupo.set(grupo, []); orden.push(grupo) }
-    porGrupo.get(grupo)!.push({ binding: fmtBinding(mods, key), description })
+    porGrupo.get(grupo)!.push({ binding, description })
   }
 
   return orden.map(name => ({ name, binds: porGrupo.get(name)! }))
