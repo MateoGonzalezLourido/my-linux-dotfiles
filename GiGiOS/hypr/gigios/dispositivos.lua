@@ -41,6 +41,31 @@ local cursor = entero(d.tamanoCursor, 16, 64, 24)
 hl.env("XCURSOR_SIZE", tostring(cursor))
 hl.env("HYPRCURSOR_SIZE", tostring(cursor))
 
+-- Tema del puntero (Ajustes > Dispositivos > Puntero). Las DOS variables van al
+-- mismo nombre: hyprcursor dibuja el cursor del compositor y XCursor sigue
+-- cubriendo XWayland y los toolkits, que no saben nada de hyprcursor — por eso
+-- esto no es "quitar XCursor", es dejar de depender de él para el compositor.
+--
+-- Sin esto el tema del compositor quedaba SIN FIJAR, que no es lo mismo que sin
+-- hyprcursor. Sin XCURSOR_THEME/HYPRCURSOR_THEME, Hyprland cae a gsettings
+-- (`default`), un nombre que libhyprcursor no sabe resolver —casa por nombre de
+-- directorio con manifest.hl y no sigue el `Inherits` de index.theme—; y ante un
+-- nombre que no encuentra NO falla: coge el primer tema con manifest.hl que se
+-- cruce, por orden de lectura del directorio (medido con el logger de la propia
+-- librería: "trying without name of Adwaita" → "Found theme Adwaita at
+-- …/Bibata-Modern-Ice"). O sea que el puntero del escritorio lo decidía el orden
+-- del sistema de ficheros, y bastaba instalar otro tema para cambiarlo sin tocar
+-- nada. Fijar el nombre quita esa lotería.
+--
+-- Clave ausente o vacía = no se emite nada y manda el tema de la sesión, igual
+-- que con el `locale` de gigios/env.lua: fijar aquí un tema de fábrica cambiaría
+-- el puntero sin que nadie lo pida, y nombraría un tema que puede no existir.
+local tema = cadena(d.temaCursor, "")
+if tema:match("^[%w%._%+%-]+$") then
+  hl.env("XCURSOR_THEME", tema)
+  hl.env("HYPRCURSOR_THEME", tema)
+end
+
 -- Ojo con los nombres: en Lua el campo es `tap_to_click` (HL.ConfigOpt.Input.Touchpad),
 -- no el `tap-to-click` de hyprlang — verificado con getoption en instancia anidada.
 hl.config({

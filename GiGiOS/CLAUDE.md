@@ -221,7 +221,8 @@ su módulo equivalente. `hypr/hyprland.lua` is a thin entry point that loads the
   `ags/servicios/dispositivos/service.ts`) y se carga después de `gigios/userprefs.lua` para pisar
   lo de ahí. Fichero ausente = no se aplica nada y manda `userprefs`. Los defaults del módulo son
   el espejo de `DEFAULT_DEVICE_SETTINGS` y solo entran por clave ausente o de tipo raro: AGS ya
-  escribe el JSON normalizado.
+  escribe el JSON normalizado. De ahí sale también el **tema del puntero** (ver la sección de
+  hyprcursor, abajo).
 - `gigios/pantalla.lua` **lee `~/.config/gigios/display.json`** (Ajustes > Pantalla, vía
   `ags/servicios/pantalla/service.ts`), recorre `monitors` y emite un `hl.monitor` por entrada
   **después de `gigios/monitores.lua`**, cuya única regla es la comodín (preferido, escala 1).
@@ -941,6 +942,67 @@ scroll-lock del teclado**, devolviendo 0 — un fallo mudo que la UI no podía d
 teclas `XF86MonBrightness*` de `gigios/keybinds.lua` ya **no** lo llaman (van por `ags request
 brightness-up|down`, que aplica al backend que haya y enseña el OSD) y la llamada que queda en
 `init.sh` lleva `-c backlight` explícito.
+
+### Puntero: hyprcursor y XCursor son DOS MITADES, no una migración (`bin/generar-hyprcursor.sh`)
+
+**XCursor no se puede retirar, y plantearlo como "migrar a hyprcursor" lleva a la conclusión
+equivocada.** hyprcursor cubre **solo el cursor que dibuja el compositor**. XWayland no lo soporta
+—es Xcursor y punto— y GTK/Qt dibujan su propio puntero desde `XCURSOR_THEME`. Así que un tema aquí
+es **un directorio con las dos mitades**: `cursors/` (PNG por tamaño, XCursor) y
+`hyprcursors/*.hlc` + `manifest.hl` (hyprcursor). Con esa forma **un solo nombre** vale para las dos
+variables, que es lo que emiten `gigios/dispositivos.lua` y AGS. Es la forma que ya traen los temas
+con soporte de fábrica (Bibata-Modern-Ice).
+
+**El problema real no era "estamos en XCursor": era que el tema NO ESTABA FIJADO.** Nada ponía
+`XCURSOR_THEME`/`HYPRCURSOR_THEME`, así que Hyprland caía a gsettings (`cursor-theme = 'default'`),
+un nombre que libhyprcursor **no sabe resolver**: casa temas por **nombre de directorio** con
+`manifest.hl` y **no lee `index.theme` ni sigue `Inherits`** (el `~/.icons/default` que escribió
+nwg-look y que hereda de Bibata solo lo entiende XCursor). Y ante un nombre que no encuentra
+**libhyprcursor no falla**: coge **el primer tema con `manifest.hl` que se cruce**, ignorando el
+nombre pedido. Medido con `hyprcursor_manager_create_with_logger` contra la `.so` instalada:
+
+```
+getFullPathForThemeName: failed, trying without name of Adwaita
+Found theme Adwaita at ~/.local/share/icons/Bibata-Modern-Ice
+```
+
+`valid=false` solo si **no hay ningún** tema hyprcursor en el sistema (verificado apuntando `HOME` y
+`XDG_DATA_DIRS` a un sitio vacío). O sea que el puntero del escritorio lo decidía **el orden de
+lectura del directorio** —ni alfabético ni "el primero instalado": comprobado instalando un segundo
+tema, la elección no cambió—, y bastaba instalar otro tema para cambiarlo sin tocar nada.
+**Por eso `temaCursor` no enciende hyprcursor: fija CUÁL**, que es lo que faltaba.
+
+**Ajuste**: `temaCursor` en `~/.config/gigios/devices.json` (Ajustes > Dispositivos > Puntero).
+**Vacío = no se emite ningún `hl.env`** y manda el tema de la sesión — el mismo criterio que el
+`locale` de `gigios/env.lua`, y por el mismo motivo: un nombre de fábrica cambiaría el puntero de
+una máquina que nunca ha tocado el ajuste, y encima nombraría un tema que puede no existir en ella.
+El desplegable **solo lista temas con `manifest.hl`**: elegir uno sin él dejaría al compositor
+dibujando otro tema en silencio. El nombre se valida contra `^[A-Za-z0-9._+-]+$` **en origen**
+(`normalize()`), porque acaba en un `hyprctl setcursor` y en un literal Lua de `hl.env()`; lo que
+**no** se comprueba es que el tema exista, para que un `devices.json` traído de otra máquina
+conserve la elección.
+
+**`hl.env` solo alcanza a lo que Hyprland lance a partir de ese momento**, así que cambiar el tema
+en caliente no reescribe el puntero de las apps ya abiertas: cambian al reiniciarse. El `setcursor`
+sí afecta al compositor al instante. AGS escribe además `cursor-theme` en GSettings, no por GTK
+solamente: es de donde lo lee Hyprland al arrancar con `cursor:sync_gsettings_theme` activo, y
+dejarlo desincronizado revive el tema viejo en el siguiente login.
+
+**`bin/generar-hyprcursor.sh` le añade la mitad hyprcursor a un tema XCursor** (`--list` enseña los
+instalados y su estado). Sale **siempre** a `~/.local/share/icons`, nunca a `/usr/share/icons`: ahí
+los ficheros son de un paquete y pacman no los rastrearía, así que una actualización dejaría mitades
+descuadradas sin avisar. Es idempotente (`--force` rehace). Lo llama `install.sh` (paso 10) sobre
+`$CURSOR_THEME`, por defecto `Bibata-Modern-Ice` — que va por el mecanismo de paquete **opcional**
+porque vive en chaotic-aur y en un Arch puro haría fallar el `pacman -S` entero. El instalador
+**no elige el tema**: preparar el terreno sí, cambiarle el puntero a quien no lo ha pedido no.
+
+**Lo que el generador NO hace es inventar resolución.** Un tema XCursor son PNG por tamaño, así que
+el `.hlc` generado lleva **esos mismos PNG** con `resize_algorithm = none` (verificado destripando
+un `.hlc` generado: `default_000.png` 16×16, `default_001.png` 24×24…). El salto de calidad de
+hyprcursor —SVG, nítido a cualquier tamaño y escala— **solo lo dan los temas autorados en SVG**,
+como Bibata-Modern-Ice, cuyos `.hlc` sí contienen un `.svg`. Sobre un tema de paquete esto da
+**paridad, no nitidez**. Dato para dimensionarlo: en Bibata la mitad SVG ocupa **328 KB** y la
+XCursor **28 MB**.
 
 ### Perfiles TLP conmutables (`system/tlp/` + `servicios/energia/tlp.ts`)
 

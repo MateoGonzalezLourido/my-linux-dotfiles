@@ -2467,6 +2467,10 @@ button.qs-user-settings-btn {
     margin: 0 2px 0 0;
   }
 
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.07);
+  }
+
   &:hover,
   &:focus,
   &:active {
@@ -5342,8 +5346,15 @@ window.qs-window.fondo-shell-grafito {
   button.qs-inline-value-btn,
   entry.qs-inline-number-input,
   button.qs-dropdown-header,
-  button.qs-toggle,
-  .qs-icon-btn { background: $bg-shell-grafito; }
+  button.qs-toggle {
+    background: $bg-shell-grafito;
+  }
+
+  .qs-icon-btn {
+    background: $bg-shell-grafito;
+
+    &:hover { background-color: rgba(255, 255, 255, 0.07); }
+  }
 
   .qs-sink-item,
   .qs-wifi-item {
