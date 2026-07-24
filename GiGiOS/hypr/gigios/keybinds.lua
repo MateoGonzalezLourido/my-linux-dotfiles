@@ -89,6 +89,22 @@ bind("CTRL + SHIFT + S", hl.dsp.exec_cmd("~/.config/hypr/scripts/grabar-pantalla
 -- otros
 bind(mod .. " + Q", hl.dsp.exec_cmd(vars.terminal))
 bind(mod .. " + SHIFT + C", hl.dsp.window.close()) -- killactive
+-- Cierra una instantánea de las ventanas del workspace activo. Cada cierre se
+-- dirige a su ventana original para que el cambio de foco entre cierres no
+-- afecte al siguiente; un cliente que falle tampoco impide cerrar los demás.
+bind(mod .. " + CTRL + SHIFT + C", function()
+  local workspace = hl.get_active_workspace()
+  if not workspace then return end
+
+  local ok, ventanas = pcall(hl.get_workspace_windows, workspace)
+  if not ok then return end
+
+  for _, ventana in ipairs(ventanas) do
+    pcall(function()
+      hl.dispatch(hl.dsp.window.close({ window = ventana }))
+    end)
+  end
+end)
 bind(mod .. " + M", hl.dsp.exec_cmd("ags request toggle-quicksettings"))
 bind(mod .. " + E", hl.dsp.exec_cmd(vars.fileManager))
 bind(mod .. " + SHIFT + Q", hl.dsp.window.float({ action = "toggle" }))
