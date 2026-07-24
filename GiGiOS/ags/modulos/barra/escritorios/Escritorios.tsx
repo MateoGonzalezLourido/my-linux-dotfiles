@@ -34,6 +34,7 @@ import type {
   IconoClienteEscritorio,
 } from "./modelo"
 import { crearGestorVistaPreviaEscritorios } from "./gestorVistaPrevia"
+import { esVentanaEmergenteX11 } from "../../../servicios/ventanas/emergentesX11"
 
 export interface InteraccionEscritorios {
   cambiarArrastre: (activo: boolean) => void
@@ -151,6 +152,12 @@ export default function Escritorios(
     for (const cliente of hyprland.get_clients() as ClienteEscritorio[]) {
       const idEscritorio = cliente.workspace?.id ?? cliente.get_workspace?.()?.id
       if (typeof idEscritorio !== "number" || !idsLocales.has(idEscritorio)) continue
+      // Los menús y tooltips de una app X11 llegan como clientes con la clase de
+      // su padre (un desplegable de Steam = otro `class: "steam"`), así que sin
+      // esto la barra pintaba un icono duplicado mientras el menú estaba abierto.
+      // El filtro va aquí y no en `iconos.ts` porque también decide si un
+      // escritorio "tiene clientes", o sea si se muestra.
+      if (esVentanaEmergenteX11(cliente)) continue
       const clientes = clientesPorEscritorio.get(idEscritorio) ?? []
       clientes.push(cliente)
       clientesPorEscritorio.set(idEscritorio, clientes)

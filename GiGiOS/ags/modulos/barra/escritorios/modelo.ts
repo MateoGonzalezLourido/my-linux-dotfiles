@@ -8,6 +8,10 @@ export interface ClienteEscritorio {
   initialClass?: string | null
   initial_class?: string | null
   title?: string | null
+  initialTitle?: string | null
+  initial_title?: string | null
+  floating?: boolean | null
+  xwayland?: boolean | null
   pid?: number | null
   x?: number | null
   y?: number | null
