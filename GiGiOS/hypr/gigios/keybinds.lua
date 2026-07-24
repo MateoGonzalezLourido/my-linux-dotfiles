@@ -267,18 +267,47 @@ bind(mod .. " + B", hl.dsp.exec_cmd("ags request toggle-bar"))
 -- estado sobrevivía, y el siguiente toggle "restauraba" un estado en el que ya
 -- estabas.
 --
--- Los valores de vuelta (2.5 / 8 / 6) están escritos aquí, no leídos de
--- ventanas.lua — si algún día cambias los gaps por defecto allí, replícalo
--- aquí o el toggle "restaurará" un valor obsoleto (misma advertencia que
--- llevaba el script).
+-- LOS VALORES DE VUELTA YA NO ESTÁN ESCRITOS AQUÍ: salen de la tabla `aspecto`
+-- de gigios/ventanas.lua, que es quien los aplica. Antes eran literales
+-- copiados (2.5 / 8 / 6) con una advertencia de "replícalo si los cambias" —
+-- una advertencia que no da ningún error cuando se incumple: el toggle
+-- "restauraba" un espaciado que ya no era el tuyo y parecía que el atajo
+-- estropeaba el diseño. Al leerlos, cambiar los gaps en ventanas.lua basta.
+--
+-- El require va en pcall y con repliegue a los valores de siempre: si
+-- ventanas.lua llegara a fallar, un error aquí dejaría la sesión SIN NINGÚN
+-- ATAJO (la trampa nº 1 del config Lua), y perder el toggle de gaps no vale
+-- eso. Se resuelve al cargar el config, no en cada pulsación: el callback de un
+-- bind tiene 100 ms y esto es una lectura de tabla ya cacheada por require.
 local compacto = false
+local NORMAL = { gaps_in = 2.5, gaps_out = 8, border_size = 0, rounding = 6 }
+do
+  local ok, ventanas = pcall(require, "gigios.ventanas")
+  if ok and type(ventanas) == "table" and type(ventanas.aspecto) == "table" then
+    for clave in pairs(NORMAL) do
+      local v = ventanas.aspecto[clave]
+      if type(v) == "number" then NORMAL[clave] = v end
+    end
+  end
+end
+
+-- El modo compacto pone A CERO las mismas cuatro claves que gobierna
+-- ventanas.lua, `border_size` incluido — el atajo se llamaba
+-- "toggle-gaps-borders" pero nunca tocó el borde, porque el diseño de hoy ya lo
+-- tiene a 0 y no se notaba. Poniendo el borde a 0 también, subirlo algún día en
+-- ventanas.lua no deja un marco pintado en un modo cuya única razón es que las
+-- ventanas se toquen; y la vuelta lo restaura al valor que tenga entonces.
 function GiGiOS.toggle_gaps()
   compacto = not compacto
-  if compacto then
-    hl.config({ general = { gaps_in = 0, gaps_out = 0 }, decoration = { rounding = 0 } })
-  else
-    hl.config({ general = { gaps_in = 2.5, gaps_out = 8 }, decoration = { rounding = 6 } })
-  end
+  local v = compacto and 0 or nil
+  hl.config({
+    general = {
+      gaps_in     = v or NORMAL.gaps_in,
+      gaps_out    = v or NORMAL.gaps_out,
+      border_size = v or NORMAL.border_size,
+    },
+    decoration = { rounding = v or NORMAL.rounding },
+  })
 end
 
 -- `usados`/`normalizar` los consume gigios/nop-binds.lua (require cachea: es

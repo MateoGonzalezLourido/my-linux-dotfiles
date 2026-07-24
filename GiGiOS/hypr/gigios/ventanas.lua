@@ -1,17 +1,29 @@
 -- Aspecto y comportamiento de ventanas: general, decoration, layouts y misc.
 -- Aspecto de las ventanas: gaps, bordes, sombras, blur y layout.
 
+-- FUENTE ÚNICA del "modo normal" del espaciado. GiGiOS.toggle_gaps()
+-- (gigios/keybinds.lua, SUPER+SHIFT+E) restaura EXACTAMENTE esta tabla al salir
+-- del modo compacto, en vez de los literales que llevaba copiados: cambiar un
+-- gap aquí ya no deja el toggle restaurando un valor obsoleto. Es la única
+-- escritura de estas cuatro claves en todo el config (verificado: reglas.lua
+-- solo las nombra en ejemplos comentados), así que no hay otro escritor con el
+-- que desincronizarse.
+local aspecto = {
+  -- El tipo gap es entero: el 2.5 se trunca a 2 igual que hacía hyprlang
+  -- (medido: ambas sesiones reportan "2 2 2 2"). Se conserva el 2.5 del
+  -- original por fidelidad.
+  gaps_in  = 2.5,
+  gaps_out = 8,
+  border_size = 0,
+  rounding    = 6,
+}
+
 hl.config({
   general = {
-    -- El tipo gap es entero: el 2.5 se trunca a 2 igual que hacía hyprlang
-    -- (medido: ambas sesiones reportan "2 2 2 2"). Se conserva el 2.5 del
-    -- original por fidelidad. Si cambias los gaps, replica el cambio en
-    -- scripts/toggle-gaps-borders.sh, que restaura estos valores escritos
-    -- allí a mano, no leídos de aquí.
-    gaps_in  = 2.5,
-    gaps_out = 8,
+    gaps_in  = aspecto.gaps_in,
+    gaps_out = aspecto.gaps_out,
 
-    border_size = 0,
+    border_size = aspecto.border_size,
 
     -- https://wiki.hypr.land/Configuring/Variables/#variable-types (colores)
     col = {
@@ -30,7 +42,7 @@ hl.config({
   },
 
   decoration = {
-    rounding       = 6,
+    rounding       = aspecto.rounding,
     rounding_power = 4,
     active_opacity   = 1.0,
     inactive_opacity = 0.92,
@@ -95,3 +107,8 @@ hl.config({
     on_focus_under_fullscreen = 0,
   },
 })
+
+-- Lo consume gigios/keybinds.lua (require cachea: es la misma tabla que acaba de
+-- aplicarse, no una copia). hyprland.lua carga este módulo con util.carga() e
+-- ignora el retorno; el valor solo importa para quien lo pida.
+return { aspecto = aspecto }

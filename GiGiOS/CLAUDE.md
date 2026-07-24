@@ -1537,10 +1537,19 @@ entrada nueva, el wipe posterior se la lleva también.
   comprobación es `== false` explícito — un `nil` tiene que dejar pasar. Fail-open hacia "el atajo
   funciona": si la lectura falla, se manda el toggle igual.
 - **`GiGiOS.toggle_gaps()`** (definida en `gigios/keybinds.lua`, junto a su bind) — alterna
-  gaps/rounding a 0 (modo compacto) y de vuelta a valores fijos (`gaps_in 2.5`, `gaps_out 8`,
-  `rounding 6`). Esos valores de "vuelta a la normalidad" están escritos ahí, no leídos de
-  `gigios/ventanas.lua` — si algún día cambias los gaps por defecto, hay que replicarlo o el toggle
-  "restaurará" un valor obsoleto. El estado vive en una `local` de Lua, no en un fichero de
+  gaps/borde/rounding a 0 (modo compacto) y de vuelta al diseño normal. **Los valores de vuelta
+  se LEEN de `gigios/ventanas.lua`**, que exporta la tabla `aspecto` (`gaps_in`, `gaps_out`,
+  `border_size`, `rounding`) con la que él mismo se configura — antes eran literales copiados en
+  el toggle con una advertencia de "replícalo si los cambias", y esa advertencia no da ningún
+  error cuando se incumple: el toggle "restauraba" un espaciado que ya no era el tuyo y parecía
+  que el atajo estropeaba el diseño. `ventanas.lua` es el **único escritor** de esas cuatro claves
+  en todo el config (`reglas.lua` solo las nombra en ejemplos comentados), así que no hay un
+  segundo sitio con el que desincronizarse. El `require` va en `pcall` con repliegue a los valores
+  de siempre: un error ahí dejaría la sesión **sin ningún atajo** (la trampa nº 1 del config Lua),
+  y perder este toggle no vale eso. **`border_size` entra ahora en el ciclo** — el atajo se llamaba
+  "toggle-gaps-borders" pero nunca tocó el borde, porque el diseño de hoy lo tiene a 0 y no se
+  notaba; subirlo algún día habría dejado un marco pintado en el único modo cuya razón de ser es
+  que las ventanas se toquen. El estado vive en una `local` de Lua, no en un fichero de
   `$XDG_RUNTIME_DIR`: igual de efímero, y con la ventaja de que un `hyprctl reload` resetea a la vez
   el flag y los gaps — el esquema viejo restauraba los gaps pero el fichero sobrevivía, así que el
   siguiente toggle "restauraba" un estado en el que ya estabas.
