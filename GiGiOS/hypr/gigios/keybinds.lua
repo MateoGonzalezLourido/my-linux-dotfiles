@@ -16,11 +16,11 @@
 -- Mapeo de tipos de bind de hyprlang a opts de hl.bind:
 --   bind   → sin opts          bindl  → { locked = true }
 --   bindel → { repeating = true, locked = true }
---   bindm  → { drag = true }   — NO el { mouse = true } del ejemplo oficial:
---     esa clave no existe en el parser de opts de hl.bind (medido en 0.56:
---     Keybind.mouse queda false con ella; y el fuente solo lee click/drag,
---     donde drag además implica release). El ejemplo oficial la lleva de
---     adorno sin que nadie la lea.
+--   bindm  → SIN OPTS. Ni { mouse = true } (la clave no existe en el parser de
+--     opts de hl.bind — medido en 0.56: Keybind.mouse queda false con ella; el
+--     ejemplo oficial de /usr/share/hypr/hyprland.lua la lleva de adorno sin
+--     que nadie la lea) ni { drag = true }, que ROMPE el primer arrastre. Ver
+--     el porqué junto a los binds del ratón, más abajo.
 
 local util = require("gigios.util")
 local vars = require("gigios.variables")
@@ -115,8 +115,24 @@ bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 bind(mod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
 
 -- mover/redimensionar con mod + botón izq/dcho arrastrando (los bindm)
-bind(mod .. " + mouse:272", hl.dsp.window.drag(), { drag = true })
-bind(mod .. " + mouse:273", hl.dsp.window.resize(), { drag = true })
+--
+-- ⚠️ SIN OPTS, y NO con { drag = true }: esa opción se comía el PRIMER arrastre
+-- de cada sesión (el segundo y siguientes sí iban), tanto al mover como al
+-- redimensionar. `drag` fuerza `release = true` (LuaBindingsToplevel.cpp), y en
+-- handleKeybinds la pulsación de un bind con release solo llega al dispatcher
+-- si es un SPECIALDISPATCHER — que para un handler `__lua` significa tener ya
+-- puesto `releasePending`. Ese flag lo pone el propio dispatcher del ratón al
+-- ejecutarse, así que en el primer clic aún es falso: la pulsación se traga sin
+-- iniciar nada, y solo el soltar (que llega como "terminar arrastre", o sea
+-- nada) deja el flag listo para la siguiente vez. El ciclo entero se retrasa un
+-- clic. Sin opts la pulsación entra directa, arranca el arrastre y de paso pone
+-- `releasePending`, que es lo que hace que el soltar también entre — el camino
+-- que el compositor tiene pensado para los dispatchers de ratón en Lua.
+--
+-- El { mouse = true } del ejemplo oficial no vale como alternativa: hl.bind no
+-- lee esa clave (ver la cabecera del módulo).
+bind(mod .. " + mouse:272", hl.dsp.window.drag())
+bind(mod .. " + mouse:273", hl.dsp.window.resize())
 
 -------------------------------------------------------- teclas multimedia (bindel)
 bind("XF86AudioRaiseVolume",
