@@ -10,10 +10,32 @@ import {
   iniciarOperacionEscritorios,
   terminarOperacionEscritorios,
 } from "./controlador"
+import { esEscritorioEspecial, nombreEspecialEscritorio } from "./especiales"
 
 let colaOperaciones: Promise<void> = Promise.resolve()
 
-export async function enfocarEscritorio(idEscritorio: number): Promise<void> {
+/** Lleva el foco a un escritorio. `nombreEscritorio` solo hace falta para los
+ *  ESPECIALES, y ahí no es opcional de verdad:
+ *  `hl.dsp.focus({workspace=-98})` sobre un especial oculto **no hace nada** y
+ *  responde `ok` igualmente (medido en vivo), así que sin esto la pastilla del
+ *  scratchpad en la barra era un botón muerto sin ningún error. Los especiales se
+ *  muestran y se ocultan con `toggle_special`, que va por NOMBRE, no por id. */
+export async function enfocarEscritorio(
+  idEscritorio: number,
+  nombreEscritorio?: string,
+): Promise<void> {
+  if (esEscritorioEspecial(idEscritorio)) {
+    const nombre = nombreEspecialEscritorio(nombreEscritorio ?? "")
+    // Sin un nombre utilizable no hay forma de abrirlo, y caer al focus por id
+    // sería fingir que se ha hecho algo.
+    if (nombre === null) return
+    await execAsync([
+      "hyprctl",
+      "dispatch",
+      `hl.dsp.workspace.toggle_special('${nombre}')`,
+    ])
+    return
+  }
   await execAsync([
     "hyprctl",
     "dispatch",

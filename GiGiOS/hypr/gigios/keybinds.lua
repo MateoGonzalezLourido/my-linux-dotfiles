@@ -59,11 +59,21 @@ bind(mod .. " + ALT + C", function()
 end)
 
 ------------------------------------------------------------------ herramientas
--- capturas de pantalla
-bind("CTRL + F", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
-  .. " && hyprshot -m output -m active -o " .. vars.ruta_captura_pantalla))
-bind("CTRL + S", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
+-- capturas y grabaciones: la TECLA dice el alcance y el SHIFT dice si es foto o
+-- vídeo, así que no hay que recordar cuatro combinaciones sueltas:
+--
+--            captura (foto)        grabación (vídeo)
+--   Z  recorte / selección    SUPER+Z          SUPER+SHIFT+Z
+--   X  pantalla completa      SUPER+X          SUPER+SHIFT+X
+--
+-- Estaban en CTRL+F / CTRL+S / CTRL+SHIFT+F / CTRL+SHIFT+S. Moverlas a mainMod
+-- devuelve además CTRL+S y CTRL+F a las aplicaciones: eran binds GLOBALES, así
+-- que el compositor se los tragaba antes de que llegara a ninguna ventana y en
+-- esta sesión no se podía guardar ni buscar con el atajo de siempre.
+bind(mod .. " + Z", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
   .. " && hyprshot -m region -o " .. vars.ruta_captura_pantalla))
+bind(mod .. " + X", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
+  .. " && hyprshot -m output -m active -o " .. vars.ruta_captura_pantalla))
 
 -- portapapeles
 bind(mod .. " + V", hl.dsp.exec_cmd("~/.config/hypr/scripts/clipboard-history.sh picker"))
@@ -78,13 +88,21 @@ bind(mod .. " + SHIFT + W", hl.dsp.window.fullscreen({ mode = "maximized" }))
 -- pegar ventanas (modo compacto) — inline, ver GiGiOS.toggle_gaps abajo
 bind(mod .. " + SHIFT + E", function() GiGiOS.toggle_gaps() end)
 
--- grabación con región (requiere slurp)
+-- Grabaciones de pantalla
+
+-- Toggle: la misma tecla inicia y detiene (ver grabar-pantalla.sh). Pareja de las
+-- capturas de arriba: SHIFT + la misma tecla de alcance.
+-- Ventana seleccionada con audio del sistema.
+bind(mod .. " + SHIFT + Z", hl.dsp.exec_cmd("~/.config/hypr/scripts/grabar-pantalla.sh ventana"))
+-- Monitor activo con audio del sistema.
+bind(mod .. " + SHIFT + X", hl.dsp.exec_cmd("~/.config/hypr/scripts/grabar-pantalla.sh"))
+
+-- Grabación de una región arbitraria con slurp. Se queda donde estaba (no entra
+-- en el esquema Z/X) porque no es un tercer alcance sino OTRA herramienta:
+-- wf-recorder a pelo, sin el toggle ni el audio del sistema que sí trae
+-- grabar-pantalla.sh — se detiene matando el proceso, no repitiendo el atajo.
 bind(mod .. " + SHIFT + P", hl.dsp.exec_cmd('wf-recorder -g "$(slurp)" -f '
   .. vars.ruta_grabacion_pantalla .. "/$(date +%Y%m%d_%H%M%S).mp4"))
--- monitor activo con audio del sistema (toggle: iniciar/detener)
-bind("CTRL + SHIFT + F", hl.dsp.exec_cmd("~/.config/hypr/scripts/grabar-pantalla.sh"))
--- ventana seleccionada con audio del sistema (toggle: iniciar/detener)
-bind("CTRL + SHIFT + S", hl.dsp.exec_cmd("~/.config/hypr/scripts/grabar-pantalla.sh ventana"))
 
 -- otros
 bind(mod .. " + Q", hl.dsp.exec_cmd(vars.terminal))
@@ -149,9 +167,26 @@ for i = 1, 10 do
   bind(mod .. " + SHIFT + " .. tecla, hl.dsp.window.move({ workspace = i }))
 end
 
--- workspace especial (scratchpad)
-bind(mod .. " + S", hl.dsp.workspace.toggle_special("magic"))
-bind(mod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:magic" }))
+-- Escritorio ancla
+
+-- El motor está en gigios/ancla-escritorio.lua. Aquí vivía el workspace especial `magic` (toggle_special + mover ventana al
+-- especial). Se quitó porque no se usaba, y su modo de fallo era desconcertante:
+-- el scratchpad se DESTRUYE al quedarse vacío (misc.close_special_on_empty), y
+-- un especial vacío que se abre no dibuja absolutamente nada — ni marco ni
+-- fondo. O sea que el atajo funcionaba (verificado: los binds se registraban, el
+-- dispatcher respondía y con una ventana dentro se veía a pantalla completa)
+-- pero parecía roto en el único estado en que uno lo prueba. Si alguien lo echa
+-- de menos: `hl.dsp.workspace.toggle_special("magic")` y
+-- `hl.dsp.window.move({ workspace = "special:magic" })`.
+--
+-- Enlace TARDÍO por el mismo motivo que SUPER+ALT+C: si el módulo no cargó, el
+-- atajo calla en vez de tumbar la sesión (util.carga ya avisó del fallo).
+bind(mod .. " + S", function()
+  if GiGiOS.saltar_ancla then GiGiOS.saltar_ancla() end
+end)
+bind(mod .. " + SHIFT + S", function()
+  if GiGiOS.anclar_escritorio then GiGiOS.anclar_escritorio() end
+end)
 
 -- recorrer workspaces existentes con mod + rueda
 bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))

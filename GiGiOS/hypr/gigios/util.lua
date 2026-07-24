@@ -18,11 +18,17 @@ M.DIR_CONFIG = (package.path:match("^(.-)%?%.lua") or (M.HOGAR .. "/.config/hypr
 
 --- Aviso en pantalla del propio compositor (no necesita daemon de notificaciones,
 --- que en el arranque aún no existe). Color por defecto: rojo error.
+---
+--- `opts.crudo` quita el prefijo "[GiGiOS Lua]". El prefijo existe para que un
+--- fallo del config se distinga de un aviso de cualquier otro programa, así que
+--- sobra —y confunde, porque se lee como un error— en las confirmaciones
+--- rutinarias de una función que el usuario acaba de invocar a propósito
+--- (gigios/ancla-escritorio.lua). Para avisos de fallo, sin tocar.
 function M.notificar(texto, opts)
   opts = opts or {}
   pcall(function()
     hl.notification.create({
-      text = "[GiGiOS Lua] " .. texto,
+      text = (opts.crudo and "" or "[GiGiOS Lua] ") .. texto,
       timeout = opts.timeout or 10000,
       color = opts.color or "0xffcc4444",
     })

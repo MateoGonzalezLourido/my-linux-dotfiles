@@ -60,18 +60,20 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 8 | `gigios/compactar.lua` | `GiGiOS.compactar()` — renumera escritorios | a mano |
 | 9 | `gigios/boton-apagado.lua` | `GiGiOS.boton_apagado()` — el botón físico | a mano |
 | 10 | `gigios/daltonismo.lua` | `GiGiOS.daltonismo(modo)` — shader de accesibilidad | a mano |
-| 11 | `gigios/keybinds.lua` | Todos los atajos + `GiGiOS.toggle_gaps()` | a mano |
-| 12 | `gigios/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
-| 13 | `gigios/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
-| 14 | `gigios/reparto-ventanas.lua` | Que una ventana no acabe estrujada: al abrirse (elige qué se parte y por qué lado) y al soltarla arrastrada (le hace hueco a costa de los vecinos) | a mano |
-| 15 | `gigios/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
-| 16 | `gigios/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
-| 17 | `gigios/gpu.lua` | Elige el perfil de GPU y carga `gigios/gpu/<perfil>.lua` | **fichero local**, ver abajo |
-| 18 | `gigios/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
-| 19 | `gigios/userprefs.lua` | Overrides personales sueltos | a mano |
-| 20 | `gigios/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
-| 21 | `gigios/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
-| 22 | `gigios/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
+| 11 | `gigios/orion.lua` | `GiGiOS.toggle_orion()` — el atajo del launcher | a mano |
+| 12 | `gigios/ancla-escritorio.lua` | `GiGiOS.anclar_escritorio()` / `GiGiOS.saltar_ancla()` — ir al escritorio ancla y volver | a mano |
+| 13 | `gigios/keybinds.lua` | Todos los atajos + `GiGiOS.toggle_gaps()` | a mano |
+| 14 | `gigios/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
+| 15 | `gigios/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
+| 16 | `gigios/reparto-ventanas.lua` | Que una ventana no acabe estrujada: al abrirse (elige qué se parte y por qué lado) y al soltarla arrastrada (le hace hueco a costa de los vecinos) | a mano |
+| 17 | `gigios/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
+| 18 | `gigios/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
+| 19 | `gigios/gpu.lua` | Elige el perfil de GPU y carga `gigios/gpu/<perfil>.lua` | **fichero local**, ver abajo |
+| 20 | `gigios/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
+| 21 | `gigios/userprefs.lua` | Overrides personales sueltos | a mano |
+| 22 | `gigios/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
+| 23 | `gigios/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
+| 24 | `gigios/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
 
 **El orden no es estético**: `gigios/pantalla` pisa al comodín de monitores,
 `gigios/dispositivos` pisa a `userprefs`, y `nop-binds` va el último porque

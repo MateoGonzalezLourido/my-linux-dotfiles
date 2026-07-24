@@ -202,6 +202,25 @@ Lua trae dos formas que hyprlang no tenía y que el parser **debe** entender: ex
 están escritos uno a uno. Sin expandir los bucles la lista perdía 28 de 67 atajos **en silencio**,
 de ahí el test que cuenta.
 
+**El test cuenta COMBINACIONES, no llamadas a `bind()`, y esa distinción no es cosmética.**
+Hyprland ejecuta **todos** los binds de una combinación, y el config se apoya en eso: `SUPER + clic
+izquierdo` lleva **tres** (el `bindm` del arrastre más los dos enganches con los que
+`gigios/reparto-ventanas.lua` sabe cuándo empieza y cuándo acaba). Los enganches no son atajos que
+se puedan pulsar por separado, así que listarlos duplicaba la fila en Orion y la llenaba de nombres
+internos (`GiGiOS: reparto_arrastre_inicio`). El parser **deduplica por combinación y gana el
+primero**, que es el que describe lo que la combinación hace de cara al usuario — los enganches se
+registran después a propósito. Así el recuento cuadra con la tabla `usados` de `gigios/keybinds.lua`,
+que también es un conjunto de combinaciones (verificado en vivo: 69 y 69). Sin la dedup el test
+llevaba tiempo en rojo, porque el número esperado se escribió contra `usados` y el parser contaba
+llamadas.
+
+**Un atajo nuevo cuyo bind llame a una función de `GiGiOS` necesita su etiqueta** en
+`GIGIOS_LABELS` (`keybinds.parse.ts`), o sale en la lista como `GiGiOS: <nombre_de_la_función>`. Y
+**el titular de una sección tiene que ir en UNA sola línea**, precedido de una línea en blanco y sin
+otro comentario debajo: es lo que distingue un encabezado de la prosa que documenta el módulo. Un
+bloque explicativo de varias líneas **no abre grupo**, y sus atajos se cuelan en la sección
+anterior sin dar ningún error.
+
 ## Hyprland structure
 
 For the directory layout, the module load order, and which script fires from where, see
@@ -899,6 +918,46 @@ de AGS escribe la preferencia (síncrono) y dispara `hyprctl reload`, que re-eje
 vuelve a decidir. Desactivado, los sordos sencillamente no se registran: no queda ningún fichero
 residual que borrar ni comentar.
 
+### Escritorio ancla: ir y volver (`gigios/ancla-escritorio.lua`)
+
+`SUPER + SHIFT + S` marca el escritorio actual como **ancla** (repetido ahí mismo, lo desmarca) y
+`SUPER + S` es el vaivén: **fuera** del ancla te lleva a ella apuntando de dónde venías, y **en**
+ella te devuelve a ese sitio apuntado. `vuelta` se reescribe en **cada** salto hacia el ancla, así
+que "volver" significa el sitio desde el que hiciste el **último** salto, no un historial — si tras
+saltar a la ancla te vas a otro escritorio a mano y pulsas otra vez, el que se apunta es ese
+(verificado en vivo con los dos recorridos).
+
+**Sustituyó al workspace especial `magic`**, que ocupaba esas dos teclas y **no estaba roto**: los
+binds se registraban, el dispatcher respondía y con una ventana dentro se veía a pantalla completa
+(todo medido antes de tocar nada). Lo que fallaba era el único estado en el que uno lo prueba —
+`misc.close_special_on_empty` lo **destruye al quedarse vacío**, y un especial vacío que se abre no
+dibuja **nada**: ni marco, ni fondo, ni aviso. O sea que parecía muerto sin dar ningún error. Si
+alguien lo quiere de vuelta, el porqué y los dos dispatchers están en el comentario de
+`gigios/keybinds.lua`, junto a los binds nuevos.
+
+**El estado va a un FICHERO, no a un local de Lua**, y ahí se aparta a propósito de
+`GiGiOS.toggle_gaps()`: en el toggle de gaps el `hyprctl reload` resetea a la vez el flag y los
+gaps, así que quedan coherentes; aquí no hay nada en el compositor que resetear, y un reload
+borraría el ancla **sin que se note** hasta que pulsaras el atajo y no fuera a ninguna parte. Y los
+reloads no son raros: AGS dispara uno al tocar `absorberSuperSinAtajo`, entre otros (verificado que
+el ancla sobrevive a un `hyprctl reload`). Vive en `$XDG_RUNTIME_DIR/gigios-ancla-escritorio`
+(tmpfs), que da justo la duración que se quiere: **por sesión**, como el Wake up. En `~/.config`
+sobreviviría a un reinicio y acabarías saltando a un escritorio de ayer.
+
+**Fail-open hacia "el atajo no hace nada"**: todo va en pcall y cualquier error —fichero ilegible,
+contenido a medias, la API devolviendo `nil`— degrada a "no hay ancla", que se arregla volviendo a
+anclar. Lo contrario (saltar a un escritorio cualquiera por leer mal un número) movería al usuario
+de sitio sin que lo pidiera, que es el fallo molesto de verdad. Por lo mismo, un id `<= 0` en el
+fichero cuenta como "ninguno". Los **especiales** quedan fuera (ni se anclan ni se apuntan), igual
+que en `limite-ventanas.lua` y `compactar.lua`.
+
+**Cada gesto avisa en pantalla** (`util.notificar`, 2 s). No es adorno: anclar es invisible por
+definición —no mueve nada—, y callar ahí reproduce exactamente el fallo del scratchpad, que es
+"pulso y no sé si ha pasado algo". Por eso también habla el caso "estás en el ancla pero aún no hay
+sitio al que volver". De ahí el `opts.crudo` nuevo de `util.notificar`: quita el prefijo
+`[GiGiOS Lua]`, que existe para distinguir un **fallo del config** de un aviso de otro programa y
+que en una confirmación rutinaria se lee como un error. Los avisos de fallo siguen con prefijo.
+
 ### Update monitor (`updates-monitor.sh`)
 
 Checks for pending updates and surfaces the **important** ones as bar icons (AGS
@@ -1455,6 +1514,15 @@ equipos que no exponen energía), no un simple porcentaje de carga — es la mé
 real de la celda, y avisa por debajo del 80 % de la capacidad de diseño original.
 
 ### Grabar pantalla (`grabar-pantalla.sh`)
+
+**Capturas y grabaciones comparten esquema de teclas**: la **tecla** dice el alcance y el **SHIFT**
+dice si es foto o vídeo — `SUPER+Z` recorte / `SUPER+SHIFT+Z` grabar ventana, `SUPER+X` pantalla
+completa / `SUPER+SHIFT+X` grabar el monitor activo. Estaban en `CTRL+F`/`CTRL+S`/`CTRL+SHIFT+F`/
+`CTRL+SHIFT+S`, y moverlas a `mainMod` **le devuelve `CTRL+S` y `CTRL+F` a las aplicaciones**: eran
+binds globales, así que el compositor se los tragaba antes de llegar a ninguna ventana y no se podía
+guardar ni buscar con el atajo de siempre. `SUPER+SHIFT+P` (región con slurp) se queda fuera del
+esquema porque no es un tercer alcance sino otra herramienta: `wf-recorder` a pelo, sin el toggle ni
+el audio del sistema de este script — se detiene matando el proceso, no repitiendo el atajo.
 
 Toggle de dos invocaciones: la primera arranca `wf-recorder` en segundo plano y bloquea esperándolo;
 la segunda (mismo atajo) detecta que ya hay una grabación y le manda `SIGINT` para que cierre el
