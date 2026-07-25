@@ -429,7 +429,9 @@ EOF
     command -v cachyos-rate-mirrors >/dev/null 2>&1 \
       || fail "falta cachyos-rate-mirrors para los alias update/mirror"
   fi
-  optional_commands=(nvidia-smi gh lshw glxinfo sensors smartctl magick)
+  # cava es OPCIONAL a propósito: sin él la onda de Spotify de la barra no falla, cae a su
+  # animación procedimental (servicios/multimedia/espectro.ts). No puede ser un `fail`.
+  optional_commands=(nvidia-smi gh lshw glxinfo sensors smartctl magick cava)
   for command in "${optional_commands[@]}"; do
     command -v "$command" >/dev/null 2>&1 || warn "comando opcional no disponible: $command"
   done
