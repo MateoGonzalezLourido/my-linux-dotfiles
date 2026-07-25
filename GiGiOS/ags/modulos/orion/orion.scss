@@ -687,7 +687,7 @@ popover.background {
   font-family: $j-font-sans;
   font-size: 10px;
   font-weight: 700;
-  padding: 7px 10px 1px;
+  padding: 7px 2px 1px;
 }
 
 .rice-random-btn {
@@ -877,7 +877,11 @@ popover.background {
   margin-bottom: 10px;
 }
 
-.rice-back-btn {
+// Los controles de los editores necesitan el prefijo `.Orion`: el reset
+// `.Orion button` de la cabecera tiene más especificidad que una clase suelta.
+// Sin este alcance, GTK conserva el texto y el radio pero pierde precisamente
+// las superficies, bordes y padding que integran los controles en Orion.
+.Orion .rice-back-btn {
   min-width: 26px;
   min-height: 26px;
   padding: 0;
@@ -950,7 +954,7 @@ popover.background {
   font-weight: 700;
 }
 
-.rice-icon-btn {
+.Orion .rice-icon-btn {
   min-width: 24px;
   min-height: 24px;
   padding: 0;
@@ -962,7 +966,7 @@ popover.background {
   &:hover { @include hover-con-profundidad; color: $j-accent-red; }
 }
 
-.rice-btn {
+.Orion .rice-btn {
   padding: 4px 10px;
   border-radius: $j-radius-xs;
   border: 1px solid $j-border-subtle;
@@ -988,9 +992,11 @@ popover.background {
   &.peligro:hover { color: $j-accent-red; }
 }
 
-.rice-chip {
-  padding: 3px 10px;
-  border-radius: 999px;
+.Orion .rice-chip {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 3px;
+  border-radius: 8px;
   border: 1px solid $j-border-subtle;
   background: $j-bg-item;
   color: $j-text-muted;
@@ -1019,7 +1025,7 @@ popover.background {
   box-shadow: none;
 }
 
-.rice-chip-img-btn {
+.Orion .rice-chip-img-btn {
   padding: 0;
   border: 0;
   border-radius: $j-radius-xs;

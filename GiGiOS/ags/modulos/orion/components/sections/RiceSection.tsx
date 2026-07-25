@@ -53,6 +53,11 @@ export function RiceSection() {
   const pila = new Gtk.Stack()
   pila.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
   pila.set_transition_duration(120)
+  // Gtk.Stack es verticalmente homogéneo por defecto: la ficha corta de un
+  // fondo heredaría la altura natural de toda la rejilla, aunque esta estuviera
+  // oculta, y el viewport conservaría un desplazamiento que ya no corresponde.
+  // El ancho sí permanece homogéneo para que ninguna transición mueva el panel.
+  pila.set_vhomogeneous(false)
 
   let modoEdicion = false
   let vista: Vista = { v: "rejilla" }

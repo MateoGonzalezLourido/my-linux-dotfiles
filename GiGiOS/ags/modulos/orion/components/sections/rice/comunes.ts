@@ -12,6 +12,7 @@
 
 import { Gtk } from "ags/gtk4"
 import GLib from "gi://GLib"
+import Pango from "gi://Pango"
 import { loadThumbnails } from "../../../services/wallpaperThumbs"
 import { aMinutos } from "../../../data/wallpaperSchedule"
 
@@ -47,6 +48,11 @@ export function miniatura(path: string, ancho: number, alto: number, clase = "ri
 export function etiqueta(texto: string, clases: string[], xalign = 0): Gtk.Label {
   const l = new Gtk.Label({ label: texto, cssClasses: clases })
   l.set_xalign(xalign)
+  // Las explicaciones suelen ocupar varias frases. Sin wrap, su ancho mínimo es
+  // el de la línea completa y GTK ensancha Orion antes de que el viewport pueda
+  // recortarla. Al envolver, el mínimo pasa a ser el de una palabra y el texto
+  // se adapta al ancho estable del panel.
+  if (clases.includes("rice-help")) l.set_wrap(true)
   return l
 }
 
@@ -121,6 +127,8 @@ export function cabeceraVuelta(titulo: string, alVolver: () => void): Gtk.Box {
   caja.append(atras)
   const t = etiqueta(titulo, ["rice-subtitle"])
   t.set_hexpand(true)
+  t.set_ellipsize(Pango.EllipsizeMode.END)
+  t.set_tooltip_text(titulo)
   caja.append(t)
   return caja
 }

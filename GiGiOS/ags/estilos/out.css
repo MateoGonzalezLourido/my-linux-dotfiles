@@ -711,7 +711,7 @@ popover.background {
   font-family: "Inter", system-ui, sans-serif;
   font-size: 10px;
   font-weight: 700;
-  padding: 7px 10px 1px;
+  padding: 7px 2px 1px;
 }
 
 .rice-random-btn {
@@ -885,7 +885,7 @@ popover.background {
   margin-bottom: 10px;
 }
 
-.rice-back-btn {
+.Orion .rice-back-btn {
   min-width: 26px;
   min-height: 26px;
   padding: 0;
@@ -894,7 +894,7 @@ popover.background {
   background: transparent;
   color: rgba(226, 226, 226, 0.62);
 }
-.rice-back-btn:hover {
+.Orion .rice-back-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
@@ -973,7 +973,7 @@ popover.background {
   font-weight: 700;
 }
 
-.rice-icon-btn {
+.Orion .rice-icon-btn {
   min-width: 24px;
   min-height: 24px;
   padding: 0;
@@ -982,14 +982,14 @@ popover.background {
   background: transparent;
   color: rgba(226, 226, 226, 0.32);
 }
-.rice-icon-btn:hover {
+.Orion .rice-icon-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
   color: #f38ba8;
 }
 
-.rice-btn {
+.Orion .rice-btn {
   padding: 4px 10px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.055);
@@ -999,27 +999,29 @@ popover.background {
   font-size: 10px;
   font-weight: 600;
 }
-.rice-btn:hover {
+.Orion .rice-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
-.rice-btn.primario {
+.Orion .rice-btn.primario {
   border-color: rgba(203, 166, 247, 0.34);
   background: rgb(29.45, 25.38, 37.85);
   color: #cba6f7;
 }
-.rice-btn.sutil {
+.Orion .rice-btn.sutil {
   background: transparent;
   color: rgba(226, 226, 226, 0.62);
 }
-.rice-btn.peligro:hover {
+.Orion .rice-btn.peligro:hover {
   color: #f38ba8;
 }
 
-.rice-chip {
-  padding: 3px 10px;
-  border-radius: 999px;
+.Orion .rice-chip {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 3px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.055);
   background: rgb(16.645, 16.645, 20.505);
   color: rgba(226, 226, 226, 0.32);
@@ -1027,12 +1029,12 @@ popover.background {
   font-size: 10px;
   font-weight: 600;
 }
-.rice-chip:hover {
+.Orion .rice-chip:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
-.rice-chip.on {
+.Orion .rice-chip.on {
   border-color: rgba(148, 226, 213, 0.42);
   background: rgb(30.4, 42.88, 44.16);
   color: #94e2d5;
@@ -1055,14 +1057,14 @@ popover.background {
   box-shadow: none;
 }
 
-.rice-chip-img-btn {
+.Orion .rice-chip-img-btn {
   padding: 0;
   border: 0;
   border-radius: 8px;
   background: transparent;
   box-shadow: none;
 }
-.rice-chip-img-btn:hover {
+.Orion .rice-chip-img-btn:hover {
   box-shadow: 0 0 0 2px rgba(203, 166, 247, 0.55);
 }
 
