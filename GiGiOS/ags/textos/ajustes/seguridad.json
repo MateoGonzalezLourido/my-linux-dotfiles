@@ -12,8 +12,24 @@
     "escaneos": "Configura el análisis automático de Descargas, analiza archivos concretos o ábrelos dentro de un entorno aislado."
   },
   "tarjetas": {
+    "firmas": "Base de firmas",
     "descargas": "Escáner automático",
     "herramientas": "Análisis y aislamiento"
+  },
+  "firmas": {
+    "titulo": "Firmas de ClamAV",
+    "descripcion": "Sin base de firmas ClamAV no analiza nada y el escáner de Descargas no da ningún archivo por revisado.\nEl botón actualiza ahora (freshclam) y deja activada la actualización automática diaria.",
+    "ultima": "Última actualización: {fecha}",
+    "sinBase": "No hay base de firmas instalada.",
+    "automatica": {
+      "titulo": "Actualizar las firmas automáticamente",
+      "descripcion": "Mantiene el servicio clamav-freshclam encendido, que revisa las firmas varias veces al día. Al desactivarlo tendrás que pulsar «Actualizar firmas ahora» de vez en cuando: con firmas viejas ClamAV analiza, pero no reconoce lo nuevo."
+    },
+    "automaticaActiva": "Actualización automática: activada (clamav-freshclam).",
+    "automaticaInactiva": "Actualización automática: desactivada.",
+    "sinAyudante": "Falta el ayudante con permisos de root (helper + regla sudoers), así que el botón todavía no puede aparecer. Instálalo una vez con «bash ~/GiGiOS/install.sh» y vuelve a abrir Ajustes. Mientras tanto, «sudo freshclam» en una terminal hace el mismo trabajo.",
+    "boton": "🛡️ Actualizar firmas ahora",
+    "actualizando": "Actualizando… (puede tardar)"
   },
   "grupos": {
     "kernelMemoria": "Kernel y memoria",

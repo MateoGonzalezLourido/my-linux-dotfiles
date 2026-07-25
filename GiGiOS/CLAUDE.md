@@ -475,14 +475,25 @@ Un `null` (no se pudo consultar) **no** avisa — no poder comprobarlo no es sab
 
 ### Notificaciones de los scripts: el hint `x-gigios-source`
 
-**Todo `notify-send` de `hypr/scripts/` lleva `-h string:x-gigios-source:system`** (44 llamadas,
-12 scripts; dos de ellos —`run-untrusted.sh`, `scan-file.sh`— lo centralizan en su wrapper
+**Todo `notify-send` de `hypr/scripts/` lleva `-h string:x-gigios-source:system`** (56 llamadas,
+17 scripts; cinco de ellos —`run-untrusted.sh`, `scan-file.sh`, `usb-eject.sh`, `usb-repair.sh`,
+`actualizar-firmas.sh`— lo centralizan en su wrapper
 `notify() { notify-send -h … -a "$APP" "$@"; }`). No es decorativo: es lo que hace que el popup
 salga con el **skin dunst** — esquinas rectas, marco de 3 px, monoespaciada y fondo sólido por
 urgencia (azul `#285577` normal, `#900000` con marco `#ff0000` crítica, `#222222` baja), y **sin
 nombre de app ni icono**, porque el `format` por defecto de dunst es `"<b>%s</b>\n%b"`. Las apps
 normales conservan el diseño del shell. **Un script nuevo que se olvide del hint saldrá con el
 diseño normal**, sin error ni aviso — es el único modo de fallo aquí.
+
+**`-u warning` NO EXISTE, y las 16 notificaciones que lo usaban no salían nunca.** libnotify solo
+acepta `low`, `normal` y `critical`; ante cualquier otra cosa `notify-send` escribe *«Unknown
+urgency warning specified»* por **stderr** y sale con **rc=1 sin enviar nada** (medido en 0.8.8).
+Como todas estas llamadas salen de daemons de fondo cuyo stderr no lo lee nadie, el fallo era
+**mudo y total**: "⬇️ Ejecutable nuevo en Descargas", "🛡️ No se pudo analizar", "💽 Salud de disco",
+"🥾 Cambio en /boot", "⚙️ Servicio fallido", "🌡️ CPU Throttling" y "🌐 SSH" llevaban desde siempre
+sin aparecer — el escáner de descargas avisaba de un ejecutable nuevo y no se veía. Todas están ya
+en `normal` (el escalón intermedio no existe: o es rutina o es crítico). Al añadir una notificación,
+**pruébala ejecutándola**: no basta con leerla, porque la línea parece correcta.
 
 El hint no pinta nada por sí mismo: lo lee el **motor de reglas** (`match.source`), y quien pide
 el skin es una regla builtin visible y desactivable desde Ajustes, **`builtin.system-dunst`**
@@ -1478,6 +1489,103 @@ so it descends into archives), notifying clean / infected / couldn't-scan. Invok
 button on the oversized-file notification and by the "Analizar un archivo con ClamAV" path field in
 `ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`. Both `run-untrusted.sh` and `scan-file.sh` prefer `clamscan` and fall back
 across engines, and both surface a clear "run `sudo freshclam`" hint when the signature DB is missing.
+
+### Firmas de ClamAV desde la UI (`system/clamav/` + `servicios/seguridad/clamav.ts`)
+
+**Sin firmas no hay antivirus, y hasta ahora el único sitio donde arreglarlo era una terminal.**
+Los tres consumidores de ClamAV (el barrido de descargas, `scan-file.sh`, `run-untrusted.sh`)
+detectan la base ausente y dicen "ejecuta `sudo freshclam` (o activa clamav-freshclam.service)",
+pero eso llega por `notify-send` y hay que acordarse. Peor: mientras tanto el barrido **no marca
+nada** (rc 2 → no se sella; ver la sección de `monitor_downloads`), así que la función queda
+parada esperando a un gesto que no está en ninguna UI. Ajustes > Seguridad > Antivirus tiene ahora
+la tarjeta **Base de firmas**: fecha de la última actualización, si el servicio automático está
+activo, y un botón que actualiza **ahora** y de paso deja `clamav-freshclam.service` habilitado.
+
+**Mismo esquema que TLP, y por el mismo motivo**: `/var/lib/clamav` es de `clamav`, el log de
+freshclam está en `/var/log/clamav` y `systemctl enable` es de root, así que AGS no toca nada —
+delega en `/usr/local/bin/gigios-clamav-update` (root-owned, instalado por **`install.sh` paso 9**
+desde `system/clamav/gigios-clamav-update.sh`), autorizado sin contraseña por
+`/etc/sudoers.d/gigios-clamav` **solo** para sus dos argumentos fijos. Ni el helper ni la regla se
+symlinkean: apuntar algo que corre como root al árbol escribible por el usuario sería la escalada
+silenciosa contra la que avisan las secciones de USB, i2c-dev y TLP.
+
+**La actualización automática es un interruptor, y por eso el helper tiene DOS verbos de
+actualización.** La fila "Actualizar las firmas automáticamente" enciende y apaga
+`clamav-freshclam.service` (`auto-on`/`auto-off`, `disable --now` para que apagar no deje el
+demonio vivo hasta el próximo arranque). Con ese interruptor al lado, el botón "Actualizar ahora"
+**no puede** forzar el `enable`: reencendería en silencio algo que el usuario acaba de apagar, con
+su propio interruptor mintiendo justo encima. De ahí que `update` deje el servicio **como estaba**
+(pararlo es un detalle de implementación de esa actualización, no una decisión de nadie) y que
+`update-enable` —el que dispara el botón **"Activar y actualizar"** de las notificaciones, donde
+activar sí es lo pedido— sea un comando aparte. Los dos están en la regla sudoers por separado.
+
+**El interruptor NO se persiste en ningún JSON de GiGiOS**: el estado es de systemd y se lee de
+`systemctl is-enabled` cada vez, también después de fallar una orden — pintar lo que *creemos* que
+hizo el comando es como se llega a una UI que se contradice con el sistema. Si el estado no se pudo
+consultar (`null`) o falta el helper, la fila **no se pinta**: un interruptor que no sabe dónde
+está miente en las dos posiciones. Con el helper ausente el estado se dice en texto, que informa
+sin fingir que se puede cambiar.
+
+**Dato medido, por si algún día se quiere simplificar**: en esta máquina `systemctl enable --now` y
+`disable --now` sobre esa unidad funcionan **sin root** (polkit se lo concede a la sesión activa),
+así que la mitad del interruptor podría no necesitar el helper. Se mantiene por él igualmente:
+depender de la política de polkit haría que en otra máquina el interruptor abriera un diálogo de
+contraseña —o fallara— mientras el botón de actualizar sigue yendo por sudo, dos caminos distintos
+para la misma tarjeta.
+
+**El helper PARA el servicio antes de actualizar, y no es un capricho.** `clamav-freshclam` mantiene
+`freshclam.log` bloqueado, así que un `freshclam` suelto con el demonio vivo aborta con *"locked by
+another process"*. La alternativa obvia —`systemctl restart clamav-freshclam`— actualiza pero es
+**asíncrona**: no deja ni código de salida ni salida que enseñarle al usuario, o sea que el botón no
+podría distinguir "actualizado" de "sigue sin firmas". Se para, se actualiza en primer plano y se
+vuelve a habilitar con `enable --now`. La ventana sin demonio son segundos.
+
+**Leer el estado NO pasa por el helper ni por sudo**: la fecha sale del `mtime` de
+`/var/lib/clamav/daily.{cld,cvd}` (world-readable) y el "se actualiza solo" de `systemctl
+is-enabled`, que cualquiera puede consultar. Preguntarle al sistema es lo único que no puede mentir
+— el helper puede estar instalado y el servicio apagado a mano, igual que con `HandlePowerKey` en
+la sección del botón de encendido. `clamavAutoUpdate` es `boolean | null` por lo mismo: `null` = no
+se pudo consultar, y **no** se afirma nada en la UI.
+
+**Sin el helper la tarjeta SE SIGUE PINTANDO, y ahí se aparta del selector TLP a propósito.**
+La primera versión la ocultaba entera copiando aquel criterio, y estaba mal: en TLP "falta TLP"
+significa *esta función no aplica a esta máquina* y esconderla es correcto; aquí significa *te falta
+un paso de instalación*, así que ocultarla reproduce **el problema exacto que la tarjeta viene a
+resolver** — un arreglo que existe pero que no hay dónde encontrar (reportado en vivo: "no veo los
+ajustes"). Con `clamavHelperInstalled` en falso se enseña el estado igual y el botón cede el sitio a
+la orden que hay que ejecutar una vez. Lo único que la hace desaparecer es `clamavPresent`: sin
+ClamAV no hay firmas de las que hablar.
+
+**El aviso de "no puedo analizar" lleva BOTÓN, y ese es el punto**: es el único fallo de esta
+familia con una cura de un solo gesto, y un popup que dice "ejecuta `sudo freshclam`" y se va en un
+minuto le pide al usuario que se acuerde de algo cuando ya esté en una terminal. Las tres
+notificaciones que lo reportan —el `rc == 2` del barrido de descargas (`oom-monitor.sh`), y el "no
+se pudo analizar" de `scan-file.sh` y `run-untrusted.sh`— llevan ahora
+`-A "update=🛡️ Activar y actualizar"` → **`hypr/scripts/actualizar-firmas.sh`**, el lado de usuario
+del helper. Se pulsa con **clic derecho** sobre el popup (ver `ags/CLAUDE.md`, "Acciones D-Bus en el
+popup"), y el `-t 0` ya no es un popup eterno: con acciones, `popupLifetime()` lo acota a 60 s.
+
+**Por qué un script y no llamar al helper desde el `-A`**: hace falta algo que **notifique el
+resultado** —el helper solo imprime por stdout, y de una acción de `notify-send` no lee nadie— y que
+no se pueda lanzar dos veces a la vez (`flock -n`: freshclam descarga ~200 MB, y dos clics serían
+dos descargas peleándose por el mismo lock del log). El botón de Ajustes **no** pasa por él: AGS
+llama al helper directo porque ya tiene su `clamavBusy` y sus propias notificaciones. Sin la regla
+sudoers, `sudo -n` falla en el acto y el script traduce el error a "ejecuta `install.sh`" en vez de
+enseñar el mensaje crudo de sudo — colgarse pidiendo contraseña sería lo peor de todo, porque esto
+sale de un clic en un popup y no hay terminal donde teclearla.
+
+**En `oom-monitor.sh` el `--wait -A` va en subshell de fondo, y no es opcional**: bloquea hasta el
+clic o el cierre, así que en primer plano detendría el barrido entero hasta que alguien mirase el
+popup (mismo motivo que en `download_alert`). En `run-untrusted.sh` también, y ahí por otra razón:
+el usuario ha pedido **lanzar** algo y esperar a que mire el popup retrasaría el lanzamiento. En
+`scan-file.sh` sí va en primer plano — su trabajo ya terminó cuando notifica.
+
+**Al arreglar las firmas, lo ya sellado en falso NO se reevalúa solo.** Es la secuela documentada en
+`monitor_downloads`: si el barrido llegó a correr con la base vacía *antes* del arreglo de `rc == 2`,
+esos ficheros quedaron marcados como analizados **para siempre**. Hay que borrar **los dos** ficheros
+de caché (`~/.cache/gigios/download-index` **y** `download-hashes`) y relanzar `oom-monitor.sh`
+(`pkill` + `setsid nohup`), porque el índice y el conjunto de hashes se cargan en RAM al arrancar el
+script: borrarlos en caliente no sirve de nada.
 
 ### Comprobación de arranque (`boot-healthcheck.sh`)
 

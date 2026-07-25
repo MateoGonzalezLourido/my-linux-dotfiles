@@ -104,6 +104,8 @@ privesc_trusted() {
 RUN_UNTRUSTED="$HOME/.config/hypr/scripts/run-untrusted.sh"
 # Escaneo a demanda (para archivos grandes que el barrido se salta).
 SCAN_FILE="$HOME/.config/hypr/scripts/scan-file.sh"
+# Actualización de firmas que dispara el botón del aviso "sin base de firmas".
+UPDATE_SIGS="$HOME/.config/hypr/scripts/actualizar-firmas.sh"
 # Estado "jugando" que escribe AGS (servicios/energia/gamingState.ts) y umbral de ahorro.
 RUNTIME_STATE="$HOME/.config/gigios/runtime-state.json"
 POWER_CONFIG="$HOME/.config/power-save/config.json"
@@ -335,7 +337,7 @@ monitor_kernel() {
 
         # --- CPU throttling ---
         elif [[ "$sec_cpuThrottling" != false ]] && [[ "$lower" =~ cpu.*throttl ]]; then
-            notify-send -h string:x-gigios-source:system -u warning "🌡️ CPU Throttling" "$line" -t 10000
+            notify-send -h string:x-gigios-source:system -u normal "🌡️ CPU Throttling" "$line" -t 10000
 
         # --- App crash: segfault ---
         elif [[ "$sec_appCrash" != false ]] && [[ "$lower" == *"segfault"* ]]; then
@@ -374,7 +376,7 @@ monitor_system() {
 
         # --- Systemd service failure ---
         if [[ "$sec_serviceFailure" != false ]] && [[ "$lower" == *"failed to start"* ]]; then
-            notify-send -h string:x-gigios-source:system -u warning "⚙️ Servicio fallido" "$line" -t 10000
+            notify-send -h string:x-gigios-source:system -u normal "⚙️ Servicio fallido" "$line" -t 10000
 
         # --- Sudo auth failure ---
         elif [[ "$sec_sudoAuth" != false ]] && \
@@ -410,7 +412,7 @@ monitor_system() {
         elif [[ "$sec_ssh" != false ]] && \
              [[ "$lower" == *"sshd"* && \
                 ( "$lower" == *"failed password"* || "$lower" == *"accepted"* ) ]]; then
-            notify-send -h string:x-gigios-source:system -u warning "🌐 SSH" "$line" -t 15000
+            notify-send -h string:x-gigios-source:system -u normal "🌐 SSH" "$line" -t 15000
 
         # --- App crash: coredump (systemd-coredump, userspace) ---
         #     La notificación por-app va bajo appCrash; la detección de "tormenta"
@@ -454,7 +456,7 @@ monitor_files() {
     [[ "$sec_fileIntegrity" == false ]] && return
 
     if ! command -v inotifywait &>/dev/null; then
-        notify-send -h string:x-gigios-source:system -u warning "oom-monitor" \
+        notify-send -h string:x-gigios-source:system -u normal "oom-monitor" \
             "inotify-tools no instalado. Vigilancia de archivos desactivada." -t 10000
         return
     fi
@@ -489,7 +491,7 @@ monitor_files() {
                 notify-send -h string:x-gigios-source:system -u critical "🔑 Clave SSH autorizada modificada" \
                     "Archivo: $path" -t 0 ;;
             /boot/*)
-                notify-send -h string:x-gigios-source:system -u warning "🥾 Cambio en /boot" \
+                notify-send -h string:x-gigios-source:system -u normal "🥾 Cambio en /boot" \
                     "Archivo: $path (kernel/initramfs)" -t 15000 ;;
         esac
     done
@@ -526,7 +528,7 @@ monitor_smart() {
             if [[ -z "$report" ]]; then
                 if [[ "$warned_perm" == false ]]; then
                     warned_perm=true
-                    notify-send -h string:x-gigios-source:system -u warning "💽 Salud de disco" \
+                    notify-send -h string:x-gigios-source:system -u normal "💽 Salud de disco" \
                         "smartctl no puede leer SMART (¿faltan privilegios?)." -t 10000
                 fi
                 continue
@@ -649,12 +651,12 @@ download_alert() {
     if [[ "$sec_sandboxLaunch" != false && -x "$RUN_UNTRUSTED" ]]; then
         # notify-send --wait -A bloquea hasta el clic/cierre → subshell en 2º plano.
         ( act=$(notify-send -h string:x-gigios-source:system -a "Seguridad" --wait -t 45000 \
-            -A "launch=🛡️ Lanzar aislado" -u warning \
+            -A "launch=🛡️ Lanzar aislado" -u normal \
             "⬇️ Ejecutable nuevo en Descargas" \
             "$(basename "$f") — verifícalo antes de lanzarlo.")
           [[ "$act" == "launch" ]] && "$RUN_UNTRUSTED" "$f" ) &
     else
-        notify-send -h string:x-gigios-source:system -u warning "⬇️ Ejecutable nuevo en Descargas" \
+        notify-send -h string:x-gigios-source:system -u normal "⬇️ Ejecutable nuevo en Descargas" \
             "$(basename "$f") — verifícalo antes de lanzarlo." -t 12000
     fi
 }
@@ -845,12 +847,12 @@ monitor_downloads() {
             mb=$(( $(stat -c%s "$f" 2>/dev/null || echo 0) / 1048576 ))
             if [[ -x "$SCAN_FILE" ]]; then
                 ( act=$(notify-send -h string:x-gigios-source:system -a "Seguridad" --wait -t 45000 \
-                    -A "scan=🔍 Escanear igualmente" -u warning \
+                    -A "scan=🔍 Escanear igualmente" -u normal \
                     "⬇️ Archivo grande sin analizar" \
                     "$(basename "$f") (${mb} MB) supera el tope de auto-análisis. Escanéalo aquí o en Ajustes › Seguridad.")
                   [[ "$act" == "scan" ]] && "$SCAN_FILE" "$f" ) &
             else
-                notify-send -h string:x-gigios-source:system -u warning "⬇️ Archivo grande sin analizar" \
+                notify-send -h string:x-gigios-source:system -u normal "⬇️ Archivo grande sin analizar" \
                     "$(basename "$f") (${mb} MB) — escanéalo desde Ajustes › Seguridad." -t 12000
             fi
         done
@@ -860,7 +862,7 @@ monitor_downloads() {
             if (( ${#new_exec[@]} <= 4 )); then
                 for f in "${new_exec[@]}"; do download_alert "$f"; done
             else
-                notify-send -h string:x-gigios-source:system -u warning "⬇️ ${#new_exec[@]} ejecutables nuevos en Descargas" \
+                notify-send -h string:x-gigios-source:system -u normal "⬇️ ${#new_exec[@]} ejecutables nuevos en Descargas" \
                     "En $(basename "$(dirname "${new_exec[0]}")")/ y otros. Revísalos antes de ejecutarlos (juego, instalador o crack)." -t 15000
             fi
         fi
@@ -901,9 +903,23 @@ monitor_downloads() {
                 engine_ok=false
                 if [[ "$_dl_warned_engine" == false ]]; then
                     _dl_warned_engine=true
-                    notify-send -h string:x-gigios-source:system -u critical \
-                        "🛡️ Antivirus sin base de firmas" \
-                        "ClamAV no puede analizar las descargas. Ejecuta 'sudo freshclam' (o activa clamav-freshclam.service). Hasta entonces NO se dan por analizadas." -t 0
+                    # El aviso lleva BOTÓN (clic derecho en el popup) para arreglarlo sin abrir una
+                    # terminal: es el único fallo de esta lista que tiene una cura de un solo gesto,
+                    # y decirle al usuario "ejecuta sudo freshclam" en un popup que se va en un
+                    # minuto era pedirle que se acordara. `--wait -A` BLOQUEA hasta el clic o el
+                    # cierre → subshell en 2º plano, igual que en download_alert; si se quedara en
+                    # primer plano detendría el barrido entero hasta que alguien mirase el popup.
+                    if [[ -x "$UPDATE_SIGS" ]]; then
+                        ( act=$(notify-send -h string:x-gigios-source:system -a "Seguridad" --wait -t 0 \
+                            -A "update=🛡️ Activar y actualizar" -u critical \
+                            "🛡️ Antivirus sin base de firmas" \
+                            "ClamAV no puede analizar las descargas. Hasta que se actualicen las firmas NO se dan por analizadas.")
+                          [[ "$act" == "update" ]] && "$UPDATE_SIGS" ) &
+                    else
+                        notify-send -h string:x-gigios-source:system -u critical \
+                            "🛡️ Antivirus sin base de firmas" \
+                            "ClamAV no puede analizar las descargas. Ejecuta 'sudo freshclam' (o activa clamav-freshclam.service). Hasta entonces NO se dan por analizadas." -t 0
+                    fi
                 fi
             else
                 engine_ok=true
