@@ -58,12 +58,23 @@ if (( ${#clam[@]} )); then
         exit 2
     elif (( rc != 0 )); then
         # rc=0 limpio · rc=1 virus (ya cazado arriba) · rc≥2 no se pudo analizar
-        # (daemon parado o sin base de firmas). Contenemos igual, pero avisando.
-        notify -u warning "🛡️ No se pudo analizar" \
-            "ClamAV no operativo (¿falta ejecutar 'sudo freshclam'?). Se lanzará contenido pero SIN analizar." -t 10000
+        # (daemon parado o sin base de firmas). Contenemos igual, pero avisando — con botón para
+        # arreglar las firmas. El `--wait -A` va en SUBSHELL de fondo a propósito: aquí el usuario
+        # ha pedido lanzar algo, y esperar a que mire el popup retrasaría el lanzamiento. El
+        # análisis de ESTA ejecución ya no se repite; la actualización sirve para las siguientes.
+        UPDATE_SIGS="$HOME/.config/hypr/scripts/actualizar-firmas.sh"
+        if [[ -x "$UPDATE_SIGS" ]]; then
+            ( act=$(notify-send -h string:x-gigios-source:system -a "$APP" --wait -t 0 \
+                -A "update=🛡️ Activar y actualizar" -u normal "🛡️ No se pudo analizar" \
+                "ClamAV no operativo (sin base de firmas o daemon parado). Se lanzará contenido pero SIN analizar.")
+              [[ "$act" == "update" ]] && "$UPDATE_SIGS" ) &
+        else
+            notify -u normal "🛡️ No se pudo analizar" \
+                "ClamAV no operativo (¿falta ejecutar 'sudo freshclam'?). Se lanzará contenido pero SIN analizar." -t 10000
+        fi
     fi
 else
-    notify -u warning "🛡️ Sin antivirus" \
+    notify -u normal "🛡️ Sin antivirus" \
         "ClamAV no instalado: se lanzará contenido pero SIN analizar. Instala 'clamav' para el escaneo." -t 10000
 fi
 

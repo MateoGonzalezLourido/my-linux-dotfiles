@@ -16,6 +16,21 @@ set -u
 APP="Análisis ClamAV"
 notify() { notify-send -h string:x-gigios-source:system -a "$APP" "$@"; }
 
+# Actualización de firmas: el botón que se ofrece cuando el motor no puede analizar. `--wait -A`
+# bloquea hasta el clic/cierre, pero aquí el script ya ha terminado su trabajo, así que se deja en
+# primer plano (a diferencia de oom-monitor.sh, donde detendría el barrido).
+UPDATE_SIGS="$HOME/.config/hypr/scripts/actualizar-firmas.sh"
+notify_sin_firmas() {   # $1 = título, $2 = cuerpo
+    if [[ -x "$UPDATE_SIGS" ]]; then
+        local act
+        act=$(notify-send -h string:x-gigios-source:system -a "$APP" --wait -t 0 \
+            -A "update=🛡️ Activar y actualizar" -u normal "$1" "$2")
+        [[ "$act" == "update" ]] && "$UPDATE_SIGS"
+    else
+        notify -u normal "$1" "$2 Ejecuta 'sudo freshclam'." -t 10000
+    fi
+}
+
 f="${1:-}"
 f="$(realpath -- "$f" 2>/dev/null || echo "$f")"
 name="$(basename -- "$f")"
@@ -53,8 +68,7 @@ if grep -q "FOUND" <<< "$out"; then
         "$name → ${first##*: } — NO lo ejecutes." -t 0
 elif (( rc >= 2 )); then
     # rc=0 limpio · rc=1 virus (ya cazado) · rc≥2 no se pudo analizar
-    notify -u warning "🔍 $APP" \
-        "No se pudo analizar $name (¿sin base de firmas? Ejecuta 'sudo freshclam')." -t 10000
+    notify_sin_firmas "🔍 $APP" "No se pudo analizar $name (¿sin base de firmas?)."
 else
     notify -u normal "✓ Limpio" "$name: ClamAV no detectó amenazas." -t 8000
 fi

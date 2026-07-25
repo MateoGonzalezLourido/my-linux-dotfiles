@@ -367,6 +367,28 @@ if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
   else
     info "TLP no está instalado; omito los perfiles conmutables de energía (se activarán al instalar 'tlp')."
   fi
+  # ClamAV: botón "Actualizar firmas" de Ajustes > Seguridad > Antivirus. Mismo esquema que TLP
+  # (helper root-owned + regla sudoers acotada al comando exacto) porque /var/lib/clamav es de
+  # `clamav` y habilitar el servicio de actualización es de root. Sin esto el botón no se pinta;
+  # la actualización sigue pudiendo hacerse a mano con `sudo freshclam`.
+  if command -v freshclam >/dev/null 2>&1; then
+    sudo install -Dm755 "$SYSTEM_DIR/clamav/gigios-clamav-update.sh" /usr/local/bin/gigios-clamav-update \
+      || warn "No pude instalar el helper de ClamAV; el botón de firmas no aparecerá en Ajustes."
+    clamav_sudoers_tmp="$(mktemp)"
+    sed "s/__GIGIOS_USER__/$(id -un)/" "$SYSTEM_DIR/clamav/sudoers-gigios-clamav" > "$clamav_sudoers_tmp"
+    if sudo visudo -cf "$clamav_sudoers_tmp" >/dev/null; then
+      sudo install -Dm440 "$clamav_sudoers_tmp" /etc/sudoers.d/gigios-clamav \
+        || warn "No pude instalar /etc/sudoers.d/gigios-clamav; actualizar firmas pedirá contraseña."
+    else
+      warn "La regla sudoers de ClamAV no validó; no la instalo. Actualizar firmas pedirá contraseña."
+    fi
+    rm -f "$clamav_sudoers_tmp"
+    # Sin firmas, el escáner de descargas no puede analizar nada; dejarlo automático desde ya.
+    sudo systemctl enable --now clamav-freshclam.service >/dev/null 2>&1 \
+      || info "No pude habilitar clamav-freshclam.service (¿otro nombre en esta distro?)."
+  else
+    info "ClamAV no está instalado; omito el helper de firmas (se activará al instalar 'clamav')."
+  fi
 else
   warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
 fi
@@ -419,6 +441,9 @@ cat <<'EOF'
   • Puntero:  elegí el tema en Ajustes > Dispositivos > Puntero. Sin elegirlo, el
               compositor usa el puntero de XCursor; para añadir soporte hyprcursor
               a otro tema, ~/GiGiOS/bin/generar-hyprcursor.sh --list.
-  • Sistema:  ejecutá una vez 'sudo freshclam' y, si necesitás sensores, 'sudo sensors-detect'.
+  • Antivirus: las firmas de ClamAV las descarga clamav-freshclam, que quedó habilitado;
+              tarda unos minutos la primera vez. Ajustes > Seguridad > Antivirus enseña la
+              fecha, permite actualizarlas al momento y apagar la actualización automática.
+  • Sistema:  si necesitás sensores, ejecutá 'sudo sensors-detect'.
   • Sesión:   cerrá y abrí sesión; después comprobá con 'ags run ~/.config/ags/app.ts'.
 EOF
