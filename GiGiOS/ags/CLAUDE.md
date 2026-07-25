@@ -274,6 +274,38 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
   identidad por la primera ventana nueva, 15 s de observación, rama `urgent` para single-instance).
   La regla cubre **solo la primera ventana** (medido), así que el observador sigue siendo la red de
   los splash y los multiventana. Detalle en el `CLAUDE.md` raíz.
+  **La sección Temas (`components/sections/RiceSection.tsx` + `sections/rice/`) gestiona franjas
+  horarias y grupos de fondos.** Cuatro vistas en un `Gtk.Stack` (rejilla, franjas, grupo, fondo).
+  Puntos que no se deducen del código:
+  - **La rejilla lista ENTIDADES, no ficheros**: un grupo ocupa **una** tarjeta y sus imágenes no
+    aparecen además sueltas, igual que en el sorteo — lo que ves es lo que puede tocarte.
+  - **Lo que no sale a esta hora se ATENÚA, no se oculta.** Esconderlo dejaría media biblioteca
+    invisible de noche sin nada que explicara la ausencia; atenuado se sigue pudiendo aplicar a mano,
+    porque el filtro es para el **sorteo**, no una prohibición.
+  - **El modo edición es un botón visible (lápiz), no un clic derecho**: un menú contextual salía
+    gratis, pero es la lección del cronómetro que vivía en el clic derecho del reloj de la barra.
+  - **Ninguna de estas vistas usa `<For>`, y no es un olvido**: son listas que se reconstruyen
+    enteras al editarlas y `<For>` indexa por identidad de objeto. **Editar una hora o un nombre NO
+    reconstruye la lista**: los campos confirman al perder el foco, y reconstruir ahí destruiría el
+    `Gtk.Entry` enfocado desde su propio manejador de foco — el SIGSEGV documentado en
+    `servicios/pantalla/`. Solo reconstruyen los botones.
+  - **`data/wallpaperSchedule.ts` (puro, con test) NO decide qué fondo se aplica**: eso es
+    `hypr/scripts/lib/seleccion_fondos.py`, y tiene que seguir siendo el único dueño porque la
+    elección también la dispara el arranque de la sesión, en bash y antes de que AGS exista. Aquí se
+    reimplementa solo la aritmética cíclica **para pintar** (qué franja rige, qué variante está
+    vigente, qué se atenúa) — el peor fallo posible por esa duplicación es una etiqueta equivocada,
+    nunca un fondo equivocado. Si tocas la regla de vigencia, tócala en los dos sitios; los casos
+    límite están probados en ambos ficheros a propósito.
+  - **`wallpapers.json` se escribe SÍNCRONO**, no con el guardado diferido del resto del shell: en
+    cuanto se edita, la UI dispara `wallpaper.sh` para enseñar el resultado y ese script relee el
+    JSON **desde otro proceso**. Es la misma razón que `saveMonitorPref` → `saveDisplayConfigNow()`.
+  - **`loadThumbnails` PODA la caché de todo lo que no esté en la lista que le pasas.** La rejilla le
+    pasa la lista completa a propósito; pedir un subconjunto (un chip del editor) sin `podar: false`
+    borraría las 41 miniaturas restantes en silencio.
+  - El reparto de escritura de `wallpaper.json` sigue igual (bash es dueño de `current`/`currentGroup`,
+    AGS de `randomOnStart`), y ahora se **observa con un `Gio.FileMonitor`**: el planificador cambia
+    el fondo por su cuenta al cruzar una franja, y sin eso la rejilla seguiría resaltando el anterior.
+
   Un `execAsync` nuevo con `sh -c` para abrir una app es el modo de fallo aquí: no da error, solo
   deja de anclar. El interruptor es `anclarVentanasRofi` y lo lee el script, no este lado — dos
   lecturas del mismo ajuste podrían discrepar. Si el script falta, `launchApp` cae al `sh -c` de
@@ -384,6 +416,23 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
   - **La limpieza de una sección va SIEMPRE por `onCleanup`, nunca por `connect("destroy")`** — mismo bug que documenta `ReproduccionSpotify.tsx`, y que tenían `modulos/ajustes/barra/SeccionBarraEscritorios.tsx` y `modulos/ajustes/dispositivos/SeccionDispositivos.tsx`: en GTK4 `destroy` sale de `dispose`, y al desmontar con `<With>` el widget solo se **desparenta** (los cierres de JS lo siguen referenciando), así que el manejador no llegaba a correr y cada visita a Barra/Escritorios/Ratón/Touchpad/Teclado/Impresoras dejaba un suscriptor vivo para siempre. `<With>` sí hace `scope.dispose()`, que es lo que ejecuta los `onCleanup`.
   - **Lo que gatea por VISIBILIDAD y no por montaje**: en `modulos/ajustes/pantalla/SeccionPantalla.tsx` el poller (`hyprctl` cada 2 s) **y el reloj de 30 s** se adquieren/liberan juntos contra `settingsPanelVisible`. El reloj colgaba del montaje, así que dejar Ajustes en Pantalla y cerrar el panel lo dejaba tickeando el resto de la sesión, recomputando el resumen y actualizando etiquetas de una ventana oculta. Con el gate de visibilidad del primer punto esto es cinturón y tirantes, pero mantiene el invariante **local a la sección** en vez de depender de la estructura del panel.
 - `servicios/energia/powerState.ts` — deriva un estado de ahorro desde la batería real mediante `AstalBattery`. La configuración vive en `~/.config/power-save/config.json`. Expone `powerSaveActive` y estados optativos que pausan trabajo de fondo. **`spotifyBarSuspended`** lo consume `Barra.tsx` para **desmontar** `ReproduccionSpotify` con `<With>`: ocultarlo no bastaría porque conservaría el temporizador y el reloj de frames. En un sobremesa no se activa: `AstalBattery` usa el `DisplayDevice` de UPower y no confunde la pila de un periférico con la del equipo. **`backgroundJobsSuspended`** lo publica `gamingState.ts` en `runtime-state.json` para que `lib/gaming-gate.sh` congele sondeos prescindibles.
+- `servicios/fondos/planificador.ts` — **el reloj que hace que las franjas horarias de fondos sirvan
+  de algo**: duerme hasta el próximo límite y entonces pide `wallpaper.sh --auto`. No decide nada (ni
+  qué fondo toca ni cuándo es el próximo límite: las dos cosas se las pregunta a
+  `wallpaper-select.py`), y va con el resto de `init*` de fondo del `setTimeout` de 4 s porque lee el
+  reloj de pared y no siembra de eventos.
+  - **Un solo temporizador, armado exacto y sin sondeo**: entre dos cambios de franja no hay ni un
+    despertar. El tiempo que se duerme es el del próximo límite **relevante**, que depende del estado
+    — con un grupo puesto solo cuentan **sus** tramos (sus variantes no miran las franjas globales),
+    y con un fondo suelto solo las franjas globales. Sin límites relevantes no se arma nada.
+  - **Se rearma con el fichero de ESTADO, no solo con el de config**: aplicar un grupo cambia por
+    completo qué límites importan, así que `wallpaper.json` se vigila igual que `wallpapers.json`.
+  - **⚠️ La suspensión se cubre con `PrepareForSleep` de logind, no troceando el temporizador.**
+    `GLib.timeout_add` cuenta sobre el reloj monotónico, que no avanza dormido: una espera de ocho
+    horas sonaría ocho horas de *actividad* después (suspendes de día, despiertas de noche). La
+    primera versión troceaba a 15 min — 96 despertares diarios para no hacer nada casi ninguno — y la
+    señal lo resuelve mejor y sin coste. Si algún día se quita, hay que devolver el troceo.
+  - Fail-open hacia "las franjas no cambian el fondo". Detalle completo en el `CLAUDE.md` raíz.
 - `servicios/energia/botonEncendido.ts` — **qué hace el botón de encendido físico** (Ajustes > Energía). El shell **solo persiste la elección** (`botonApagado` en `preferences.json`); quien la ejecuta es `GiGiOS.boton_apagado()` (`hypr/gigios/boton-apagado.lua`) desde el bind de `XF86PowerOff` con `{locked = true}`, releyéndola en cada pulsación — así el botón responde con AGS caído y con la sesión bloqueada, y el setter no tiene que relanzar ni recargar nada. La única acción que vuelve al shell es `menu`, por el `request` **`toggle-power-menu`** (`alternarMenuEnergia()`), añadido con ella.
   - **`teclaCedidaAHyprland` pregunta a logind por D-Bus, no mira si existe el fichero de `/etc`.** `systemd-logind` maneja esa tecla a nivel de asiento (`HandlePowerKey`, `poweroff` de fábrica) sin pasar por el compositor: si no está en `ignore`, el bind se ejecuta igual pero el apagado de logind lo tapa y el ajuste parece roto **sin dar ningún error**. `busctl get-property … HandlePowerKey` (sin privilegios) es la única respuesta que no puede mentir — el fichero puede estar en otro sitio o el valor cambiado a mano. El estado es `boolean | null` a propósito: `null` = no se pudo comprobar, y **no** saca el aviso; saber que está mal no es lo mismo que no saberlo. El aviso tampoco sale con la acción `apagar`, donde el resultado es el mismo venga de quien venga. La cesión la instala `install.sh` (paso 9) desde `system/logind.conf.d/`; detalle completo en el `CLAUDE.md` raíz.
 - `servicios/energia/gamemode.ts` — **interruptor manual de Feral GameMode** (paquete `gamemode`), el botón de mando de la cabecera de Quick Settings, al lado de la campana (gris apagado, violeta encendido; glifo `GAME_GLYPH`, el mismo que la pastilla de juegos). **No lo confundas con `gamingState.ts`**: aquel detecta que hay un juego y congela el mantenimiento *del shell*; este le pide al **sistema** que se ponga a rendir (gobernador de CPU a `performance`, prioridades/ioprio, tweaks de GPU). Son complementarios y no se hablan.

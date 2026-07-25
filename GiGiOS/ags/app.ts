@@ -22,6 +22,7 @@ import { initGamingState } from "./servicios/energia/gamingState"
 import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
 import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
+import { initPlanificadorFondos } from "./servicios/fondos/planificador"
 import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
 
 app.start({
@@ -167,6 +168,10 @@ app.start({
       // vencidas ya se desactivaron al cargar el módulo. Cuatro segundos de margen no pueden
       // hacer que se pierda un vencimiento: el planificador se arma contra el reloj de pared.
       inicializarReloj()
+      // Mismo criterio: el fondo del arranque ya lo puso `wallpaper.sh` desde el
+      // autostart de Hyprland, y este solo vigila el próximo cambio de franja
+      // contra el reloj de pared — cuatro segundos no pueden perderle ninguno.
+      initPlanificadorFondos()
     }, 4000)
   },
 })

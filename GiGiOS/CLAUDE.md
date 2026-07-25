@@ -1729,15 +1729,107 @@ entrada nueva, el wipe posterior se la lleva también.
   `$XDG_RUNTIME_DIR`: igual de efímero, y con la ventaja de que un `hyprctl reload` resetea a la vez
   el flag y los gaps — el esquema viejo restauraba los gaps pero el fichero sobrevivía, así que el
   siguiente toggle "restauraba" un estado en el que ya estabas.
-- **`wallpaper.sh`** — tres modos: sin argumento (arranque, respeta `randomOnStart`), `--random`
-  (botón de Orion) y `<ruta>` (clic en una miniatura de Orion). El campo `current` de
-  `~/.config/gigios/wallpaper.json` lo escribe **siempre este script** tras aplicar un fondo, y
+- **`wallpaper.sh`** — aplica fondos; **ya no decide cuál** (eso es
+  `wallpaper-select.py`, sección aparte más abajo). Cinco modos: sin argumento (arranque, respeta
+  `randomOnStart`), `--random` (botón de Orion), `--auto` (reevaluar la franja horaria, lo llama el
+  planificador de AGS), `--grupo <id>` y `<ruta>`. Los campos `current` y `currentGroup` de
+  `~/.config/gigios/wallpaper.json` los escribe **siempre este script** tras aplicar un fondo, y
   `randomOnStart` lo escribe **siempre AGS** desde su toggle — cada lado hace read-modify-write
-  conservando el campo del otro, así que ninguno pisa el ajuste del otro por accidente. Léelo con el
-  mismo cuidado que el resto del repo: `.randomOnStart // true` sería incorrecto (el `//` de `jq`
-  trataría un `false` real como ausente), de ahí el `if .randomOnStart == false then … end`
-  explícito. En modo arranque, si `randomOnStart` es falso pero no hay `current` guardado o el
-  fichero ya no existe, cae a uno aleatorio en vez de fallar.
+  conservando los campos del otro, así que ninguno pisa el ajuste del otro por accidente. Léelo con
+  el mismo cuidado que el resto del repo: `.randomOnStart // true` sería incorrecto (el `//` de `jq`
+  trataría un `false` real como ausente). Si el selector falla se repliega al `shuf` de siempre; la
+  excepción es `--auto`, que **no** se repliega — sin saber qué franja rige, sortear sería un cambio
+  a destiempo y sin motivo visible, y que no pase nada es el fallo correcto ahí.
+
+### Franjas horarias y grupos de fondos (`wallpaper-select.py` + `lib/seleccion_fondos.py`)
+
+El sorteo de fondos ya no es "uno cualquiera de la carpeta": primero se mira **qué fondos están
+permitidos a esta hora** y solo entre esos se sortea. El motivo original es que no salga un fondo
+claro de madrugada, pero de paso permite atardeceres a su hora. Todo se gestiona desde Orion >
+Temas; lo único que sigue haciéndose por el explorador de archivos es **añadir imágenes** a
+`Wallpapers/`.
+
+**Son DOS sistemas de franjas, no uno, y mezclarlos fue la primera tentación**:
+
+- Las **franjas globales** (`día`/`tarde`/`noche` de fábrica, N libres) gobiernan los fondos
+  **sueltos**. Cada fondo declara en cuáles es apto; **sin declaración es apto siempre**, así que
+  estrenar la función —o copiar una imagen nueva a la carpeta— no deja nada invisible sin que nadie
+  lo pida.
+- La **línea de 24 h propia de cada grupo** gobierna sus variantes, y es **independiente** de las
+  globales: un grupo puede mudar a las 5:00 aunque "día" empiece a las 7:00. Cada tramo lleva una
+  **lista** de imágenes, no una: con varias se sortea entre ellas.
+
+Ambas listas se definen **solo por el inicio** de cada entrada y llegan hasta el comienzo de la
+siguiente, envolviendo la medianoche — con tres franjas se ponen tres horas, no seis. **Antes del
+primer inicio del día manda la ÚLTIMA entrada** (la que viene de ayer): a las 00:30 con la primera
+franja a las 07:00 rige "noche". Es el caso que se olvida al escribir esta aritmética a mano, y hay
+test a los dos lados por eso.
+
+**Un grupo es UNA entidad de cara al sorteo** —es la definición de grupo: para el sistema es un
+fondo, no N— y sus imágenes **no compiten además como fondos sueltos**. Si lo hicieran, meter cuatro
+variantes en un grupo cuadruplicaría sus posibilidades frente a un fondo suelto. **Un tramo con la
+lista vacía es la forma de decir "aquí este grupo no sale"**, que es lo que implementa "un grupo sin
+imagen apta para la franja actual queda fuera de la selección" sin necesitar una segunda marca de
+aptitud encima de la línea de tiempo. Un grupo cuyas imágenes hayan desaparecido del disco queda
+fuera por la misma vía.
+
+**LA DECISIÓN TIENE UN SOLO DUEÑO, y ese es todo el diseño.** Hay **dos** disparadores para la misma
+elección: el arranque de la sesión (`wallpaper.sh` desde `gigios/autostart.lua`, en t=0, cuando AGS
+todavía no existe) y el cruce de franja (AGS, con el escritorio ya vivo). Con dos implementaciones
+acabarían discrepando en silencio — el escritorio mostrando un fondo que el planificador cree que es
+otro—, así que la lógica vive entera en `hypr/scripts/lib/seleccion_fondos.py` (**puro**: no lee
+ficheros, no mira el reloj; todo entra por parámetros, y tiene 41 pruebas en
+`lib/seleccion_fondos_test.py`). `wallpaper-select.py` es su única cara: hace la E/S y emite una
+línea `<grupo o vacío>\t<ruta>`. **Python y no jq**: el operador `//` ya ha mordido tres veces en
+este repo, y esto es demasiada lógica para bash.
+
+**Al cambiar de franja, un GRUPO conserva su identidad y solo muda de variante; un fondo SUELTO que
+deja de ser apto se sustituye por otro al azar**, y si sigue siendo apto no se toca. Eso lo sostiene
+`currentGroup` en `wallpaper.json`: sin él, al reevaluar solo se vería una ruta y no habría forma de
+distinguir "muda de variante" de "sortea otro fondo".
+
+**Dentro de un tramo con varias imágenes NO se re-sortea en cada pasada** (`preferir` en
+`resolver_grupo`): el planificador puede despertar más veces de las previstas —el troceo, una
+suspensión, un arranque a mitad de tramo— y sin eso el fondo cambiaría sin haber cruzado ningún
+límite. Por lo mismo, `auto` **no imprime nada** si lo que toca ya está puesto: reaplicarlo
+dispararía la transición de `awww`, un parpadeo en cada comprobación.
+
+**Fail-open, y en dos escalones.** Si tras aplicar los filtros no queda **ni un candidato** (todo
+marcado como no apto de noche), se **ignoran los filtros** y se sortea entre todo lo que haya: un
+fondo "equivocado" es visible y corregible, un escritorio sin fondo no. Y si el selector entero falla
+—falta python, JSON corrupto, un bug—, `wallpaper.sh` cae a su `shuf` de siempre.
+
+**El reloj lo pone AGS** (`ags/servicios/fondos/planificador.ts`), que es lo único que bash no puede
+tener sin convertirse en otro daemon. No decide nada: pregunta `next-change` al mismo script y llama
+a `wallpaper.sh --auto`.
+
+**Un solo temporizador, armado exacto, sin sondeo**: se duerme el tiempo que falta y punto — entre
+dos cambios de franja el coste es cero, ni un despertar ni un fork. Y ese tiempo es el del próximo
+límite **relevante**, no el de cualquier franja definida: `limites_relevantes()` mira el estado, así
+que **con un grupo puesto solo cuentan los tramos de ESE grupo** (sus variantes no miran las franjas
+globales, luego un cambio de "día" a "tarde" no puede alterar nada mientras él esté en pantalla) y
+**con un fondo suelto, solo las franjas globales**. Los tramos de los demás grupos no pueden cambiar
+nada de lo que hay en pantalla; despertar por ellos sería trabajo tirado. Sin límites relevantes no
+se arma **ningún** temporizador. Se rearma ante las tres cosas que invalidan la cuenta atrás: al
+vencer, al editarse `wallpapers.json`, y al cambiar el fondo puesto (`wallpaper.json`) — esto último
+es obligatorio desde que el cálculo depende del estado, porque aplicar un grupo cambia por completo
+qué límites importan.
+
+**⚠️ La suspensión se resuelve con una señal, no troceando el temporizador.** `GLib.timeout_add`
+cuenta sobre el reloj **monotónico**, que no avanza mientras el equipo duerme: una espera de ocho
+horas armada de una tacada sonaría ocho horas de *actividad* después, y el caso real es justo ese
+(suspendes de día, despiertas de noche con un fondo claro). La primera versión lo cubría **troceando
+a 15 min**, o sea despertando 96 veces al día para no hacer nada casi ninguna. Se cubre igual —y con
+precisión de segundos en vez de un cuarto de hora de desfase— escuchando **`PrepareForSleep`** de
+logind por D-Bus: al volver (`false`) se reevalúa contra el reloj de pared y se rearma. Cuesta una
+suscripción y ningún despertar. Sin logind se degrada a corregir en el siguiente límite.
+
+Reevaluar de más sigue siendo gratis (`--auto` no aplica nada si el fondo que toca ya está puesto),
+que es lo que permite tirar del rearme sin miedo a parpadeos.
+
+**Config**: `~/.config/gigios/wallpapers.json` (`{version, franjas, grupos, fondos}`), la escribe
+solo Orion. **Ausente o vacía = el comportamiento de siempre** (todo apto, sorteo plano), así que
+esto no cambia nada hasta que se configura. Ver `ags/CLAUDE.md` para el lado de la UI.
 
 ### Monitores de recursos restantes (`battery-monitor.sh`, `temp-monitor.sh`, `ram-monitor.sh`, `disk-monitor.sh`, `bt-monitor.sh`)
 

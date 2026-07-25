@@ -822,6 +822,254 @@ popover.background {
   background: rgb(24, 24, 32);
 }
 
+.rice-thumb.inactivo {
+  opacity: 0.38;
+}
+.rice-thumb.inactivo:hover {
+  opacity: 0.72;
+}
+
+.rice-thumb.es-grupo .rice-thumb-viewport {
+  box-shadow: inset 0 0 0 1px rgba(203, 166, 247, 0.55);
+}
+
+.rice-badge {
+  margin: 5px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #e2e2e2;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+}
+.rice-badge.nombre {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.rice-franja-actual {
+  padding: 0 2px 6px;
+  color: #cba6f7;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.rice-help {
+  padding: 2px 2px 4px;
+  color: rgba(226, 226, 226, 0.62);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 10px;
+}
+.rice-help.dim {
+  color: rgba(226, 226, 226, 0.32);
+}
+.rice-help.edicion {
+  color: #fab387;
+  font-weight: 700;
+}
+
+.rice-random-btn.activo {
+  background: rgb(43.1, 36.44, 54.3);
+  border-color: rgba(203, 166, 247, 0.3);
+}
+
+.rice-editor {
+  padding: 2px;
+}
+
+.rice-subheader {
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.055);
+  margin-bottom: 10px;
+}
+
+.rice-back-btn {
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(226, 226, 226, 0.62);
+}
+.rice-back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
+  color: #e2e2e2;
+}
+
+.rice-subtitle {
+  color: #e2e2e2;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.rice-estado {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 10px;
+}
+.rice-estado.ok {
+  color: #94e2d5;
+}
+.rice-estado.dim {
+  color: rgba(226, 226, 226, 0.32);
+}
+
+.rice-row,
+.rice-tramo {
+  padding: 7px 8px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  background: rgb(16.645, 16.645, 20.505);
+}
+.rice-row.activa,
+.rice-tramo.activa {
+  border-color: rgba(203, 166, 247, 0.42);
+  background: rgb(29.45, 25.38, 37.85);
+}
+
+.rice-nombre,
+.rice-hora {
+  min-height: 24px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  background: rgb(8, 8, 12);
+  color: #e2e2e2;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 11px;
+}
+.rice-nombre:focus,
+.rice-hora:focus {
+  border-color: rgba(203, 166, 247, 0.42);
+}
+.rice-nombre.grande,
+.rice-hora.grande {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rice-hora {
+  font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
+}
+
+.rice-rango {
+  color: rgba(226, 226, 226, 0.32);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 10px;
+}
+
+.rice-chip-ahora {
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgb(47, 39.6, 59);
+  color: #cba6f7;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.rice-icon-btn {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(226, 226, 226, 0.32);
+}
+.rice-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
+  color: #f38ba8;
+}
+
+.rice-btn {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  background: rgb(16.645, 16.645, 20.505);
+  color: #e2e2e2;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+}
+.rice-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
+}
+.rice-btn.primario {
+  border-color: rgba(203, 166, 247, 0.34);
+  background: rgb(29.45, 25.38, 37.85);
+  color: #cba6f7;
+}
+.rice-btn.sutil {
+  background: transparent;
+  color: rgba(226, 226, 226, 0.62);
+}
+.rice-btn.peligro:hover {
+  color: #f38ba8;
+}
+
+.rice-chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  background: rgb(16.645, 16.645, 20.505);
+  color: rgba(226, 226, 226, 0.32);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+}
+.rice-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
+}
+.rice-chip.on {
+  border-color: rgba(148, 226, 213, 0.42);
+  background: rgb(30.4, 42.88, 44.16);
+  color: #94e2d5;
+}
+
+.rice-chips {
+  padding: 2px 0 4px;
+}
+
+.rice-acciones {
+  padding-top: 4px;
+}
+
+.rice-tira flowboxchild,
+.rice-tira flowboxchild:hover,
+.rice-tira flowboxchild:selected {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.rice-chip-img-btn {
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+}
+.rice-chip-img-btn:hover {
+  box-shadow: 0 0 0 2px rgba(203, 166, 247, 0.55);
+}
+
+.rice-chip-img {
+  border-radius: 8px;
+}
+
 .np-panel button, popover.upd-popover-container > contents, .qs-wifi-list-scroll scrollbar,
 .qs-wifi-list-scroll scrollbar slider,
 .qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, .game-tray .game-tray-icon {
