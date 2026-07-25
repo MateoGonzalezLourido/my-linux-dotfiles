@@ -42,19 +42,15 @@ export function EditorFondo(
     const apto = esApto(cfg, path, ahora)
     const vigente = franjaActual(cfg, ahora)
 
-    const cabecera = fila(10)
-    cabecera.append(miniatura(path, 168, 96))
-    const texto = columna(4)
-    texto.set_hexpand(true)
-    texto.append(etiqueta(nombreDe(path), ["rice-subtitle"]))
-    texto.append(etiqueta(
-      apto ? "Ahora puede salir." : `Ahora no sale (estamos en ${vigente?.nombre ?? "—"}).`,
-      ["rice-estado", apto ? "ok" : "dim"]))
-    cabecera.append(texto)
-    cuerpo.append(cabecera)
+    cuerpo.append(miniatura(path, 168, 96))
 
     // ── Aptitud ───────────────────────────────────────────────────────────────
-    cuerpo.append(etiqueta("¿Cuándo puede salir?", ["rice-subtitle"]))
+    const cabeceraAptitud = fila(8)
+    cabeceraAptitud.append(etiqueta("¿Cuándo puede salir?", ["rice-subtitle"]))
+    cabeceraAptitud.append(etiqueta(
+      apto ? "Ahora puede salir." : `Ahora no sale (estamos en ${vigente?.nombre ?? "—"}).`,
+      ["rice-estado", apto ? "ok" : "dim"]))
+    cuerpo.append(cabeceraAptitud)
 
     if (cfg.franjas.length === 0) {
       cuerpo.append(etiqueta(
@@ -101,7 +97,7 @@ export function EditorFondo(
     cuerpo.append(acciones)
   }
 
-  raiz.append(cabeceraVuelta("Fondo", alVolver))
+  raiz.append(cabeceraVuelta(nombreDe(path), alVolver))
   raiz.append(cuerpo)
   reconstruir()
   return raiz
