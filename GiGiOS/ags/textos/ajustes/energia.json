@@ -63,5 +63,9 @@
   "spotify": {
     "titulo": "Ocultar Spotify de la barra",
     "descripcion": "Oculta el reproductor de Spotify y detiene sus actualizaciones y animaciones durante el ahorro. Vuelve a mostrarse al salir."
+  },
+  "ondaSpotify": {
+    "titulo": "Onda de Spotify sin analizar el audio",
+    "descripcion": "Durante el ahorro, la onda deja de seguir la música y vuelve a su animación propia, sin capturar audio ni lanzar ningún proceso. Se sigue viendo y moviéndose. Solo se nota si el reproductor no está oculto por el ajuste anterior."
   }
 }

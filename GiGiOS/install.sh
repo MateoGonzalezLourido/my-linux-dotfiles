@@ -75,6 +75,9 @@ install_packages() {
     # libcanberra: reproduce el `sound-name` de las notificaciones (alarmas y temporizador del
     # panel de reloj). Sin él la alerta se ve pero no suena, sin error visible.
     libcanberra
+    # cava: la FFT de la onda de Spotify de la barra. Sin él la onda no falla, cae a su
+    # animación procedimental — así que es una mejora, no un requisito.
+    cava
     nm-connection-editor blueman fish
     # kconfig: da kreadconfig6/kwriteconfig6, que usa bin/configurar-dolphin.sh (paso 4
     # de este instalador) y bin/preflight.sh ya exige explícitamente.

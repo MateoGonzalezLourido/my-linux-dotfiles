@@ -20,6 +20,7 @@ interface PowerConfig {
   pauseWsPreview: boolean      // when true, the workspace preview (grim capture) pauses during power-save
   hideSpotifyBar: boolean      // when true, the Spotify pill is unmounted during power-save
   freezeBackground: boolean    // when true, background maintenance polling freezes during power-save
+  fallbackWave: boolean        // when true, the Spotify wave drops cava for its procedural animation
 }
 const DEFAULTS: PowerConfig = {
   thresholdPct: 15,
@@ -28,6 +29,7 @@ const DEFAULTS: PowerConfig = {
   pauseWsPreview: true,
   hideSpotifyBar: true,
   freezeBackground: true,
+  fallbackWave: true,
 }
 
 function loadConfig(): PowerConfig {
@@ -42,6 +44,7 @@ function loadConfig(): PowerConfig {
         pauseWsPreview: typeof data.pauseWsPreview === "boolean" ? data.pauseWsPreview : DEFAULTS.pauseWsPreview,
         hideSpotifyBar: typeof data.hideSpotifyBar === "boolean" ? data.hideSpotifyBar : DEFAULTS.hideSpotifyBar,
         freezeBackground: typeof data.freezeBackground === "boolean" ? data.freezeBackground : DEFAULTS.freezeBackground,
+        fallbackWave: typeof data.fallbackWave === "boolean" ? data.fallbackWave : DEFAULTS.fallbackWave,
       }
     }
   } catch (_) {}
@@ -59,6 +62,7 @@ export const [suspendNotifFilters, _setSuspend] = createState(initial.suspendNot
 export const [pauseWsPreviewInPowerSave, _setPauseWsPreview] = createState(initial.pauseWsPreview)
 export const [hideSpotifyBarInPowerSave, _setHideSpotifyBar] = createState(initial.hideSpotifyBar)
 export const [freezeBackgroundInPowerSave, _setFreezeBackground] = createState(initial.freezeBackground)
+export const [fallbackWaveInPowerSave, _setFallbackWave] = createState(initial.fallbackWave)
 
 let saveTimer: number | null = null
 function persist() {
@@ -74,6 +78,7 @@ function persist() {
         pauseWsPreview: pauseWsPreviewInPowerSave.get(),
         hideSpotifyBar: hideSpotifyBarInPowerSave.get(),
         freezeBackground: freezeBackgroundInPowerSave.get(),
+        fallbackWave: fallbackWaveInPowerSave.get(),
       }))
     } catch (e) {
       console.error("[power] save failed:", e)
@@ -113,6 +118,11 @@ export function setFreezeBackgroundInPowerSave(v: boolean) {
   recompute()
   persist()
 }
+export function setFallbackWaveInPowerSave(v: boolean) {
+  _setFallbackWave(v)
+  recompute()
+  persist()
+}
 
 // ── Derived power state ─────────────────────────────────────────────────────────
 // powerSaveActive: on battery and at/under the threshold.
@@ -135,6 +145,13 @@ export const [spotifyBarSuspended, _setSpotifyBarSuspended] = createState(false)
 // una vez —/sys/class/power_supply lista también la pila del ratón (ver oom-monitor.sh)— y
 // AstalBattery/upower ya distingue la batería del equipo. Una sola fuente de verdad.
 export const [backgroundJobsSuspended, _setBackgroundJobsSuspended] = createState(false)
+// spectrumSuspended: powerSaveActive AND the user opted in to dropping the audio analysis.
+// Lo consume OndaSpotify.tsx para NO lanzar `cava` y ceder a su animación procedimental, que
+// no cuesta ni un proceso. Es un escalón ANTES que spotifyBarSuspended: con este la pastilla
+// se sigue viendo y la onda se sigue moviendo, solo deja de seguir la música. Van por separado
+// a propósito — quien quiera conservar el reproductor visible durante el ahorro puede querer
+// justo eso y aun así no pagar la captura de audio.
+export const [spectrumSuspended, _setSpectrumSuspended] = createState(false)
 // Pre-composed human label so the UI doesn't have to combine three states in one binding.
 export const [batteryStatusText, _setBatteryStatusText] = createState(textos.estado.sinBateria)
 
@@ -157,6 +174,7 @@ function recompute() {
   _setWsPreviewSuspended(active && pauseWsPreviewInPowerSave.get())
   _setSpotifyBarSuspended(active && hideSpotifyBarInPowerSave.get())
   _setBackgroundJobsSuspended(active && freezeBackgroundInPowerSave.get())
+  _setSpectrumSuspended(active && fallbackWaveInPowerSave.get())
 }
 
 if (bat) {
