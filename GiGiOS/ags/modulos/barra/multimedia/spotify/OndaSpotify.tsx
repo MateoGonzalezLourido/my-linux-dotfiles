@@ -158,15 +158,15 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
    * mira `spectrumSuspended` y NO `powerSaveActive`: son dos interruptores independientes,
    * así que apagar este debe dejar el análisis vivo durante el ahorro.
    *
-   * **Con un JUEGO EN FOCO tampoco.** Ojo: esta guarda es en buena parte REDUNDANTE, y hay
-   * que saberlo antes de tocarla. Un juego a pantalla completa REAL ya pone `barTapada` en
-   * `Barra.tsx`, que baja la barra de verdad y deja `barraVisible` en `false` — o sea que ese
-   * caso, el que más importa, ya estaba cubierto. Lo que esta condición añade es el resto: un
-   * juego en VENTANA o sin pantalla completa real, y los instantes en que la barra reaparece
-   * durante la partida (el ratón la roza, se abre un panel). Se mira el FOCO y no la mera
-   * existencia del juego, la misma distinción que hace `lib/gaming-gate.sh` (juego abierto ≠
-   * estás jugando): con el juego en otro escritorio la barra se ve y la onda vuelve a tener
-   * sentido.
+   * **Con un JUEGO EN FOCO tampoco, y lo que esto cubre de verdad es el juego EN VENTANA.**
+   * En este equipo `barAutoHide` está en `false`, así que la barra no se esconde al apartar el
+   * ratón y `barraVisible` es cierto casi siempre: no sirve de gate por sí solo. La excepción
+   * es la pantalla completa REAL, que sí pone `barTapada` en `Barra.tsx` y baja la barra —
+   * para ese caso esta condición es redundante. Lo que añade es el juego sin fullscreen real
+   * (ventana o borderless) y los instantes en que la barra reaparece a mitad de partida. Se
+   * mira el FOCO y no la mera existencia del juego, la distinción que hace
+   * `lib/gaming-gate.sh` (juego abierto ≠ estás jugando): con el juego en otro escritorio la
+   * barra se ve y la onda vuelve a tener sentido.
    */
   const sincronizar = () => {
     const necesario = barraVisible && (reproduciendo || energia > 0)
