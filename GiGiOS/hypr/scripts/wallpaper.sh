@@ -1,88 +1,106 @@
 #!/bin/bash
-# Gestor de wallpaper de GiGiOS. Tres modos:
-#   wallpaper.sh            -> arranque: respeta randomOnStart de la config
-#   wallpaper.sh --random   -> fuerza uno aleatorio ahora (botón "Aleatorio" de Orion)
-#   wallpaper.sh <ruta>     -> aplica ese archivo (clic en una miniatura de Orion)
-# En todos los casos, tras aplicar guarda `current` en la config.
+# Gestor de wallpaper de GiGiOS. Aplica fondos; NO decide cuál.
 #
-# Config: ~/.config/gigios/wallpaper.json  ->  { "randomOnStart": bool, "current": path }
-#   - randomOnStart: lo escribe AGS (toggle). Ausente/archivo inexistente => true.
-#   - current:       lo escribe este script cada vez que aplica un fondo.
-# El reparto (bash=current, AGS=randomOnStart) evita que uno pise el campo del otro:
-# ambos hacen read-modify-write preservando el otro campo.
+#   wallpaper.sh              -> arranque: respeta randomOnStart
+#   wallpaper.sh --random     -> sorteo forzado ahora (botón "Aleatorio" de Orion)
+#   wallpaper.sh --auto       -> reevaluar la franja horaria actual (planificador de AGS)
+#   wallpaper.sh --grupo <id> -> aplicar la variante que toque de ese grupo (Orion)
+#   wallpaper.sh <ruta>       -> aplicar ese archivo (clic en una miniatura suelta)
+#
+# QUIÉN DECIDE: `wallpaper-select.py`, y este script solo aplica lo que le diga.
+# La elección tiene DOS disparadores —el arranque (aquí, en t=0, antes de que AGS
+# exista) y el cambio de franja (AGS)— así que vive en un solo sitio o acaban
+# discrepando en silencio. El modelo de franjas y grupos está documentado en
+# `lib/seleccion_fondos.py`.
+#
+# Config de franjas/grupos: ~/.config/gigios/wallpapers.json (la escribe Orion).
+# Estado: ~/.config/gigios/wallpaper.json -> { randomOnStart, current, currentGroup }
+#   - randomOnStart: lo escribe AGS (toggle). Ausente => true.
+#   - current / currentGroup: los escribe este script cada vez que aplica.
+# El reparto (bash es dueño de lo aplicado, AGS del toggle) evita que uno pise el
+# campo del otro: ambos hacen read-modify-write preservando lo ajeno.
+#
+# `currentGroup` es lo que permite que un grupo CONSERVE SU IDENTIDAD al cambiar
+# de franja: sin él, al reevaluar solo se vería una ruta suelta y no habría forma
+# de saber que hay que mudar de variante en vez de sortear un fondo nuevo.
+#
+# FAIL-OPEN: si el selector falla (falta python, JSON corrupto, un bug), se cae
+# al sorteo plano de toda la vida. El fondo del escritorio no puede depender de
+# que esta función esté sana.
 
 WALLPAPER_DIR="$HOME/GiGiOS/Wallpapers"
 CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/wallpaper.json"
+SELECT="$(dirname "$(readlink -f "$0")")/wallpaper-select.py"
 
-pick_random() {
+pick_random_plano() {
     ls "$WALLPAPER_DIR"/*.{jpg,jpeg,png,webp} 2>/dev/null | shuf -n 1
 }
 
 save_current() {
-    local wp="$1"
+    local wp="$1" grupo="$2"
     command -v jq >/dev/null 2>&1 || return 0
     mkdir -p "$(dirname "$CONFIG")"
     if [[ -f "$CONFIG" ]]; then
         local tmp
         tmp="$(mktemp)"
-        if jq --arg c "$wp" '.current = $c' "$CONFIG" > "$tmp" 2>/dev/null; then
+        if jq --arg c "$wp" --arg g "$grupo" \
+              '.current = $c | .currentGroup = $g' "$CONFIG" > "$tmp" 2>/dev/null; then
             mv "$tmp" "$CONFIG"
         else
             rm -f "$tmp"
         fi
     else
-        jq -n --arg c "$wp" '{randomOnStart: true, current: $c}' > "$CONFIG"
+        jq -n --arg c "$wp" --arg g "$grupo" \
+            '{randomOnStart: true, current: $c, currentGroup: $g}' > "$CONFIG"
     fi
 }
 
 apply() {
-    local wp="$1"
+    local wp="$1" grupo="$2"
     [[ -z "$wp" || ! -f "$wp" ]] && return 1
     awww img "$wp" \
         --transition-type random \
         --transition-duration 1 \
         --transition-fps 60 \
         --transition-step 90
-    save_current "$wp"
+    save_current "$wp" "$grupo"
 }
 
-read_random_on_start() {
-    # OJO: NO usar `.randomOnStart // true`: el operador `//` de jq trata `false`
-    # como vacío, así que `false // true` daría `true` y apagar el toggle nunca
-    # surtiría efecto. Sólo queremos el default `true` cuando la clave falta/es null.
-    if command -v jq >/dev/null 2>&1 && [[ -f "$CONFIG" ]]; then
-        jq -r 'if .randomOnStart == false then "false" else "true" end' "$CONFIG" 2>/dev/null
-    else
-        echo true
-    fi
-}
-
-read_current() {
-    if command -v jq >/dev/null 2>&1 && [[ -f "$CONFIG" ]]; then
-        jq -r '.current // ""' "$CONFIG" 2>/dev/null
-    fi
+# Ejecuta el selector y aplica su decisión.
+#   rc 0 sin línea  -> no hay nada que cambiar (solo lo produce `auto`). Es
+#                      deliberado: reaplicar el mismo fondo dispararía la
+#                      transición de awww, un parpadeo en cada comprobación.
+#   rc != 0         -> no se pudo decidir; el llamador decide si se repliega.
+seleccionar_y_aplicar() {
+    local salida grupo ruta
+    salida="$(python3 "$SELECT" "$@" 2>/dev/null)" || return 1
+    [[ -z "$salida" ]] && return 0
+    IFS=$'\t' read -r grupo ruta <<< "$salida"
+    apply "$ruta" "$grupo"
 }
 
 case "$1" in
     --random)
-        apply "$(pick_random)"
+        seleccionar_y_aplicar pick || apply "$(pick_random_plano)" ""
+        ;;
+    --auto)
+        # Sin repliegue: si el selector falla no sabemos qué franja rige, y
+        # sortear un fondo cualquiera sería un cambio a destiempo y sin motivo
+        # visible. Que no pase nada es el fallo correcto aquí.
+        seleccionar_y_aplicar auto
+        ;;
+    --grupo)
+        [[ -n "$2" ]] && seleccionar_y_aplicar grupo "$2"
         ;;
     "")
         # Modo arranque: espera a que awww-daemon esté listo.
         sleep 0.5
-        if [[ "$(read_random_on_start)" == "true" ]]; then
-            apply "$(pick_random)"
-        else
-            current="$(read_current)"
-            if [[ -n "$current" && -f "$current" ]]; then
-                apply "$current"
-            else
-                apply "$(pick_random)"   # sin fondo guardado válido => uno al azar
-            fi
-        fi
+        seleccionar_y_aplicar boot || apply "$(pick_random_plano)" ""
         ;;
     *)
-        # Ruta específica.
-        apply "$1"
+        # Ruta específica: el usuario ha elegido un fondo suelto, así que deja de
+        # haber grupo vigente. Sin limpiarlo, la próxima reevaluación creería que
+        # sigue dentro del grupo anterior y le devolvería una de sus variantes.
+        apply "$1" ""
         ;;
 esac

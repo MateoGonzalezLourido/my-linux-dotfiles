@@ -99,8 +99,16 @@ function prune(valid: Set<string>) {
  * Carga las miniaturas de `paths` y llama a `onThumb(path, texture)` según van
  * estando listas: las cacheadas casi de inmediato, el resto conforme se generan.
  * Nunca bloquea el hilo principal.
+ *
+ * ⚠️ `podar` (por defecto `true`) BORRA de la caché todo lo que no esté en
+ * `paths`. Es correcto para la rejilla, que pasa la lista completa de fondos y
+ * así se lleva por delante lo que ya no existe. Pero llamar a esto con un
+ * SUBCONJUNTO —una sola imagen para un chip del editor de grupos— borraría el
+ * resto de la caché en silencio, y las 41 miniaturas restantes se regenerarían
+ * en la siguiente apertura (~2 s de `magick`). Quien pida un subconjunto tiene
+ * que pasar `podar: false`.
  */
-export function loadThumbnails(paths: string[], onThumb: OnThumb) {
+export function loadThumbnails(paths: string[], onThumb: OnThumb, opciones?: { podar?: boolean }) {
   try { GLib.mkdir_with_parents(CACHE_DIR, 0o755) } catch (_) {}
 
   const cached: Job[] = []
@@ -116,7 +124,7 @@ export function loadThumbnails(paths: string[], onThumb: OnThumb) {
     else missing.push({ path, file })
   }
 
-  prune(valid)
+  if (opciones?.podar !== false) prune(valid)
 
   // ── Cola de generación ─────────────────────────────────────────────────────
   // `missing` puede CRECER mientras se vacía: una miniatura cacheada que resulte
