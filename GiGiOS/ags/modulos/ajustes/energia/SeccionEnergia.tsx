@@ -13,6 +13,7 @@ import {
   suspendNotifFilters, setSuspendNotifFilters,
   pauseWsPreviewInPowerSave, setPauseWsPreviewInPowerSave,
   hideSpotifyBarInPowerSave, setHideSpotifyBarInPowerSave,
+  fallbackWaveInPowerSave, setFallbackWaveInPowerSave,
   freezeBackgroundInPowerSave, setFreezeBackgroundInPowerSave,
   powerSaveActive, batteryStatusText,
 } from "../../../servicios/energia/powerState.ts"
@@ -184,6 +185,7 @@ export default function SeccionEnergia() {
         <AjusteInterruptor titulo={textos.vistasPrevias.titulo} informacion={textos.vistasPrevias.descripcion} activo={pauseWsPreviewInPowerSave} alAlternar={() => setPauseWsPreviewInPowerSave(!pauseWsPreviewInPowerSave.get())} />
         <AjusteInterruptor titulo={textos.procesosFondo.titulo} informacion={textos.procesosFondo.descripcion} activo={freezeBackgroundInPowerSave} alAlternar={() => setFreezeBackgroundInPowerSave(!freezeBackgroundInPowerSave.get())} />
         <AjusteInterruptor titulo={textos.spotify.titulo} informacion={textos.spotify.descripcion} activo={hideSpotifyBarInPowerSave} alAlternar={() => setHideSpotifyBarInPowerSave(!hideSpotifyBarInPowerSave.get())} />
+        <AjusteInterruptor titulo={textos.ondaSpotify.titulo} informacion={textos.ondaSpotify.descripcion} activo={fallbackWaveInPowerSave} alAlternar={() => setFallbackWaveInPowerSave(!fallbackWaveInPowerSave.get())} />
       </TarjetaAjustes>
 
     </box>

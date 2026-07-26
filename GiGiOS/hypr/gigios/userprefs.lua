@@ -3,8 +3,8 @@
 --
 -- Preferencias personales de Hyprland. Van casi al final del entry point: pisan
 -- a lo declarado en los módulos anteriores.
--- https://wiki.hypr.land/Configuring — input-settings.lua (generado por AGS ·
--- Ajustes > Dispositivos) se carga después y pisa lo que toque de aquí.
+-- https://wiki.hypr.land/Configuring — gigios/dispositivos.lua (que lee lo
+-- guardado en Ajustes > Dispositivos) se carga después y pisa lo de aquí.
 
 -- Descomenta / cambia al valor que prefieras.
 -- 🔗 https://wiki.hypr.land/Configuring/Variables/#input

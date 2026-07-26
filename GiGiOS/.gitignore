@@ -4,4 +4,4 @@ hypr/scripts/wallpaper.sh.save
 ags/estilos/out.css.map
 ags/**/*.test.ts
 hypr/logs/
-hypr/scripts/__pycache__/
+__pycache__/

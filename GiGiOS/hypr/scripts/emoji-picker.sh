@@ -19,6 +19,7 @@ fi
 for comando in rofimoji rofi wl-copy wl-paste wtype; do
     if ! command -v "$comando" >/dev/null 2>&1; then
         notify-send \
+            -h string:x-gigios-source:system \
             "Selector de emojis no disponible" \
             "Falta '$comando'. Ejecuta bin/preflight.sh --installed para revisar la instalación." \
             2>/dev/null || true

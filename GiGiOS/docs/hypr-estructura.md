@@ -26,8 +26,8 @@ hypr/                       (symlink: ~/.config/hypr)
 │       ├── laptop-hibrida.lua
 │       ├── sobremesa-nvidia.lua
 │       └── nvidia-vieja-hyde.lua
-├── monitor-settings.lua     GENERADO por AGS (Ajustes > Pantalla)
-├── input-settings.lua       GENERADO por AGS (Ajustes > Dispositivos)
+│   ├── pantalla.lua         lee display.json (Ajustes > Pantalla)
+│   ├── dispositivos.lua     lee devices.json (Ajustes > Dispositivos)
 ├── hypridle.conf            otro binario; lo lanza el autostart
 ├── hyprlock.conf            otro binario; lo invoca hypridle/idle-action.sh
 ├── hyprpaper.conf           vacío, sin uso (el wallpaper va por awww)
@@ -50,9 +50,9 @@ error de Lua sin capturar deja la sesión sin atajos.
 
 | # | Módulo | Contenido | Quién lo edita |
 | --- | --- | --- | --- |
-| 1 | `gigios/env.lua` | Variables de entorno del sistema (cursor, Qt, `LC_TIME`) | a mano — **salvo el bloque de idioma**, que reescribe AGS |
+| 1 | `gigios/env.lua` | Variables de entorno del sistema (cursor, Qt, `LC_TIME`) | a mano — **el idioma lo LEE** de `datetime.json` |
 | 2 | `gigios/monitores.lua` | Regla comodín: preferido, escala 1 (fallback) | a mano |
-| 3 | `monitor-settings.lua` | Resolución/Hz/escala/VRR por monitor concreto (`desc:`) | **AGS** (Ajustes > Pantalla) |
+| 3 | `gigios/pantalla.lua` | Resolución/Hz/escala/VRR por monitor concreto (`desc:`) | a mano — **el dato** lo escribe AGS en `display.json` |
 | 4 | `gigios/input.lua` | Teclado, ratón, touchpad y gestos (valores base) | a mano |
 | 5 | `gigios/ventanas.lua` | Gaps, bordes, sombras, blur, `layout` | a mano |
 | 6 | `gigios/animaciones.lua` | Curvas y animaciones | a mano |
@@ -60,29 +60,39 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 8 | `gigios/compactar.lua` | `GiGiOS.compactar()` — renumera escritorios | a mano |
 | 9 | `gigios/boton-apagado.lua` | `GiGiOS.boton_apagado()` — el botón físico | a mano |
 | 10 | `gigios/daltonismo.lua` | `GiGiOS.daltonismo(modo)` — shader de accesibilidad | a mano |
-| 11 | `gigios/keybinds.lua` | Todos los atajos + `GiGiOS.toggle_gaps()` | a mano |
-| 12 | `gigios/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
-| 13 | `gigios/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
-| 14 | `gigios/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
-| 15 | `gigios/gpu.lua` | Elige el perfil de GPU y carga `gigios/gpu/<perfil>.lua` | **fichero local**, ver abajo |
-| 16 | `gigios/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
-| 17 | `gigios/userprefs.lua` | Overrides personales sueltos | a mano |
-| 18 | `input-settings.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | **AGS** (Ajustes > Dispositivos) |
-| 19 | `gigios/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
-| 20 | `gigios/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
+| 11 | `gigios/orion.lua` | `GiGiOS.toggle_orion()` — el atajo del launcher | a mano |
+| 12 | `gigios/ancla-escritorio.lua` | `GiGiOS.anclar_escritorio()` / `GiGiOS.saltar_ancla()` — ir al escritorio ancla y volver | a mano |
+| 13 | `gigios/keybinds.lua` | Todos los atajos + `GiGiOS.toggle_gaps()` | a mano |
+| 14 | `gigios/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
+| 15 | `gigios/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
+| 16 | `gigios/reparto-ventanas.lua` | Que una ventana no acabe estrujada: al abrirse (elige qué se parte y por qué lado) y al soltarla arrastrada (le hace hueco a costa de los vecinos) | a mano |
+| 17 | `gigios/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
+| 18 | `gigios/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
+| 19 | `gigios/gpu.lua` | Elige el perfil de GPU y carga `gigios/gpu/<perfil>.lua` | **fichero local**, ver abajo |
+| 20 | `gigios/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
+| 21 | `gigios/userprefs.lua` | Overrides personales sueltos | a mano |
+| 22 | `gigios/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
+| 23 | `gigios/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
+| 24 | `gigios/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
 
-**El orden no es estético**: `monitor-settings` pisa al comodín de monitores,
-`input-settings` pisa a `userprefs`, y `nop-binds` va el último porque necesita
-saber qué combinaciones ya usó `keybinds`.
+**El orden no es estético**: `gigios/pantalla` pisa al comodín de monitores,
+`gigios/dispositivos` pisa a `userprefs`, y `nop-binds` va el último porque
+necesita saber qué combinaciones ya usó `keybinds`.
 
 Al final, `hyprland.lua` llama a `GiGiOS.daltonismo()` — el equivalente al viejo
 `exec =`: reaplica el shader de accesibilidad también en cada `hyprctl reload`,
 no solo al arrancar.
 
-**Los dos ficheros generados se cargan con `util.carga_opcional`** (`dofile` +
-`pcall`): que falten no es error — se degrada al comodín. Ojo: eso significa
-240 Hz → 60 y escala 1.25 → 1, así que no los borres a la ligera; AGS los
-reescribe al tocar Ajustes.
+**Lo que AGS ajusta desde la UI llega por JSON, no por código generado.**
+`gigios/pantalla.lua` lee `~/.config/gigios/display.json`, `gigios/dispositivos.lua`
+lee `devices.json` y `gigios/env.lua` saca el idioma de `datetime.json`; AGS
+escribe el dato y el config decide, aprovechando que Lua tiene condiciones y
+bucles. Antes había dos chunks generados (`monitor-settings.lua`,
+`input-settings.lua`) cargados con un `util.carga_opcional` que ya no existe: el
+mismo dato se escribía dos veces y los ficheros, machine-specific, acababan
+versionados. Un JSON ausente o corrupto degrada al comodín (240 Hz → 60,
+escala 1.25 → 1) sin tumbar la sesión — `util.leer_json` devuelve `nil` y el
+módulo sale sin aplicar nada.
 
 ## `hyprpaper.conf` está vacío y sin uso
 
@@ -134,13 +144,13 @@ de parsear el socket de eventos a mano.
 **2. Atajos de teclado** (`gigios/keybinds.lua`): `rofi-launch.py`
 (`SUPER+SPACE`), `clipboard-history.sh picker` (`SUPER+V`), `emoji-picker.sh`
 (`SUPER+.`), `grabar-pantalla.sh`
-/ `grabar-pantalla.sh ventana` (`CTRL+SHIFT+F` / `CTRL+SHIFT+S`),
-`toggle-orion.sh` (`SUPER+ALT+SPACE`).
+/ `grabar-pantalla.sh ventana` (`CTRL+SHIFT+F` / `CTRL+SHIFT+S`).
 
-Cuatro atajos **ya no llaman a ningún script**: son funciones Lua dentro del
+Cinco atajos **ya no llaman a ningún script**: son funciones Lua dentro del
 propio config — pegar ventanas (`GiGiOS.toggle_gaps`), compactar escritorios
-(`GiGiOS.compactar`), el botón de encendido (`GiGiOS.boton_apagado`) y el filtro
-de daltonismo (`GiGiOS.daltonismo`). AGS las invoca por
+(`GiGiOS.compactar`), el botón de encendido (`GiGiOS.boton_apagado`), el filtro
+de daltonismo (`GiGiOS.daltonismo`) y el launcher Orion
+(`GiGiOS.toggle_orion`, `SUPER+ALT+SPACE`). AGS invoca las que necesita por
 `hyprctl eval 'GiGiOS.<fn>(…)'`.
 
 **3. Invocados por AGS** (toggles de Ajustes, con `pkill` + re-exec en caliente

@@ -145,11 +145,17 @@ llega a commitearse.
   fichero local de una línea (`sobremesa-nvidia`) **fuera del repo** — la elección de máquina es
   estado local, como manda `docs/anadir-perfiles-por-equipo.md`. Ausente o inválido = ningún perfil
   + aviso en pantalla (fail-open: el compositor arranca igual).
-- **Los generados por AGS pasan a `.lua`**: `monitor-settings.lua` e `input-settings.lua` (chunks
-  Lua puros, cargados con `util.carga_opcional` = `dofile` + pcall). Ausentes **ya no son error
-  duro** (con `source =` sí lo eran), pero su ausencia sí devolvería la pantalla al comodín
-  (240 Hz → 60, escala 1.25 → 1), así que se generaron a mano al activar y AGS los reescribe al
-  tocar Ajustes.
+- **AGS YA NO GENERA CÓDIGO: escribe JSON y el config lo lee.** Fue lo último que quedó de la
+  migración y se cerró después: los ajustes de la UI viajaban como chunks Lua generados
+  (`monitor-settings.lua`, `input-settings.lua`) más un bloque de idioma reescrito dentro de
+  `gigios/env.lua`. Hoy `gigios/pantalla.lua` lee `display.json`, `gigios/dispositivos.lua` lee
+  `devices.json` y `gigios/env.lua` saca el idioma de `datetime.json` — con `util.leer_json` y
+  condiciones, que es justo lo que hyprlang no permitía. Se quitaron tres problemas de raíz: el
+  mismo dato escrito **dos veces** (y capaz de divergir si el volcado fallaba, que lo hacía en
+  silencio), ficheros **machine-specific dentro del árbol de git**, y el **escapado** de cadenas
+  interpoladas en un chunk (la `description` del EDID sale del monitor: una comilla suelta rompía
+  la config entera). `util.carga_opcional` desapareció con ellos. Un JSON ausente o corrupto
+  degrada al comodín (240 Hz → 60, escala 1.25 → 1) sin tumbar la sesión.
 - **Sin decodificador JSON nativo** en el intérprete embebido: hay uno vendorizado en
   `gigios/json.lua` (solo lectura). `io`, `os.execute`, `require` y `dofile` sí están (Lua 5.5), y
   `package.path` apunta al directorio del config, así que `require("gigios.x")` resuelve solo.
@@ -159,8 +165,21 @@ llega a commitearse.
 - **`size = "60% 60%"` NO funciona en Lua.** `size`/`move` van al motor de expresiones (muParser),
   que **no tiene operador `%`**: la regla se registra sin error, no sale nada en el log ni en
   `configerrors`, y el tamaño sencillamente no se aplica. Se escribe `monitor_w*0.6 monitor_h*0.6`.
-- **`{mouse=true}` no existe** como opción de `hl.bind` pese a aparecer en el ejemplo oficial de
-  `/usr/share/hypr/hyprland.lua`. Los `bindm` van con **`{drag=true}`**.
+- **Los `bindm` van SIN OPTS.** Las dos opciones que parecen valer fallan, cada una a su manera.
+  **`{mouse=true}`** —la del ejemplo oficial de `/usr/share/hypr/hyprland.lua`— **no existe**:
+  `hlBind` nunca lee esa clave (medido: `Keybind.mouse` queda `false`), así que es un adorno.
+  **`{drag=true}` sí se lee, y por eso es la peligrosa: se come el PRIMER arrastre de cada sesión**
+  —el segundo y siguientes van—, tanto al mover como al redimensionar. `drag` fuerza
+  `release = true`, y en `handleKeybinds` la **pulsación** de un bind con release solo llega al
+  dispatcher si es un `SPECIALDISPATCHER`; para un handler `__lua` eso significa tener ya puesto
+  `releasePending`, flag que pone el propio dispatcher del ratón **al ejecutarse**. En el primer
+  clic aún es falso: la pulsación se traga sin iniciar nada y solo el soltar (que llega como
+  "terminar arrastre", o sea nada) deja el flag listo para la vez siguiente. El ciclo entero se
+  retrasa un clic, sin ningún error por ningún lado. Sin opts la pulsación entra directa, arranca
+  el arrastre y de paso pone `releasePending` — que es lo que hace entrar también al soltar, el
+  camino que el compositor tiene pensado para los dispatchers de ratón en Lua. Peaje aceptado: un
+  SUPER+clic sin mover inicia y termina el arrastre al instante (inofensivo, y es el
+  comportamiento clásico de `bindm`; con `binds:drag_threshold = 0` no había umbral que perder).
 - **`cursor:no_hardware_cursors = false` se descarta en silencio** en 0.56 (queda en auto). Por eso
   `gpu/laptop-hibrida.lua` no la pone.
 - **En `hl.dsp.window.move`, "silent" se dice `follow = false`** (un `silent = true` se ignora), y el
@@ -183,6 +202,25 @@ Lua trae dos formas que hyprlang no tenía y que el parser **debe** entender: ex
 están escritos uno a uno. Sin expandir los bucles la lista perdía 28 de 67 atajos **en silencio**,
 de ahí el test que cuenta.
 
+**El test cuenta COMBINACIONES, no llamadas a `bind()`, y esa distinción no es cosmética.**
+Hyprland ejecuta **todos** los binds de una combinación, y el config se apoya en eso: `SUPER + clic
+izquierdo` lleva **tres** (el `bindm` del arrastre más los dos enganches con los que
+`gigios/reparto-ventanas.lua` sabe cuándo empieza y cuándo acaba). Los enganches no son atajos que
+se puedan pulsar por separado, así que listarlos duplicaba la fila en Orion y la llenaba de nombres
+internos (`GiGiOS: reparto_arrastre_inicio`). El parser **deduplica por combinación y gana el
+primero**, que es el que describe lo que la combinación hace de cara al usuario — los enganches se
+registran después a propósito. Así el recuento cuadra con la tabla `usados` de `gigios/keybinds.lua`,
+que también es un conjunto de combinaciones (verificado en vivo: 69 y 69). Sin la dedup el test
+llevaba tiempo en rojo, porque el número esperado se escribió contra `usados` y el parser contaba
+llamadas.
+
+**Un atajo nuevo cuyo bind llame a una función de `GiGiOS` necesita su etiqueta** en
+`GIGIOS_LABELS` (`keybinds.parse.ts`), o sale en la lista como `GiGiOS: <nombre_de_la_función>`. Y
+**el titular de una sección tiene que ir en UNA sola línea**, precedido de una línea en blanco y sin
+otro comentario debajo: es lo que distingue un encabezado de la prosa que documenta el módulo. Un
+bloque explicativo de varias líneas **no abre grupo**, y sus atajos se cuelan en la sección
+anterior sin dar ningún error.
+
 ## Hyprland structure
 
 For the directory layout, the module load order, and which script fires from where, see
@@ -198,20 +236,32 @@ su módulo equivalente. `hypr/hyprland.lua` is a thin entry point that loads the
 - **GPU profile is machine-specific**: exactly one module under `hypr/gigios/gpu/` is loaded
   (`laptop-hibrida.lua` / `sobremesa-nvidia.lua` / …), y **ya no se descomenta a mano** — lo elige
   `~/.config/gigios/gpu-perfil`, un fichero local de una línea fuera del repo.
-- `input-settings.lua` is **generated by AGS** and loaded after `gigios/userprefs.lua` — don't
-  hand-edit it as the source of truth.
-- `monitor-settings.lua` is **también generado por AGS** (Ajustes > Pantalla, vía
-  `ags/servicios/pantalla/service.ts`) y se carga **después de `gigios/monitores.lua`**, cuya única
-  regla es la comodín (preferido, escala 1). Resolución/Hz/escala/VRR/posición se aplicaban
-  antes solo **en vivo** (`hyprctl keyword monitor`) y al arrancar AGS, guardándose únicamente en
-  `~/.config/gigios/display.json` — que Hyprland no lee. Resultado: cualquier **`hyprctl reload`**
-  releía los configs y devolvía la pantalla a modo preferido y escala 1 (240 Hz → 60 Hz, 1.25 → 1),
-  sin que AGS se enterara (no hay señal de recarga, y su poller solo observa). Las reglas van por
-  `desc:` (estable entre reconexiones, a diferencia de `DP-1`) y una regla concreta gana a la
-  comodín. Efecto extra: el compositor ya arranca en el modo bueno, sin el parpadeo de la
-  re-aplicación. `display.json` sigue siendo la fuente de verdad; este `.lua` es un volcado.
-  **Que falte ya no es error duro** (con `source =` sí lo era: sacaba el overlay de Hyprland), pero
-  su ausencia devolvería la pantalla al comodín, así que no lo borres a la ligera.
+- `gigios/dispositivos.lua` **lee `~/.config/gigios/devices.json`** (Ajustes > Dispositivos, vía
+  `ags/servicios/dispositivos/service.ts`) y se carga después de `gigios/userprefs.lua` para pisar
+  lo de ahí. Fichero ausente = no se aplica nada y manda `userprefs`. Los defaults del módulo son
+  el espejo de `DEFAULT_DEVICE_SETTINGS` y solo entran por clave ausente o de tipo raro: AGS ya
+  escribe el JSON normalizado. De ahí sale también el **tema del puntero** (ver la sección de
+  hyprcursor, abajo).
+- `gigios/pantalla.lua` **lee `~/.config/gigios/display.json`** (Ajustes > Pantalla, vía
+  `ags/servicios/pantalla/service.ts`), recorre `monitors` y emite un `hl.monitor` por entrada
+  **después de `gigios/monitores.lua`**, cuya única regla es la comodín (preferido, escala 1).
+  Resolución/Hz/escala/VRR/posición se aplicaban antes solo **en vivo** (`hyprctl keyword monitor`)
+  y al arrancar AGS, guardándose únicamente en el JSON — que Hyprland no leía. Resultado: cualquier
+  **`hyprctl reload`** releía los configs y devolvía la pantalla a modo preferido y escala 1
+  (240 Hz → 60 Hz, 1.25 → 1), sin que AGS se enterara (no hay señal de recarga, y su poller solo
+  observa). Las specs van por `desc:` (estable entre reconexiones, a diferencia de `DP-1`) y una
+  spec concreta gana a la comodín. Efecto extra: el compositor ya arranca en el modo bueno, sin el
+  parpadeo de la re-aplicación.
+  **Por eso `saveMonitorPref` escribe SÍNCRONO** (`saveDisplayConfigNow`) y no por el debounce de
+  2 s que usa el resto de `display.json`: el fichero dejó de ser solo de AGS, y un `hyprctl reload`
+  disparado justo después de tocar la resolución releería el JSON viejo y desharía el cambio.
+- **El idioma (LANG/LC_ALL) lo lee `gigios/env.lua` de `~/.config/gigios/datetime.json`** (clave
+  `locale`, Ajustes > Región, fecha y hora). Antes AGS reescribía un bloque entre marcadores dentro
+  del propio `env.lua`, que está **versionado**: estado de máquina ensuciando git, y un marcador
+  tocado a mano dejaba el bloque huérfano con AGS añadiendo otro debajo. **Clave ausente = no se
+  emite ningún `hl.env`** y manda el LANG de la sesión: poner uno de fábrica ahí cambiaría el idioma
+  sin que nadie lo pida. Al portar una máquina que venía del esquema viejo hay que volver a elegir
+  el idioma una vez en Ajustes (o escribir la clave a mano).
 - Colour management (`render.cm_enabled`) is deliberately **off** because `hyprsunset` owns the
   KMS CTM for night light; enabling Hyprland's CM too washes out the image.
 
@@ -338,6 +388,55 @@ ese 0 llegaría al `.conf` al encender la fila. **El estado del interruptor sale
 no de un `true` fijo**: cuando la UI escribía `enabled: true` a pelo, mover cualquier stepper
 reescribía los tres listeners como activos y resucitaba en silencio un GIGIOS-OFF ya puesto.
 
+### Diálogo de contraseña de root: hyprpolkitagent, y por qué sigue siendo feo
+
+El agente de polkit —la ventanita que pide la contraseña al necesitar root— **ya es
+hyprpolkitagent**, lanzado desde `gigios/autostart.lua`; `polkit-kde-agent` está instalado como
+arrastre de Plasma pero no corre ni publica servicio D-Bus. O sea que **no hay ninguna migración
+pendiente desde KDE**: si alguien vuelve a plantearla, la respuesta es que ya está hecha.
+
+**No se puede personalizar con la versión de los repos, y el README de GitHub dice lo contrario
+porque documenta `main`.** Upstream reescribió el agente de Qt/QML a hyprtoolkit, pero esa
+reescritura **no tiene tag** (el último sigue siendo v0.1.3), así que `extra/hyprpolkitagent` es el
+Qt viejo: 4 ficheros, ninguno de configuración, y el QML **compilado AOT dentro del binario**
+(se ve en los símbolos, `QmlCacheGeneratedCode::_qt_qml_hpa_qml_main_qml`). No hay fichero que
+editar ni ruta que sobreescribir. Leer la doc de `main` ejecutando el tag viejo es el modo de
+fallo de esta sección.
+
+**La configuración ya está escrita y esperando**: `hypr/hyprtoolkit.conf` (paleta, espejo de
+`ags/estilos/_colores.scss`) y `hyprpolkitagent/hyprpolkitagent.conf` (geometría). El primero **no
+está inerte**: hyprtoolkit 0.5.4 de repos trae el mismo lector, así que esa paleta ya la aplica
+`hyprland-guiutils`. El día que taguen el release, el diálogo de polkit se suma sin tocar nada.
+
+**Se probó la vía AUR y se revirtió a propósito. No lo repitas sin leer esto.** Funcionó —el
+diálogo salía con la paleta— pero el coste de mantenimiento era desproporcionado para una mejora
+estética, y el mecanismo es concreto: el `hyprtoolkit-git` que hay que instalar tiene **el mismo
+nombre y versión que el de chaotic-aur**, así que no cuenta como paquete foráneo (`pacman -Qm` no
+lo lista) y **un `-Syu` normal lo reemplaza por el de chaotic en cuanto publiquen una revisión
+nueva — y ese depende de `aquamarine-git`**, o sea que el backend de render de Hyprland salta a
+rama de desarrollo por pura resolución de dependencias. En paralelo, `hyprpolkitagent-git` se
+recompila en cada `-Syu` contra la hyprtoolkit del momento, y ese acoplamiento entre dos ramas sin
+ABI estable es exactamente lo que falló al intentarlo (`setText`/`setPassword`/`eyeIcon`/
+`setEnabled` no existen en 0.5.4). Cuando eso pase en un `-Syu` de rutina falla **callado**, y lo
+que se queda roto es el agente de autenticación.
+
+**Lo medido durante la prueba, para no redescubrirlo:**
+
+- **El binario CAMBIA DE SITIO entre versiones.** En el 0.1.3 de repos es
+  `/usr/lib/hyprpolkitagent/hyprpolkitagent` (directorio con el ejecutable dentro); en la
+  reescritura, `/usr/lib/hyprpolkitagent` **es** el ejecutable. `gigios/autostart.lua` apunta a la
+  primera. Equivocarse no da ningún error: `hl.exec_cmd` falla en silencio y la sesión se queda sin
+  agente, cosa que no se nota hasta que algo pide root a mitad de sesión.
+- **`window_width` no hace nada** (A/B en 0.1.3.r11): la ventana sale a 460 px pidiendo 500 y
+  pidiendo 700, porque el ancho lo fija el contenido. `window_height` sí manda, con un +8 constante.
+- **El PKGBUILD de AUR de hyprtoolkit-git exige la cadena `-git` entera** (aquamarine, hyprgraphics,
+  hyprwayland-scanner) por conservadurismo del mantenedor, no por necesidad: hyprtoolkit `main`
+  compila y enlaza contra las versiones de repos y produce el **mismo soname**
+  (`libhyprtoolkit.so.5`), que es lo que necesita `hyprland-guiutils`.
+- La otra salida sería escribir el agente dentro de AGS (es un objeto D-Bus
+  `org.freedesktop.PolicyKit1.AuthenticationAgent` más `polkit-agent-helper-1` para el PAM). Se
+  descartó: son cientos de líneas para lo que 18 claves de config darán gratis al llegar el release.
+
 ### Botón de encendido: `gigios/boton-apagado.lua` + `system/logind.conf.d/`
 
 Ajustes > Energía decide qué hace la pulsación **corta** del botón físico (apagar, suspender,
@@ -376,14 +475,25 @@ Un `null` (no se pudo consultar) **no** avisa — no poder comprobarlo no es sab
 
 ### Notificaciones de los scripts: el hint `x-gigios-source`
 
-**Todo `notify-send` de `hypr/scripts/` lleva `-h string:x-gigios-source:system`** (44 llamadas,
-12 scripts; dos de ellos —`run-untrusted.sh`, `scan-file.sh`— lo centralizan en su wrapper
+**Todo `notify-send` de `hypr/scripts/` lleva `-h string:x-gigios-source:system`** (56 llamadas,
+17 scripts; cinco de ellos —`run-untrusted.sh`, `scan-file.sh`, `usb-eject.sh`, `usb-repair.sh`,
+`actualizar-firmas.sh`— lo centralizan en su wrapper
 `notify() { notify-send -h … -a "$APP" "$@"; }`). No es decorativo: es lo que hace que el popup
 salga con el **skin dunst** — esquinas rectas, marco de 3 px, monoespaciada y fondo sólido por
 urgencia (azul `#285577` normal, `#900000` con marco `#ff0000` crítica, `#222222` baja), y **sin
 nombre de app ni icono**, porque el `format` por defecto de dunst es `"<b>%s</b>\n%b"`. Las apps
 normales conservan el diseño del shell. **Un script nuevo que se olvide del hint saldrá con el
 diseño normal**, sin error ni aviso — es el único modo de fallo aquí.
+
+**`-u warning` NO EXISTE, y las 16 notificaciones que lo usaban no salían nunca.** libnotify solo
+acepta `low`, `normal` y `critical`; ante cualquier otra cosa `notify-send` escribe *«Unknown
+urgency warning specified»* por **stderr** y sale con **rc=1 sin enviar nada** (medido en 0.8.8).
+Como todas estas llamadas salen de daemons de fondo cuyo stderr no lo lee nadie, el fallo era
+**mudo y total**: "⬇️ Ejecutable nuevo en Descargas", "🛡️ No se pudo analizar", "💽 Salud de disco",
+"🥾 Cambio en /boot", "⚙️ Servicio fallido", "🌡️ CPU Throttling" y "🌐 SSH" llevaban desde siempre
+sin aparecer — el escáner de descargas avisaba de un ejecutable nuevo y no se veía. Todas están ya
+en `normal` (el escalón intermedio no existe: o es rutina o es crítico). Al añadir una notificación,
+**pruébala ejecutándola**: no basta con leerla, porque la línea parece correcta.
 
 El hint no pinta nada por sí mismo: lo lee el **motor de reglas** (`match.source`), y quien pide
 el skin es una regla builtin visible y desactivable desde Ajustes, **`builtin.system-dunst`**
@@ -564,6 +674,156 @@ es también lo que hace seguro leerlo con `.escanerAppsInicio // false` — el t
 mismo resultado por ambos caminos. `GIGIOS_ESCANER_SEGS` acorta la ventana para probarlo sin
 esperar medio minuto, la misma costura que `GIGIOS_USB_PENDING_DIR` en el monitor de USB.
 
+### Que una ventana no acabe estrujada, al abrirse o al soltarla (`gigios/reparto-ventanas.lua`)
+
+**El problema es del primer cálculo de tamaño, no del layout en reposo.** dwindle parte siempre la
+ventana objetivo en dos, y el objetivo por defecto es la última que tuvo el foco en ese escritorio,
+así que abrir cuatro terminales seguidas da una progresión geométrica, no un reparto — medido en
+este equipo (escritorio de 2032x1098): **1014 · 504 · 252 · 250**. La quinta habría nacido con
+125 px. Este módulo decide, en `window.open_early` (antes de colocarla, que es el único momento sin
+cirugía sobre el árbol), **qué se parte** y **por qué lado**. Las mismas ocho terminales salen a
+**504x547 cada una** (medido).
+
+**Dos palancas, y la primera sola NO basta.** (1) *Qué*: se enfoca la ventana en mosaico **más
+cercana al ratón de entre las que aún dan una mitad decente** — dwindle toma como objetivo la
+última enfocada, así que enfocar es la única forma de redirigir el corte; el foco se lo lleva la
+ventana nueva al mapearse, así que no se nota. (2) *Por dónde*: `preselect`, que fija dos cosas a la
+vez — el **eje** sale del lado largo del objetivo (ancha → se parte en vertical, alta → se apila,
+que es lo que convierte la progresión en rejilla) y el **lado**, de en qué mitad de esa ventana está
+el ratón, porque `preselect <dir>` coloca la nueva en ese lado. Hace falta porque con `smart_split` el
+eje **no sale de la forma de la ventana, sale del cuadrante del cursor sobre ella**, y al lanzar
+desde Orion o rofi el cursor está donde lo dejaste: el eje sale a suertes y se repite igual ventana
+tras ventana. Medido A/B sobre la misma ventana de 2032x1098: con smart_split, 2032x547 (apilada);
+sin él, 1014x1098 (lo correcto para una apaisada). O sea que enfocar la mayor sin arreglar el eje
+daba ocho tiras de **2032x134**. `preselect` tiene prioridad sobre el cuadrante, sobre `smart_split`
+y sobre `force_split` (ya documentado en `gigios/keybinds.lua`, donde se usa para lo mismo en
+SUPER+SHIFT+dirección), así que no hay que tocar `smart_split`, que sigue mandando en el arrastre.
+
+**La cercanía al ratón es el SEGUNDO criterio, no el primero**, y el orden es lo que lo hace
+funcionar: elegir por cercanía a secas devuelve el problema de partida, porque el hueco pegado al
+cursor suele ser justo la rendija que acabas de crear. Primero se filtran las candidatas por si su
+mitad da la talla y solo entre las que pasan gana la más cercana (a igual distancia, la más grande);
+si no pasa ninguna —escritorio lleno— manda la mayor, porque ahí ya no se puede acercar al ratón sin
+estrujar. Verificado en vivo con el mismo estado de partida y el ratón en las cuatro esquinas: con
+el cursor dentro de una ventana de 506x547 (mitad 506x273 → no da la talla) la nueva sale partiendo
+la de 504x1098 de al lado, **por arriba o por abajo según dónde esté el ratón**; con el cursor a la
+derecha, parte la columna derecha, arriba o abajo igual. `hl.get_cursor_pos()` existe y devuelve
+`{x, y}` — la ausencia de esa función se dio por supuesta al escribir la primera versión y era falsa.
+
+**Es PREVENCIÓN, no una rejilla forzada**: mientras el sitio natural dé un tamaño razonable el
+módulo **no interviene** y manda dwindle con su cuadrante. El listón se mide sobre la **peor mitad
+posible** del objetivo natural — la que sale de partirlo por su lado **corto**, la más achatada de
+las dos —, y se toma la peor porque la real depende del cursor y el cursor no se puede consultar
+desde el config. Con dos ventanas de 1014x1098 la peor mitad es 507x1098 → cabe → la tercera nace
+donde diga tu cursor; con cuatro de 1014x547 es 1014x273 → 273 < 320 → se interviene. Ese es
+justo el punto en el que "una más" empezaba a estrujar.
+
+**En un escritorio que NO se está viendo no se hace nada, y corregir solo el eje allí sale PEOR.**
+Redirigir el corte exige enfocar, y enfocar en un escritorio oculto **arrastra la vista** a él
+(medido: la sesión saltó al ws15 durante las pruebas), cosa que abrir una ventana no justifica. Y
+sin poder redirigir el objetivo, el corte por el lado largo se ceba con la última ventana y la deja
+cuadrada y diminuta: ocho terminales dieron **123x133** frente a las tiras de 252x1098 de dwindle a
+secas. Misma área, peor forma — de ahí que se ceda entero. Afecta a lo que se lanza anclado a otro
+escritorio.
+
+**Otros límites**: no redistribuye lo ya abierto (es el cálculo de la ventana nueva); si la ventana
+acaba flotando por una regla —las reglas aún no están aplicadas en `open_early`— la intervención se
+deshace sola en `window.open` (`preselect none` + devolver el foco), y una red de 2 s cubre que
+`window.open` no llegue nunca, porque **un `preselect` sin consumir se lo come la SIGUIENTE ventana
+que abras**. Con el escritorio ya lleno interviene igual aunque no pueda arreglarlo: partir la mayor
+por su lado largo sigue siendo la opción menos mala. Quien decide que ya no cabe nadie es
+`gigios/limite-ventanas.lua`, que corre después.
+
+**Al SOLTAR una ventana arrastrada (SUPER + arrastrar) manda la otra palanca: quitarle sitio a los
+vecinos.** Es el otro momento en el que un tamaño se decide de golpe — dwindle reinserta la ventana
+partiendo el destino en dos, así que soltarla sobre una ventana ya pequeña la deja en la mitad de
+poco. Aquí el destino **no** se puede elegir (lo has elegido tú con el ratón), así que si la ventana
+cae por debajo de los mínimos se la ensancha con `resizeactive exact`, que mueve las proporciones
+del árbol: el hueco sale de **encoger al vecino**, no de tapar a nadie. Se pide **solo el mínimo**,
+nunca más — el sitio se le quita a otro y pasarse sería resolver un estrujón creando otro. Medido:
+un drop que iba a quedar en 2032x**273** sale en 2032x**320** y el vecino baja de 547 a 223.
+
+**La detección del soltar son dos binds MÁS** sobre `SUPER + mouse:272` (uno normal y otro con
+`{release = true}`) que llaman a `GiGiOS.reparto_arrastre_inicio/fin`. Hyprland ejecuta **todos** los
+binds de una combinación, así que conviven con el `bindm` nativo — verificado con un **ratón virtual
+por uinput** haciendo el arrastre de verdad. Ojo: esto es `release`, **no** el `drag` de la
+advertencia de `keybinds.lua`, que sí se come el primer arrastre de cada sesión.
+
+**AL PULSAR NO SE VALIDA NADA, y ese fue el fallo que costó la tarde.** Cuando llega la pulsación,
+el `bindm` nativo ya se ejecutó y la ventana **está flotando**: así dibuja Hyprland el arrastre (la
+saca del mosaico y la reinserta al soltar). Descartar lo flotante ahí —lo primero que uno escribe—
+hacía que la foto no se tomara nunca y que **todo esto no hiciera nada, sin un solo error**. La
+geometría en ese instante sí es todavía la del mosaico. Las comprobaciones van al soltar, donde el
+estado ya es el bueno; una ventana que **ya** flotaba sigue flotando allí y se descarta entonces.
+
+**El press guarda la geometría para distinguir un arrastre de un SUPER+clic que no movió nada**, y
+la comparación lleva **tolerancia de 16 px**, no una igualdad: un clic sin desplazamiento tampoco
+deja la geometría intacta —Hyprland saca y mete la ventana igual, y las proporciones bailan unos
+píxeles (medido: 223 → 220)—, así que con `==` un simple clic podía acabar ensanchando la ventana.
+Con la tolerancia, tres clics seguidos sobre la más pequeña no mueven nada (medido).
+
+**Trampas medidas**: `at` y `size` de una `HL.Window` son tablas **`{x=, y=}`, no arrays** — un
+`v.size[1]` devuelve `nil` en silencio, el área sale 0 y toda comparación de tamaño pasa a ser
+cierta (el módulo creía que todo cabía y no intervenía nunca, sin un solo error). Y
+`hl.dsp.window.resize` **ignora `window = ...`**: redimensiona **siempre la activa**, también sin
+avisar (medido: pidiendo agrandar tst3 se agrandó tst2). Por eso el drop comprueba que la activa
+siga siendo la ventana que soltaste antes de tocar nada.
+
+**Ajustes** en `~/.config/gigios/preferences.json`, sin UI (como `maxVentanasEscritorio`):
+`repartoVentanas` (**ausente = activado**, se comprueba `== false`), `anchoMinimoVentana` /
+`altoMinimoVentana` (**ausentes = 480x320**; los dos a 0 lo desactivan). Se leen por `util.prefs()`,
+o sea una vez por ejecución del config: cambiarlos pide un `hyprctl reload`.
+
+### Tope de ventanas en mosaico por escritorio (`gigios/limite-ventanas.lua`)
+
+Pasadas unas cuantas ventanas en mosaico el escritorio deja de ser útil: dwindle sigue partiendo el
+espacio y acabas con columnas de 200 px. Este módulo pone un techo (**8** por defecto) y, cuando
+una ventana nueva lo rebasaría, la **mueve al primer escritorio con sitio**.
+
+**Hyprland NO tiene esta opción** — no existe ningún `max_tiled_windows` en 0.56 ni en el stub de
+la API Lua (`/usr/share/hypr/stubs/hl.meta.lua`). Lo que sí hay ya es con qué implementarla desde
+el config: `window.open` tipado + `hl.dsp.window.move` con selector por objeto. En hyprlang habría
+sido un daemon leyendo el socket de eventos y cruzando direcciones con `hyprctl clients` —el
+montaje de `escaner-apps.sh`, con su trampa de las address sin `0x`—; aquí son 40 líneas dentro del
+propio config, sin proceso vivo, así que se aparta de la advertencia general de los `*-monitor.sh`
+(no hay nada que `pkill`ear: basta `hyprctl reload`).
+
+**El límite es del MOSAICO, no de ventanas**, y por eso se descuentan tres cosas: las **flotantes**
+(ni cuentan ni se mueven — no compiten por el espacio del layout, y desterrar un diálogo o un PiP
+"porque el escritorio está lleno" no tiene sentido), las **ocultas** (`hidden`, una terminal tragada
+por `swallow`: existe pero no ocupa hueco) y los escritorios **especiales** (el scratchpad no es un
+sitio donde imponer un tope ni donde dejar al usuario). Verificado en vivo con el tope a 2: la
+tercera en mosaico salta, y una cuarta que abre flotante no cuenta ni desplaza a nadie.
+
+**Se sigue a la ventana (`follow = true`), al revés que en `compactar.lua` y en el anclaje.** El
+usuario acaba de lanzar la app, y el peor fallo aquí sería que su ventana desapareciera en silencio
+a un escritorio que no sabe cuál es. El escritorio lleno se queda como estaba y tú vas donde fue la
+ventana. Se cambia con `SEGUIR = false`, pero entonces hay que avisar de algún modo o la app
+parecerá no haber arrancado.
+
+**Con el anclaje hay que ARBITRAR, y el árbitro está en `anclaje.py`, no aquí.** Las dos funciones
+tiraban en direcciones contrarias y ganaba el anclaje por llegar el último: el tope apartaba la
+ventana nueva de un escritorio lleno y te llevaba con ella, y acto seguido el `openwindow` llegaba
+al observador, que la veía "descolocada" respecto al escritorio de lanzamiento y la devolvía **en
+silencio**. Resultado: tú en el escritorio nuevo y la ventana en el viejo —peor que cualquiera de
+las dos funciones por separado, sin ningún error— y la novena ventana otra vez apretujada con las
+ocho. Hoy `_hueco_en()` (en `anclaje.py`) **replica el recuento de este módulo** —solo mosaico, ni
+flotantes ni ocultas, sin contarse a sí misma— y **no ancla si el destino está lleno**. La
+jerarquía: el lanzador decide **dónde nace** la ventana, el tope decide **si ahí cabe**, y manda el
+tope porque es el único de los dos que sabe algo que el lanzador no podía saber al lanzar. Si
+cambias el criterio de recuento de aquí, hay que cambiarlo **en los dos sitios** o vuelve el tira y
+afloja. Verificado en vivo con el tope a 2, por los dos caminos: lanzar sobre un escritorio lleno
+deja la ventana en el nuevo (no vuelve), y lanzar sobre uno con hueco **sigue anclando** como
+siempre.
+
+**Ajuste**: `maxVentanasEscritorio` en `~/.config/gigios/preferences.json`. **Ausente = 8
+(activado)**; un valor **≤ 0 lo desactiva**, y esa vía hace falta precisamente porque el default es
+"encendido" (borrar la clave no lo apaga). Se lee por `util.prefs()`, o sea una vez por ejecución
+del config: cambiarlo pide un `hyprctl reload`. El barrido de candidatos sube desde el escritorio
+actual hasta `WS_MAX` (20) y luego da la vuelta por debajo; un escritorio que aún no existe cuenta
+como vacío y Hyprland lo crea al mover. Si **no hay sitio en ninguno**, la ventana se queda donde
+estaba: apretujar es mejor que mandarla a un escritorio igual de lleno.
+
 ### Anclar las ventanas al escritorio donde las lanzaste (`anclaje.py` + los dos lanzadores)
 
 Abres una app, te vas a otro escritorio mientras carga, y la ventana aparece **donde estás** en vez
@@ -609,6 +869,15 @@ nombre dice "Rofi" por historia —renombrarla apagaría el anclaje en silencio 
 tiene la clave escrita— y no por alcance. Cuando está **desactivado no se pone la regla** tampoco:
 el ajuste significa "que cada ventana aparezca donde yo esté", y fijarla al escritorio de
 lanzamiento sería justo lo que se apagó.
+
+**El anclaje CEDE ante el tope de ventanas por escritorio.** Antes de traerse una ventana al
+escritorio de lanzamiento, `_hueco_en()` comprueba que ahí quepa según `maxVentanasEscritorio`
+(mismo recuento que `gigios/limite-ventanas.lua`: solo mosaico, sin flotantes ni ocultas, sin
+contar la propia ventana); si está lleno, **no la ancla** y la deja donde el tope la puso. Sin eso
+las dos funciones se deshacían mutuamente y te quedabas mirando un escritorio distinto del de tu
+ventana. Ver la sección del tope para el porqué de la jerarquía. Los clientes se piden **una sola
+vez por ventana nueva** y de ahí salen el cliente y el recuento: antes eran dos forks de `hyprctl`
+y, peor, dos instantes distintos.
 
 **Fallos: siempre hacia "se abre sin anclar", nunca hacia "no se abre".** Sin socket, sin Hyprland o
 con un `dispatch` rechazado se relanza por `sh -c`. Ojo con lo último: **`hyprctl` no señala un
@@ -659,6 +928,46 @@ Personalización > Ventanas y escritorios), **ausente = activado** — ojo al le
 de AGS escribe la preferencia (síncrono) y dispara `hyprctl reload`, que re-ejecuta el config y
 vuelve a decidir. Desactivado, los sordos sencillamente no se registran: no queda ningún fichero
 residual que borrar ni comentar.
+
+### Escritorio ancla: ir y volver (`gigios/ancla-escritorio.lua`)
+
+`SUPER + SHIFT + S` marca el escritorio actual como **ancla** (repetido ahí mismo, lo desmarca) y
+`SUPER + S` es el vaivén: **fuera** del ancla te lleva a ella apuntando de dónde venías, y **en**
+ella te devuelve a ese sitio apuntado. `vuelta` se reescribe en **cada** salto hacia el ancla, así
+que "volver" significa el sitio desde el que hiciste el **último** salto, no un historial — si tras
+saltar a la ancla te vas a otro escritorio a mano y pulsas otra vez, el que se apunta es ese
+(verificado en vivo con los dos recorridos).
+
+**Sustituyó al workspace especial `magic`**, que ocupaba esas dos teclas y **no estaba roto**: los
+binds se registraban, el dispatcher respondía y con una ventana dentro se veía a pantalla completa
+(todo medido antes de tocar nada). Lo que fallaba era el único estado en el que uno lo prueba —
+`misc.close_special_on_empty` lo **destruye al quedarse vacío**, y un especial vacío que se abre no
+dibuja **nada**: ni marco, ni fondo, ni aviso. O sea que parecía muerto sin dar ningún error. Si
+alguien lo quiere de vuelta, el porqué y los dos dispatchers están en el comentario de
+`gigios/keybinds.lua`, junto a los binds nuevos.
+
+**El estado va a un FICHERO, no a un local de Lua**, y ahí se aparta a propósito de
+`GiGiOS.toggle_gaps()`: en el toggle de gaps el `hyprctl reload` resetea a la vez el flag y los
+gaps, así que quedan coherentes; aquí no hay nada en el compositor que resetear, y un reload
+borraría el ancla **sin que se note** hasta que pulsaras el atajo y no fuera a ninguna parte. Y los
+reloads no son raros: AGS dispara uno al tocar `absorberSuperSinAtajo`, entre otros (verificado que
+el ancla sobrevive a un `hyprctl reload`). Vive en `$XDG_RUNTIME_DIR/gigios-ancla-escritorio`
+(tmpfs), que da justo la duración que se quiere: **por sesión**, como el Wake up. En `~/.config`
+sobreviviría a un reinicio y acabarías saltando a un escritorio de ayer.
+
+**Fail-open hacia "el atajo no hace nada"**: todo va en pcall y cualquier error —fichero ilegible,
+contenido a medias, la API devolviendo `nil`— degrada a "no hay ancla", que se arregla volviendo a
+anclar. Lo contrario (saltar a un escritorio cualquiera por leer mal un número) movería al usuario
+de sitio sin que lo pidiera, que es el fallo molesto de verdad. Por lo mismo, un id `<= 0` en el
+fichero cuenta como "ninguno". Los **especiales** quedan fuera (ni se anclan ni se apuntan), igual
+que en `limite-ventanas.lua` y `compactar.lua`.
+
+**Cada gesto avisa en pantalla** (`util.notificar`, 2 s). No es adorno: anclar es invisible por
+definición —no mueve nada—, y callar ahí reproduce exactamente el fallo del scratchpad, que es
+"pulso y no sé si ha pasado algo". Por eso también habla el caso "estás en el ancla pero aún no hay
+sitio al que volver". De ahí el `opts.crudo` nuevo de `util.notificar`: quita el prefijo
+`[GiGiOS Lua]`, que existe para distinguir un **fallo del config** de un aviso de otro programa y
+que en una confirmación rutinaria se lee como un error. Los avisos de fallo siguen con prefijo.
 
 ### Update monitor (`updates-monitor.sh`)
 
@@ -912,6 +1221,67 @@ teclas `XF86MonBrightness*` de `gigios/keybinds.lua` ya **no** lo llaman (van po
 brightness-up|down`, que aplica al backend que haya y enseña el OSD) y la llamada que queda en
 `init.sh` lleva `-c backlight` explícito.
 
+### Puntero: hyprcursor y XCursor son DOS MITADES, no una migración (`bin/generar-hyprcursor.sh`)
+
+**XCursor no se puede retirar, y plantearlo como "migrar a hyprcursor" lleva a la conclusión
+equivocada.** hyprcursor cubre **solo el cursor que dibuja el compositor**. XWayland no lo soporta
+—es Xcursor y punto— y GTK/Qt dibujan su propio puntero desde `XCURSOR_THEME`. Así que un tema aquí
+es **un directorio con las dos mitades**: `cursors/` (PNG por tamaño, XCursor) y
+`hyprcursors/*.hlc` + `manifest.hl` (hyprcursor). Con esa forma **un solo nombre** vale para las dos
+variables, que es lo que emiten `gigios/dispositivos.lua` y AGS. Es la forma que ya traen los temas
+con soporte de fábrica (Bibata-Modern-Ice).
+
+**El problema real no era "estamos en XCursor": era que el tema NO ESTABA FIJADO.** Nada ponía
+`XCURSOR_THEME`/`HYPRCURSOR_THEME`, así que Hyprland caía a gsettings (`cursor-theme = 'default'`),
+un nombre que libhyprcursor **no sabe resolver**: casa temas por **nombre de directorio** con
+`manifest.hl` y **no lee `index.theme` ni sigue `Inherits`** (el `~/.icons/default` que escribió
+nwg-look y que hereda de Bibata solo lo entiende XCursor). Y ante un nombre que no encuentra
+**libhyprcursor no falla**: coge **el primer tema con `manifest.hl` que se cruce**, ignorando el
+nombre pedido. Medido con `hyprcursor_manager_create_with_logger` contra la `.so` instalada:
+
+```
+getFullPathForThemeName: failed, trying without name of Adwaita
+Found theme Adwaita at ~/.local/share/icons/Bibata-Modern-Ice
+```
+
+`valid=false` solo si **no hay ningún** tema hyprcursor en el sistema (verificado apuntando `HOME` y
+`XDG_DATA_DIRS` a un sitio vacío). O sea que el puntero del escritorio lo decidía **el orden de
+lectura del directorio** —ni alfabético ni "el primero instalado": comprobado instalando un segundo
+tema, la elección no cambió—, y bastaba instalar otro tema para cambiarlo sin tocar nada.
+**Por eso `temaCursor` no enciende hyprcursor: fija CUÁL**, que es lo que faltaba.
+
+**Ajuste**: `temaCursor` en `~/.config/gigios/devices.json` (Ajustes > Dispositivos > Puntero).
+**Vacío = no se emite ningún `hl.env`** y manda el tema de la sesión — el mismo criterio que el
+`locale` de `gigios/env.lua`, y por el mismo motivo: un nombre de fábrica cambiaría el puntero de
+una máquina que nunca ha tocado el ajuste, y encima nombraría un tema que puede no existir en ella.
+El desplegable **solo lista temas con `manifest.hl`**: elegir uno sin él dejaría al compositor
+dibujando otro tema en silencio. El nombre se valida contra `^[A-Za-z0-9._+-]+$` **en origen**
+(`normalize()`), porque acaba en un `hyprctl setcursor` y en un literal Lua de `hl.env()`; lo que
+**no** se comprueba es que el tema exista, para que un `devices.json` traído de otra máquina
+conserve la elección.
+
+**`hl.env` solo alcanza a lo que Hyprland lance a partir de ese momento**, así que cambiar el tema
+en caliente no reescribe el puntero de las apps ya abiertas: cambian al reiniciarse. El `setcursor`
+sí afecta al compositor al instante. AGS escribe además `cursor-theme` en GSettings, no por GTK
+solamente: es de donde lo lee Hyprland al arrancar con `cursor:sync_gsettings_theme` activo, y
+dejarlo desincronizado revive el tema viejo en el siguiente login.
+
+**`bin/generar-hyprcursor.sh` le añade la mitad hyprcursor a un tema XCursor** (`--list` enseña los
+instalados y su estado). Sale **siempre** a `~/.local/share/icons`, nunca a `/usr/share/icons`: ahí
+los ficheros son de un paquete y pacman no los rastrearía, así que una actualización dejaría mitades
+descuadradas sin avisar. Es idempotente (`--force` rehace). Lo llama `install.sh` (paso 10) sobre
+`$CURSOR_THEME`, por defecto `Bibata-Modern-Ice` — que va por el mecanismo de paquete **opcional**
+porque vive en chaotic-aur y en un Arch puro haría fallar el `pacman -S` entero. El instalador
+**no elige el tema**: preparar el terreno sí, cambiarle el puntero a quien no lo ha pedido no.
+
+**Lo que el generador NO hace es inventar resolución.** Un tema XCursor son PNG por tamaño, así que
+el `.hlc` generado lleva **esos mismos PNG** con `resize_algorithm = none` (verificado destripando
+un `.hlc` generado: `default_000.png` 16×16, `default_001.png` 24×24…). El salto de calidad de
+hyprcursor —SVG, nítido a cualquier tamaño y escala— **solo lo dan los temas autorados en SVG**,
+como Bibata-Modern-Ice, cuyos `.hlc` sí contienen un `.svg`. Sobre un tema de paquete esto da
+**paridad, no nitidez**. Dato para dimensionarlo: en Bibata la mitad SVG ocupa **328 KB** y la
+XCursor **28 MB**.
+
 ### Perfiles TLP conmutables (`system/tlp/` + `servicios/energia/tlp.ts`)
 
 Ajustes > Energía ofrece un selector **Normal/Ahorro** que cambia el perfil TLP en batería. El
@@ -1120,6 +1490,103 @@ button on the oversized-file notification and by the "Analizar un archivo con Cl
 `ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`. Both `run-untrusted.sh` and `scan-file.sh` prefer `clamscan` and fall back
 across engines, and both surface a clear "run `sudo freshclam`" hint when the signature DB is missing.
 
+### Firmas de ClamAV desde la UI (`system/clamav/` + `servicios/seguridad/clamav.ts`)
+
+**Sin firmas no hay antivirus, y hasta ahora el único sitio donde arreglarlo era una terminal.**
+Los tres consumidores de ClamAV (el barrido de descargas, `scan-file.sh`, `run-untrusted.sh`)
+detectan la base ausente y dicen "ejecuta `sudo freshclam` (o activa clamav-freshclam.service)",
+pero eso llega por `notify-send` y hay que acordarse. Peor: mientras tanto el barrido **no marca
+nada** (rc 2 → no se sella; ver la sección de `monitor_downloads`), así que la función queda
+parada esperando a un gesto que no está en ninguna UI. Ajustes > Seguridad > Antivirus tiene ahora
+la tarjeta **Base de firmas**: fecha de la última actualización, si el servicio automático está
+activo, y un botón que actualiza **ahora** y de paso deja `clamav-freshclam.service` habilitado.
+
+**Mismo esquema que TLP, y por el mismo motivo**: `/var/lib/clamav` es de `clamav`, el log de
+freshclam está en `/var/log/clamav` y `systemctl enable` es de root, así que AGS no toca nada —
+delega en `/usr/local/bin/gigios-clamav-update` (root-owned, instalado por **`install.sh` paso 9**
+desde `system/clamav/gigios-clamav-update.sh`), autorizado sin contraseña por
+`/etc/sudoers.d/gigios-clamav` **solo** para sus dos argumentos fijos. Ni el helper ni la regla se
+symlinkean: apuntar algo que corre como root al árbol escribible por el usuario sería la escalada
+silenciosa contra la que avisan las secciones de USB, i2c-dev y TLP.
+
+**La actualización automática es un interruptor, y por eso el helper tiene DOS verbos de
+actualización.** La fila "Actualizar las firmas automáticamente" enciende y apaga
+`clamav-freshclam.service` (`auto-on`/`auto-off`, `disable --now` para que apagar no deje el
+demonio vivo hasta el próximo arranque). Con ese interruptor al lado, el botón "Actualizar ahora"
+**no puede** forzar el `enable`: reencendería en silencio algo que el usuario acaba de apagar, con
+su propio interruptor mintiendo justo encima. De ahí que `update` deje el servicio **como estaba**
+(pararlo es un detalle de implementación de esa actualización, no una decisión de nadie) y que
+`update-enable` —el que dispara el botón **"Activar y actualizar"** de las notificaciones, donde
+activar sí es lo pedido— sea un comando aparte. Los dos están en la regla sudoers por separado.
+
+**El interruptor NO se persiste en ningún JSON de GiGiOS**: el estado es de systemd y se lee de
+`systemctl is-enabled` cada vez, también después de fallar una orden — pintar lo que *creemos* que
+hizo el comando es como se llega a una UI que se contradice con el sistema. Si el estado no se pudo
+consultar (`null`) o falta el helper, la fila **no se pinta**: un interruptor que no sabe dónde
+está miente en las dos posiciones. Con el helper ausente el estado se dice en texto, que informa
+sin fingir que se puede cambiar.
+
+**Dato medido, por si algún día se quiere simplificar**: en esta máquina `systemctl enable --now` y
+`disable --now` sobre esa unidad funcionan **sin root** (polkit se lo concede a la sesión activa),
+así que la mitad del interruptor podría no necesitar el helper. Se mantiene por él igualmente:
+depender de la política de polkit haría que en otra máquina el interruptor abriera un diálogo de
+contraseña —o fallara— mientras el botón de actualizar sigue yendo por sudo, dos caminos distintos
+para la misma tarjeta.
+
+**El helper PARA el servicio antes de actualizar, y no es un capricho.** `clamav-freshclam` mantiene
+`freshclam.log` bloqueado, así que un `freshclam` suelto con el demonio vivo aborta con *"locked by
+another process"*. La alternativa obvia —`systemctl restart clamav-freshclam`— actualiza pero es
+**asíncrona**: no deja ni código de salida ni salida que enseñarle al usuario, o sea que el botón no
+podría distinguir "actualizado" de "sigue sin firmas". Se para, se actualiza en primer plano y se
+vuelve a habilitar con `enable --now`. La ventana sin demonio son segundos.
+
+**Leer el estado NO pasa por el helper ni por sudo**: la fecha sale del `mtime` de
+`/var/lib/clamav/daily.{cld,cvd}` (world-readable) y el "se actualiza solo" de `systemctl
+is-enabled`, que cualquiera puede consultar. Preguntarle al sistema es lo único que no puede mentir
+— el helper puede estar instalado y el servicio apagado a mano, igual que con `HandlePowerKey` en
+la sección del botón de encendido. `clamavAutoUpdate` es `boolean | null` por lo mismo: `null` = no
+se pudo consultar, y **no** se afirma nada en la UI.
+
+**Sin el helper la tarjeta SE SIGUE PINTANDO, y ahí se aparta del selector TLP a propósito.**
+La primera versión la ocultaba entera copiando aquel criterio, y estaba mal: en TLP "falta TLP"
+significa *esta función no aplica a esta máquina* y esconderla es correcto; aquí significa *te falta
+un paso de instalación*, así que ocultarla reproduce **el problema exacto que la tarjeta viene a
+resolver** — un arreglo que existe pero que no hay dónde encontrar (reportado en vivo: "no veo los
+ajustes"). Con `clamavHelperInstalled` en falso se enseña el estado igual y el botón cede el sitio a
+la orden que hay que ejecutar una vez. Lo único que la hace desaparecer es `clamavPresent`: sin
+ClamAV no hay firmas de las que hablar.
+
+**El aviso de "no puedo analizar" lleva BOTÓN, y ese es el punto**: es el único fallo de esta
+familia con una cura de un solo gesto, y un popup que dice "ejecuta `sudo freshclam`" y se va en un
+minuto le pide al usuario que se acuerde de algo cuando ya esté en una terminal. Las tres
+notificaciones que lo reportan —el `rc == 2` del barrido de descargas (`oom-monitor.sh`), y el "no
+se pudo analizar" de `scan-file.sh` y `run-untrusted.sh`— llevan ahora
+`-A "update=🛡️ Activar y actualizar"` → **`hypr/scripts/actualizar-firmas.sh`**, el lado de usuario
+del helper. Se pulsa con **clic derecho** sobre el popup (ver `ags/CLAUDE.md`, "Acciones D-Bus en el
+popup"), y el `-t 0` ya no es un popup eterno: con acciones, `popupLifetime()` lo acota a 60 s.
+
+**Por qué un script y no llamar al helper desde el `-A`**: hace falta algo que **notifique el
+resultado** —el helper solo imprime por stdout, y de una acción de `notify-send` no lee nadie— y que
+no se pueda lanzar dos veces a la vez (`flock -n`: freshclam descarga ~200 MB, y dos clics serían
+dos descargas peleándose por el mismo lock del log). El botón de Ajustes **no** pasa por él: AGS
+llama al helper directo porque ya tiene su `clamavBusy` y sus propias notificaciones. Sin la regla
+sudoers, `sudo -n` falla en el acto y el script traduce el error a "ejecuta `install.sh`" en vez de
+enseñar el mensaje crudo de sudo — colgarse pidiendo contraseña sería lo peor de todo, porque esto
+sale de un clic en un popup y no hay terminal donde teclearla.
+
+**En `oom-monitor.sh` el `--wait -A` va en subshell de fondo, y no es opcional**: bloquea hasta el
+clic o el cierre, así que en primer plano detendría el barrido entero hasta que alguien mirase el
+popup (mismo motivo que en `download_alert`). En `run-untrusted.sh` también, y ahí por otra razón:
+el usuario ha pedido **lanzar** algo y esperar a que mire el popup retrasaría el lanzamiento. En
+`scan-file.sh` sí va en primer plano — su trabajo ya terminó cuando notifica.
+
+**Al arreglar las firmas, lo ya sellado en falso NO se reevalúa solo.** Es la secuela documentada en
+`monitor_downloads`: si el barrido llegó a correr con la base vacía *antes* del arreglo de `rc == 2`,
+esos ficheros quedaron marcados como analizados **para siempre**. Hay que borrar **los dos** ficheros
+de caché (`~/.cache/gigios/download-index` **y** `download-hashes`) y relanzar `oom-monitor.sh`
+(`pkill` + `setsid nohup`), porque el índice y el conjunto de hashes se cargan en RAM al arrancar el
+script: borrarlos en caliente no sirve de nada.
+
 ### Comprobación de arranque (`boot-healthcheck.sh`)
 
 Es el `exec-once` más caro del arranque —de ahí que vaya al final del calendario escalonado, a
@@ -1155,6 +1622,15 @@ equipos que no exponen energía), no un simple porcentaje de carga — es la mé
 real de la celda, y avisa por debajo del 80 % de la capacidad de diseño original.
 
 ### Grabar pantalla (`grabar-pantalla.sh`)
+
+**Capturas y grabaciones comparten esquema de teclas**: la **tecla** dice el alcance y el **SHIFT**
+dice si es foto o vídeo — `SUPER+Z` recorte / `SUPER+SHIFT+Z` grabar ventana, `SUPER+X` pantalla
+completa / `SUPER+SHIFT+X` grabar el monitor activo. Estaban en `CTRL+F`/`CTRL+S`/`CTRL+SHIFT+F`/
+`CTRL+SHIFT+S`, y moverlas a `mainMod` **le devuelve `CTRL+S` y `CTRL+F` a las aplicaciones**: eran
+binds globales, así que el compositor se los tragaba antes de llegar a ninguna ventana y no se podía
+guardar ni buscar con el atajo de siempre. `SUPER+SHIFT+P` (región con slurp) se queda fuera del
+esquema porque no es un tercer alcance sino otra herramienta: `wf-recorder` a pelo, sin el toggle ni
+el audio del sistema de este script — se detiene matando el proceso, no repitiendo el atajo.
 
 Toggle de dos invocaciones: la primera arranca `wf-recorder` en segundo plano y bloquea esperándolo;
 la segunda (mismo atajo) detecta que ya hay una grabación y le manda `SIGINT` para que cierre el
@@ -1223,29 +1699,137 @@ entrada nueva, el wipe posterior se la lleva también.
   por lo que esa sección advierte que los IDs deben releerse **después** de compactar. Al ser una
   llamada Lua síncrona el resultado está disponible al volver (medido: 0,2 ms), sin la carrera que
   había con el script.
-- **`toggle-orion.sh`** — antes de tocar nada comprueba el ajuste maestro `orion` en
-  `preferences.json`: si está desactivado no manda el toggle a AGS, porque deliberadamente no hay
-  ninguna ventana registrada que responda. Intenta primero `ags request toggle-orion` y solo si falla
-  o no devuelve `"ok"` cae a `ags toggle orion` — cubre la breve ventana de una recarga en la que el
-  script enlazado en disco ya se actualizó pero la instancia de AGS en marcha todavía no, sin la cual
+- **`GiGiOS.toggle_orion()`** (`gigios/orion.lua`) — antes de tocar nada comprueba el ajuste maestro
+  `orion` en `preferences.json`: si está desactivado no manda el toggle a AGS, porque deliberadamente
+  no hay ninguna ventana registrada que responda. Luego intenta `ags request toggle-orion` y solo si
+  falla o no devuelve `"ok"` cae a `ags toggle orion` — cubre la breve ventana de una recarga en la
+  que el config en disco ya se actualizó pero la instancia de AGS en marcha todavía no, sin la cual
   el atajo quedaría inservible justo en ese momento.
+  **Era `toggle-orion.sh`**, y lo que pagó el inline fue la comprobación de la preferencia: el script
+  la leía con `jq` —un fork de bash y otro de jq en cada pulsación— más una rama de repuesto con
+  `grep` por si jq no estaba instalado; aquí es un `util.leer_json` sin procesos ni dependencias. La
+  llamada a AGS **sí sigue saliendo a un shell** (`hl.exec_cmd`, asíncrono): un `ags request` dentro
+  del callback del bind lo bloquearía, y los callbacks tienen 100 ms. Ausente = activado, así que la
+  comprobación es `== false` explícito — un `nil` tiene que dejar pasar. Fail-open hacia "el atajo
+  funciona": si la lectura falla, se manda el toggle igual.
 - **`GiGiOS.toggle_gaps()`** (definida en `gigios/keybinds.lua`, junto a su bind) — alterna
-  gaps/rounding a 0 (modo compacto) y de vuelta a valores fijos (`gaps_in 2.5`, `gaps_out 8`,
-  `rounding 6`). Esos valores de "vuelta a la normalidad" están escritos ahí, no leídos de
-  `gigios/ventanas.lua` — si algún día cambias los gaps por defecto, hay que replicarlo o el toggle
-  "restaurará" un valor obsoleto. El estado vive en una `local` de Lua, no en un fichero de
+  gaps/borde/rounding a 0 (modo compacto) y de vuelta al diseño normal. **Los valores de vuelta
+  se LEEN de `gigios/ventanas.lua`**, que exporta la tabla `aspecto` (`gaps_in`, `gaps_out`,
+  `border_size`, `rounding`) con la que él mismo se configura — antes eran literales copiados en
+  el toggle con una advertencia de "replícalo si los cambias", y esa advertencia no da ningún
+  error cuando se incumple: el toggle "restauraba" un espaciado que ya no era el tuyo y parecía
+  que el atajo estropeaba el diseño. `ventanas.lua` es el **único escritor** de esas cuatro claves
+  en todo el config (`reglas.lua` solo las nombra en ejemplos comentados), así que no hay un
+  segundo sitio con el que desincronizarse. El `require` va en `pcall` con repliegue a los valores
+  de siempre: un error ahí dejaría la sesión **sin ningún atajo** (la trampa nº 1 del config Lua),
+  y perder este toggle no vale eso. **`border_size` entra ahora en el ciclo** — el atajo se llamaba
+  "toggle-gaps-borders" pero nunca tocó el borde, porque el diseño de hoy lo tiene a 0 y no se
+  notaba; subirlo algún día habría dejado un marco pintado en el único modo cuya razón de ser es
+  que las ventanas se toquen. El estado vive en una `local` de Lua, no en un fichero de
   `$XDG_RUNTIME_DIR`: igual de efímero, y con la ventaja de que un `hyprctl reload` resetea a la vez
   el flag y los gaps — el esquema viejo restauraba los gaps pero el fichero sobrevivía, así que el
   siguiente toggle "restauraba" un estado en el que ya estabas.
-- **`wallpaper.sh`** — tres modos: sin argumento (arranque, respeta `randomOnStart`), `--random`
-  (botón de Orion) y `<ruta>` (clic en una miniatura de Orion). El campo `current` de
-  `~/.config/gigios/wallpaper.json` lo escribe **siempre este script** tras aplicar un fondo, y
+- **`wallpaper.sh`** — aplica fondos; **ya no decide cuál** (eso es
+  `wallpaper-select.py`, sección aparte más abajo). Cinco modos: sin argumento (arranque, respeta
+  `randomOnStart`), `--random` (botón de Orion), `--auto` (reevaluar la franja horaria, lo llama el
+  planificador de AGS), `--grupo <id>` y `<ruta>`. Los campos `current` y `currentGroup` de
+  `~/.config/gigios/wallpaper.json` los escribe **siempre este script** tras aplicar un fondo, y
   `randomOnStart` lo escribe **siempre AGS** desde su toggle — cada lado hace read-modify-write
-  conservando el campo del otro, así que ninguno pisa el ajuste del otro por accidente. Léelo con el
-  mismo cuidado que el resto del repo: `.randomOnStart // true` sería incorrecto (el `//` de `jq`
-  trataría un `false` real como ausente), de ahí el `if .randomOnStart == false then … end`
-  explícito. En modo arranque, si `randomOnStart` es falso pero no hay `current` guardado o el
-  fichero ya no existe, cae a uno aleatorio en vez de fallar.
+  conservando los campos del otro, así que ninguno pisa el ajuste del otro por accidente. Léelo con
+  el mismo cuidado que el resto del repo: `.randomOnStart // true` sería incorrecto (el `//` de `jq`
+  trataría un `false` real como ausente). Si el selector falla se repliega al `shuf` de siempre; la
+  excepción es `--auto`, que **no** se repliega — sin saber qué franja rige, sortear sería un cambio
+  a destiempo y sin motivo visible, y que no pase nada es el fallo correcto ahí.
+
+### Franjas horarias y grupos de fondos (`wallpaper-select.py` + `lib/seleccion_fondos.py`)
+
+El sorteo de fondos ya no es "uno cualquiera de la carpeta": primero se mira **qué fondos están
+permitidos a esta hora** y solo entre esos se sortea. El motivo original es que no salga un fondo
+claro de madrugada, pero de paso permite atardeceres a su hora. Todo se gestiona desde Orion >
+Temas; lo único que sigue haciéndose por el explorador de archivos es **añadir imágenes** a
+`Wallpapers/`.
+
+**Son DOS sistemas de franjas, no uno, y mezclarlos fue la primera tentación**:
+
+- Las **franjas globales** (`día`/`tarde`/`noche` de fábrica, N libres) gobiernan los fondos
+  **sueltos**. Cada fondo declara en cuáles es apto; **sin declaración es apto siempre**, así que
+  estrenar la función —o copiar una imagen nueva a la carpeta— no deja nada invisible sin que nadie
+  lo pida.
+- La **línea de 24 h propia de cada grupo** gobierna sus variantes, y es **independiente** de las
+  globales: un grupo puede mudar a las 5:00 aunque "día" empiece a las 7:00. Cada tramo lleva una
+  **lista** de imágenes, no una: con varias se sortea entre ellas.
+
+Ambas listas se definen **solo por el inicio** de cada entrada y llegan hasta el comienzo de la
+siguiente, envolviendo la medianoche — con tres franjas se ponen tres horas, no seis. **Antes del
+primer inicio del día manda la ÚLTIMA entrada** (la que viene de ayer): a las 00:30 con la primera
+franja a las 07:00 rige "noche". Es el caso que se olvida al escribir esta aritmética a mano, y hay
+test a los dos lados por eso.
+
+**Un grupo es UNA entidad de cara al sorteo** —es la definición de grupo: para el sistema es un
+fondo, no N— y sus imágenes **no compiten además como fondos sueltos**. Si lo hicieran, meter cuatro
+variantes en un grupo cuadruplicaría sus posibilidades frente a un fondo suelto. **Un tramo con la
+lista vacía es la forma de decir "aquí este grupo no sale"**, que es lo que implementa "un grupo sin
+imagen apta para la franja actual queda fuera de la selección" sin necesitar una segunda marca de
+aptitud encima de la línea de tiempo. Un grupo cuyas imágenes hayan desaparecido del disco queda
+fuera por la misma vía.
+
+**LA DECISIÓN TIENE UN SOLO DUEÑO, y ese es todo el diseño.** Hay **dos** disparadores para la misma
+elección: el arranque de la sesión (`wallpaper.sh` desde `gigios/autostart.lua`, en t=0, cuando AGS
+todavía no existe) y el cruce de franja (AGS, con el escritorio ya vivo). Con dos implementaciones
+acabarían discrepando en silencio — el escritorio mostrando un fondo que el planificador cree que es
+otro—, así que la lógica vive entera en `hypr/scripts/lib/seleccion_fondos.py` (**puro**: no lee
+ficheros, no mira el reloj; todo entra por parámetros, y tiene 41 pruebas en
+`lib/seleccion_fondos_test.py`). `wallpaper-select.py` es su única cara: hace la E/S y emite una
+línea `<grupo o vacío>\t<ruta>`. **Python y no jq**: el operador `//` ya ha mordido tres veces en
+este repo, y esto es demasiada lógica para bash.
+
+**Al cambiar de franja, un GRUPO conserva su identidad y solo muda de variante; un fondo SUELTO que
+deja de ser apto se sustituye por otro al azar**, y si sigue siendo apto no se toca. Eso lo sostiene
+`currentGroup` en `wallpaper.json`: sin él, al reevaluar solo se vería una ruta y no habría forma de
+distinguir "muda de variante" de "sortea otro fondo".
+
+**Dentro de un tramo con varias imágenes NO se re-sortea en cada pasada** (`preferir` en
+`resolver_grupo`): el planificador puede despertar más veces de las previstas —el troceo, una
+suspensión, un arranque a mitad de tramo— y sin eso el fondo cambiaría sin haber cruzado ningún
+límite. Por lo mismo, `auto` **no imprime nada** si lo que toca ya está puesto: reaplicarlo
+dispararía la transición de `awww`, un parpadeo en cada comprobación.
+
+**Fail-open, y en dos escalones.** Si tras aplicar los filtros no queda **ni un candidato** (todo
+marcado como no apto de noche), se **ignoran los filtros** y se sortea entre todo lo que haya: un
+fondo "equivocado" es visible y corregible, un escritorio sin fondo no. Y si el selector entero falla
+—falta python, JSON corrupto, un bug—, `wallpaper.sh` cae a su `shuf` de siempre.
+
+**El reloj lo pone AGS** (`ags/servicios/fondos/planificador.ts`), que es lo único que bash no puede
+tener sin convertirse en otro daemon. No decide nada: pregunta `next-change` al mismo script y llama
+a `wallpaper.sh --auto`.
+
+**Un solo temporizador, armado exacto, sin sondeo**: se duerme el tiempo que falta y punto — entre
+dos cambios de franja el coste es cero, ni un despertar ni un fork. Y ese tiempo es el del próximo
+límite **relevante**, no el de cualquier franja definida: `limites_relevantes()` mira el estado, así
+que **con un grupo puesto solo cuentan los tramos de ESE grupo** (sus variantes no miran las franjas
+globales, luego un cambio de "día" a "tarde" no puede alterar nada mientras él esté en pantalla) y
+**con un fondo suelto, solo las franjas globales**. Los tramos de los demás grupos no pueden cambiar
+nada de lo que hay en pantalla; despertar por ellos sería trabajo tirado. Sin límites relevantes no
+se arma **ningún** temporizador. Se rearma ante las tres cosas que invalidan la cuenta atrás: al
+vencer, al editarse `wallpapers.json`, y al cambiar el fondo puesto (`wallpaper.json`) — esto último
+es obligatorio desde que el cálculo depende del estado, porque aplicar un grupo cambia por completo
+qué límites importan.
+
+**⚠️ La suspensión se resuelve con una señal, no troceando el temporizador.** `GLib.timeout_add`
+cuenta sobre el reloj **monotónico**, que no avanza mientras el equipo duerme: una espera de ocho
+horas armada de una tacada sonaría ocho horas de *actividad* después, y el caso real es justo ese
+(suspendes de día, despiertas de noche con un fondo claro). La primera versión lo cubría **troceando
+a 15 min**, o sea despertando 96 veces al día para no hacer nada casi ninguna. Se cubre igual —y con
+precisión de segundos en vez de un cuarto de hora de desfase— escuchando **`PrepareForSleep`** de
+logind por D-Bus: al volver (`false`) se reevalúa contra el reloj de pared y se rearma. Cuesta una
+suscripción y ningún despertar. Sin logind se degrada a corregir en el siguiente límite.
+
+Reevaluar de más sigue siendo gratis (`--auto` no aplica nada si el fondo que toca ya está puesto),
+que es lo que permite tirar del rearme sin miedo a parpadeos.
+
+**Config**: `~/.config/gigios/wallpapers.json` (`{version, franjas, grupos, fondos}`), la escribe
+solo Orion. **Ausente o vacía = el comportamiento de siempre** (todo apto, sorteo plano), así que
+esto no cambia nada hasta que se configura. Ver `ags/CLAUDE.md` para el lado de la UI.
 
 ### Monitores de recursos restantes (`battery-monitor.sh`, `temp-monitor.sh`, `ram-monitor.sh`, `disk-monitor.sh`, `bt-monitor.sh`)
 

@@ -1,0 +1,15 @@
+# /etc/sudoers.d/gigios-clamav — permite a GiGiOS actualizar las firmas de ClamAV sin contraseña.
+#
+# NO se symlinkea: sudoers.d se lee como root y apuntarlo al árbol del usuario sería una
+# escalada. Lo instala install.sh (paso 9) sustituyendo __GIGIOS_USER__ por el usuario real
+# y validándolo con `visudo -cf` antes de moverlo a su sitio.
+#
+# El grant es DELIBERADAMENTE mínimo: solo el helper root-owned y solo con sus dos argumentos
+# fijos. No es una escalada porque /usr/local/bin/gigios-clamav-update es root-owned; el usuario
+# no puede alterar lo que corre como root sin ser root ya.
+Cmnd_Alias GIGIOS_CLAMAV = /usr/local/bin/gigios-clamav-update update, \
+                           /usr/local/bin/gigios-clamav-update update-enable, \
+                           /usr/local/bin/gigios-clamav-update auto-on, \
+                           /usr/local/bin/gigios-clamav-update auto-off, \
+                           /usr/local/bin/gigios-clamav-update status
+__GIGIOS_USER__ ALL=(root) NOPASSWD: GIGIOS_CLAMAV

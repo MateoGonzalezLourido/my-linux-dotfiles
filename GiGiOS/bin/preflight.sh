@@ -37,6 +37,7 @@ required=(
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
   hypr/scripts/run-untrusted.sh
+  hypr/scripts/wallpaper.sh hypr/scripts/wallpaper-select.py hypr/scripts/lib/seleccion_fondos.py
   system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
   system/logind.conf.d/99-gigios-powerkey.conf
   rofi/config.rasi rofi/emoji-grid.rasi
@@ -49,8 +50,8 @@ done
 # Bajo hyprlang un `source =` ausente sacaba el overlay de error de Hyprland; en
 # Lua un `require` que falla lo captura `util.carga` y solo avisa en pantalla, así
 # que un módulo perdido en el checkout es MÁS silencioso que antes — de ahí que se
-# valide aquí. `carga_opcional` se excluye a propósito: esos son los ficheros que
-# genera AGS (monitor-settings/input-settings) y su ausencia es legítima.
+# valide aquí. Ya no hay excepciones: AGS dejó de generar chunks Lua
+# (monitor-settings/input-settings), así que todo lo que se carga está versionado.
 while IFS= read -r modulo; do
   relative="${modulo//.//}"
   [[ -f "$GIGIOS/hypr/$relative.lua" ]] || fail "módulo Lua de Hyprland ausente: $relative.lua"
@@ -96,6 +97,32 @@ for script in \
   bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGIOS"/}"
   [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGIOS"/}"
 done
+
+# Los scripts de Python no los cubría nada. Un error de sintaxis aquí no es
+# ruidoso: `wallpaper.sh` se repliega a su sorteo plano y el anclaje de ventanas
+# cae a `sh -c`, o sea que la función se apaga en silencio y parece que "ya no
+# hace nada". Compilar es instantáneo y lo destapa.
+if command -v python3 >/dev/null 2>&1; then
+  while IFS= read -r script; do
+    python3 -m py_compile "$script" 2>/dev/null || fail "sintaxis Python: ${script#"$GIGIOS"/}"
+  done < <(find "$GIGIOS/hypr/scripts" -type f -name '*.py' -print)
+  find "$GIGIOS/hypr/scripts" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null
+
+  # El motor de selección de fondos decide qué fondo toca a cada hora, y sus
+  # casos límite (la vuelta de medianoche, el tramo vacío) fallan de forma muda:
+  # el escritorio sale con "un" fondo, solo que el equivocado.
+  #
+  # Ausente es AVISO y no error a propósito: los tests de AGS dejaron de
+  # versionarse (`ags/**/*.test.ts` en .gitignore), así que si algún día se hace
+  # lo mismo con estos, un checkout limpio no puede fallar el preflight por una
+  # decisión deliberada. Pero se dice, para que "no se ejecutan" nunca sea mudo.
+  if [[ -f "$GIGIOS/hypr/scripts/lib/seleccion_fondos_test.py" ]]; then
+    (cd "$GIGIOS/hypr/scripts/lib" && python3 -m unittest discover -p '*_test.py' -q >/dev/null 2>&1) \
+      || fail "las pruebas del motor de fondos (hypr/scripts/lib) no pasan"
+  else
+    warn "sin pruebas del motor de fondos: hypr/scripts/lib/seleccion_fondos_test.py no está en el checkout"
+  fi
+fi
 
 [[ -s "$GIGIOS/ags/estilos/out.css" ]] || fail "ags/estilos/out.css falta o está vacío"
 app_icons="$GIGIOS/ags/config/app_icons.json"
@@ -429,7 +456,9 @@ EOF
     command -v cachyos-rate-mirrors >/dev/null 2>&1 \
       || fail "falta cachyos-rate-mirrors para los alias update/mirror"
   fi
-  optional_commands=(nvidia-smi gh fd lshw glxinfo sensors smartctl magick)
+  # cava es OPCIONAL a propósito: sin él la onda de Spotify de la barra no falla, cae a su
+  # animación procedimental (servicios/multimedia/espectro.ts). No puede ser un `fail`.
+  optional_commands=(nvidia-smi gh lshw glxinfo sensors smartctl magick cava)
   for command in "${optional_commands[@]}"; do
     command -v "$command" >/dev/null 2>&1 || warn "comando opcional no disponible: $command"
   done

@@ -1,6 +1,9 @@
 // Heurística pura. La evidencia de .desktop y /proc se recoge en evidencia.ts.
 
-export interface ClienteJuegoLike {
+import { esVentanaEmergenteX11 } from "../ventanas/emergentesX11.ts"
+import type { ClienteVentanaLike } from "../ventanas/emergentesX11.ts"
+
+export interface ClienteJuegoLike extends ClienteVentanaLike {
   class?: string | null
   initialClass?: string | null
   initial_class?: string | null
@@ -92,6 +95,13 @@ export function esJuego(
   evidencia?: EvidenciaJuego | null,
 ): boolean {
   if (!cliente) return false
+
+  // Lo primero: el MENÚ de una app X11 llega como cliente propio con la clase de
+  // su padre, así que el desplegable de un juego pasaba por un segundo juego
+  // —pastilla duplicada y auto-DND disparado por una ventana que no existe—. Las
+  // señales fuertes de clase no salvan de esto: la clase es exactamente la misma.
+  // Si el título llega tarde, `notify::title` en el registro lo reevalúa.
+  if (esVentanaEmergenteX11(cliente)) return false
 
   const clase = (cliente.class ?? "").toLowerCase()
   const claseInicial = (cliente.initialClass ?? cliente.initial_class ?? "").toLowerCase()

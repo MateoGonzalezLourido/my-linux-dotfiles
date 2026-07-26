@@ -18,11 +18,17 @@ M.DIR_CONFIG = (package.path:match("^(.-)%?%.lua") or (M.HOGAR .. "/.config/hypr
 
 --- Aviso en pantalla del propio compositor (no necesita daemon de notificaciones,
 --- que en el arranque aún no existe). Color por defecto: rojo error.
+---
+--- `opts.crudo` quita el prefijo "[GiGiOS Lua]". El prefijo existe para que un
+--- fallo del config se distinga de un aviso de cualquier otro programa, así que
+--- sobra —y confunde, porque se lee como un error— en las confirmaciones
+--- rutinarias de una función que el usuario acaba de invocar a propósito
+--- (gigios/ancla-escritorio.lua). Para avisos de fallo, sin tocar.
 function M.notificar(texto, opts)
   opts = opts or {}
   pcall(function()
     hl.notification.create({
-      text = "[GiGiOS Lua] " .. texto,
+      text = (opts.crudo and "" or "[GiGiOS Lua] ") .. texto,
       timeout = opts.timeout or 10000,
       color = opts.color or "0xffcc4444",
     })
@@ -70,21 +76,9 @@ function M.carga(nombre)
   return res
 end
 
---- Carga de un módulo GENERADO por AGS (monitor-settings, input-settings), que
---- vive junto a hyprland.lua. La AUSENCIA es normal (máquina recién instalada,
---- AGS aún no lo ha escrito) y no avisa; un fichero presente pero roto sí avisa,
---- porque significa que el generador de AGS ha fallado.
-function M.carga_opcional(nombre)
-  local ruta = M.DIR_CONFIG .. nombre .. ".lua"
-  local f = io.open(ruta, "r")
-  if not f then return nil end
-  f:close()
-  local ok, res = pcall(dofile, ruta)
-  if not ok then
-    M.notificar("fichero generado roto: " .. nombre .. ".lua — " .. tostring(res):sub(1, 200))
-    return nil
-  end
-  return res
-end
+-- Aquí vivía carga_opcional(), el dofile protegido de los chunks que AGS
+-- generaba (monitor-settings.lua, input-settings.lua). Ya no hay código
+-- generado: los ajustes de la UI se leen de su JSON con M.leer_json() y los
+-- aplican gigios/pantalla.lua y gigios/dispositivos.lua. Ver CLAUDE.md.
 
 return M

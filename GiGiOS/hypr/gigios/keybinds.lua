@@ -16,11 +16,11 @@
 -- Mapeo de tipos de bind de hyprlang a opts de hl.bind:
 --   bind   → sin opts          bindl  → { locked = true }
 --   bindel → { repeating = true, locked = true }
---   bindm  → { drag = true }   — NO el { mouse = true } del ejemplo oficial:
---     esa clave no existe en el parser de opts de hl.bind (medido en 0.56:
---     Keybind.mouse queda false con ella; y el fuente solo lee click/drag,
---     donde drag además implica release). El ejemplo oficial la lleva de
---     adorno sin que nadie la lea.
+--   bindm  → SIN OPTS. Ni { mouse = true } (la clave no existe en el parser de
+--     opts de hl.bind — medido en 0.56: Keybind.mouse queda false con ella; el
+--     ejemplo oficial de /usr/share/hypr/hyprland.lua la lleva de adorno sin
+--     que nadie la lea) ni { drag = true }, que ROMPE el primer arrastre. Ver
+--     el porqué junto a los binds del ratón, más abajo.
 
 local util = require("gigios.util")
 local vars = require("gigios.variables")
@@ -54,16 +54,26 @@ bind(mod .. " + SHIFT + F", hl.dsp.window.fullscreen())
 -- propósito: GiGiOS.compactar la define gigios/compactar.lua y el orden de
 -- carga no debe importar aquí — si ese módulo no cargó, el atajo calla (el
 -- fallo de carga ya avisó por util.carga).
-bind(mod .. " + SHIFT + N", function()
+bind(mod .. " + ALT + C", function()
   if GiGiOS.compactar then GiGiOS.compactar() end
 end)
 
 ------------------------------------------------------------------ herramientas
--- capturas de pantalla
-bind("CTRL + F", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
-  .. " && hyprshot -m output -m active -o " .. vars.ruta_captura_pantalla))
-bind("CTRL + S", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
+-- capturas y grabaciones: la TECLA dice el alcance y el SHIFT dice si es foto o
+-- vídeo, así que no hay que recordar cuatro combinaciones sueltas:
+--
+--            captura (foto)        grabación (vídeo)
+--   Z  recorte / selección    SUPER+Z          SUPER+SHIFT+Z
+--   X  pantalla completa      SUPER+X          SUPER+SHIFT+X
+--
+-- Estaban en CTRL+F / CTRL+S / CTRL+SHIFT+F / CTRL+SHIFT+S. Moverlas a mainMod
+-- devuelve además CTRL+S y CTRL+F a las aplicaciones: eran binds GLOBALES, así
+-- que el compositor se los tragaba antes de que llegara a ninguna ventana y en
+-- esta sesión no se podía guardar ni buscar con el atajo de siempre.
+bind(mod .. " + Z", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
   .. " && hyprshot -m region -o " .. vars.ruta_captura_pantalla))
+bind(mod .. " + X", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
+  .. " && hyprshot -m output -m active -o " .. vars.ruta_captura_pantalla))
 
 -- portapapeles
 bind(mod .. " + V", hl.dsp.exec_cmd("~/.config/hypr/scripts/clipboard-history.sh picker"))
@@ -78,24 +88,75 @@ bind(mod .. " + SHIFT + W", hl.dsp.window.fullscreen({ mode = "maximized" }))
 -- pegar ventanas (modo compacto) — inline, ver GiGiOS.toggle_gaps abajo
 bind(mod .. " + SHIFT + E", function() GiGiOS.toggle_gaps() end)
 
--- grabación con región (requiere slurp)
+-- Grabaciones de pantalla
+
+-- Toggle: la misma tecla inicia y detiene (ver grabar-pantalla.sh). Pareja de las
+-- capturas de arriba: SHIFT + la misma tecla de alcance.
+-- Ventana seleccionada con audio del sistema.
+bind(mod .. " + SHIFT + Z", hl.dsp.exec_cmd("~/.config/hypr/scripts/grabar-pantalla.sh ventana"))
+-- Monitor activo con audio del sistema.
+bind(mod .. " + SHIFT + X", hl.dsp.exec_cmd("~/.config/hypr/scripts/grabar-pantalla.sh"))
+
+-- Grabación de una región arbitraria con slurp. Se queda donde estaba (no entra
+-- en el esquema Z/X) porque no es un tercer alcance sino OTRA herramienta:
+-- wf-recorder a pelo, sin el toggle ni el audio del sistema que sí trae
+-- grabar-pantalla.sh — se detiene matando el proceso, no repitiendo el atajo.
 bind(mod .. " + SHIFT + P", hl.dsp.exec_cmd('wf-recorder -g "$(slurp)" -f '
   .. vars.ruta_grabacion_pantalla .. "/$(date +%Y%m%d_%H%M%S).mp4"))
--- monitor activo con audio del sistema (toggle: iniciar/detener)
-bind("CTRL + SHIFT + F", hl.dsp.exec_cmd("~/.config/hypr/scripts/grabar-pantalla.sh"))
--- ventana seleccionada con audio del sistema (toggle: iniciar/detener)
-bind("CTRL + SHIFT + S", hl.dsp.exec_cmd("~/.config/hypr/scripts/grabar-pantalla.sh ventana"))
 
 -- otros
 bind(mod .. " + Q", hl.dsp.exec_cmd(vars.terminal))
 bind(mod .. " + SHIFT + C", hl.dsp.window.close()) -- killactive
+-- Cierra una instantánea de las ventanas del workspace activo. Cada cierre se
+-- dirige a su ventana original para que el cambio de foco entre cierres no
+-- afecte al siguiente; un cliente que falle tampoco impide cerrar los demás.
+bind(mod .. " + CTRL + SHIFT + C", function()
+  local workspace = hl.get_active_workspace()
+  if not workspace then return end
+
+  local ok, ventanas = pcall(hl.get_workspace_windows, workspace)
+  if not ok then return end
+
+  for _, ventana in ipairs(ventanas) do
+    pcall(function()
+      hl.dispatch(hl.dsp.window.close({ window = ventana }))
+    end)
+  end
+end)
 bind(mod .. " + M", hl.dsp.exec_cmd("ags request toggle-quicksettings"))
 bind(mod .. " + E", hl.dsp.exec_cmd(vars.fileManager))
 bind(mod .. " + SHIFT + Q", hl.dsp.window.float({ action = "toggle" }))
 
 -- mover ventanas con teclado / mover el foco
+--
+-- El SHIFT + flecha va con un `preselect` DELANTE, y no es adorno: sin él el
+-- lado en el que aterriza la ventana no lo decide la tecla que has pulsado.
+-- dwindle resuelve `movewindow <dir>` sacando la ventana del árbol y volviendo
+-- a insertarla junto a un "punto focal" = 1 px más allá del borde de tu ventana
+-- en esa dirección, a la mitad de ese borde (focalPointForDir). El lado y el eje
+-- del corte salen entonces de en qué CUADRANTE del vecino cae ese punto — un
+-- ángulo, no la dirección. Con dos ventanas coincide; con tres o más deja de
+-- coincidir según las proporciones del vecino, y de ahí que "la misma acción
+-- unas veces haga una cosa y otras otra". Medido: lab1 a la izquierda y lab2/lab3
+-- partiendo la derecha, mover lab3 a la izquierda la dejaba EN MEDIO (a la
+-- derecha de lab1, x=518), no a la izquierda.
+--
+-- `preselect` fija `m_overrideDirection`, que en dwindle tiene prioridad sobre
+-- ese cálculo por cuadrante (y sobre smart_split y force_split): el eje sale de
+-- la dirección — izq/dcha parten en vertical, arriba/abajo apilan — y la ventana
+-- cae en el lado que has pedido. Con el mismo caso: x=8, a la izquierda del todo.
+--
+-- El `preselect none` de después limpia el override. Hyprland ya lo consume al
+-- reinsertar, pero un `movewindow` que no mueve nada (ventana sola, o el borde
+-- del monitor con binds:window_direction_monitor_fallback apagado) sale antes de
+-- tocar el árbol y lo dejaría puesto: la SIGUIENTE ventana que abrieras nacería
+-- en esa dirección sin que nadie la haya pedido.
 for _, d in ipairs({ "left", "right", "up", "down" }) do
-  bind(mod .. " + SHIFT + " .. d, hl.dsp.window.move({ direction = d }))
+  bind(mod .. " + SHIFT + " .. d, function()
+    hl.dispatch(hl.dsp.layout("preselect " .. d))
+    hl.dispatch(hl.dsp.window.move({ direction = d }))
+    hl.dispatch(hl.dsp.layout("preselect none"))
+  end)
   bind(mod .. " + " .. d, hl.dsp.focus({ direction = d }))
 end
 
@@ -106,17 +167,67 @@ for i = 1, 10 do
   bind(mod .. " + SHIFT + " .. tecla, hl.dsp.window.move({ workspace = i }))
 end
 
--- workspace especial (scratchpad)
-bind(mod .. " + S", hl.dsp.workspace.toggle_special("magic"))
-bind(mod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:magic" }))
+-- Escritorio ancla
+
+-- El motor está en gigios/ancla-escritorio.lua. Aquí vivía el workspace especial `magic` (toggle_special + mover ventana al
+-- especial). Se quitó porque no se usaba, y su modo de fallo era desconcertante:
+-- el scratchpad se DESTRUYE al quedarse vacío (misc.close_special_on_empty), y
+-- un especial vacío que se abre no dibuja absolutamente nada — ni marco ni
+-- fondo. O sea que el atajo funcionaba (verificado: los binds se registraban, el
+-- dispatcher respondía y con una ventana dentro se veía a pantalla completa)
+-- pero parecía roto en el único estado en que uno lo prueba. Si alguien lo echa
+-- de menos: `hl.dsp.workspace.toggle_special("magic")` y
+-- `hl.dsp.window.move({ workspace = "special:magic" })`.
+--
+-- Enlace TARDÍO por el mismo motivo que SUPER+ALT+C: si el módulo no cargó, el
+-- atajo calla en vez de tumbar la sesión (util.carga ya avisó del fallo).
+bind(mod .. " + S", function()
+  if GiGiOS.saltar_ancla then GiGiOS.saltar_ancla() end
+end)
+bind(mod .. " + SHIFT + S", function()
+  if GiGiOS.anclar_escritorio then GiGiOS.anclar_escritorio() end
+end)
 
 -- recorrer workspaces existentes con mod + rueda
 bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 bind(mod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
 
 -- mover/redimensionar con mod + botón izq/dcho arrastrando (los bindm)
-bind(mod .. " + mouse:272", hl.dsp.window.drag(), { drag = true })
-bind(mod .. " + mouse:273", hl.dsp.window.resize(), { drag = true })
+--
+-- ⚠️ SIN OPTS, y NO con { drag = true }: esa opción se comía el PRIMER arrastre
+-- de cada sesión (el segundo y siguientes sí iban), tanto al mover como al
+-- redimensionar. `drag` fuerza `release = true` (LuaBindingsToplevel.cpp), y en
+-- handleKeybinds la pulsación de un bind con release solo llega al dispatcher
+-- si es un SPECIALDISPATCHER — que para un handler `__lua` significa tener ya
+-- puesto `releasePending`. Ese flag lo pone el propio dispatcher del ratón al
+-- ejecutarse, así que en el primer clic aún es falso: la pulsación se traga sin
+-- iniciar nada, y solo el soltar (que llega como "terminar arrastre", o sea
+-- nada) deja el flag listo para la siguiente vez. El ciclo entero se retrasa un
+-- clic. Sin opts la pulsación entra directa, arranca el arrastre y de paso pone
+-- `releasePending`, que es lo que hace que el soltar también entre — el camino
+-- que el compositor tiene pensado para los dispatchers de ratón en Lua.
+--
+-- El { mouse = true } del ejemplo oficial no vale como alternativa: hl.bind no
+-- lee esa clave (ver la cabecera del módulo).
+bind(mod .. " + mouse:272", hl.dsp.window.drag())
+bind(mod .. " + mouse:273", hl.dsp.window.resize())
+
+-- Dos binds MÁS sobre la misma combinación que el arrastre: gigios/reparto-ventanas.lua
+-- necesita saber cuándo empieza y cuándo acaba para, si la ventana cayó en un
+-- sitio demasiado justo, hacerle hueco a costa de los vecinos. Hyprland ejecuta
+-- TODOS los binds de una combinación, así que conviven con el `bindm` de arriba
+-- (verificado con un ratón virtual por uinput haciendo el arrastre de verdad:
+-- llegan pulsación y soltado, y la ventana se mueve igual). Ojo: esto es
+-- `release`, NO el `drag` de la advertencia de aquí arriba — `drag` fuerza
+-- release Y cambia el camino de la pulsación, que es lo que rompía el primer
+-- arrastre; un bind aparte con release no toca el del dispatcher del ratón.
+-- Enlace tardío (el módulo se carga después que este): si no está, no pasa nada.
+bind(mod .. " + mouse:272", function()
+  if GiGiOS.reparto_arrastre_inicio then GiGiOS.reparto_arrastre_inicio() end
+end)
+bind(mod .. " + mouse:272", function()
+  if GiGiOS.reparto_arrastre_fin then GiGiOS.reparto_arrastre_fin() end
+end, { release = true })
 
 -------------------------------------------------------- teclas multimedia (bindel)
 bind("XF86AudioRaiseVolume",
@@ -171,8 +282,11 @@ bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true })
 -- panel de ajustes (toggle)
 bind(mod .. " + J", hl.dsp.exec_cmd("ags request toggle-settings"))
 bind(mod .. " + SHIFT + J", hl.dsp.layout("togglesplit")) -- dwindle
--- Orion
-bind(mod .. " + ALT + SPACE", hl.dsp.exec_cmd("~/.config/hypr/scripts/toggle-orion.sh"))
+-- Orion. Enlace TARDÍO como los demás GiGiOS.*: lo define gigios/orion.lua, que
+-- comprueba la preferencia `orion` antes de mandar el toggle a AGS.
+bind(mod .. " + ALT + SPACE", function()
+  if GiGiOS.toggle_orion then GiGiOS.toggle_orion() end
+end)
 -- toggle de la barra (muestra/oculta; se auto-oculta al pasar el mouse)
 bind(mod .. " + B", hl.dsp.exec_cmd("ags request toggle-bar"))
 
@@ -188,18 +302,47 @@ bind(mod .. " + B", hl.dsp.exec_cmd("ags request toggle-bar"))
 -- estado sobrevivía, y el siguiente toggle "restauraba" un estado en el que ya
 -- estabas.
 --
--- Los valores de vuelta (2.5 / 8 / 6) están escritos aquí, no leídos de
--- ventanas.lua — si algún día cambias los gaps por defecto allí, replícalo
--- aquí o el toggle "restaurará" un valor obsoleto (misma advertencia que
--- llevaba el script).
+-- LOS VALORES DE VUELTA YA NO ESTÁN ESCRITOS AQUÍ: salen de la tabla `aspecto`
+-- de gigios/ventanas.lua, que es quien los aplica. Antes eran literales
+-- copiados (2.5 / 8 / 6) con una advertencia de "replícalo si los cambias" —
+-- una advertencia que no da ningún error cuando se incumple: el toggle
+-- "restauraba" un espaciado que ya no era el tuyo y parecía que el atajo
+-- estropeaba el diseño. Al leerlos, cambiar los gaps en ventanas.lua basta.
+--
+-- El require va en pcall y con repliegue a los valores de siempre: si
+-- ventanas.lua llegara a fallar, un error aquí dejaría la sesión SIN NINGÚN
+-- ATAJO (la trampa nº 1 del config Lua), y perder el toggle de gaps no vale
+-- eso. Se resuelve al cargar el config, no en cada pulsación: el callback de un
+-- bind tiene 100 ms y esto es una lectura de tabla ya cacheada por require.
 local compacto = false
+local NORMAL = { gaps_in = 2.5, gaps_out = 8, border_size = 0, rounding = 6 }
+do
+  local ok, ventanas = pcall(require, "gigios.ventanas")
+  if ok and type(ventanas) == "table" and type(ventanas.aspecto) == "table" then
+    for clave in pairs(NORMAL) do
+      local v = ventanas.aspecto[clave]
+      if type(v) == "number" then NORMAL[clave] = v end
+    end
+  end
+end
+
+-- El modo compacto pone A CERO las mismas cuatro claves que gobierna
+-- ventanas.lua, `border_size` incluido — el atajo se llamaba
+-- "toggle-gaps-borders" pero nunca tocó el borde, porque el diseño de hoy ya lo
+-- tiene a 0 y no se notaba. Poniendo el borde a 0 también, subirlo algún día en
+-- ventanas.lua no deja un marco pintado en un modo cuya única razón es que las
+-- ventanas se toquen; y la vuelta lo restaura al valor que tenga entonces.
 function GiGiOS.toggle_gaps()
   compacto = not compacto
-  if compacto then
-    hl.config({ general = { gaps_in = 0, gaps_out = 0 }, decoration = { rounding = 0 } })
-  else
-    hl.config({ general = { gaps_in = 2.5, gaps_out = 8 }, decoration = { rounding = 6 } })
-  end
+  local v = compacto and 0 or nil
+  hl.config({
+    general = {
+      gaps_in     = v or NORMAL.gaps_in,
+      gaps_out    = v or NORMAL.gaps_out,
+      border_size = v or NORMAL.border_size,
+    },
+    decoration = { rounding = v or NORMAL.rounding },
+  })
 end
 
 -- `usados`/`normalizar` los consume gigios/nop-binds.lua (require cachea: es

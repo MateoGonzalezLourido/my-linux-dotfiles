@@ -75,6 +75,11 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   box-shadow: none;
 }
 
+// Las curvas se solapan horizontalmente 1 px con el panel para que el antialiasing de su borde
+// recto no deje una costura. El desplazamiento no altera su altura ni las acerca al borde inferior.
+.orion-curva-lateral.izquierda { transform: translateX(1px); }
+.orion-curva-lateral.derecha { transform: translateX(-1px); }
+
 // Main content column — inherits border/bg/radius from .orion-panel
 .orion-main { min-width: 660px; }
 
@@ -663,248 +668,6 @@ popover.background {
 }
 
 
-// GIT SECTION ────────────────────────────────────────────────────────────────
-
-.git-section {
-  padding: 10px 12px 12px;
-
-  // ── Repo chips ──────────────────────────────────────────────────────────────
-
-  .git-chip-row { padding: 2px 0; }
-
-  .git-chip {
-    background: $j-bg-item;
-    border: 0.5px solid $j-border-subtle;
-    border-radius: 20px;
-    padding: 3px 10px;
-    &:hover { @include hover-con-profundidad; }
-    &.git-chip-active {
-      background: fondo-control-opaco(rgba($j-accent, 0.1));
-      border-color: $j-border-active;
-    }
-  }
-
-  .git-chip-name {
-    font-size: 11px;
-    font-weight: 500;
-    color: $j-text-primary;
-  }
-
-  .git-chip-dot {
-    min-width: 6px;
-    min-height: 6px;
-    border-radius: 50%;
-    &.pill-ok   { background: $j-accent-teal; }
-    &.pill-warn { background: $j-accent-amber; }
-    &.pill-err  { background: $j-accent-red; }
-  }
-
-  // ── Icon buttons ────────────────────────────────────────────────────────────
-
-  .git-icon-btn {
-    background: $j-bg-shell-opaco;
-    min-width: 26px; min-height: 26px;
-    border-radius: 7px;
-    border: 0.5px solid $j-border-subtle;
-    color: $j-text-muted;
-    &:hover { @include hover-con-profundidad; color: $j-text-primary; }
-    &.git-icon-spin { color: $j-accent-teal; }
-  }
-
-  .git-icon-btn-sm {
-    background: $j-bg-shell-opaco;
-    min-width: 20px; min-height: 20px;
-    border-radius: 5px;
-    color: $j-text-muted;
-    &:hover { @include hover-con-profundidad; color: $j-text-primary; }
-  }
-
-  // Controles auxiliares que antes dependían únicamente del reset transparente
-  // de Orion. No se les añade relieve: solo una base opaca bajo su contenido.
-  .git-tab,
-  .git-manage-confirm,
-  .git-saved-view,
-  .git-saved-rm {
-    background: $j-bg-shell-opaco;
-
-    &:hover { @include hover-con-profundidad; }
-  }
-
-  // ── Status bar ──────────────────────────────────────────────────────────────
-
-  .git-status-bar {
-    background: $j-bg-item;
-    border: 0.5px solid $j-border-subtle;
-    border-radius: $j-radius-sm;
-    padding: 5px 10px;
-  }
-
-  .git-branch-chip {
-    background: rgba($j-accent, 0.08);
-    border-radius: 5px;
-    padding: 1px 7px;
-  }
-  .git-branch-ico { color: $j-accent; min-width: 12px; min-height: 12px; }
-  .git-branch-lbl { font-size: 11px; font-family: $j-font-mono; color: $j-accent; font-weight: 500; }
-
-  .git-stat-pill {
-    font-size: 10px; font-family: $j-font-mono; font-weight: 500;
-    padding: 1px 6px; border-radius: 10px;
-    &.gsp-ahead  { background: rgba($j-accent-teal, 0.1); color: $j-accent-teal; }
-    &.gsp-behind { background: rgba($j-accent-amber, 0.1); color: $j-accent-amber; }
-    &.gsp-mod    { background: rgba($j-accent, 0.1); color: $j-accent; }
-    &.gsp-err    { background: rgba($j-accent-red, 0.1); color: $j-accent-red; }
-  }
-
-  // ── Column cards ────────────────────────────────────────────────────────────
-
-  .git-col-card {
-    background: $j-bg-item;
-    border: 0.5px solid $j-border-subtle;
-    border-radius: $j-radius-sm;
-  }
-
-  .git-col-hdr {
-    padding: 6px 10px;
-    background: rgba(86,95,137,0.06);
-    border-bottom: 0.5px solid $j-border-subtle;
-  }
-  .git-col-title { font-size: 10px; font-weight: 500; color: $j-text-secondary; text-transform: uppercase; letter-spacing: 0.06em; }
-
-  .git-empty-lbl { font-size: 11px; color: $j-text-muted; padding: 8px 10px; font-style: italic; }
-
-  // ── Commits ─────────────────────────────────────────────────────────────────
-
-  .git-ab   { font-size: 10px; font-family: $j-font-mono; }
-  .git-ab-a { color: $j-accent-teal; }
-  .git-ab-b { color: $j-accent-amber; }
-
-  .git-commit-row {
-    padding: 5px 10px;
-    border-bottom: 0.5px solid $j-border-subtle;
-    &:last-child { border-bottom: none; }
-  }
-  .git-commit-hash { font-size: 10px; font-family: $j-font-mono; color: $j-accent; min-width: 42px; }
-  .git-commit-msg  { font-size: 11px; color: $j-text-primary; }
-  .git-commit-date { font-size: 10px; color: $j-text-muted; }
-
-  // ── Files ───────────────────────────────────────────────────────────────────
-
-  .git-files-count { font-size: 10px; color: $j-text-muted; font-family: $j-font-mono; }
-
-  .git-file-row {
-    padding: 4px 8px;
-    border-bottom: 0.5px solid $j-border-subtle;
-    &:last-child { border-bottom: none; }
-    &:hover { @include hover-con-profundidad; }
-    &.git-file-active { background: rgba($j-accent, 0.07); }
-  }
-  .git-file-stat {
-    font-size: 10px; font-weight: 600;
-    min-width: 13px; min-height: 13px; border-radius: 3px;
-    &.fs-m { background: rgba($j-accent-amber, 0.15); color: $j-accent-amber; }
-    &.fs-a { background: rgba($j-accent-teal, 0.15); color: $j-accent-teal; }
-    &.fs-d { background: rgba($j-accent-red, 0.15); color: $j-accent-red; }
-    &.fs-u { background: rgba(86,95,137,0.15);   color: $j-text-muted; }
-  }
-  .git-file-name { font-size: 11px; color: $j-text-primary; font-family: $j-font-mono; }
-
-  .git-mini-sep { background: $j-border-subtle; min-height: 0.5px; margin: 0 8px; }
-
-  // ── Commit entry & actions ───────────────────────────────────────────────────
-
-  .git-commit-entry {
-    margin: 5px 8px 4px;
-    background: fondo-control-opaco(rgba(0, 0, 0, 0.2));
-    border: 0.5px solid $j-border-subtle;
-    border-radius: 6px;
-    font-size: 11px; font-family: $j-font-mono;
-    color: $j-text-primary;
-    padding: 3px 8px;
-    &:focus { border-color: $j-border-active; }
-  }
-
-  .git-act-row { padding: 4px 6px; }
-
-  .git-act-btn {
-    background: $j-bg-shell-opaco;
-    min-width: 28px; min-height: 28px;
-    border-radius: 7px;
-    border: 0.5px solid $j-border-subtle;
-    color: $j-text-secondary;
-    &:hover { @include hover-con-profundidad; color: $j-text-primary; }
-    &:disabled { color: $j-text-muted; opacity: 0.5; }
-  }
-
-  // ── Branches popover ─────────────────────────────────────────────────────────
-
-  .git-branch-popover { padding: 4px; min-width: 150px; }
-  .git-branch-item-btn { border-radius: 5px; padding: 4px 8px; &:hover { @include hover-con-profundidad; } }
-  .git-branch-item-lbl { font-size: 11px; color: $j-text-primary; font-family: $j-font-mono; }
-  .git-branch-active   { color: $j-accent; }
-
-  // ── Diff panel ───────────────────────────────────────────────────────────────
-
-  .git-diff-panel {
-    background: $j-bg-item;
-    border: 0.5px solid $j-border-subtle;
-    border-radius: $j-radius-sm;
-    margin-top: 2px;
-  }
-  .git-diff-file { font-size: 11px; font-family: $j-font-mono; color: $j-text-secondary; }
-  .git-ds-a      { font-size: 10px; font-family: $j-font-mono; color: $j-accent-teal; }
-  .git-ds-r      { font-size: 10px; font-family: $j-font-mono; color: $j-accent-red; }
-  .git-diff-body { padding: 2px 0; font-family: $j-font-mono; font-size: 10px; }
-  .git-diff-line {
-    padding: 0 10px; line-height: 1.6;
-    &.dl-add { background: rgba($j-accent-teal, 0.08); color: $j-accent-teal; }
-    &.dl-rem { background: rgba($j-accent-red, 0.08); color: $j-accent-red; }
-    &.dl-ctx { color: $j-text-secondary; }
-  }
-
-  // ── Scan panel ───────────────────────────────────────────────────────────────
-
-  .git-scan-lbl   { font-size: 11px; color: $j-text-secondary; }
-  .git-scan-empty { font-size: 11px; color: $j-text-muted; font-style: italic; }
-
-  .git-disc-item {
-    padding: 5px 6px; border-radius: 7px;
-    border: 0.5px solid $j-border-subtle;
-    background: fondo-control-opaco(rgba($j-accent, 0.02));
-    &:hover { background: $j-bg-item-hover; }
-  }
-  .git-disc-icon { color: $j-text-muted; }
-  .git-disc-name { font-size: 11px; font-weight: 500; color: $j-text-primary; }
-  .git-disc-path { font-size: 10px; color: $j-text-muted; font-family: $j-font-mono; }
-
-  .git-disc-btn {
-    min-width: 20px; min-height: 20px; border-radius: 5px;
-    border: 0.5px solid $j-border-subtle;
-    color: $j-text-muted;
-    &.git-disc-pin:hover {
-      @include hover-con-profundidad(rgba($j-accent, 0.12));
-      border-color: $j-border-active;
-      color: $j-accent;
-    }
-    &.git-disc-ignore:hover {
-      @include hover-con-profundidad(rgba($j-accent-red, 0.1));
-      border-color: rgba($j-accent-red, 0.25);
-      color: $j-accent-red;
-    }
-  }
-
-  // ── Action bar ───────────────────────────────────────────────────────────────
-
-  .git-action-bar {
-    font-size: 10px; font-family: $j-font-mono;
-    color: $j-accent-teal;
-    padding: 3px 8px;
-    background: fondo-control-opaco(rgba($j-accent-teal, 0.07));
-    border-radius: $j-radius-xs;
-    border: 0.5px solid rgba($j-accent-teal, 0.15);
-  }
-}
-
 // ── Temas / Wallpapers (RiceSection) ─────────────────────────
 .rice-content {
   padding: 12px 14px;
@@ -924,7 +687,7 @@ popover.background {
   font-family: $j-font-sans;
   font-size: 10px;
   font-weight: 700;
-  padding: 7px 10px 1px;
+  padding: 7px 2px 1px;
 }
 
 .rice-random-btn {
@@ -1045,13 +808,231 @@ popover.background {
   .ns,
   .sys-strip-fixed,
   .apps-cat-btn,
-  .apps-mode-toggle,
-  .git-icon-btn,
-  .git-icon-btn-sm,
-  .git-tab,
-  .git-manage-confirm,
-  .git-saved-view,
-  .git-saved-rm {
+  .apps-mode-toggle {
     background: c.$bg-shell-grafito;
   }
 }
+
+// ── Temas: grupos, franjas horarias y editores ───────────────
+// Añadido con el sistema de franjas y variantes. La rejilla pasó de listar
+// ficheros a listar ENTIDADES (un grupo es una tarjeta), y lo que no entra en el
+// sorteo a esta hora se atenúa en vez de ocultarse — ver la cabecera de
+// `RiceSection.tsx` para el porqué.
+
+.rice-thumb.inactivo {
+  opacity: 0.38;
+
+  &:hover { opacity: 0.72; }
+}
+
+.rice-thumb.es-grupo .rice-thumb-viewport {
+  box-shadow: inset 0 0 0 1px rgba($j-accent-purple, 0.55);
+}
+
+.rice-badge {
+  margin: 5px;
+  padding: 1px 6px;
+  border-radius: $j-radius-xs;
+  background: rgba(0, 0, 0, 0.62);
+  color: $j-text-primary;
+  font-family: $j-font-sans;
+  font-size: 9px;
+  font-weight: 700;
+
+  &.nombre {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.86);
+  }
+}
+
+.rice-franja-actual {
+  padding: 0 2px 6px;
+  color: $j-accent-purple;
+  font-family: $j-font-sans;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.rice-help {
+  padding: 2px 2px 4px;
+  color: $j-text-secondary;
+  font-family: $j-font-sans;
+  font-size: 10px;
+
+  &.dim { color: $j-text-muted; }
+  &.edicion { color: $j-accent-amber; font-weight: 700; }
+}
+
+.rice-random-btn.activo {
+  background: fondo-control-opaco(rgba($j-accent-purple, 0.18));
+  border-color: rgba($j-accent-purple, 0.3);
+}
+
+// ── Editores ────────────────────────────────────────────────
+.rice-editor { padding: 2px; }
+
+.rice-subheader {
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid $j-border-subtle;
+  margin-bottom: 10px;
+}
+
+// Los controles de los editores necesitan el prefijo `.Orion`: el reset
+// `.Orion button` de la cabecera tiene más especificidad que una clase suelta.
+// Sin este alcance, GTK conserva el texto y el radio pero pierde precisamente
+// las superficies, bordes y padding que integran los controles en Orion.
+.Orion .rice-back-btn {
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: $j-text-secondary;
+
+  &:hover { @include hover-con-profundidad; color: $j-text-primary; }
+}
+
+.rice-subtitle {
+  color: $j-text-primary;
+  font-family: $j-font-sans;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.rice-estado {
+  font-family: $j-font-sans;
+  font-size: 10px;
+
+  &.ok  { color: $j-accent-teal; }
+  &.dim { color: $j-text-muted; }
+}
+
+.rice-row,
+.rice-tramo {
+  padding: 7px 8px;
+  border-radius: $j-radius-sm;
+  border: 1px solid $j-border-subtle;
+  background: $j-bg-item;
+
+  &.activa {
+    border-color: rgba($j-accent-purple, 0.42);
+    background: $j-bg-item-active;
+  }
+}
+
+.rice-nombre,
+.rice-hora {
+  min-height: 24px;
+  padding: 2px 7px;
+  border-radius: $j-radius-xs;
+  border: 1px solid $j-border-subtle;
+  background: $j-bg-shell-opaco;
+  color: $j-text-primary;
+  font-family: $j-font-sans;
+  font-size: 11px;
+
+  &:focus { border-color: $j-border-active; }
+  &.grande { font-size: 13px; font-weight: 700; }
+}
+
+.rice-hora { font-family: $j-font-mono; }
+
+.rice-rango {
+  color: $j-text-muted;
+  font-family: $j-font-sans;
+  font-size: 10px;
+}
+
+.rice-chip-ahora {
+  padding: 1px 6px;
+  border-radius: $j-radius-xs;
+  background: fondo-control-opaco(rgba($j-accent-purple, 0.2));
+  color: $j-accent-purple;
+  font-family: $j-font-sans;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.Orion .rice-icon-btn {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: $j-text-muted;
+
+  &:hover { @include hover-con-profundidad; color: $j-accent-red; }
+}
+
+.Orion .rice-btn {
+  padding: 4px 10px;
+  border-radius: $j-radius-xs;
+  border: 1px solid $j-border-subtle;
+  background: $j-bg-item;
+  color: $j-text-primary;
+  font-family: $j-font-sans;
+  font-size: 10px;
+  font-weight: 600;
+
+  &:hover { @include hover-con-profundidad; }
+
+  &.primario {
+    border-color: rgba($j-accent-purple, 0.34);
+    background: $j-bg-item-active;
+    color: $j-accent-purple;
+  }
+
+  &.sutil {
+    background: transparent;
+    color: $j-text-secondary;
+  }
+
+  &.peligro:hover { color: $j-accent-red; }
+}
+
+.Orion .rice-chip {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 3px;
+  border-radius: 8px;
+  border: 1px solid $j-border-subtle;
+  background: $j-bg-item;
+  color: $j-text-muted;
+  font-family: $j-font-sans;
+  font-size: 10px;
+  font-weight: 600;
+
+  &:hover { @include hover-con-profundidad; }
+
+  &.on {
+    border-color: rgba($j-accent-teal, 0.42);
+    background: fondo-control-opaco(rgba($j-accent-teal, 0.16));
+    color: $j-accent-teal;
+  }
+}
+
+.rice-chips { padding: 2px 0 4px; }
+.rice-acciones { padding-top: 4px; }
+
+.rice-tira flowboxchild,
+.rice-tira flowboxchild:hover,
+.rice-tira flowboxchild:selected {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.Orion .rice-chip-img-btn {
+  padding: 0;
+  border: 0;
+  border-radius: $j-radius-xs;
+  background: transparent;
+  box-shadow: none;
+
+  &:hover { box-shadow: 0 0 0 2px rgba($j-accent-purple, 0.55); }
+}
+
+.rice-chip-img { border-radius: $j-radius-xs; }

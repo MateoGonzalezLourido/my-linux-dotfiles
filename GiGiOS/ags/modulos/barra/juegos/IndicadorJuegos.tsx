@@ -36,6 +36,21 @@ function crearEntradaJuego(cliente: any): EntradaJuego {
   }
 }
 
+/** Entrada de repuesto para el instante entre que el registro deja de publicar un
+ *  juego y el <For> retira su botón. */
+const ENTRADA_AUSENTE: EntradaJuego = {
+  direccion: "",
+  nombre: "",
+  iconoGio: null,
+  nombreIcono: null,
+}
+
+/** El nombre del juego sin los sufijos entre paréntesis que arrastran los títulos
+ *  de ventana (`Juego (Beta)` → `Juego`). */
+function nombreParaAyuda(nombre: string): string {
+  return nombre.replace(/(?:\s*\([^()]*\))+\s*$/, "").trim() || nombre
+}
+
 export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlVisibilidadBarra }) {
   const hyprland = AstalHyprland.get_default()
   iniciarRegistroJuegos()
@@ -67,15 +82,20 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
   }
 
   // Un botón por juego: icono real de la app y, con el clic derecho, sus acciones.
-  const BotonJuego = (entrada: EntradaJuego) => {
+  // El <For> lo indexa por dirección, así que se construye una vez por ventana y
+  // sobrevive a los cambios de título; nombre e icono llegan por accessor porque sí
+  // cambian en vida (`describirJuego` cae al título cuando no hay entrada .desktop,
+  // y la clase puede tardar en llegar — de ahí el reintento del registro).
+  const BotonJuego = (direccion: string) => {
     let boton: Gtk.Widget | null = null
     let popoverActivo: Gtk.Popover | null = null
     const controlMenu = crearControlPopoverAnclado(visibilidad)
     const cierreAutomatico = panelAutoClose(() => {
       if (popoverActivo) popoverActivo.popdown()
     }, 250)
-    const nombreAyuda = entrada.nombre.replace(/(?:\s*\([^()]*\))+\s*$/, "").trim()
-      || entrada.nombre
+    const entrada = juegos((lista) =>
+      lista.find((candidata) => candidata.direccion === direccion) ?? ENTRADA_AUSENTE,
+    )
 
     const finalizarPopover = (popover: Gtk.Popover) => {
       if (popoverActivo === popover) {
@@ -99,9 +119,9 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
       grupoAcciones.add_action(accion)
     }
 
-    agregarAccion("focus", "󰊴  Ir al juego", () => enfocarJuego(entrada.direccion, false))
-    agregarAccion("fullscreen", "󰊓  Pantalla completa", () => enfocarJuego(entrada.direccion, true))
-    agregarAccion("close", "󰅖  Cerrar juego", () => cerrarJuego(entrada.direccion))
+    agregarAccion("focus", "󰊴  Ir al juego", () => enfocarJuego(direccion, false))
+    agregarAccion("fullscreen", "󰊓  Pantalla completa", () => enfocarJuego(direccion, true))
+    agregarAccion("close", "󰅖  Cerrar juego", () => cerrarJuego(direccion))
 
     const abrirMenu = () => {
       if (popoverActivo) { popoverActivo.popdown(); return }
@@ -148,8 +168,8 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
         $={(self: Gtk.Widget) => { boton = self }}
         cssClasses={["game-tray-icon"]}
         valign={Gtk.Align.CENTER}
-        onClicked={() => enfocarJuego(entrada.direccion, true)}
-        tooltipText={nombreAyuda}
+        onClicked={() => enfocarJuego(direccion, true)}
+        tooltipText={entrada((actual) => nombreParaAyuda(actual.nombre))}
       >
         {/* Botón secundario: Gtk.Button solo se queda el clic primario, así que este
             gesto sí llega (mismo motivo que el comentario de Actualizaciones). */}
@@ -158,13 +178,27 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
           onEnter={cierreAutomatico.onEnter}
           onLeave={cierreAutomatico.onLeave}
         />
-        {entrada.iconoGio ? (
-          <image gicon={entrada.iconoGio} pixelSize={18} cssClasses={["game-tray-img"]} />
-        ) : entrada.nombreIcono ? (
-          <image iconName={entrada.nombreIcono} pixelSize={18} cssClasses={["game-tray-img"]} />
-        ) : (
-          <label cssClasses={["game-tray-glyph"]} label={GLIFO_JUEGO} />
-        )}
+        {/* Las tres formas del icono conviven como ranuras y se alternan con
+            `visible`. Elegirlas con un ternario ataba la forma al primer valor: con
+            el botón ya indexado por dirección, un juego que empieza sin icono de
+            tema y lo resuelve después se quedaba con el glifo genérico. */}
+        <image
+          gicon={entrada((actual) => actual.iconoGio)}
+          visible={entrada((actual) => !!actual.iconoGio)}
+          pixelSize={18}
+          cssClasses={["game-tray-img"]}
+        />
+        <image
+          iconName={entrada((actual) => actual.iconoGio ? "" : (actual.nombreIcono ?? ""))}
+          visible={entrada((actual) => !actual.iconoGio && !!actual.nombreIcono)}
+          pixelSize={18}
+          cssClasses={["game-tray-img"]}
+        />
+        <label
+          cssClasses={["game-tray-glyph"]}
+          label={GLIFO_JUEGO}
+          visible={entrada((actual) => !actual.iconoGio && !actual.nombreIcono)}
+        />
       </button>
     )
   }
@@ -177,7 +211,12 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
       spacing={4}
     >
       <box cssClasses={["game-tray-items"]} valign={Gtk.Align.CENTER} spacing={2}>
-        <For each={juegos}>{(entrada: EntradaJuego) => BotonJuego(entrada)}</For>
+        {/* Indexado por dirección: sin `id`, un cambio de título de UN juego
+            reconstruía el botón de TODOS (medido), porque el registro republica la
+            lista entera y `<For>` compara por identidad de objeto. */}
+        <For each={juegos} id={(entrada: EntradaJuego) => entrada.direccion}>
+          {(entrada: EntradaJuego) => BotonJuego(entrada.direccion)}
+        </For>
       </box>
     </box>
   )

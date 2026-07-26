@@ -67,20 +67,31 @@ blocked() {
   esac
 }
 
-# Apagar la pantalla hablando primero la forma Lua de Hyprland 0.56
-# (`hl.dsp.dpms('off')`, verificada en instancia anidada) y cayendo a la legacy
-# si no responde "ok" — la sesión puede seguir en config hyprlang hasta el
-# próximo reinicio, y este script se relee en cada on-timeout, así que tiene que
-# funcionar en ambas. Se mira el stdout y no el código de salida porque hyprctl
-# bajo config legacy responde "Invalid dispatcher" con rc=0.
+# Apagar la pantalla en la forma Lua de Hyprland 0.56 (`hl.dsp.dpms('off')`,
+# verificada en instancia anidada).
+#
+# Aquí hubo un fallback a la sintaxis legacy (`hyprctl dispatch dpms off`),
+# porque durante la migración la sesión viva podía seguir en config hyprlang
+# mientras este script en disco ya era el nuevo. Los `.conf` del compositor ya
+# no existen en el repo, así que esa rama era código muerto — y de las caras de
+# mantener: se decidía por el stdout ("ok") y no por el código de salida, porque
+# hyprctl bajo config legacy responde "Invalid dispatcher" con rc=0.
 dpms_off() {
-  [[ "$(hyprctl dispatch "hl.dsp.dpms('off')" 2>/dev/null)" == ok* ]] \
-    || hyprctl dispatch dpms off
+  hyprctl dispatch "hl.dsp.dpms('off')" >/dev/null 2>&1
+}
+
+# hyprlock no tiene guarda de instancia única (0.9.6: ni una cadena "already
+# running" en el binario), así que llamarlo con uno ya puesto arranca un SEGUNDO
+# proceso encima del bloqueo. Pasa solo: este listener bloquea a los 11 min y el
+# before_sleep_cmd de hypridle.conf vuelve a bloquear al suspender. Misma guarda
+# que allí y que el ejemplo de /usr/share/hypr/hypridle.conf.
+lock_screen() {
+  pidof hyprlock >/dev/null 2>&1 || hyprlock
 }
 
 case ${1:-} in
   dpms-off) blocked dpms-off || dpms_off ;;
-  lock)     blocked lock     || hyprlock ;;
+  lock)     blocked lock     || lock_screen ;;
   suspend)  blocked suspend  || systemctl suspend ;;
   *)
     echo "uso: ${0##*/} {dpms-off|lock|suspend}" >&2

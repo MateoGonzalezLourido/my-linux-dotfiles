@@ -93,80 +93,74 @@ export const [nightRulesEnabled, setNightRulesEnabledState] = createState(config
 // Guardado debounced (2 s): brightness.subscribe dispara a menudo, no queremos
 // escribir el archivo en cada tick.
 let saveTimeout: number | null = null
+
+function writeDisplayConfig() {
+  try {
+    const dir = GLib.path_get_dirname(DISPLAY_CONFIG_PATH)
+    if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) execAsync(["mkdir", "-p", dir]).catch(() => {})
+    const out: DisplayConfig = {
+      brightness: brightness.get(),
+      nightLightActive: nightLightActive.get(),
+      nightLightTemp: nightLightTemp.get(),
+      brightnessWindow:
+        lastBrightnessKey !== null && brightnessBeforeWindow !== null
+          ? { key: lastBrightnessKey, before: brightnessBeforeWindow }
+          : null,
+      monitors: monitorPrefs,
+      global: {
+        vrrMode: globalVrrMode.get(),
+        allowTearing: allowTearing.get(),
+        nightRulesEnabled: nightRulesEnabled.get(),
+        nightRules: nightRules.get(),
+      },
+    }
+    GLib.file_set_contents(DISPLAY_CONFIG_PATH, JSON.stringify(out))
+  } catch (e) { /* no-op */ }
+}
+
 export function saveDisplayConfig() {
   if (saveTimeout !== null) GLib.source_remove(saveTimeout)
   saveTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
-    try {
-      const dir = GLib.path_get_dirname(DISPLAY_CONFIG_PATH)
-      if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) execAsync(["mkdir", "-p", dir]).catch(() => {})
-      const out: DisplayConfig = {
-        brightness: brightness.get(),
-        nightLightActive: nightLightActive.get(),
-        nightLightTemp: nightLightTemp.get(),
-        brightnessWindow:
-          lastBrightnessKey !== null && brightnessBeforeWindow !== null
-            ? { key: lastBrightnessKey, before: brightnessBeforeWindow }
-            : null,
-        monitors: monitorPrefs,
-        global: {
-          vrrMode: globalVrrMode.get(),
-          allowTearing: allowTearing.get(),
-          nightRulesEnabled: nightRulesEnabled.get(),
-          nightRules: nightRules.get(),
-        },
-      }
-      GLib.file_set_contents(DISPLAY_CONFIG_PATH, JSON.stringify(out))
-    } catch (e) { /* no-op */ }
+    writeDisplayConfig()
     saveTimeout = null
     return GLib.SOURCE_REMOVE
   })
 }
 
-// ── Volcado a la config de Hyprland ──────────────────────────────────────────
-// display.json es la fuente de verdad de AGS, pero Hyprland no la lee. Los ajustes
-// se aplicaban SOLO en vivo y al arrancar AGS, y como el comodín de monitores no
-// lleva más que `preferred/auto/1`, cualquier `hyprctl reload` re-ejecutaba la
-// config y devolvía el monitor a modo preferido y escala 1 — 240 Hz → 60 Hz,
-// 1.25 → 1 — sin que AGS se enterara (no hay señal de recarga a la que
-// suscribirse, y su poller solo observa; no re-aplica).
-//
-// Así que las prefs se vuelcan también a un chunk Lua generado,
-// monitor-settings.lua, que hyprland.lua carga con carga protegida
-// (util.carga_opcional: ausente o roto no tumba la config) DESPUÉS del comodín
-// de gigios/monitores.lua (mismo patrón que `input-settings.lua`). Las specs van
-// por `desc:` — no por conector (DP-1), que baila entre reconexiones — y una
-// spec concreta gana a la comodín, que sigue cubriendo los monitores sin
-// preferencia guardada. Efecto extra: el compositor arranca ya en el modo bueno,
-// sin el parpadeo de la re-aplicación. El antiguo monitor-settings.conf deja de
-// escribirse; queda en el repo solo para la config legacy.
-const MONITOR_LUA_PATH = `${GLib.get_home_dir()}/.config/hypr/monitor-settings.lua`
-
-function writeMonitorLua() {
-  try {
-    const lines = [
-      "-- Generado por AGS · Ajustes > Pantalla. No editar a mano.",
-      "-- Chunk Lua puro: lo carga hyprland.lua con carga protegida (util.carga_opcional)",
-      "-- después del comodín de gigios/monitores.lua — una spec con `desc:` concreta gana",
-      "-- a la comodín, que sigue cubriendo los monitores sin preferencia.",
-      "",
-    ]
-    for (const [description, pref] of Object.entries(monitorPrefs)) {
-      if (!description) continue
-      const position = pref.position && pref.position !== "auto" ? pref.position : "auto"
-      lines.push(`hl.monitor(${buildMonitorSpecLua({ name: `desc:${description}`, position, pref })})`)
-    }
-    // Escritura síncrona a propósito: cuando un `hyprctl reload` re-ejecute la
-    // config Lua, este fichero ya está completo en disco — no hay ventana en la
-    // que el reload pueda leerlo a medio escribir.
-    GLib.file_set_contents(MONITOR_LUA_PATH, lines.join("\n") + "\n")
-  } catch (e) { /* no-op: el ajuste ya está aplicado en vivo */ }
+// Guardado SÍNCRONO, sin esperar al debounce. Lo usa el guardado de prefs por
+// monitor porque display.json dejó de ser solo la fuente de verdad de AGS: lo lee
+// también el config de Hyprland (hypr/gigios/pantalla.lua). Con los 2 s de por
+// medio, un `hyprctl reload` disparado justo después de tocar la resolución
+// releería el fichero VIEJO y devolvería la pantalla al valor anterior.
+export function saveDisplayConfigNow() {
+  if (saveTimeout !== null) { GLib.source_remove(saveTimeout); saveTimeout = null }
+  writeDisplayConfig()
 }
 
+// ── Cómo llegan estas prefs a Hyprland ───────────────────────────────────────
+// display.json NO es solo la fuente de verdad de AGS: lo lee también el config
+// del compositor (hypr/gigios/pantalla.lua), que recorre `monitors` y emite un
+// `hl.monitor{ output = "desc:…" }` por entrada, DESPUÉS del comodín de
+// gigios/monitores.lua — una spec concreta gana a la comodín, que sigue cubriendo
+// los monitores sin preferencia guardada.
+//
+// Hace falta porque el comodín no lleva más que `preferred/auto/1`: sin nadie que
+// aplique las prefs al cargar, cualquier `hyprctl reload` devolvía el monitor a
+// modo preferido y escala 1 (240 Hz → 60, 1.25 → 1) sin que AGS se enterara — no
+// hay señal de recarga a la que suscribirse, y su poller solo observa. Efecto
+// extra: el compositor arranca ya en el modo bueno, sin el parpadeo de la
+// re-aplicación.
+//
+// Antes esto se resolvía volcando además un `monitor-settings.lua` generado. Ya
+// no: el config tiene condiciones y bucles, así que lee el JSON directamente. Se
+// acabó el dato escrito dos veces, el fichero generado dentro del árbol de git y
+// el escapado de la `description` del EDID, que venía del EDID y se interpolaba
+// en un chunk (una comilla suelta rompía la config entera).
 export function saveMonitorPref(description: string, pref: MonitorPref) {
   if (!description) return
   monitorPrefs[description] = pref
-  saveDisplayConfig()
-  writeMonitorLua()
+  // Síncrono, no debounced: ver saveDisplayConfigNow().
+  saveDisplayConfigNow()
 }
 
 // ── Poller de monitores (ref-counted) ────────────────────────────────────────
@@ -256,8 +250,8 @@ export function applyPatch(mon: any, patch: Partial<MonitorPref>) {
     ? resolved.position
     : `${mon.x}x${mon.y}`
   // Persistir la posición REAL, no la del patch: en vivo el compositor la resuelve
-  // solo, pero el monitor-settings.lua generado se lee sin nadie que la resuelva,
-  // y con "auto" un layout multi-monitor se recolocaría solo al recargar.
+  // solo, pero al recargar el config lee display.json sin nadie que la resuelva, y
+  // con "auto" un layout multi-monitor se recolocaría solo.
   resolved.position = position
   const spec = buildMonitorSpecLua({ name: mon.name, position, pref: resolved })
   saveMonitorPref(mon.description, resolved)
@@ -551,11 +545,10 @@ export function initDisplayService() {
   }
 
   // Re-aplicar preferencias por monitor (solo lo que difiera, para no pelear con
-  // el comodín ni parpadear). Con monitor-settings.lua en su sitio esto ya no
-  // debería tener nada que hacer — se queda como red por si el .lua falta (máquina
-  // recién clonada) o la spec `desc:` no casa. Y de paso regenera el .lua, para
-  // que las prefs guardadas antes de que existiera se vuelquen solas, sin que haya
-  // que tocar ningún ajuste. idle_add = siguiente tick, sin delay fijo.
+  // el comodín ni parpadear). Con gigios/pantalla.lua leyendo display.json esto ya
+  // no debería tener nada que hacer — se queda como red por si la spec `desc:` no
+  // casa o el config no llegó a cargar ese módulo. idle_add = siguiente tick, sin
+  // delay fijo.
   GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
     if (Object.keys(monitorPrefs).length > 0) {
       execAsync(["hyprctl", "monitors", "all", "-j"]).then(out => {
@@ -565,15 +558,16 @@ export function initDisplayService() {
         for (const mon of list) {
           const pref = monitorPrefs[mon.description]
           if (!pref) continue
-          // Las prefs guardadas antes de existir el .conf no traen posición, y sin
-          // ella la regla saldría con "auto" (un layout multi-monitor se recolocaría
-          // solo al recargar). La tomamos de la real.
+          // Las prefs guardadas antes de que se persistiera la posición no la traen,
+          // y sin ella la spec saldría con "auto" (un layout multi-monitor se
+          // recolocaría solo al recargar). La tomamos de la real.
           if (!pref.position) { pref.position = `${mon.x}x${mon.y}`; backfilled = true }
           if (!monitorNeedsUpdate(mon, pref)) continue
           execAsync(["hyprctl", "eval", `hl.monitor(${buildMonitorSpecLua({ name: mon.name, position: pref.position, pref })})`]).catch(() => {})
         }
-        if (backfilled) saveDisplayConfig()
-        writeMonitorLua()
+        // Síncrono: el backfill es justo lo que gigios/pantalla.lua necesita leer
+        // en la próxima recarga, y esa recarga puede llegar antes que el debounce.
+        if (backfilled) saveDisplayConfigNow()
       }).catch(() => {})
     }
     return GLib.SOURCE_REMOVE

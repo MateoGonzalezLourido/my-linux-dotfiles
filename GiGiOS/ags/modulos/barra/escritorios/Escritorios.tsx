@@ -27,8 +27,15 @@ import {
   rutaVistaPreviaEscritorio,
 } from "./capturas"
 import { obtenerIconosClientesEscritorio } from "./iconos"
-import type { ClienteEscritorio, EscritorioVisible } from "./modelo"
+import { sonEscritoriosEquivalentes } from "./modelo"
+import { esEscritorioEspecial } from "../../../servicios/escritorios/especiales"
+import type {
+  ClienteEscritorio,
+  EscritorioVisible,
+  IconoClienteEscritorio,
+} from "./modelo"
 import { crearGestorVistaPreviaEscritorios } from "./gestorVistaPrevia"
+import { esVentanaEmergenteX11 } from "../../../servicios/ventanas/emergentesX11"
 
 export interface InteraccionEscritorios {
   cambiarArrastre: (activo: boolean) => void
@@ -45,6 +52,11 @@ const INTERACCION_NULA: InteraccionEscritorios = {
 }
 
 const vistaPreviaActiva = () => wsPreviewEnabled.get() && !wsPreviewSuspended.get()
+
+/** Identidad estable para el caso "este escritorio no tiene clientes": un literal
+ *  nuevo por evaluación haría que el accessor derivado emitiera un array distinto
+ *  cada vez sin que nada hubiera cambiado. */
+const SIN_CLIENTES: IconoClienteEscritorio[] = []
 
 /** Escritorios de una barra concreta. Todo el estado visual pertenece al monitor. */
 export default function Escritorios(
@@ -68,11 +80,27 @@ export default function Escritorios(
 
   let idsEscritoriosRecientes = recordarEscritorioReciente([], obtenerIdEscritorioActivo())
   let ultimoIdEscritorioActivo = obtenerIdEscritorioActivo()
-  const [escritorios, fijarEscritorios] = createState<EscritorioVisible[]>([])
+  // Igualdad por CONTENIDO, no por identidad de array. `actualizar()` corre ante
+  // cualquier señal de escritorios —incluida `notify::focused-client`, que con
+  // `follow_mouse = 1` salta cada vez que el puntero cruza de una ventana a otra— y
+  // devuelve siempre objetos nuevos. Con el `Object.is` de fábrica, ese cruce del
+  // ratón publicaba una lista "nueva" y reconstruía todos los botones de todas las
+  // barras. El foco vive en `idEnfocado`/`direccionEnfocada`, que sí son suyos.
+  const [escritorios, fijarEscritorios] =
+    createState<EscritorioVisible[]>([], { equals: sonEscritoriosEquivalentes })
   const [escritoriosRenderizados, fijarEscritoriosRenderizados] =
-    createState<EscritorioVisible[]>([])
+    createState<EscritorioVisible[]>([], { equals: sonEscritoriosEquivalentes })
   const [idEnfocado, fijarIdEnfocado] = createState(ultimoIdEscritorioActivo)
   const [direccionEnfocada, fijarDireccionEnfocada] = createState("")
+
+  /** Clientes de un escritorio como accessor vivo. `<For>` está indexado por id, así
+   *  que `BotonEscritorio` se construye UNA vez por escritorio y su prop `escritorio`
+   *  ya no vuelve a llegar: todo lo que cambie durante su vida tiene que entrar por
+   *  aquí. Solo emite cuando la lista publicada cambia de verdad (ver `equals`). */
+  const clientesDeEscritorio = (idEscritorio: number) =>
+    escritoriosRenderizados((lista) =>
+      lista.find((escritorio) => escritorio.id === idEscritorio)?.clientes ?? SIN_CLIENTES,
+    )
 
   // Sin connector se mantiene la lista por geometría, pero grim queda desactivado:
   // no se puede seleccionar con seguridad una salida mediante `-o`.
@@ -125,6 +153,12 @@ export default function Escritorios(
     for (const cliente of hyprland.get_clients() as ClienteEscritorio[]) {
       const idEscritorio = cliente.workspace?.id ?? cliente.get_workspace?.()?.id
       if (typeof idEscritorio !== "number" || !idsLocales.has(idEscritorio)) continue
+      // Los menús y tooltips de una app X11 llegan como clientes con la clase de
+      // su padre (un desplegable de Steam = otro `class: "steam"`), así que sin
+      // esto la barra pintaba un icono duplicado mientras el menú estaba abierto.
+      // El filtro va aquí y no en `iconos.ts` porque también decide si un
+      // escritorio "tiene clientes", o sea si se muestra.
+      if (esVentanaEmergenteX11(cliente)) continue
       const clientes = clientesPorEscritorio.get(idEscritorio) ?? []
       clientes.push(cliente)
       clientesPorEscritorio.set(idEscritorio, clientes)
@@ -132,12 +166,16 @@ export default function Escritorios(
 
     const candidatos = escritoriosLocales.map((escritorio) => {
       const clientes = clientesPorEscritorio.get(escritorio.id) ?? []
+      // El nombre solo se usa para los ESPECIALES, que se abren por nombre y no
+      // por id (ver `enfocarEscritorio`). Para los normales es el id en texto.
+      const nombre = escritorio.name ?? String(escritorio.id)
       return {
         id: escritorio.id,
+        nombre,
         // Astal 0.1 todavía traduce Workspace.focus() al dispatcher legacy
         // `workspace N`, inválido cuando Hyprland carga configuración Lua.
         enfocar: () => {
-          void enfocarEscritorio(escritorio.id).catch((error) => {
+          void enfocarEscritorio(escritorio.id, nombre).catch((error) => {
             console.error(`No se pudo enfocar el escritorio ${escritorio.id}`, error)
           })
         },
@@ -150,10 +188,12 @@ export default function Escritorios(
       idsEscritoriosRecientes,
       idActivo,
       workspaceVisibleLimit.get(),
-    ).map(({ id, enfocar, clientes }) => ({ id, enfocar, clientes }))
+    ).map(({ id, nombre, enfocar, clientes }) => ({ id, nombre, enfocar, clientes }))
 
     fijarEscritorios(siguientes)
-    if (visibilidad.visible.get()) fijarEscritoriosRenderizados(siguientes)
+    // `escritorios.get()` y no `siguientes`: si el contenido no cambió, el state
+    // conserva el array anterior y ambos quedan en la misma identidad.
+    if (visibilidad.visible.get()) fijarEscritoriosRenderizados(escritorios.get())
   }
 
   const mostrarEstadoOptimista = (siguientes: EscritorioVisible[]) => {
@@ -181,19 +221,29 @@ export default function Escritorios(
     mostrarEstadoOptimista(siguientes)
   }
 
+  // Reordenar, intercambiar y renumerar mueven VENTANAS entre escritorios
+  // numerados (ver `servicios/escritorios/plan.ts`). Un especial no tiene sitio en
+  // ese orden —no es una posición, es un cajón— y arrastrarlo habría vaciado el
+  // scratchpad dentro de un escritorio normal. Se ignora en las tres entradas, que
+  // son las tres formas de llegar: arrastrar, CTRL+arrastrar y teclear un número.
+  const involucraEspecial = (primerId: number, segundoId: number) =>
+    esEscritorioEspecial(primerId) || esEscritorioEspecial(segundoId)
+
   const intercambiar = (primerId: number, segundoId: number) => {
+    if (involucraEspecial(primerId, segundoId)) return
     intercambiarVisualmente(primerId, segundoId)
     void intercambiarEscritorios(primerId, segundoId, obtenerIdEscritorioActivo())
   }
 
   const desplazar = (idOrigen: number, idDestino: number) => {
+    if (involucraEspecial(idOrigen, idDestino)) return
     const idsOrdenados = escritorios.get().map((escritorio) => escritorio.id)
     desplazarVisualmente(idOrigen, idDestino)
     void desplazarEscritorios(idOrigen, idDestino, idsOrdenados, obtenerIdEscritorioActivo())
   }
 
   const renumerar = (idOrigen: number, idDestino: number) => {
-    if (idOrigen === idDestino) return
+    if (idOrigen === idDestino || involucraEspecial(idOrigen, idDestino)) return
     const monitor = obtenerMonitorHyprland()
     if (!monitor) return
     const ocupado = hyprland.get_workspaces().find((escritorio) => escritorio.id === idDestino)
@@ -234,10 +284,16 @@ export default function Escritorios(
   const overlay = new Gtk.Overlay()
   overlay.set_child(
     <box cssClasses={["Workspaces"]} spacing={2}>
-      <For each={escritoriosRenderizados}>
+      {/* Indexado por id: sin `id` el <For> compara por identidad de objeto, y como
+          cada pasada de `actualizar()` devuelve objetos nuevos, abrir una ventana
+          reconstruía TODOS los botones (con sus gestos, arrastres y ranuras de
+          icono) en vez del que cambió. `enfocar` se captura en la primera
+          construcción y no se refresca: solo depende del id, que es la clave. */}
+      <For each={escritoriosRenderizados} id={(escritorio) => escritorio.id}>
         {(escritorio) => (
           <BotonEscritorio
             escritorio={escritorio}
+            clientes={clientesDeEscritorio(escritorio.id)}
             overlay={overlay}
             idEnfocado={idEnfocado}
             direccionEnfocada={direccionEnfocada}

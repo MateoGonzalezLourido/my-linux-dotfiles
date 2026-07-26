@@ -252,10 +252,12 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
     layer={Astal.Layer.TOP}
     exclusivity={Astal.Exclusivity.NORMAL}
     keymode={tecladoActivo((activo) => (activo ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE))}
-    // Con la barra autoocultable, el compositor no reserva su altura: los 38 px separan este panel
-    // de su borde inferior. Con la barra fija, su zona exclusiva ya hace ese trabajo y el helper
-    // devuelve 0, evitando sumar el hueco dos veces.
-    marginTop={barTopMargin(38)}
+    // Solapamos 1 px el borde inferior de la barra para que no aparezca una costura transparente,
+    // tanto cuando flota (37 px) como cuando su zona exclusiva ya reserva la altura (-1 px).
+    marginTop={barTopMargin(37, -1)}
+    // La superficie anclada se prolonga 1 px bajo el límite del monitor para absorber el redondeo
+    // de la escala de salida y mantener pintada también la última fila visible.
+    marginBottom={-1}
     widthRequest={428}
     decorated={false}
     cssClasses={clasesFondoShell("cal-window")}

@@ -1,15 +1,17 @@
-// Punto de entrada del buscador de Orion: instancia el motor y registra sus
-// handlers. Añadir un dominio de búsqueda nuevo es: crear `handlers/x.ts`
-// implementando `SearchHandler` y registrarlo aquí.
-import { SearchEngine } from "./engine"
+// Punto de entrada del buscador de Orion: registra los handlers y expone
+// `resolveSearch`. Añadir un dominio de búsqueda nuevo es: crear `handlers/x.ts`
+// implementando `SearchHandler` y añadirlo a `handlers`.
+import type { SectionId } from "../state"
+import { resolve, type ResolveResult } from "./engine"
+import type { SearchHandler } from "./types"
 import { appsHandler } from "./handlers/apps"
 import { keybindsHandler } from "./handlers/keybinds"
 
-export const searchEngine = new SearchEngine()
+const handlers: readonly SearchHandler[] = [keybindsHandler, appsHandler]
 
-// Order matters: inline handlers are checked first by their defaultFor, not by registration order,
-// but register inline handlers first so they appear visibly first in potential debug output.
-searchEngine.register(keybindsHandler)
-searchEngine.register(appsHandler)
+export function resolveSearch(query: string, section: SectionId): ResolveResult {
+  return resolve(handlers, query, section)
+}
 
+export type { ResolveResult }
 export type { SearchResult, SearchHandler, SearchContext } from "./types"

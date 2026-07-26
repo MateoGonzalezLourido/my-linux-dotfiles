@@ -13,6 +13,7 @@ export default function CornerCurve({ left = true }: { left?: boolean }): Gtk.Dr
   const area = new Gtk.DrawingArea()
   area.set_size_request(RADIO, RADIO)
   area.set_valign(Gtk.Align.END)
+  area.set_css_classes(["orion-curva-lateral", left ? "izquierda" : "derecha"])
 
   area.set_draw_func((_area, cr, width, height) => {
     // La cuña es Cairo, no CSS: consulta la misma preferencia para no dejar una

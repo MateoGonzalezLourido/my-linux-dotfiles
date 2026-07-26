@@ -99,50 +99,25 @@ def hypr_j(*args):
     return json.loads(out)
 
 
-def _forma_lua(args):
-    """Forma Lua (Hyprland 0.56) del dispatcher legacy `args`, o None.
+def dispatch(lua):
+    """Manda un dispatcher en la forma Lua de Hyprland 0.56.
 
-    Solo traduce los tres dispatchers que usa este fichero; cualquier otra cosa
-    devuelve None y dispatch() la manda tal cual por el camino legacy. Firmas
-    verificadas en instancia anidada con config Lua, no supuestas:
-      movetoworkspacesilent N,address:0x… -> hl.dsp.window.move({workspace=N,
-          window='address:0x…', follow=false})  (sin follow SÍ cambia el foco
-          y el workspace activo — follow=false es lo que hace el "silent")
-      movetoworkspace N,address:0x…       -> igual con follow=true
-      focuswindow address:0x…             -> hl.dsp.focus({window='address:0x…'})
-    Las direcciones son hex puro, así que van en el literal sin escapado.
+    Firmas verificadas en instancia anidada con config Lua, no supuestas:
+      mover en silencio -> hl.dsp.window.move({workspace=N, window='address:0x…',
+          follow=false})  (sin follow SÍ cambia el foco y el workspace activo —
+          `follow=false` es lo que hace el "silent"; un `silent=true` se ignora)
+      mover siguiendo    -> igual con follow=true
+      enfocar            -> hl.dsp.focus({window='address:0x…'})
+    El selector por string necesita el prefijo `address:`; un '0x…' a secas no
+    casa y el dispatcher mueve la VENTANA ACTIVA. Las direcciones son hex puro,
+    así que van en el literal sin escapado.
+
+    Aquí hubo un fallback a la sintaxis legacy, porque durante la migración la
+    sesión viva podía seguir en config hyprlang mientras el script en disco ya
+    era el nuevo. Los `.conf` del compositor ya no existen en el repo, así que
+    esa rama era código muerto que solo servía para tragarse errores.
     """
-    if len(args) != 2:
-        return None
-    dsp, arg = args
-    if dsp in ("movetoworkspacesilent", "movetoworkspace"):
-        ws, _, addr = arg.partition(",")
-        if not (ws.isdigit() and addr.startswith("address:0x")):
-            return None
-        follow = "false" if dsp == "movetoworkspacesilent" else "true"
-        return (f"hl.dsp.window.move({{workspace={ws}, "
-                f"window='{addr}', follow={follow}}})")
-    if dsp == "focuswindow" and arg.startswith("address:0x"):
-        return f"hl.dsp.focus({{window='{arg}'}})"
-    return None
-
-
-def dispatch(*args):
-    """Manda un dispatcher probando primero la forma Lua y cayendo a la legacy.
-
-    Bajo config Lua la sintaxis legacy se reinterpreta como código Lua y falla;
-    bajo config legacy (la sesión actual hasta el próximo reinicio) es la forma
-    Lua la que responde "Invalid dispatcher". El éxito se decide por el stdout
-    ("ok"), no por el código de salida: hyprctl bajo config legacy rechaza un
-    dispatcher inválido con rc=0.
-    """
-    lua = _forma_lua(args)
-    if lua is not None:
-        r = subprocess.run(["hyprctl", "dispatch", lua],
-                           capture_output=True, text=True)
-        if r.returncode == 0 and r.stdout.strip().startswith("ok"):
-            return
-    subprocess.run(["hyprctl", "dispatch", *args],
+    subprocess.run(["hyprctl", "dispatch", lua],
                    capture_output=True, text=True)
 
 
@@ -172,6 +147,60 @@ def anclaje_activado():
             return json.load(f).get("anclarVentanasRofi", True) is not False
     except (OSError, ValueError):
         return True
+
+
+def limite_mosaico():
+    """Lee `maxVentanasEscritorio` (el tope de gigios/limite-ventanas.lua).
+
+    Ausente = 8, igual que el módulo Lua; <= 0 significa "sin tope". Ver la
+    sección de `_hueco_en` para por qué el anclaje tiene que consultarlo.
+    """
+    ruta = os.path.join(
+        os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")),
+        "gigios", "preferences.json")
+    try:
+        with open(ruta, "rb") as f:
+            valor = json.load(f).get("maxVentanasEscritorio", 8)
+        return int(valor)
+    except (OSError, ValueError, TypeError):
+        return 8
+
+
+def _hueco_en(clientes, ws_id, addr, limite):
+    """¿Cabe `addr` en el escritorio `ws_id` sin rebasar el tope?
+
+    EL ANCLAJE Y EL TOPE TIRABAN EN DIRECCIONES CONTRARIAS, y ganaba el anclaje
+    porque llega el último. Al lanzar sobre un escritorio lleno,
+    `gigios/limite-ventanas.lua` mueve la ventana nueva al siguiente con sitio y
+    te lleva con ella; acto seguido el `openwindow` llegaba aquí, se veía una
+    ventana "descolocada" respecto al escritorio de lanzamiento y se la devolvía
+    en silencio. Resultado: tú en el escritorio nuevo y la ventana en el viejo —
+    peor que cualquiera de las dos funciones por separado, y sin ningún error.
+    Deshacía además justo lo que el tope existe para evitar: la novena ventana
+    volvía a apretujarse con las otras ocho.
+
+    Manda el tope, que es la misma jerarquía que ya documenta CLAUDE.md: el
+    lanzador decide DÓNDE nace la ventana, el tope decide SI ahí cabe — y es el
+    único de los dos que sabe algo que el lanzador no podía saber al lanzar.
+
+    El recuento replica el del módulo Lua y tiene que seguir haciéndolo: solo
+    mosaico (ni flotantes ni ocultas por `swallow`, que no ocupan hueco del
+    layout) y sin contar la propia ventana, que aún no está allí. Con `limite`
+    ventanas ya puestas no cabe: al volver serían limite+1, exactamente lo que
+    el módulo acaba de deshacer, y se entraría en un tira y afloja.
+    """
+    if limite <= 0:
+        return True
+    n = 0
+    for c in clientes:
+        if c["address"] == addr:
+            continue
+        if c.get("floating") or c.get("hidden"):
+            continue
+        ws = c.get("workspace") or {}
+        if ws.get("id") == ws_id:
+            n += 1
+    return n < limite
 
 
 def event_socket_path():
@@ -265,10 +294,13 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
         before_classes = {c.get("initialClass", "") for c in hypr_j("clients")
                           if c["address"] in before}
 
-    limite = time.monotonic() + timeout
+    # Tope de mosaico: se lee UNA vez por lanzamiento (el proceso vive 15 s).
+    limite = limite_mosaico()
+
+    fin = time.monotonic() + timeout
     buf = b""
     while True:
-        restante = limite - time.monotonic()
+        restante = fin - time.monotonic()
         if restante <= 0:
             return
         sock.settimeout(restante)
@@ -289,7 +321,12 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                 if addr in before:
                     continue
 
-                cli = client_of(addr)
+                # Una sola consulta de clientes por ventana nueva: de ella salen
+                # el cliente (clase, pid, workspace) y el recuento de mosaico
+                # del escritorio destino. Pedirlas por separado serían dos forks
+                # de hyprctl, y encima de dos instantes distintos.
+                clientes = hypr_j("clients")
+                cli = next((c for c in clientes if c["address"] == addr), None)
                 if cli is None:
                     # El evento llegó antes de que Hyprland publicara el cliente.
                     # Sin clase ni pid no se puede decidir de quién es: se ignora
@@ -325,9 +362,15 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                 # El ajuste apaga SOLO esto. La rama `urgent` de abajo (traerte una
                 # app ya abierta al relanzarla) es otra función, no da problemas y
                 # el interruptor no la nombra, así que sigue activa.
-                if anclar and cli["workspace"]["id"] != target_ws:
-                    dispatch("movetoworkspacesilent",
-                             f"{target_ws},address:{addr}")
+                #
+                # Salvo que el escritorio de lanzamiento esté LLENO: entonces la
+                # ventana ya la apartó gigios/limite-ventanas.lua y traerla de
+                # vuelta sería deshacer el tope y dejarte además mirando otro
+                # escritorio. Ver _hueco_en().
+                if (anclar and cli["workspace"]["id"] != target_ws
+                        and _hueco_en(clientes, target_ws, addr, limite)):
+                    dispatch(f"hl.dsp.window.move({{workspace={target_ws}, "
+                             f"window='address:{addr}', follow=false}})")
 
             elif event == "urgent":
                 # urgent>>ADDR  (ADDR sin "0x")
@@ -339,6 +382,7 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                     # Relanzamiento single-instance: traer al workspace actual.
                     cli = client_of(addr)
                     if cli and cli["workspace"]["id"] != target_ws:
-                        dispatch("movetoworkspace", f"{target_ws},address:{addr}")
-                    dispatch("focuswindow", f"address:{addr}")
+                        dispatch(f"hl.dsp.window.move({{workspace={target_ws}, "
+                                 f"window='address:{addr}', follow=true}})")
+                    dispatch(f"hl.dsp.focus({{window='address:{addr}'}})")
                     return

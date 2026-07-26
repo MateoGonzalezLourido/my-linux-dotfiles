@@ -15,17 +15,14 @@ interface SectionIndexItem {
   target: SectionId
 }
 
-// Índice único de Orion. Los antiguos accesos de Inicio viven aquí; los alias
-// que apuntaban a una misma página (como SSH → workflows) no se duplican.
+// Índice único de Orion: solo las secciones con página real montada
+// (ver `SECTION_COMPONENTS`). No añadas aquí un destino sin componente: la
+// pestaña navegaría a un panel vacío.
 const SECTIONS: SectionIndexItem[] = [
   { id: "inicio",    label: "Inicio",       icon: "go-home-symbolic",                       target: "inicio" },
   { id: "apps",      label: "Aplicaciones", icon: "view-app-grid-symbolic",                  target: "apps" },
-  { id: "workflows", label: "Flujos",       icon: "view-grid-symbolic",                      target: "workflows" },
   { id: "rice",      label: "Temas",        icon: "preferences-desktop-theme-symbolic",      target: "rice" },
-  { id: "watcher",   label: "Monitor",      icon: "camera-photo-symbolic",                   target: "watcher" },
   { id: "keybinds",  label: "Atajos",       icon: "input-keyboard-symbolic",                 target: "keybinds" },
-  { id: "ai",        label: "AI Hub",       icon: "applications-science-symbolic",           target: "ai" },
-  { id: "git",       label: "Git",          icon: "vcs-branch-symbolic",                     target: "git" },
 ]
 
 export default function SectionIndex() {

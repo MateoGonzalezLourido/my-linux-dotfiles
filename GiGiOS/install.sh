@@ -62,6 +62,11 @@ install_packages() {
     # Mantén esta pila en paquetes estables. qt6ct + Breeze proporcionan el
     # tema Qt; hyprqt6engine-git no es necesario y fuerza bibliotecas -git.
     hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
+    # hyprcursor: Hyprland ya depende de la librería, pero el paso 10 usa el
+    # BINARIO hyprcursor-util (mismo paquete) para generar la mitad hyprcursor
+    # del tema de puntero. Se pide explícito para que sea una dependencia
+    # declarada del instalador y no un efecto colateral de otro paquete.
+    hyprcursor
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland qt6ct
     gjs gtk4-layer-shell gobject-introspection npm dart-sass
     ttf-meslo-nerd ttf-cascadia-code-nerd noto-fonts-emoji
@@ -70,6 +75,9 @@ install_packages() {
     # libcanberra: reproduce el `sound-name` de las notificaciones (alarmas y temporizador del
     # panel de reloj). Sin él la alerta se ve pero no suena, sin error visible.
     libcanberra
+    # cava: la FFT de la onda de Spotify de la barra. Sin él la onda no falla, cae a su
+    # animación procedimental — así que es una mejora, no un requisito.
+    cava
     nm-connection-editor blueman fish
     # kconfig: da kreadconfig6/kwriteconfig6, que usa bin/configurar-dolphin.sh (paso 4
     # de este instalador) y bin/preflight.sh ya exige explícitamente.
@@ -86,7 +94,7 @@ install_packages() {
     alsa-utils inotify-tools dbus kmod
     networkmanager bluez bluez-utils xdg-user-dirs
     clamav firejail bubblewrap xxhash file cups geoclue gamemode
-    mesa-utils lshw fd github-cli
+    mesa-utils lshw github-cli
   )
 
   [[ "$INSTALL_PACKAGES" == 1 ]] || {
@@ -115,8 +123,12 @@ install_packages() {
   # puro esos paquetes no existen, así que sólo se agregan cuando el repositorio
   # configurado los proporciona. VS Code se instala sólo si ningún paquete ya
   # aporta el comando `code` (por ejemplo visual-studio-code-bin).
+  # bibata-cursor-theme vive en chaotic-aur, no en los repos oficiales: va aquí y
+  # no en la lista dura porque en un Arch puro haría fallar el `pacman -S` ENTERO
+  # y con él el resto de dependencias. Sin él, el paso 10 avisa y el escritorio
+  # arranca igual con el puntero de XCursor.
   local optional_official
-  for optional_official in cachyos-fish-config cachyos-rate-mirrors; do
+  for optional_official in cachyos-fish-config cachyos-rate-mirrors bibata-cursor-theme; do
     pacman -Si "$optional_official" >/dev/null 2>&1 && official+=("$optional_official")
   done
   command -v code >/dev/null 2>&1 || official+=(code)
@@ -355,11 +367,56 @@ if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
   else
     info "TLP no está instalado; omito los perfiles conmutables de energía (se activarán al instalar 'tlp')."
   fi
+  # ClamAV: botón "Actualizar firmas" de Ajustes > Seguridad > Antivirus. Mismo esquema que TLP
+  # (helper root-owned + regla sudoers acotada al comando exacto) porque /var/lib/clamav es de
+  # `clamav` y habilitar el servicio de actualización es de root. Sin esto el botón no se pinta;
+  # la actualización sigue pudiendo hacerse a mano con `sudo freshclam`.
+  if command -v freshclam >/dev/null 2>&1; then
+    sudo install -Dm755 "$SYSTEM_DIR/clamav/gigios-clamav-update.sh" /usr/local/bin/gigios-clamav-update \
+      || warn "No pude instalar el helper de ClamAV; el botón de firmas no aparecerá en Ajustes."
+    clamav_sudoers_tmp="$(mktemp)"
+    sed "s/__GIGIOS_USER__/$(id -un)/" "$SYSTEM_DIR/clamav/sudoers-gigios-clamav" > "$clamav_sudoers_tmp"
+    if sudo visudo -cf "$clamav_sudoers_tmp" >/dev/null; then
+      sudo install -Dm440 "$clamav_sudoers_tmp" /etc/sudoers.d/gigios-clamav \
+        || warn "No pude instalar /etc/sudoers.d/gigios-clamav; actualizar firmas pedirá contraseña."
+    else
+      warn "La regla sudoers de ClamAV no validó; no la instalo. Actualizar firmas pedirá contraseña."
+    fi
+    rm -f "$clamav_sudoers_tmp"
+    # Sin firmas, el escáner de descargas no puede analizar nada; dejarlo automático desde ya.
+    sudo systemctl enable --now clamav-freshclam.service >/dev/null 2>&1 \
+      || info "No pude habilitar clamav-freshclam.service (¿otro nombre en esta distro?)."
+  else
+    info "ClamAV no está instalado; omito el helper de firmas (se activará al instalar 'clamav')."
+  fi
 else
   warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
 fi
 
-# --- 10. Verificación y notas finales ---
+# --- 10. Mitad hyprcursor del tema de puntero ---
+# El compositor dibuja su cursor con hyprcursor; XWayland y los toolkits siguen
+# con XCursor. Un tema de paquete solo trae la mitad XCursor, y libhyprcursor
+# ante un nombre que no encuentra no falla: coge el primer tema con manifest.hl
+# que haya, por orden de lectura del directorio. Sin esto, el tema que elija el
+# usuario en Ajustes no tendría mitad hyprcursor y el compositor acabaría
+# dibujando OTRO tema. Esto le añade esa mitad a $CURSOR_THEME, dejando un único
+# nombre válido para las dos variables.
+#
+# NO se elige el tema aquí: eso es `temaCursor` en ~/.config/gigios/devices.json,
+# que escribe el usuario desde Ajustes > Dispositivos > Puntero. Generar el tema
+# es preparar el terreno; cambiarle el puntero a alguien que no lo ha pedido, no.
+CURSOR_GEN="$HOME/GiGiOS/bin/generar-hyprcursor.sh"
+CURSOR_THEME="${CURSOR_THEME:-Bibata-Modern-Ice}"
+if [ -x "$CURSOR_GEN" ]; then
+  info "Preparando el tema de puntero '$CURSOR_THEME' para hyprcursor ..."
+  # No es fatal: sin esto el escritorio arranca igual, solo que con el puntero
+  # de XCursor. Un tema que no esté instalado (otra distro, otro nombre) no debe
+  # tumbar una instalación por lo demás correcta.
+  "$CURSOR_GEN" "$CURSOR_THEME" \
+    || warn "No pude generar el tema hyprcursor '$CURSOR_THEME'. Elegí otro con '$CURSOR_GEN --list' y volvé a correrlo."
+fi
+
+# --- 11. Verificación y notas finales ---
 configure_default_shell
 
 if [ -x "$HOME/GiGiOS/bin/preflight.sh" ]; then
@@ -381,6 +438,12 @@ cat <<'EOF'
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:
               dotfiles remote set-url origin git@github.com:MateoGonzalezLourido/my-linux-dotfiles.git
   • Hardware: antes de iniciar Hyprland elegí el perfil GPU; ver docs/SETUP.md.
-  • Sistema:  ejecutá una vez 'sudo freshclam' y, si necesitás sensores, 'sudo sensors-detect'.
+  • Puntero:  elegí el tema en Ajustes > Dispositivos > Puntero. Sin elegirlo, el
+              compositor usa el puntero de XCursor; para añadir soporte hyprcursor
+              a otro tema, ~/GiGiOS/bin/generar-hyprcursor.sh --list.
+  • Antivirus: las firmas de ClamAV las descarga clamav-freshclam, que quedó habilitado;
+              tarda unos minutos la primera vez. Ajustes > Seguridad > Antivirus enseña la
+              fecha, permite actualizarlas al momento y apagar la actualización automática.
+  • Sistema:  si necesitás sensores, ejecutá 'sudo sensors-detect'.
   • Sesión:   cerrá y abrí sesión; después comprobá con 'ags run ~/.config/ags/app.ts'.
 EOF

@@ -1,11 +1,19 @@
 import { onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import cairo from "gi://cairo"
-import { powerSaveActive } from "../../../../servicios/energia/powerState"
+import { powerSaveActive, spectrumSuspended } from "../../../../servicios/energia/powerState"
+import { clienteJuegoEnFoco } from "../../../../servicios/juegos/registro"
 import { estadoSpotify } from "../../../../servicios/multimedia/mpris"
+import {
+  BANDAS,
+  adquirirEspectro,
+  espectroConSenal,
+  espectroDisponible,
+  nivelesEspectro,
+} from "../../../../servicios/multimedia/espectro"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
 
-const BARRAS = 13
+const BARRAS = BANDAS
 const TRAZO = 2.4
 const MINIMO = 2
 const ATAQUE = 0.045
@@ -13,6 +21,12 @@ const CAIDA = 0.19
 const BPM = 112
 const FPS_AHORRO = 24
 const FPS_MAXIMO = 60
+/**
+ * Constante de tiempo del cruce entre el espectro real y la animación procedimental. Sin
+ * cruce, pasar la reproducción del móvil a este PC (o entrar en modo ahorro) daría un salto
+ * visible en la altura de las 13 barras.
+ */
+const CRUCE = 0.28
 
 function ruidoDeterminista(numero: number): number {
   const seno = Math.sin(numero * 127.1 + 311.7) * 43758.5453
@@ -54,6 +68,9 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
   let idTick: number | null = null
   let barraVisible = visibilidad.visible.get()
   let reproduciendo = estadoSpotify.get()?.reproduciendo ?? false
+  // 0 = manda el algoritmo procedimental, 1 = manda el espectro real. Se cruza, no se conmuta.
+  let mezcla = 0
+  let liberarEspectro: (() => void) | null = null
 
   const onda = new Gtk.DrawingArea({
     widthRequest: 54,
@@ -81,6 +98,7 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
   const reposar = () => {
     energia = 0
     acumulado = 0
+    mezcla = 0
     bandas.forEach((banda) => { banda.nivel = 0 })
   }
 
@@ -99,7 +117,13 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
     const pulso = (tiempo / (60 / BPM)) % 4
     const bombo = Math.exp(-(pulso % 1) * 7) * (pulso < 1 ? 1 : 0.55)
 
-    bandas.forEach((banda) => {
+    // El espectro real solo manda si cava está entregando audio de verdad. Con la
+    // reproducción en el móvil el sink local está mudo, así que aquí vuelve el algoritmo.
+    const objetivoMezcla = liberarEspectro !== null && espectroConSenal.get() ? 1 : 0
+    mezcla += (objetivoMezcla - mezcla) * (1 - Math.exp(-delta / CRUCE))
+    const niveles = mezcla > 0.001 ? nivelesEspectro.get() : null
+
+    bandas.forEach((banda, indice) => {
       const oscilacion = (
         0.55 * Math.sin(tiempo * banda.velocidad + banda.fases[0])
         + 0.30 * Math.sin(tiempo * banda.velocidad * 1.73 + banda.fases[1])
@@ -107,7 +131,11 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
       ) / 0.72
       const normalizado = Math.min(1, Math.max(0, 0.5 + 0.5 * oscilacion))
       const perfil = normalizado * normalizado * (3 - 2 * normalizado)
-      const pico = Math.min(1, banda.ganancia * (0.06 + 0.94 * perfil) + 0.5 * bombo * banda.grave)
+      const sintetico = Math.min(1, banda.ganancia * (0.06 + 0.94 * perfil) + 0.5 * bombo * banda.grave)
+      // El valor de cava ya viene normalizado por su autosens: no se le aplica `ganancia`,
+      // que existe para dar forma a un espectro inventado, no para corregir uno medido.
+      const real = niveles ? (niveles[indice] ?? 0) : 0
+      const pico = sintetico + (real - sintetico) * mezcla
       const constante = pico > banda.nivel ? ATAQUE : CAIDA
       banda.nivel += (pico - banda.nivel) * (1 - Math.exp(-delta / constante))
     })
@@ -122,6 +150,24 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
     return true
   }
 
+  /**
+   * En modo AHORRO no se captura audio **si el usuario lo ha pedido** (`spectrumSuspended`,
+   * Ajustes > Energía): se cede al algoritmo procedimental, que no cuesta ni un proceso. Es
+   * un escalón antes que `spotifyBarSuspended`, que desmonta la pastilla entera — aquí se
+   * sigue viendo y la onda se sigue moviendo, solo deja de seguir la música. Nótese que se
+   * mira `spectrumSuspended` y NO `powerSaveActive`: son dos interruptores independientes,
+   * así que apagar este debe dejar el análisis vivo durante el ahorro.
+   *
+   * **Con un JUEGO EN FOCO tampoco, y lo que esto cubre de verdad es el juego EN VENTANA.**
+   * En este equipo `barAutoHide` está en `false`, así que la barra no se esconde al apartar el
+   * ratón y `barraVisible` es cierto casi siempre: no sirve de gate por sí solo. La excepción
+   * es la pantalla completa REAL, que sí pone `barTapada` en `Barra.tsx` y baja la barra —
+   * para ese caso esta condición es redundante. Lo que añade es el juego sin fullscreen real
+   * (ventana o borderless) y los instantes en que la barra reaparece a mitad de partida. Se
+   * mira el FOCO y no la mera existencia del juego, la distinción que hace
+   * `lib/gaming-gate.sh` (juego abierto ≠ estás jugando): con el juego en otro escritorio la
+   * barra se ve y la onda vuelve a tener sentido.
+   */
   const sincronizar = () => {
     const necesario = barraVisible && (reproduciendo || energia > 0)
     if (necesario && idTick === null) {
@@ -130,6 +176,17 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
     } else if (!necesario && idTick !== null) {
       onda.remove_tick_callback(idTick)
       idTick = null
+    }
+
+    // Solo mientras se reproduce: sostener cava durante el desvanecido de salida no aporta
+    // nada y alarga la captura sin motivo.
+    const quiereEspectro = espectroDisponible && barraVisible && reproduciendo
+      && !spectrumSuspended.get() && clienteJuegoEnFoco.get() === null
+    if (quiereEspectro && liberarEspectro === null) {
+      liberarEspectro = adquirirEspectro()
+    } else if (!quiereEspectro && liberarEspectro !== null) {
+      liberarEspectro()
+      liberarEspectro = null
     }
   }
 
@@ -143,11 +200,17 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
     if (!barraVisible && !reproduciendo) reposar()
     sincronizar()
   })
+  const cancelarAhorro = spectrumSuspended.subscribe(sincronizar)
+  const cancelarJuego = clienteJuegoEnFoco.subscribe(sincronizar)
   sincronizar()
 
   onCleanup(() => {
     cancelarSpotify()
     cancelarVisibilidad()
+    cancelarAhorro()
+    cancelarJuego()
+    liberarEspectro?.()
+    liberarEspectro = null
     if (idTick !== null) onda.remove_tick_callback(idTick)
   })
 

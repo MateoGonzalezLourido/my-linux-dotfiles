@@ -247,7 +247,7 @@ Cópialas y corre `fc-cache -f` en el PC destino.
 ```sh
 sudo pacman -S rofi rofimoji wtype noto-fonts-emoji cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl qalculate-gtk \
   wf-recorder grim slurp jq bc hyprshot nm-connection-editor blueman fish git curl \
-  btop upower libgudev cups geoclue mesa-utils lshw fd github-cli \
+  btop upower libgudev cups geoclue mesa-utils lshw github-cli \
   udisks2 lsof ntfsprogs dosfstools exfatprogs kmod
 ```
 
@@ -296,9 +296,9 @@ Qué usa cada cosa:
   leídos de `display.json`/`system_state.json`. **En esta misma máquina falta instalado**
   ahora mismo (`bc` no está en el sistema) — instálalo en ambos PCs si no lo has hecho ya,
   si no `init.sh` fallará silenciosamente al aplicar brillo/volumen guardados.
-- **`git`** / **`curl`** — usados por el Git section de Orion (`GitService.ts`) y otros.
-- **`fd`** (opcional) — el escaneo de repos de Orion (`GitService.ts`) lo usa si está, si no
-  cae a `find` automáticamente. No es obligatorio pero es más rápido.
+- **`git`** — gestiona el propio árbol de dotfiles durante la instalación y actualización.
+- **`curl`** — usado por el instalador y por integraciones HTTP de AGS como calendario,
+  Spotify, carátulas y ubicación.
 
 Cosas referenciadas en `gigios/variables.lua` que son elección de terminal/gestor de archivos, no
 dependencias estrictas — cambia estas líneas si usas otra cosa en el PC nuevo:
@@ -591,10 +591,6 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
 - **Foto de perfil**: opcional y personal. Vive en `~/.local/share/gigios/face.png` (fuera del
   repo, nunca versionada para no publicar una foto tuya) y la leen tanto `hyprlock` como el
   avatar de AGS. Se pone desde Ajustes > Cuenta. Sin foto, AGS muestra las iniciales.
-- **`~/.config/jarvis/git-repos.json`** (Orion → sección Git) tiene rutas de repos locales
-  de esta máquina (ej. `~/Documentos/Github/Ravage`); si esas rutas no existen en el PC
-  nuevo, la sección Git de Orion simplemente no los mostrará — no es un error, solo revisa
-  que las rutas sigan siendo válidas o vuelve a dejar que el auto-scan los descubra.
 - **`~/GiGiOS/Wallpapers/`** viaja con este repositorio y contiene los fondos que usa
   `wallpaper.sh`.
 - Los JSON en `~/.config/gigios/` (`display.json`, `system_state.json`,
@@ -770,7 +766,6 @@ migrar y qué se regenera solo.
 | `~/.config/gigios/reloj.json` | tus alarmas (el temporizador y el cronómetro son de sesión y no se guardan) |
 | `~/.config/gigios/google-calendar-creds.json` | credenciales de Google Calendar en texto plano (chmod 600, git-ignored); regenerar con `ags/scripts/google-calendar-auth.sh` |
 | `~/.config/gigios/google-calendar-sync.json` | tokens incrementales de Google; borrarlo solo cuesta una sincronización completa |
-| `~/.config/jarvis/git-repos.json` | repos que Orion conoce para la sección Git (rutas locales — revisa que existan en el PC nuevo) |
 | `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
 | `~/.local/share/orion/profiles/*.json` | sesiones guardadas de Orion (`ProfileManager.ts`) |
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `servicios/energia/powerState.ts`) |

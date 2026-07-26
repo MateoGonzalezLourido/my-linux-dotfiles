@@ -3,7 +3,8 @@
 // sus resultados navegan allí en vez de ejecutar nada directamente.
 
 import { getKeybinds } from "../../data/keybinds"
-import type { SearchHandler, SearchResult } from "../types"
+import { MAX_RESULTADOS } from "../engine"
+import type { HandlerMatch, SearchHandler, SearchResult } from "../types"
 
 const MODIFIER_RE = /\b(super|ctrl|alt|shift|prtscn|print)\b/i
 
@@ -12,33 +13,20 @@ export const keybindsHandler: SearchHandler = {
   defaultFor: ["keybinds"],
   inlineFor: ["keybinds"],   // only inline when already IN keybinds section
 
-  confidence(query: string): number {
+  // Una sola pasada: recoge los atajos que casan y de ahí sale tanto la
+  // puntuación como las filas (que solo se materializan si el handler gana).
+  match(query: string): HandlerMatch {
     const q = query.toLowerCase()
-    if (q.length < 2) return 0.05
-    // Modifier key pattern → almost certainly a keybind search
-    if (MODIFIER_RE.test(q)) return 0.85
-    // Scan cached keybinds for any description/binding match
-    const groups = getKeybinds()
-    const hasMatch = groups.some(g =>
-      g.binds.some(kb =>
-        kb.description.toLowerCase().includes(q) ||
-        kb.binding.toLowerCase().includes(q)
-      )
-    )
-    return hasMatch ? 0.72 : 0.05
-  },
+    if (q.length < 2) return { score: 0.05, build: () => [] }
 
-  search(query: string): SearchResult[] {
-    const q = query.toLowerCase()
-    const results: SearchResult[] = []
-
+    const matches: SearchResult[] = []
     for (const group of getKeybinds()) {
       for (const kb of group.binds) {
         if (
           kb.description.toLowerCase().includes(q) ||
           kb.binding.toLowerCase().includes(q)
         ) {
-          results.push({
+          matches.push({
             id: `kb-${kb.binding}-${kb.description}`,
             title: kb.description,
             subtitle: `${group.name}  ·  ${kb.binding}`,
@@ -51,6 +39,10 @@ export const keybindsHandler: SearchHandler = {
       }
     }
 
-    return results.slice(0, 9)
+    // Un patrón de modificador es casi con seguridad una búsqueda de atajo,
+    // gane o no por número de coincidencias.
+    const score = MODIFIER_RE.test(q) ? 0.85 : matches.length > 0 ? 0.72 : 0.05
+
+    return { score, build: () => matches.slice(0, MAX_RESULTADOS) }
   },
 }

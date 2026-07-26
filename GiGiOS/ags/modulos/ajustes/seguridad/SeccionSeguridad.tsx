@@ -11,6 +11,10 @@ import {
   DL_PAUSE_ITEMS, dlPauseEnabled, setDlPauseEnabled,
   dlMaxScanGB, setDlMaxScanGB,
 } from "./preferencias"
+import {
+  clamavPresent, clamavHelperInstalled, clamavDbEpoch, clamavAutoUpdate, clamavBusy,
+  refreshClamavState, updateClamavDb, setClamavAutoUpdate,
+} from "../../../servicios/seguridad/clamav"
 import textos from "../../../textos/ajustes/seguridad.json" with { type: "json" }
 
 type VistaProteccion = "vigilancia" | "escaneos"
@@ -147,9 +151,55 @@ function Herramientas() {
   )
 }
 
+// Base de firmas. Sin ella `clamscan` sale con código 2 y NADA se da por analizado, así que esta
+// tarjeta va la primera: es la precondición de todo lo demás de esta vista. Solo desaparece si no
+// hay ClamAV; con el helper root ausente SÍ se pinta, enseñando la orden que falta — ver el
+// comentario de `clamavHelperInstalled`.
+function Firmas() {
+  if (!clamavPresent) return <box visible={false} />
+  refreshClamavState()
+  const fecha = clamavDbEpoch((t) => t === null
+    ? textos.firmas.sinBase
+    : textos.firmas.ultima.replace("{fecha}", GLib.DateTime.new_from_unix_local(t).format("%d/%m/%Y %H:%M") ?? ""))
+  return (
+    <TarjetaAjustes titulo={textos.tarjetas.firmas} icono="󰒃">
+      {/* El interruptor gobierna clamav-freshclam.service, o sea estado del SISTEMA y no una
+          preferencia del shell: no se persiste en ningún JSON nuestro, se lee de systemd. Por eso
+          la fila se oculta si el helper no está (no habría forma de aplicar el cambio) o si no se
+          pudo consultar el estado — un interruptor que no sabe dónde está miente en las dos
+          posiciones. */}
+      <AjusteInterruptor
+        titulo={textos.firmas.automatica.titulo}
+        informacion={textos.firmas.automatica.descripcion}
+        visible={clamavAutoUpdate((v) => v !== null && clamavHelperInstalled)}
+        activo={clamavAutoUpdate((v) => v === true)}
+        alAlternar={() => setClamavAutoUpdate(!(clamavAutoUpdate.get() === true))}
+      />
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]}>
+        <TituloSubseccion label={textos.firmas.titulo} halign={Gtk.Align.START} />
+        <TextoInformativo label={textos.firmas.descripcion} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
+        <TextoInformativo label={fecha} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
+        {/* Sin helper no hay interruptor que enseñar, pero el estado sigue importando: se dice en
+            texto en vez de callarlo. */}
+        <TextoInformativo
+          label={clamavAutoUpdate((v) => v ? textos.firmas.automaticaActiva : textos.firmas.automaticaInactiva)}
+          visible={clamavAutoUpdate((v) => v !== null && !clamavHelperInstalled)}
+          halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
+        <button cssClasses={["sp-add-rule"]} onClicked={updateClamavDb} halign={Gtk.Align.START}
+          visible={clamavHelperInstalled} sensitive={clamavBusy((b) => !b)}>
+          <label label={clamavBusy((b) => b ? textos.firmas.actualizando : textos.firmas.boton)} />
+        </button>
+        <TextoInformativo label={textos.firmas.sinAyudante} visible={!clamavHelperInstalled}
+          halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} selectable />
+      </box>
+    </TarjetaAjustes>
+  )
+}
+
 function Escaneos() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
+      <Firmas />
       <Descargas />
       <Herramientas />
     </box>

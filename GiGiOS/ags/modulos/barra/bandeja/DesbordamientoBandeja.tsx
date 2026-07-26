@@ -101,6 +101,7 @@ export default function DesbordamientoBandeja({
     <menubutton
       cssClasses={["icon-bare", "tray-item", "tray-overflow"]}
       focusable={false}
+      valign={Gtk.Align.CENTER}
       $={(self: Gtk.MenuButton) => {
         boton = self
         const menu = new Gtk.Popover({

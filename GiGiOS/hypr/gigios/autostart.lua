@@ -19,9 +19,20 @@
 -- un ventilador parado siguen estándolo 20 s después.
 --
 -- Van ESCALONADOS, no todos con el mismo sleep: darles a todos `sleep 5` solo
--- movería la misma avalancha 5 s más tarde. Cada uno tiene su hueco. Los
--- `sleep N &&` se conservan TAL CUAL (no se "mejoran" con hl.timer): los
--- tiempos están medidos y razonados, y el retardo vive en el punto de llamada
+-- movería la misma avalancha 5 s más tarde. Cada uno tiene su hueco.
+--
+-- **Los `sleep N &&` NO se cambian por `hl.timer`, y no es pereza: un
+-- `hyprctl reload` CANCELA los timers pendientes** (medido con un A/B — timer a
+-- 5 s con un reload por medio: no dispara; el mismo timer sin reload: dispara).
+-- O sea que una recarga dentro de los primeros 30 s de sesión se llevaría por
+-- delante todo el arranque escalonado que aún no hubiera saltado —los monitores
+-- no arrancarían nunca, sin un solo error— y recargar justo después de entrar,
+-- mientras se afina algo, es de lo más normal. Un `sleep` es un proceso suelto
+-- que ya no depende del compositor. El único hl.timer del repo (la ventana de
+-- 30 s de gigios/escaner-apps.lua) sí acepta ese riesgo: perderla solo cuesta
+-- que no se salte de escritorio esa vez.
+--
+-- Además, los tiempos están medidos y razonados, y el retardo vive en el punto de llamada
 -- y no dentro de los scripts a propósito — `screencast-monitor` y
 -- `updates-monitor` también los lanza AGS en caliente desde sus interruptores
 -- de Ajustes (pkill + re-exec), y un sleep interno haría que encender el
@@ -37,16 +48,78 @@ hl.on("hyprland.start", function()
 
   -- ── t=0 · lo que se ve, o lo que no puede perder eventos ───────────────────
 
-  -- Tema oscuro e iconos coherentes para aplicaciones GTK y KDE.
+  -- Tema oscuro e iconos coherentes para aplicaciones GTK y KDE. Van delante de
+  -- AGS a propósito: son dos spawn de milisegundos, y fijar el color-scheme
+  -- DESPUÉS de arrancar el shell dejaría a GTK resolviendo el tema a media carga.
   hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'")
   hl.exec_cmd("gsettings set org.gnome.desktop.interface icon-theme 'Tela-circle-grey'")
 
-  hl.exec_cmd("hypridle")
-  hl.exec_cmd("~/.config/inicializador/init.sh")
-  hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
-  hl.exec_cmd([[pkill -f "ags\.js$" 2>/dev/null; sleep 0.3; ags run ~/.config/ags/]])
+  -- El fondo va DELANTE del shell, y es una decisión de gusto, no de coste:
+  -- preferimos ver el escritorio vestido y que la barra entre encima, antes que
+  -- una barra flotando sobre el vacío. Se probó al revés y se descartó.
+  --
+  -- Tiene un peaje medido, y conviene saberlo antes de tocar este orden:
+  -- `awww-daemon` inicializa su propio contexto GL, y el arranque de AGS está
+  -- dominado por exactamente lo mismo — la inicialización del renderer GPU de
+  -- GTK4 (GSK) al realizar su primera ventana. Medido en este equipo con caché
+  -- caliente y sin competencia: 935 ms desde el exec hasta que la barra existe
+  -- como layer surface, de los cuales ~500 ms son ese GSK. El resto del reparto:
+  -- ~66 ms de bundle, ~50 ms de gjs + typelibs, ~180 ms de evaluar los 375
+  -- módulos y ~90 ms de construir todas las ventanas con sus widgets.
+  --
+  -- O sea que los dos pelean por el mismo driver justo en el medio segundo que
+  -- decide cuándo se ve la barra. Subir la línea de `ags run` por encima de
+  -- estas dos es el cambio de una línea que recupera esa contención, a cambio de
+  -- ver la barra antes que el fondo.
+  --
+  -- Lo que NO merece la pena buscar aquí (medido, para no repetir el intento):
+  -- el CSS no cuesta nada (los 130 KB de out.css contra un `window{}` mínimo dan
+  -- la misma cifra), los ~20 indicadores de la barra son 40 ms ENTRE TODOS, y
+  -- quitar los paneles enteros —imports y construcción— solo baja a ~830 ms,
+  -- porque ya se construyen después de la barra. La parte cara no es código
+  -- nuestro: es el driver.
   hl.exec_cmd("awww-daemon")
   hl.exec_cmd("~/.config/hypr/scripts/wallpaper.sh")
+
+  -- Antes esto era `pkill …; sleep 0.3; ags run`, con el sleep INCONDICIONAL: se
+  -- pagaba también al iniciar sesión, que es justo cuando no hay ninguna
+  -- instancia que matar. Los tres trozos de abajo son cada uno para un caso, y
+  -- los tres están medidos:
+  --
+  -- `ags quit` es SÍNCRONO — cuando vuelve, el proceso ya no está (comprobado
+  -- con pgrep inmediatamente después). Por eso sustituye al `sleep`: no hay nada
+  -- que esperar a ojo. Reiniciar el shell pasa de 309 ms a ~75 ms, y en un login
+  -- limpio sale por rc=1 en 3 ms.
+  --
+  -- `timeout 2` NO es paranoia: contra una instancia viva que no atiende su IPC,
+  -- `ags quit` se queda colgado PARA SIEMPRE (medido con un SIGSTOP: a los 20 s
+  -- seguía esperando). Sin el timeout ese cuelgue se traga el resto de la línea y
+  -- la sesión se queda SIN SHELL, en silencio y sin nada que lo delate.
+  --
+  -- El `pkill` sigue detrás como red, y es la mitad importante: si `ags quit`
+  -- falla o se agota, `ags run` NO arranca nada. Al haber ya una instancia se
+  -- comporta como cliente, le manda el argv como petición, recibe "unknown
+  -- request" y **sale con rc=0** — o sea que el fallo sería mudo y con cara de
+  -- éxito. El `&&` mantiene el `sleep` solo cuando el pkill de verdad señaló a
+  -- alguien, que es el único caso en que hay que darle tiempo a morir.
+  --
+  -- Medido en los tres caminos: login 10 ms · reinicio sano 75 ms · instancia
+  -- encallada 2,3 s pero RECUPERA (antes: colgada indefinidamente).
+  --
+  -- La ruta es `~/.config/ags/` (el symlink), no `~/GiGiOS/ags/`: la ruta
+  -- canónica XDG es el contrato de este repo, y es la que usan las demás líneas.
+  hl.exec_cmd([[timeout 2 ags quit 2>/dev/null; pkill -f "ags\.js$" 2>/dev/null && sleep 0.3; ags run ~/.config/ags/]])
+
+  hl.exec_cmd("hypridle")
+  hl.exec_cmd("~/.config/inicializador/init.sh")
+  -- OJO A LA RUTA SI ALGÚN DÍA SE ACTUALIZA hyprpolkitagent. Esta es la del
+  -- 0.1.3 de los repos (Qt/QML): un directorio con el ejecutable dentro. La
+  -- reescritura en hyprtoolkit lo MUEVE a /usr/lib/hyprpolkitagent a secas, que
+  -- pasa a ser el propio ejecutable. Medido al probar hyprpolkitagent-git.
+  -- Apuntar mal aquí no da ningún error visible: exec_cmd falla en silencio y la
+  -- sesión se queda sin agente, o sea sin poder autenticar nada por GUI, y no se
+  -- nota hasta que algo pide root ya en mitad de la sesión.
+  hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
   -- La limpieza es condicional y termina antes de arrancar el watcher, evitando
   -- que este vuelva a guardar el contenido heredado de la sesión anterior.
   hl.exec_cmd("~/.config/hypr/scripts/limpiar-portapapeles.sh al-iniciar; ~/.config/hypr/scripts/clipboard-history.sh start")
@@ -55,9 +128,9 @@ hl.on("hyprland.start", function()
   -- ciega en OOM/panic/sudo/SSH. Sus partes caras (SMART, unidades, descargas)
   -- se apartan solas dentro del script.
   hl.exec_cmd("~/.config/hypr/scripts/oom-monitor.sh")
-  -- (el escáner de apps de inicio vive en gigios/escaner-apps.lua,
-  -- que escucha `window.open` nativo desde su propio hl.on("hyprland.start") —
-  -- misma ventana de 30 s, sin socket ni nc. El .sh queda para la sesión legacy.)
+  -- (el escáner de apps de inicio vive en gigios/escaner-apps.lua, que escucha
+  -- `window.open` nativo desde su propio hl.on("hyprland.start") — misma ventana
+  -- de 30 s, sin socket ni nc. Su .sh ya no existe: se borró con la migración.)
 
   -- ── t=3..6 · monitores dirigidos por eventos ───────────────────────────────
   -- Bloquean en un socket (udev/D-Bus/nmcli/PipeWire): en reposo no cuestan

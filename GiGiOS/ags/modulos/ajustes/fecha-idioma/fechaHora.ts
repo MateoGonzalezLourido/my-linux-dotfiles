@@ -4,8 +4,8 @@
 // separada la parte de sistema (comandos, ficheros) de la vista JSX.
 //
 // Qué toca y con qué privilegios:
-//   · Idioma del sistema (LANG)  → bloque gestionado en ~/.config/hypr/gigios/env.lua
-//     (líneas `hl.env(...)` entre marcadores, dentro de la config Lua de Hyprland).
+//   · Idioma del sistema (LANG)  → clave `locale` de ~/.config/gigios/datetime.json,
+//     que lee el config de Hyprland (gigios/env.lua) y convierte en `hl.env(...)`.
 //     SIN contraseña; se aplica al reiniciar la sesión (igual que hace KDE).
 //   · Zona horaria y NTP         → timedatectl. Pide contraseña vía polkit
 //     (hyprpolkitagent), como cualquier ajuste de reloj del sistema.
@@ -17,7 +17,7 @@
 //
 // El teclado (distribución/variante) NO se gestiona aquí: es propiedad de
 // servicios/dispositivos/service.ts (deviceSettings). La vista reutiliza ese servicio
-// para no tener dos escritores del mismo input-settings.lua.
+// para no tener dos escritores del mismo devices.json.
 
 import GLib from "gi://GLib"
 import { createState } from "ags"
@@ -25,13 +25,9 @@ import { execAsync } from "ags/process"
 import { withPrivilegedPrompt } from "../../../estado/shell"
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
-const ENV_PATH = `${GLib.get_user_config_dir()}/hypr/gigios/env.lua`
+// Único fichero que escribe esta sección: ubicación, zona horaria automática e
+// idioma. El config de Hyprland (gigios/env.lua) lee de aquí el `locale`.
 const DATA_PATH = `${GLib.get_user_config_dir()}/gigios/datetime.json`
-// Marcadores del bloque de idioma dentro de gigios/env.lua (comentarios Lua,
-// idénticos a los que ese módulo trae de serie). Todo lo que haya entre ellos lo
-// gestiona GiGiOS; el resto del archivo se respeta intacto.
-const LOCALE_BEGIN = "-- >>> GiGiOS idioma (no editar a mano) >>>"
-const LOCALE_END = "-- <<< GiGiOS idioma <<<"
 
 // ── Tipos ───────────────────────────────────────────────────────────────────
 export type LocationSource = "auto" | "manual"
@@ -57,6 +53,11 @@ export interface LocationPrefs {
   locationAllowed: boolean   // fallback local cuando GeoClue no existe
   source: LocationSource
   location: LocationData
+  // LANG/LC_ALL elegidos por el usuario. Cadena vacía = nunca se ha tocado el
+  // ajuste, y entonces gigios/env.lua NO emite ningún hl.env: pisar el LANG de
+  // la sesión con un valor de fábrica sería cambiar el idioma sin que nadie lo
+  // pida. Lo lee el config de Hyprland (ver applyLocale).
+  locale: string
 }
 
 const DEFAULT_PREFS: LocationPrefs = {
@@ -64,6 +65,7 @@ const DEFAULT_PREFS: LocationPrefs = {
   locationAllowed: true,
   source: "auto",
   location: { name: "", latitude: null, longitude: null, timezone: "" },
+  locale: "",
 }
 
 // El estado inicial NO puede decir "permitida" a ciegas: `refresh()` es async
@@ -106,6 +108,7 @@ function readPrefs(): LocationPrefs {
       autoTimezone: typeof raw.autoTimezone === "boolean" ? raw.autoTimezone : DEFAULT_PREFS.autoTimezone,
       locationAllowed: typeof raw.locationAllowed === "boolean" ? raw.locationAllowed : DEFAULT_PREFS.locationAllowed,
       source: raw.source === "manual" ? "manual" : "auto",
+      locale: typeof raw.locale === "string" ? raw.locale.trim() : DEFAULT_PREFS.locale,
       location: {
         name: typeof loc.name === "string" ? loc.name : "",
         latitude: typeof loc.latitude === "number" ? loc.latitude : null,
@@ -130,18 +133,11 @@ function mutatePrefs(patch: Partial<LocationPrefs>) {
 }
 
 // ── Lectura de estado del sistema ───────────────────────────────────────────────
-// LANG efectivo: primero el bloque que gestionamos en gigios/env.lua (lo que se
-// aplicará al reiniciar sesión), luego el entorno actual, luego localectl.
+// LANG efectivo: primero el que gestionamos nosotros (lo que se aplicará al
+// reiniciar sesión), luego el entorno actual, luego localectl. Sale del estado
+// reactivo, no de releer el disco: `prefs` ya se siembra de datetime.json.
 function readManagedLocale(): string {
-  const env = readFile(ENV_PATH)
-  const begin = env.indexOf(LOCALE_BEGIN)
-  const end = env.indexOf(LOCALE_END)
-  if (begin !== -1 && end > begin) {
-    const block = env.slice(begin, end)
-    const m = block.match(/hl\.env\(\s*"LANG"\s*,\s*"([^"]+)"\s*\)/)
-    if (m) return m[1]
-  }
-  return ""
+  return prefs.get().locale
 }
 
 export async function refresh() {
@@ -199,8 +195,12 @@ export function listTimezones(): Promise<string[]> {
 
 // ── Idioma del sistema ──────────────────────────────────────────────────────────
 // Dos partes:
-//   1. Escribir LANG/LC_ALL en el bloque gestionado de gigios/env.lua (SIN
-//      contraseña; lo lee la sesión al reiniciar, como hace KDE).
+//   1. Guardar el locale en datetime.json (SIN contraseña). Lo lee el config de
+//      Hyprland (gigios/env.lua), que emite el `hl.env("LANG"/"LC_ALL", …)`; la
+//      sesión lo recoge al reiniciarse, como hace KDE. Antes esto reescribía un
+//      bloque entre marcadores DENTRO de gigios/env.lua, que está versionado —
+//      estado de máquina ensuciando git, y un marcador tocado a mano dejaba el
+//      bloque huérfano y AGS añadía otro debajo.
 //   2. Asegurar que el locale está GENERADO para que las apps puedan usarlo. Si
 //      no aparece en `locale -a`, lo añadimos a /etc/locale.gen y corremos
 //      locale-gen (esto sí pide contraseña vía polkit). Sin este paso, elegir un
@@ -208,7 +208,7 @@ export function listTimezones(): Promise<string[]> {
 export async function applyLocale(lang: string) {
   const clean = lang.trim()
   if (!clean) return
-  writeEnvLocale(clean)
+  mutatePrefs({ locale: clean })
   _setSnapshot({ ...snapshot.get(), locale: clean })
   const available = (await sh("locale -a 2>/dev/null")).split("\n").map(normalizeLocaleName)
   if (!available.includes(normalizeLocaleName(clean))) {
@@ -228,31 +228,6 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`
 }
 
-// Escribe (o reemplaza) el bloque gestionado de idioma en gigios/env.lua. Sin
-// root. Emite líneas Lua `hl.env("CLAVE", "valor")` — el fichero es un chunk de
-// la config, así que una línea malformada la rompería entera; el valor se escapa
-// por eso mismo, aunque los nombres de locale válidos nunca traen comillas.
-function writeEnvLocale(clean: string) {
-  const luaStr = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
-  let env = readFile(ENV_PATH)
-  // Quitar cualquier bloque gestionado previo (con o sin salto final).
-  const begin = env.indexOf(LOCALE_BEGIN)
-  if (begin !== -1) {
-    const endIdx = env.indexOf(LOCALE_END, begin)
-    if (endIdx !== -1) {
-      let after = endIdx + LOCALE_END.length
-      if (env[after] === "\n") after += 1
-      env = env.slice(0, begin) + env.slice(after)
-    }
-  }
-  env = env.replace(/\n{3,}$/,"\n").replace(/\s+$/, "")
-  const block = `${LOCALE_BEGIN}\nhl.env("LANG", ${luaStr(clean)})\nhl.env("LC_ALL", ${luaStr(clean)})\n${LOCALE_END}\n`
-  const next = env ? `${env}\n\n${block}` : block
-  try {
-    GLib.mkdir_with_parents(GLib.path_get_dirname(ENV_PATH), 0o755)
-    GLib.file_set_contents(ENV_PATH, next)
-  } catch (e) { console.error("[datetime] no se pudo escribir env.lua:", e) }
-}
 
 // ── Zona horaria y NTP (piden contraseña vía polkit) ────────────────────────────
 // Todo lo que pasa por aquí escala privilegios (pkexec o timedatectl), así que
