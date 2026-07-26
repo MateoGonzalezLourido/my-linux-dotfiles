@@ -1,92 +1,227 @@
 # GiGiOS
 
-Carpeta única con todo mi sistema personal para Hyprland: el shell de AGS, la
-config de Hyprland (incl. hyprlock y scripts de escáner), la foto de perfil, los
-wallpapers y los directorios de config auxiliares. Como árbol de dotfiles, los
-archivos reales viven aquí y se "instalan" en sus rutas XDG mediante symlinks.
+A personal, daily-driven **Hyprland** desktop for Arch Linux / CachyOS — a full rice built
+from scratch: a custom **AGS v2 (Astal)** shell, a **Lua-native Hyprland config**, and a pile of
+background daemons that quietly handle security, power, USB safety, wallpapers and more so the
+desktop stays fast, pretty and out of your way.
 
-## Recargar o reiniciar Hyprland
+This is not a minimal "here's my `hyprland.conf`" rice — it's a whole small **operating layer**
+on top of Hyprland: real services with JSON state, real settings UI, real safety nets. Everything
+lives in this one repository and is deployed to your `$HOME` via symlinks, dotfiles-style.
 
-Para aplicar únicamente cambios de configuración usa `hyprctl reload`. Para reiniciar
-Hyprland correctamente y volver a ejecutar el autostart de `hypr/gigios/autostart.lua`, usa
-`hyprctl reload full-reset`; una recarga normal no relanza el autostart.
+> Built and maintained for my own machines (one laptop, one desktop). It's opinionated and
+> personal, but designed to be readable, documented, and safe to install on a fresh box.
 
-## Contenido
+![Hyprland](https://img.shields.io/badge/Hyprland-0.56-58e1ff?logo=wayland&logoColor=white)
+![AGS](https://img.shields.io/badge/AGS-v2%20(Astal)-blueviolet)
+![Shell](https://img.shields.io/badge/Config-Lua-2c2d72?logo=lua)
+![License](https://img.shields.io/badge/license-personal--use-lightgrey)
 
-- `ags/`            — shell de AGS  (symlink: `~/.config/ags`)
-- `hypr/`           — config de Hyprland + hyprlock + scripts  (symlink: `~/.config/hypr`)
-- `inicializador/`  — init.sh de arranque  (symlink: `~/.config/inicializador`)
-- `mimeapps.list`   — aplicaciones predeterminadas por tipo MIME  (symlink: `~/.config/mimeapps.list`)
-- `menus/applications.menu` — catálogo de aplicaciones de KDE/Dolphin  (symlink: `~/.config/menus/applications.menu`)
-- `kdeglobals`      — preferencias KDE compartidas: Breeze Dark, Kitty e iconos Tela  (symlink: `~/.config/kdeglobals`)
-- `qt6ct/qt6ct.conf` — integración Qt en Hyprland: Breeze oscuro con densidad compacta  (symlink: `~/.config/qt6ct/qt6ct.conf`)
-- `mime/packages/`  — tipos MIME propios para clasificar correctamente dotfiles especiales
-- `system/`         — reglas udev y modules-load que `install.sh` copia a `/etc`
-- `Wallpapers/`     — fondos  (usados directo por `wallpaper.sh`, sin symlink)
-- `_legacy/`        — copias archivadas sin uso
-- `bin/link.sh`     — crea/repara/valida los symlinks
-- `bin/kitty-profile.sh` — selecciona el perfil de Kitty de esta máquina
-- `bin/firefox-profile.sh` — compone y aplica el perfil de Firefox en su perfil real
-- `bin/configurar-dolphin.sh` — aplica miniaturas selectivas y restaura las pestañas de Dolphin
+---
 
-## Instalación nueva (Arch/CachyOS)
+## ✨ Features
 
-El instalador instala paquetes oficiales, usa `paru` o `yay` para AGS/Astal,
-descarga el checkout bare, crea los enlaces, compila el CSS y ejecuta la
-validación final:
+### The shell (AGS v2 / Astal, TypeScript + JSX for GTK4)
+- Custom **bar** — workspaces (with live desktop icons and drag-aware repositioning), a Spotify
+  widget with an FFT audio-reactive waveform (via `cava`), system tray, resource indicators
+  (battery, RAM, temperature, disk, updates, screencast, USB).
+- **Orion** — a from-scratch application launcher / command palette (à la Rofi, but native to the
+  shell): app search, keybinds browser (parses the *live* Hyprland Lua config, loops and all),
+  calculator, clipboard history, wallpaper themes, favorites.
+- **Settings app** ("Ajustes") — a full native settings surface: Display (resolution/Hz/scale/VRR
+  per monitor), Devices (pointer/cursor theme, input), Personalization (gaps/animations,
+  window-desktop behavior), Power (TLP profile switch, power-save thresholds, Wake Up), Security
+  (ClamAV signature updates, sandboxed launching, per-category monitor toggles), Account (profile
+  photo), Region (date/time/locale), Notifications (rule engine), Calendar & Clock (events, alarms,
+  timer, stopwatch).
+- **Notification center** with a small rule engine (match/rewrite/mute by app, urgency, hint) and
+  a distinct "system" skin for background-script alerts.
+- Spotify and Google Calendar integrations, authenticated once via helper scripts, credentials kept
+  outside the repo.
+
+### The compositor (Hyprland, config fully in **Lua**, hyprlang retired)
+- Hyprland ≥ 0.55 dropped hyprlang in favor of a Lua config — this rice fully embraced that:
+  every module (`env`, `monitores`, `input`, `ventanas`, `animaciones`, `reglas`, `keybinds`,
+  `autostart`, …) is Lua, loaded through a small `util.carga()` wrapper so **one broken module
+  can't take down your keybinds** — it logs on-screen and every other module still loads.
+- **Per-machine GPU profiles** (hybrid laptop / desktop NVIDIA / …), selected by a one-line local
+  file, never committed.
+- **Live display/device settings**: the Settings app writes JSON, the Lua config reads it on every
+  reload — no more codegen, no more escaping bugs, no more losing your 240 Hz + 1.25 scale on a
+  stray `hyprctl reload`.
+- **Smart window placement**: new windows get a pre-selected split axis/side based on cursor
+  position and the target window's shape, so opening a 5th terminal doesn't leave you with a
+  120 px sliver. Dragging a window into a tight spot resizes its neighbor just enough instead of
+  crushing it.
+- **Per-desktop window cap** with automatic overflow to the next free desktop, arbitrated against
+  window *anchoring* (apps that launch always land on the desktop you launched them from, even if
+  you've since switched away).
+- **App-open desktop scan**: for the first 30 s of a session, jumps you to wherever your
+  autostart/session-restore windows actually landed.
+- **`SUPER` doesn't leak into apps** — every unbound `SUPER+key` combo is captured as a no-op
+  (generated by a loop, not a hand-maintained 335-line file).
+- Anchor-desktop workspace (go-to/return-to a "home" desktop), gaps/border toggle, colorblind
+  filters, compacting desktop IDs — all exposed as instant keybinds or shell toggles.
+
+### Background safety & maintenance daemons (`hypr/scripts/`)
+- **Security monitor** — kernel/journal/file watchers for OOM kills, panics, disk I/O errors,
+  hardware errors, unsigned kernel modules, privilege escalations (with a curated allow-list so
+  GameMode doesn't spam you), sudo/SSH auth events, `/etc/passwd`-class file tampering, SMART
+  failures, failed systemd units.
+- **Downloads scanner** — event-driven (inotify, not polling), content-hash deduplicated, flags new
+  executables with a **"launch sandboxed"** action (Firejail + ClamAV pre-scan), and ClamAV-scans
+  every new file, with battery/power-save/gaming-aware pausing.
+- **ClamAV signature management** from the Settings UI — see freshness, toggle auto-update, update
+  on demand, all via a tightly-scoped root helper (no interactive `sudo`, no shell escalation).
+- **USB safety** — a udev rule fixes the real root cause of "my USB copy said done but wasn't"
+  (`vm.dirty_ratio` letting writeback lag behind the progress bar) for removable storage only, plus
+  smart connect/disconnect notifications that de-duplicate composite/hub devices, and safe
+  auto-repair of dirty filesystems at the one moment it's actually safe to do so.
+- **Boot health check** — one pass at login: hardware-aware (only checks what's actually present),
+  battery wear vs. design capacity, previous-boot suspend/hibernate failures, deduplicated kernel
+  errors, silent when everything's fine.
+- **Power management** — adaptive-interval battery/temperature/RAM monitors (near-zero forking on
+  the hot path), a switchable TLP profile (Normal/Power-save) applied via a locked-down root
+  helper, a "gaming gate" that freezes expensive background scans (SMART, updates, unit checks)
+  while a game has focus or the battery is low, and a "Wake Up" feature that vetoes idle
+  suspend/lock/DPMS for a chosen duration without ever touching your saved hypridle timers.
+- **Wallpapers** — time-of-day wallpaper slots (day/evening/night) plus independently-scheduled
+  wallpaper *groups* with their own 24h variant timeline, a single precisely-armed timer (no
+  polling) that also survives suspend/resume via a logind signal.
+- **Screen recording / screenshots** — region/window/monitor/fullscreen, toggle-based recording
+  with proper MP4 finalization, always with system audio.
+- **Clipboard manager** — persistent history survivable across shell restarts, image thumbnails, a
+  Rofi-based picker.
+
+### Per-machine application profiles
+- **Kitty** and **Firefox** each auto-detect laptop vs. desktop (battery presence) and apply a
+  tuned profile (low-power vs. responsive), overridable at install time or after.
+
+---
+
+## 📦 Installation
+
+Target: **Arch Linux or CachyOS**. One command, on a fresh machine:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
 ```
 
-Kitty elige automáticamente el perfil de bajo consumo en equipos con batería y
-el perfil responsivo en sobremesas. Se puede forzar durante la instalación con
-`KITTY_PROFILE=laptop` o `KITTY_PROFILE=desktop`. La estructura, los valores y
-el cambio posterior están documentados en [docs/kitty-profiles.md](docs/kitty-profiles.md).
+This will:
 
-Firefox usa la misma detección con `FIREFOX_PROFILE`. Su selector resuelve el
-nombre aleatorio del perfil predeterminado y enlaza allí el `user.js` generado;
-así la configuración sí se aplica en cada arranque. Consulta
-[docs/firefox-profiles.md](docs/firefox-profiles.md) para ver las diferencias y
-las preferencias de seguridad corregidas.
+1. Install every package this rice depends on (Hyprland, AGS/Astal, hyprlock/hypridle,
+   ClamAV, Firejail, TLP, and the full desktop app set) via `pacman`/`paru`/`yay`.
+2. Clone the bare dotfiles repo and check it out into `$HOME` (backing up anything in the way).
+3. Symlink every config into its canonical XDG path (`~/.config/ags`, `~/.config/hypr`, …).
+4. Select the right Kitty/Firefox profile for this machine (or force it, see below).
+5. Compile the shell's SCSS, rebuild the Dolphin thumbnail cache.
+6. Install the `/etc` fragments that legitimately need root (USB writeback udev rule, `i2c-dev`
+   for DDC/CI brightness, TLP profile switch helper + sudoers rule, ClamAV update helper +
+   sudoers rule, handing the power button over to Hyprland).
+7. Run a final preflight check.
 
-Para añadir otra aplicación con variantes por equipo, sigue la guía
-[docs/anadir-perfiles-por-equipo.md](docs/anadir-perfiles-por-equipo.md). Incluye
-la estructura, el contrato del selector, integración con el instalador,
-preflight y las pruebas de una instalación limpia.
-
-Antes de iniciar Hyprland, elige el perfil de GPU en `~/.config/gigios/gpu-perfil`. Por seguridad
-no se activa ningún perfil específico en una instalación nueva. Los únicos
-pasos deliberadamente manuales son los que necesitan datos o privilegios del
-usuario: Spotify, `sudo freshclam`, `sudo sensors-detect` y fuentes propietarias.
-La guía completa y la resolución de problemas están en [docs/SETUP.md](docs/SETUP.md).
-
-Para instalar solo los archivos y gestionar paquetes por tu cuenta:
+Useful overrides:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh | INSTALL_PACKAGES=0 bash
+curl -fsSL <url> | INSTALL_PACKAGES=0 bash        # skip package installation
+curl -fsSL <url> | KITTY_PROFILE=desktop bash     # force a Kitty profile
+curl -fsSL <url> | FIREFOX_PROFILE=laptop bash    # force a Firefox profile
+curl -fsSL <url> | DOTFILES_BRANCH=guides bash    # install a different branch
 ```
 
-Este modo omite únicamente la instalación de paquetes: las dependencias siguen siendo
-necesarias para completar la validación. En Arch/CachyOS, `dart-sass` proporciona el
-comando `sass` que compila `ags/estilos/style.scss`.
+The same command **updates** an already-installed machine: it fetches, fast-forwards the local
+checkout, and re-verifies every symlink.
 
-## Reparar o validar
+### After installing
+
+A couple of one-time, per-machine choices that are intentionally **not** versioned (they're local
+state, not code — see `docs/anadir-perfiles-por-equipo.md`):
+
+- **GPU profile**: write one line to `~/.config/gigios/gpu-perfil` (`sobremesa-nvidia`,
+  `laptop-hibrida`, or leave it absent for plain Intel/AMD).
+- **Region/locale**: set once from Settings → Region (nothing is assumed on your behalf).
+- **Cursor theme**: set once from Settings → Devices → Pointer, if you want a specific one.
+
+Full step-by-step notes (including a from-scratch checklist and troubleshooting) live in
+[`docs/SETUP.md`](docs/SETUP.md). Repairing or auditing symlinks on an already-installed machine:
 
 ```sh
-bin/link.sh          # crea o repara los symlinks
-bin/link.sh --check  # solo reporta estado
-bin/kitty-profile.sh status # muestra el perfil de Kitty activo
-bin/firefox-profile.sh status # comprueba el user.js del perfil real
-bin/preflight.sh --installed # archivos, scripts, comandos y enlaces
+bin/link.sh          # create/repair symlinks, never overwrites a real dir/file
+bin/link.sh --check  # report-only, exit 0 if everything's fine
+bin/link.sh --force  # back up whatever's in the way, then link
 ```
 
-`link.sh` no mueve ni borra datos: si una ruta canónica todavía es un directorio
-real (sin migrar), avisa y no la toca.
+### Reloading / restarting Hyprland
 
-## Datos privados
+```sh
+hyprctl reload              # apply config changes only
+hyprctl reload full-reset   # actually restart Hyprland and re-run autostart
+```
 
-`~/.config/gigios/spotify-creds.json` nunca se versiona. Restáuralo desde una
-copia segura o ejecuta `~/.config/ags/scripts/spotify-auth.sh`. La foto de perfil
-(`~/.local/share/gigios/face.png`, fuera del repo) también es opcional: se pone desde
-Ajustes > Cuenta y sin ella AGS muestra las iniciales.
+A plain reload does **not** re-run the autostart daemons — use `full-reset` for that, or relaunch
+AGS separately when its own code changes.
+
+---
+
+## 📊 Performance
+
+GiGiOS is built to stay light even with dozens of background daemons running — almost everything
+is event-driven (inotify, D-Bus signals, Hyprland's Lua callbacks) rather than polling, and hot
+paths avoid forking a process per tick. Numbers below are a real snapshot from the author's daily
+desktop (12-thread CPU, 16 GB RAM, single 2560×1440 @ 240 Hz display), not a synthetic benchmark:
+
+| Metric | Value | Notes |
+|---|---|---|
+| Boot to graphical session | **~12.0 s** userspace (`systemd-analyze`) | firmware+loader+kernel excluded — hardware/bootloader, not this rice |
+| Full cold boot (firmware → desktop) | ~34.3 s | `systemd-analyze`, includes BIOS/POST |
+| AGS shell memory (RSS) | **~240 MB** | full shell: bar, Orion, notification center, all services running |
+| Idle CPU with shell + ~15 background daemons | **< 1–2%** | `top`, system otherwise idle |
+| Compositor | Hyprland 0.56, Lua config | no legacy `hyprctl keyword`/`dispatch` parsing overhead |
+
+Your numbers will vary with monitor count/refresh rate and how many of the optional daemons
+(ClamAV downloads scanner, screencast/USB/Bluetooth watchers, etc.) you leave enabled — every one
+of them is an individually toggleable switch in Settings.
+
+Design choices that keep it this way:
+- Bash monitors (`hypr/scripts/*-monitor.sh`) use builtins on the hot path and only fork out to
+  `jq`/`notify-send` when there's actually something to report.
+- Adaptive polling intervals (battery/temperature tighten up near a threshold, relax with margin).
+- A single precisely-armed timer for wallpaper scheduling instead of periodic polling.
+- A "gaming gate" and power-save-aware freezing defer expensive scans (SMART, `checkupdates`, unit
+  checks) while a game has focus or the battery is low — deferred, not skipped.
+
+---
+
+## 🗂️ Repository layout
+
+```
+ags/            AGS v2 (Astal) shell — TypeScript/JSX, GTK4        → ~/.config/ags
+hypr/           Hyprland config (Lua) + hyprlock/hypridle/hyprpaper → ~/.config/hypr
+inicializador/  init.sh — restores brightness/night-light/wifi/bt/volume at login
+Wallpapers/     wallpaper pool, read directly by wallpaper.sh (no symlink)
+system/         files that install to /etc via sudo, never symlinked (udev, TLP, sudoers, …)
+bin/            link.sh (symlink manager), profile selectors, small install helpers
+docs/           setup guide and per-topic specs
+```
+
+Runtime state, preferences and secrets (`~/.config/gigios/`, Spotify/Calendar credentials, the
+profile photo, calendar events, wallpaper JSON) deliberately live **outside** this repo — nothing
+personal or machine-specific is versioned.
+
+See [`CLAUDE.md`](CLAUDE.md) and [`ags/CLAUDE.md`](ags/CLAUDE.md) for the full architectural
+deep-dive (why things are built the way they are, not just what they do), and
+[`docs/hypr-estructura.md`](docs/hypr-estructura.md) for the Hyprland module layout.
+
+## 🔒 Private data
+
+`~/.config/gigios/spotify-creds.json` and `~/.config/gigios/google-calendar-creds.json` are never
+versioned — restore them from a secure backup or run `~/.config/ags/scripts/spotify-auth.sh` /
+`google-calendar-auth.sh`. The profile photo (`~/.local/share/gigios/face.png`, also outside the
+repo) is optional too: set it from Settings → Account, and AGS shows your initials without it.
+
+## ⚠️ Before you install
+
+This is a **personal** rice, tuned to my own two machines. It installs cleanly on a fresh
+Arch/CachyOS box, but expect to spend some time in Settings choosing your GPU profile, region and
+cursor theme, and to read [`docs/SETUP.md`](docs/SETUP.md) if anything looks unfamiliar. Issues
+and questions are welcome, but this isn't a general-purpose, distro-agnostic rice project.
