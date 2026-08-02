@@ -49,7 +49,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   let alturaConservada = -1
   // Recorte de la región de entrada; se asigna tras construir la ventana. Debe re-ejecutarse al
   // terminar la animación de entrada (el transform de deslizamiento falsea la medida mientras corre).
-  let reclipInput: (() => void) | null = null
+  let reclipInput: ((inmediato?: boolean) => void) | null = null
 
   /**
    * Mantiene estable la geometría visible durante esta apertura. Las notificaciones
@@ -127,10 +127,14 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
     if (!entrancePending) return
     entrancePending = false
     cancelPrepare()
+    // Medir ANTES de añadir la clase que dispara el transform: la región queda
+    // fija en su posición final desde el primer frame, no desplazada hasta el
+    // reclip de abajo. Ver utilidades/inputRegion.ts.
+    reclipInput?.(true)
     animationRef?.remove_css_class("np-preparing")
     animationRef?.add_css_class("np-entering")
     // Al terminar el deslizamiento (transform en identidad) re-medir la región
-    // de entrada, calculada desplazada mientras el panel entraba.
+    // de entrada, por si algo cambió de tamaño durante la animación.
     enterSettleTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_ENTER_MS, () => {
       reclipInput?.()
       enterSettleTimer = null

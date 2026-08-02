@@ -131,7 +131,7 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
   let temporizadorAsentamiento: number | null = null
   let temporizadorSalida: number | null = null
   let entradaPendiente = false
-  let recalcularRegionEntrada: (() => void) | null = null
+  let recalcularRegionEntrada: ((inmediato?: boolean) => void) | null = null
 
   function cancelarPreparacion(): void {
     if (idTickEntrada !== null) {
@@ -148,10 +148,14 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
     if (!entradaPendiente) return
     entradaPendiente = false
     cancelarPreparacion()
+    // Medir ANTES de añadir la clase que dispara el transform: si se mide
+    // después, `compute_bounds()` devuelve la posición ya desplazada y esa es
+    // la región que queda fija durante toda la animación. Midiendo aquí la
+    // región clicable queda en su sitio final desde el primer frame.
+    recalcularRegionEntrada?.(true)
     envoltorioAnimado?.remove_css_class("cal-preparing")
     envoltorioAnimado?.add_css_class("cal-entering")
-    // El transform desplaza también la medición usada para la región clicable.
-    // Se vuelve a recortar cuando el panel ya está en su posición definitiva.
+    // Se vuelve a recortar al terminar, por si algo cambió de tamaño durante la animación.
     temporizadorAsentamiento = GLib.timeout_add(
       GLib.PRIORITY_DEFAULT,
       DURACION_ENTRADA_MS,

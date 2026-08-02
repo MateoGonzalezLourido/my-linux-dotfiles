@@ -3403,7 +3403,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
   let entranceActive = false
   // Recorte de la región de entrada; se asigna tras construir la ventana. Debe re-ejecutarse al
   // terminar la animación de entrada (el transform de deslizamiento falsea la medida mientras corre).
-  let reclipInput: (() => void) | null = null
+  let reclipInput: ((inmediato?: boolean) => void) | null = null
 
   function cancelExitWait(): void {
     if (exitTickId === null || !qsAnimationRef) return
@@ -3475,6 +3475,11 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     if (!entrancePending) return
     entrancePending = false
     cancelPrepare()
+    // Medir ANTES de añadir la clase que dispara el transform: así la región
+    // clicable queda fija en su posición final desde el primer frame de la
+    // animación, en vez de arrastrar la posición transformada hasta el reclip
+    // de más abajo.
+    reclipInput?.(true)
     qsAnimationRef?.remove_css_class("qs-preparing")
     qsAnimationRef?.add_css_class("qs-entering")
     entranceGuardTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_ENTER_MS, () => {

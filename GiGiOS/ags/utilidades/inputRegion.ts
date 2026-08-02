@@ -101,7 +101,7 @@ export function clipWindowInputToContent(
   win: any,
   contenido: any,
   opciones: OpcionesRecorteEntrada = {},
-): () => void {
+): (inmediato?: boolean) => void {
   let surfaceHandlers: { surface: any; ids: number[] } | null = null
   let framePendiente: number | null = null
   let aplicacionPendiente: number | null = null
@@ -172,7 +172,19 @@ export function clipWindowInputToContent(
   // deja programado se ejecuta cuando GTK ya ha asignado y pintado ese frame.
   // Así `compute_bounds()` ve el ancho nuevo de contenidos que crecen dentro de
   // una superficie constante, como el submenú derecho de Orion.
-  const scheduleApply = () => {
+  // `inmediato` mide y aplica en el acto, sin esperar tick+idle. Hace falta para
+  // capturar la región JUSTO antes de añadir la clase CSS que dispara el
+  // transform de entrada: encolada como el resto, la medición corre en un idle
+  // que puede llegar después de que el transform ya haya arrancado —
+  // `compute_bounds()` devolvería entonces la posición desplazada de mitad de
+  // animación, y esa sería la región que queda fija hasta el reclip final.
+  const scheduleApply = (inmediato = false) => {
+    if (inmediato) {
+      framePendiente = null
+      aplicacionPendiente = null
+      apply()
+      return
+    }
     if (framePendiente !== null || aplicacionPendiente !== null) return
     try {
       framePendiente = win.add_tick_callback(() => {
