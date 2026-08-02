@@ -509,6 +509,38 @@ popover.background {
   font-weight: 600;
 }
 
+// Acción sin vuelta atrás (desinstalar). En reposo se comporta como el resto:
+// teñirla siempre de rojo convertiría el panel en una alarma permanente y, a
+// fuerza de verla, dejaría de significar nada. El color entra al apuntarla.
+.orion-panel .rp-action.destructiva {
+  &:hover {
+    background: rgba($j-accent-red, 0.12);
+    box-shadow: inset 0 0 0 1px rgba($j-accent-red, 0.3);
+
+    .rp-action-ico,
+    .rp-action-label { color: $j-accent-red; }
+  }
+
+  &.seleccionado {
+    background: rgba($j-accent-red, 0.14);
+    box-shadow:
+      inset 0 0 0 1px rgba($j-accent-red, 0.42),
+      0 5px 14px rgba($j-accent-red, 0.14);
+
+    .rp-action-ico,
+    .rp-action-label { color: $j-accent-red; }
+  }
+}
+
+// Separa la acción destructiva del resto: sin este hueco quedaba a un píxel de
+// "Fijar en inicio", que es trivial y reversible.
+.rp-action-sep {
+  background: $j-border-subtle;
+  min-height: 1px;
+  margin: 5px 8px;
+}
+
+
 // Separator for the contextual panel on the right.
 .orion-panel-sep {
   background: $j-border-subtle;

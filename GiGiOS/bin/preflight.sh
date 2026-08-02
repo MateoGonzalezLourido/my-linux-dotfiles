@@ -36,7 +36,7 @@ required=(
   Wallpapers/sunset.jpg
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
-  hypr/scripts/run-untrusted.sh
+  hypr/scripts/run-untrusted.sh hypr/scripts/desinstalar-app.sh
   hypr/scripts/wallpaper.sh hypr/scripts/wallpaper-select.py hypr/scripts/lib/seleccion_fondos.py
   system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
   system/logind.conf.d/99-gigios-powerkey.conf

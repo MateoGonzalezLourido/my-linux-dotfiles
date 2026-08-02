@@ -274,6 +274,74 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
   identidad por la primera ventana nueva, 15 s de observación, rama `urgent` para single-instance).
   La regla cubre **solo la primera ventana** (medido), así que el observador sigue siendo la red de
   los splash y los multiventana. Detalle en el `CLAUDE.md` raíz.
+  **El panel derecho (`components/shell/RightPanel.tsx`) puede DESINSTALAR la app**, además de
+  abrirla, editar su config y fijarla. Lo que decide y ejecuta es
+  `hypr/scripts/desinstalar-app.sh` (pacman/AUR, Flatpak, Steam o borrado de ficheros, con `pkexec`
+  para el diálogo gráfico de contraseña); aquí solo hay E/S (`data/uninstall.ts`) y la lectura del
+  desenlace (`data/uninstall.parse.ts`, **puro y con test**). Detalle del script en el `CLAUDE.md` raíz.
+  - **Es de UN CLIC: no hay pantalla de confirmación.** Hubo una (método, paquete y lista completa de
+    lo que `-Rs` se llevaría) y se quitó a petición del usuario; se acepta porque la confirmación
+    real es el **diálogo de contraseña de polkit**, que no se puede saltar. Si vuelve a hacer falta,
+    el verbo `detectar` del script sigue devolviendo todos esos datos — hoy nadie lo llama desde la UI.
+  - **`desinstalar()` APARTA ORION ANTES DE LANZAR NADA, y no es cortesía.** El diálogo de polkit es
+    una ventana normal y Orion es una layer-shell **`OVERLAY`**, capa que va por encima de todas las
+    ventanas normales por definición del protocolo (y con keymode `ON_DEMAND`, peleando además por el
+    teclado): con Orion en pantalla el diálogo salía **debajo** y había que cerrarlo a mano para
+    escribir. Cerrarlo antes **no basta** — la salida son ~280 ms de animación más un par de frames
+    hasta que la superficie se desmapea —, así que `esperarOrionOculto()` (`data/uninstall.ts`)
+    **sondea el estado real de la ventana** (`app.get_windows()`, nombre `orion` + `visible`) en vez
+    de dormir una constante copiada de `Orion.tsx`, que se desincronizaría en silencio en cuanto
+    alguien la retocara. Techo de ~1 s: si la animación se atasca se sigue adelante, porque lo peor
+    que pasa entonces es el comportamiento de antes.
+  - **Se aparta con `suspenderPanel()`, NO con `hidePanel()`, y al terminar vuelve donde estaba.**
+    Cerrar de verdad es una salida: `finalizarCierrePanel` vacía búsqueda, resultados y panel
+    derecho, y la sección regresa a Inicio salvo que el usuario tenga `orionRecordarUltimaSeccion`.
+    Correcto cuando cierras tú, **incorrecto cuando Orion se aparta por obligación** — ahí nadie
+    pidió salir de ningún sitio. `suspenderPanel()` guarda una foto (sección, origen, consulta,
+    resultados, ficha del panel derecho), cierra **sin** `recordarSeccionAlCerrar()` —apuntar la
+    sección aquí ensuciaría el "volver a la última" de la próxima apertura de verdad— y
+    `finalizarCierrePanel` **corta al principio mientras haya foto**, que es lo que salta la
+    limpieza. Tres reglas que no se deducen del código:
+    1. **Si el usuario reabre Orion por su cuenta mientras tanto, la foto se descarta sin tocar
+       nada**: lo que él acaba de hacer manda sobre lo que había.
+    2. **La ficha del panel derecho solo se suelta con `soltarApp`** (tras un `ok`): reponer una app
+       recién desinstalada dejaría una ficha fantasma con un «Abrir» que no abre nada. Y si había una
+       búsqueda escrita, **se repite la consulta** en vez de reponer los resultados congelados — con
+       el catálogo ya invalidado devuelve la lista sin ella, el mismo fantasma que evita
+       `data/catalogo.ts` en la rejilla. Tras `cancelado`/`error` se repone todo tal cual.
+    3. **`externo` llama a `descartarSuspension()`, no se limita a no reanudar.** Una foto olvidada
+       deja `finalizarCierrePanel` cortocircuitado **para siempre** y Orion no volvería a limpiar su
+       estado en ningún cierre posterior. `descartarSuspension()` la tira y aplica la limpieza que se
+       había saltado, porque a esas alturas sí es un cierre normal.
+  - **El fail-safe es al revés que el resto del shell**: `interpretarSalida` trata como `error` todo
+    lo que no sea una palabra conocida (`ok`/`externo`/`cancelado`). Dar por buena una salida que no
+    se entiende borraría el favorito de una app que quizá sigue instalada. **`externo` (Steam) no
+    puede colapsarse a `ok`**: ahí no se ha desinstalado nada todavía —lo decide el usuario en la
+    ventana de Steam y no vamos a enterarnos—, así que ni se toca el favorito ni se repone Orion,
+    que taparía justo ese diálogo.
+  - **El script es el único que notifica el resultado** (`pkexec` tarda lo que tarde el usuario en
+    teclear, y para entonces Orion lleva rato cerrado). La excepción es "falta el script": ahí
+    notifica AGS, porque si no el usuario se queda mirando un escritorio donde no ha pasado nada.
+  - **`AppContextItem` lleva `desktopFile`** porque `pacman -Qoq` sobre el `.desktop` identifica el
+    paquete mucho mejor que sobre el binario: un `Exec` con `sh -c`/`env` resuelve al intérprete. Lo
+    rellenan los cuatro sitios que abren el panel; los favoritos lo resuelven con
+    `Gio.DesktopAppInfo.new(id)` porque guardan el id, no la ruta.
+  - **`data/catalogo.ts` existe porque había DOS cachés de `.desktop` que no caducaban**: `_appCache`
+    en `AppsSection.tsx` y `_cache` en `search/handlers/apps.ts`. Se poblaron pensando en un catálogo
+    que solo cambia entre sesiones, cosa que dejó de ser cierta al poder desinstalar: sin
+    invalidarlas, la app recién borrada seguía en la rejilla y en la búsqueda hasta reiniciar el
+    shell y, al pulsarla, no se abría nada **sin dar ningún error**. Es solo el punto de encuentro (y
+    no importa GTK a propósito): así `RightPanel` avisa sin depender de la sección ni del buscador,
+    que es lo que habría creado un ciclo de imports entre los tres. La sección **no fuerza su carga
+    perezosa** al invalidar: repintar una sección que el usuario aún no ha abierto pagaría el parseo
+    de los ~161 `.desktop` para nada. Un consumidor nuevo del catálogo debe registrarse aquí.
+  - **«Desinstalar» va la última y separada por `.rp-action-sep`, sin rojo en reposo**: es la única
+    acción del panel sin vuelta atrás y quedaba a un píxel de «Fijar en inicio», que es trivial y
+    reversible. El rojo entra al apuntarla — teñirla siempre convertiría el panel en una alarma
+    permanente y, a fuerza de verla, dejaría de significar nada.
+  - Tras un `ok` se quita el favorito si lo había: `appResolver` no lo salvaría (buscaría una
+    variante del binario y ya no hay ninguna) y quedaría un tile que no abre nada.
+
   **La sección Temas (`components/sections/RiceSection.tsx` + `sections/rice/`) gestiona franjas
   horarias y grupos de fondos.** Cuatro vistas en un `Gtk.Stack` (rejilla, franjas, grupo, fondo).
   Puntos que no se deducen del código:

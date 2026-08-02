@@ -1587,6 +1587,121 @@ de caché (`~/.cache/gigios/download-index` **y** `download-hashes`) y relanzar 
 (`pkill` + `setsid nohup`), porque el índice y el conjunto de hashes se cargan en RAM al arrancar el
 script: borrarlos en caliente no sirve de nada.
 
+### Desinstalar apps desde Orion (`desinstalar-app.sh`)
+
+El panel derecho de Orion —el que se despliega al pulsar una app— tiene una acción **Desinstalar**
+además de Abrir / Editar config / Fijar en inicio. La ejecuta `hypr/scripts/desinstalar-app.sh`, con
+dos verbos que reciben **los mismos argumentos**: `detectar` (solo consulta, devuelve JSON) y
+`desinstalar` (hace el trabajo). Los dos detectan por su cuenta, así que `desinstalar` no depende de
+que nadie haya llamado antes a `detectar`.
+
+**Se desinstala DE UN CLIC: no hay pantalla de confirmación, y `detectar` NO lo usa la UI.** Hubo una
+—con el método, el paquete y la lista completa de lo que `-Rs` se llevaría— y se quitó a petición del
+usuario. El razonamiento por el que se acepta: **la confirmación es el propio diálogo de contraseña
+de polkit**, que no se puede saltar, sale con el nombre del comando y hay que atender de todas
+formas; una pantalla previa era un segundo "¿seguro?" delante de otro que ya existe. `detectar` se
+conserva como entrada de **diagnóstico** — es la forma de responder «¿por qué eligió este método?» o
+«¿qué se llevaría por delante?» sin borrar nada, y es con lo que se prueban los cinco caminos.
+Peaje asumido y explícito: en los métodos que **no** pasan por pkexec (Flatpak de usuario, Steam,
+y el borrado manual **dentro de `$HOME`**) no hay ninguna confirmación de por medio — el clic borra.
+
+**Es FAIL-SAFE, al revés que casi todo el repo.** El resto de scripts de GiGiOS son fail-open —ante
+la duda, hacen el trabajo—. Aquí toda ambigüedad termina en "no se desinstala nada" con el motivo
+escrito, porque el fallo silencioso de esto sería borrar software que nadie pidió borrar. Lo mismo en
+el lado TS: `interpretarSalida` trata como `error` **todo lo que no sea exactamente `ok` o
+`cancelado`** — dar por buena una salida que no se entiende borraría el favorito de una app que quizá
+sigue instalada.
+
+**pkexec, no `sudo` ni `paru`/`yay`, y los tres motivos son distintos.** Esto sale de un clic en una
+interfaz gráfica: no hay terminal donde teclear nada, así que `sudo` se colgaría en un stdin
+inexistente. `pkexec` es lo que abre el diálogo (hyprpolkitagent, ya lanzado desde
+`gigios/autostart.lua`) y su acción por defecto es `auth_admin` — pide la contraseña del usuario
+porque está en `wheel`, y **no la recuerda**: cada desinstalación la vuelve a pedir, que es lo
+correcto para algo irreversible. Los helpers del AUR **no sirven de ejecutores** aunque estén
+instalados: se niegan a correr como root y por dentro llaman a `sudo`, el mismo callejón sin salida.
+Y tampoco hacen falta — **`pacman -Rns` borra igual un paquete del AUR que uno de los repos**; el
+helper solo interviene en la *instalación*. Se detectan para dos cosas reales: etiquetar el paquete
+como AUR en la UI y **limpiar su clon en la caché** (`~/.cache/{paru,yay}/clone/<pkg>`), que pacman no
+conoce y se quedaría ocupando disco.
+
+**Cinco métodos, y el ORDEN de detección es lo que evita el peor fallo.** Steam y Flatpak van
+**antes** que pacman porque sus `.desktop` viven en `~/.local/share/applications` y no los posee
+ningún paquete: al revés caerían en la rama "manual" y se ofrecería borrar el **acceso directo**,
+dejando el juego de 80 GB en disco y al usuario convencido de haberlo desinstalado.
+
+1. **Steam** (`steam://rungameid/N`) → `steam steam://uninstall/N`. Steam no tiene desinstalación no
+   interactiva: abre su propio diálogo, y por eso el botón dice "Abrir Steam" y se avisa — si no, esa
+   ventana parecería llegar de la nada.
+2. **Flatpak** (`flatpak run …`) → `flatpak uninstall -y --delete-data`. Escala solo por polkit si el
+   runtime es de sistema.
+3. **pacman** → `pacman -Qoq` **primero sobre el `.desktop`** y solo si no lo posee nadie, sobre el
+   binario: el `Exec` puede ser un envoltorio (`sh -c`, `env`) y resolvería al intérprete. Se
+   distingue AUR con `pacman -Qmq`.
+4. **Manual** (curl \| sh, AppImage, tarball): nadie lo posee. Se listan **solo ficheros concretos,
+   nunca directorios** —un `rm -rf` sobre un directorio adivinado convierte esta función en una
+   pérdida de datos—: el binario, su destino si es symlink (donde vive lo que instalan los scripts de
+   curl) y el `.desktop` **solo si es del usuario**. Root únicamente si algo cae fuera de `$HOME`.
+5. **Desconocido** → no se ofrece nada, con el motivo escrito.
+
+**El desenlace viaja por STDOUT (`ok`/`externo`/`cancelado`/`error`) con rc=0**, no en el código de
+salida. `execAsync` rechaza con el **stderr** ante cualquier rc≠0, así que codificarlo ahí dejaba "el
+usuario cerró el diálogo de contraseña" indistinguible de un fallo real. Los rc≠0 quedan para lo que
+ni siquiera llegó a intentarse (uso incorrecto, sin `jq`). Solo un `ok` borra el favorito y tira la
+caché del catálogo.
+
+**`externo` es el desenlace de Steam y NO puede colapsarse a `ok`.** Ahí no se ha desinstalado nada
+todavía: el juego sigue instalado hasta que el usuario confirme en la ventana de Steam, y de eso no
+nos vamos a enterar nunca. Tratarlo como éxito hacía dos cosas mal a la vez — borrar el favorito de
+un juego que quizá sigue ahí, y **hacer reaparecer Orion justo encima del diálogo de Steam**, que es
+el mismo problema de capas que motiva todo lo de abajo.
+
+**El script es el ÚNICO que notifica el resultado**, y tiene que serlo: `pkexec` puede tardar lo que
+tarde el usuario en teclear la contraseña, y para entonces Orion lleva rato cerrado. La excepción es
+"falta el script", donde AGS notifica por su cuenta — si no, con Orion ya cerrado el usuario se
+quedaría mirando un escritorio en el que no ha pasado absolutamente nada.
+
+**Un rc≠0 de `pacman -Rs --print` NO es un fallo del script: es la respuesta.** Significa que otro
+paquete depende de este, y su texto es la explicación que hay que enseñar. Sale por **stdout**, no
+por stderr (medido). Se recorta a cuatro líneas más un contador: pacman emite una por cada
+dependiente, y con algo como `glibc` son **68 KB** de texto idéntico que ni la UI pinta ni nadie lee.
+
+**`-Rs` arrastra las dependencias que quedan huérfanas**, así que desinstalar `kitty` se lleva cuatro
+paquetes. Sin pantalla de confirmación eso ya no se ve **antes**, solo después: la notificación de
+éxito dice cuántos se quitaron, y `detectar` sigue siendo la forma de mirarlo de antemano.
+
+**`CRITICOS` sigue existiendo aunque su aviso ya no tenga dónde pintarse.** pacman se niega solo
+cuando algo depende del paquete, pero varios de los que dejan la sesión inutilizable son **hojas** del
+grafo (`hyprland`, `sddm`, el propio shell) y saldrían sin una sola queja. Hoy el campo `aviso` solo
+lo devuelve `detectar`; si algún día vuelve a haber UI previa, ese es el dato que tiene que pintar en
+ámbar. **No conviertas la lista en un bloqueo**: el usuario manda.
+
+**AGS APARTA ORION ANTES DE LANZAR NADA, y no es cortesía.** El diálogo de contraseña de polkit es
+una ventana normal y Orion es una layer-shell **`OVERLAY`**, capa que va por encima de **todas** las
+ventanas normales por definición del protocolo; encima Orion tiene keymode `ON_DEMAND`, o sea que
+también pelea por el teclado. Con Orion en pantalla el diálogo salía **debajo** y había que cerrarlo
+a mano para poder escribir. Y no basta con llamar a `hidePanel()` primero: la salida son ~280 ms de
+animación más un par de frames antes de que la superficie se desmapee, así que
+`data/uninstall.ts` **sondea el estado real de la ventana** (`app.get_windows()`, nombre `orion` +
+`visible`) en vez de dormir una constante copiada de `Orion.tsx`, que se habría desincronizado en
+silencio la primera vez que alguien la retocara. Con techo de ~1 s: si la animación se atasca se
+sigue adelante, porque lo peor que pasa entonces es el comportamiento de antes.
+
+**Y se APARTA, no se cierra: al terminar Orion vuelve donde estaba.** Un `hidePanel()` es una salida
+de verdad —vacía búsqueda y resultados, y devuelve la sección a Inicio salvo con
+`orionRecordarUltimaSeccion` activado—, y aquí el usuario no ha pedido salir de ningún sitio: se le
+estaba quitando la vista por un motivo puramente técnico, así que perderle el sitio es un efecto
+colateral, no una decisión. `suspenderPanel()`/`reanudarPanel()` (`ags/modulos/orion/state.ts`)
+guardan una foto, cierran sin limpiar y la reponen. Ver `ags/CLAUDE.md` para las tres reglas que
+tiene: qué pasa si el usuario reabre Orion por su cuenta, por qué la ficha del panel derecho solo se
+suelta tras un `ok`, y por qué `externo` **descarta** la foto en vez de olvidarla.
+
+**Cada desinstalación disparará el aviso «🔓 Escalada de privilegios» de `oom-monitor.sh`, y eso es
+correcto.** `pkexec` loguea su `COMMAND=`, que es justo lo que esa rama vigila. **No lo metas en
+`PRIVESC_ALLOW`**: el patrón tendría que ser `*/pacman -Rns*`, o sea una autorización permanente para
+borrar cualquier paquete, y la sección de `oom-monitor.sh` ya avisa de que cada entrada de esa lista
+es un agujero permanente. Un aviso por una escalada que el usuario acaba de autorizar a mano no es
+ruido.
+
 ### Comprobación de arranque (`boot-healthcheck.sh`)
 
 Es el `exec-once` más caro del arranque —de ahí que vaya al final del calendario escalonado, a

@@ -12,6 +12,7 @@ import {
   showAppContext,
 } from "../../state"
 import { launchApp } from "../../data/launch"
+import { registrarInvalidadorCatalogo } from "../../data/catalogo"
 import { activarDobleClic } from "../shared/dobleClic"
 import { crearIconoApp, construirTileApp } from "../shared/tarjetaApp"
 import { vaciarCaja, vaciarFlowBox } from "../shared/gtkUtils"
@@ -27,6 +28,7 @@ interface AppEntry {
   exec: string
   execName: string
   appId: string
+  desktopFile: string
   categories: string[]
 }
 
@@ -68,6 +70,10 @@ function getAllApps(): AppEntry[] {
         exec: cmdline,
         execName: a.get_executable() ?? "",
         appId: a.get_id() ?? a.get_name() ?? "",
+        // `Gio.AppInfo.get_all()` devuelve `DesktopAppInfo`, así que la ruta del
+        // fichero está disponible sin volver a buscarla. La necesita el panel
+        // derecho para preguntarle a pacman de qué paquete es la app.
+        desktopFile: (a as any).get_filename?.() ?? "",
         categories: cats,
       }
     })
@@ -85,6 +91,7 @@ function openAppContext(app: AppEntry) {
     execRaw: app.exec,
     execName: app.execName,
     appId: app.appId,
+    desktopFile: app.desktopFile,
     launch: () => launchApp(app.exec),
   })
 }
@@ -209,6 +216,7 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
   modeButton.set_child(modeButtonInner)
   const countLabel = new Gtk.Label({ cssClasses: ["apps-count"] })
   let currentApps: AppEntry[] = []
+  let categoriaActual = "all"
   let gridMode = true
   let navegablesActuales: ElementoNavegacionBusqueda[] = []
 
@@ -248,6 +256,7 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
   })
 
   function rebuild(catId: string) {
+    categoriaActual = catId
     const gioKey = CATEGORIES.find(c => c.id === catId)?.gioKey ?? ""
     currentApps = getAllApps().filter(a =>
       !gioKey || a.categories.some(c => c === gioKey)
@@ -292,5 +301,16 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
     cargado = true
     rebuild("all")
   })
+
+  // Desinstalar una app desde el panel derecho cambia el catálogo. Se tira la
+  // caché y se repinta la categoría que esté puesta — solo si la sección ya se
+  // cargó: forzar la carga perezosa desde aquí pagaría el parseo de los ~161
+  // `.desktop` en una sección que el usuario aún no ha abierto.
+  registrarInvalidadorCatalogo(() => {
+    _appCache = null
+    if (!cargado) return
+    rebuild(categoriaActual)
+  })
+
   return root
 }

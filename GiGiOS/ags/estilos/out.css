@@ -179,7 +179,7 @@
 }
 .ns.active {
   color: #89b4fa;
-  background: rgb(29.45, 25.38, 37.85);
+  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
   border-color: rgba(203, 166, 247, 0.42);
 }
 
@@ -250,7 +250,7 @@
 }
 
 .Orion .sys-card {
-  background: rgb(12.446, 12.446, 16.374);
+  background: rgb(4.8807843137%, 4.8807843137%, 6.4211764706%);
   border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: 8px;
   margin: 1px 2px;
@@ -364,7 +364,7 @@
 }
 
 .rx-item {
-  background: rgb(13.434, 13.434, 17.346);
+  background: rgb(5.2682352941%, 5.2682352941%, 6.8023529412%);
   border: 1px solid rgba(255, 255, 255, 0.035);
   border-radius: 11px;
   padding: 0;
@@ -375,12 +375,12 @@
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .rx-item.seleccionado {
-  background: rgb(29.45, 25.38, 37.85);
+  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
   border-color: rgba(203, 166, 247, 0.42);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(203, 166, 247, 0.14);
 }
 .rx-item:active {
-  background: rgb(29.45, 25.38, 37.85);
+  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
 }
 
 .rx-row {
@@ -425,7 +425,7 @@
 }
 
 popover.background {
-  background: rgb(11.88, 15.76, 27.52);
+  background: rgb(4.6588235294%, 6.1803921569%, 10.7921568627%);
   border: 1px solid rgba(255, 255, 255, 0.105);
   border-radius: 11px;
   padding: 4px;
@@ -496,7 +496,7 @@ popover.background {
   color: #e2e2e2;
 }
 .orion-panel .rp-action.seleccionado {
-  background: rgb(29.45, 25.38, 37.85);
+  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
   box-shadow: inset 0 0 0 1px rgba(203, 166, 247, 0.42), 0 5px 14px rgba(203, 166, 247, 0.14);
 }
 .orion-panel .rp-action.seleccionado .rp-action-ico,
@@ -524,6 +524,29 @@ popover.background {
   color: rgba(226, 226, 226, 0.62);
   font-family: "Inter", system-ui, sans-serif;
   font-weight: 600;
+}
+
+.orion-panel .rp-action.destructiva:hover {
+  background: rgba(243, 139, 168, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(243, 139, 168, 0.3);
+}
+.orion-panel .rp-action.destructiva:hover .rp-action-ico,
+.orion-panel .rp-action.destructiva:hover .rp-action-label {
+  color: #f38ba8;
+}
+.orion-panel .rp-action.destructiva.seleccionado {
+  background: rgba(243, 139, 168, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(243, 139, 168, 0.42), 0 5px 14px rgba(243, 139, 168, 0.14);
+}
+.orion-panel .rp-action.destructiva.seleccionado .rp-action-ico,
+.orion-panel .rp-action.destructiva.seleccionado .rp-action-label {
+  color: #f38ba8;
+}
+
+.rp-action-sep {
+  background: rgba(255, 255, 255, 0.055);
+  min-height: 1px;
+  margin: 5px 8px;
 }
 
 .orion-panel-sep {
@@ -556,7 +579,7 @@ popover.background {
   transition: background 100ms ease;
 }
 .apps-cat-btn.active {
-  background: rgb(31.4, 26.96, 40.2);
+  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
   color: #cba6f7;
 }
 .apps-cat-btn.active:hover {
@@ -613,7 +636,7 @@ popover.background {
 
 .apps-tile {
   min-height: 82px;
-  background: rgb(14.175, 14.175, 18.075);
+  background: rgb(5.5588235294%, 5.5588235294%, 7.0882352941%);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
 }
@@ -623,12 +646,12 @@ popover.background {
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .apps-tile.seleccionado {
-  background: rgb(29.45, 25.38, 37.85);
+  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
   border-color: rgba(203, 166, 247, 0.42);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(203, 166, 247, 0.14);
 }
 .apps-tile:active {
-  background: rgb(27.5, 23.8, 35.5);
+  background: rgb(10.7843137255%, 9.3333333333%, 13.9215686275%);
 }
 
 .apps-tile-inner {
@@ -654,7 +677,7 @@ popover.background {
 }
 
 .apps-row {
-  background: rgb(13.434, 13.434, 17.346);
+  background: rgb(5.2682352941%, 5.2682352941%, 6.8023529412%);
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.035);
   padding: 0;
@@ -666,7 +689,7 @@ popover.background {
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .apps-row.seleccionado {
-  background: rgb(29.45, 25.38, 37.85);
+  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
   border-color: rgba(203, 166, 247, 0.42);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(203, 166, 247, 0.14);
 }
@@ -729,7 +752,7 @@ popover.background {
   color: #e2e2e2;
 }
 .rice-random-btn:active {
-  background: rgb(29.45, 25.38, 37.85);
+  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
   border-color: rgba(203, 166, 247, 0.16);
 }
 
@@ -757,10 +780,10 @@ popover.background {
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .Orion button.qs-toggle .qs-toggle-track {
-  background: rgb(27.76, 27.76, 31.44);
+  background: rgb(10.8862745098%, 10.8862745098%, 12.3294117647%);
 }
 .Orion button.qs-toggle.on .qs-toggle-track {
-  background: rgb(4.64, 106.28, 114.06);
+  background: rgb(1.8196078431%, 41.6784313725%, 44.7294117647%);
 }
 
 .rice-thumb {
@@ -871,7 +894,7 @@ popover.background {
 }
 
 .rice-random-btn.activo {
-  background: rgb(43.1, 36.44, 54.3);
+  background: rgb(16.9019607843%, 14.2901960784%, 21.2941176471%);
   border-color: rgba(203, 166, 247, 0.3);
 }
 
@@ -924,12 +947,12 @@ popover.background {
   padding: 7px 8px;
   border-radius: 11px;
   border: 1px solid rgba(255, 255, 255, 0.055);
-  background: rgb(16.645, 16.645, 20.505);
+  background: rgb(6.5274509804%, 6.5274509804%, 8.0411764706%);
 }
 .rice-row.activa,
 .rice-tramo.activa {
   border-color: rgba(203, 166, 247, 0.42);
-  background: rgb(29.45, 25.38, 37.85);
+  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
 }
 
 .rice-nombre,
@@ -966,7 +989,7 @@ popover.background {
 .rice-chip-ahora {
   padding: 1px 6px;
   border-radius: 8px;
-  background: rgb(47, 39.6, 59);
+  background: rgb(18.431372549%, 15.5294117647%, 23.137254902%);
   color: #cba6f7;
   font-family: "Inter", system-ui, sans-serif;
   font-size: 9px;
@@ -993,7 +1016,7 @@ popover.background {
   padding: 4px 10px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.055);
-  background: rgb(16.645, 16.645, 20.505);
+  background: rgb(6.5274509804%, 6.5274509804%, 8.0411764706%);
   color: #e2e2e2;
   font-family: "Inter", system-ui, sans-serif;
   font-size: 10px;
@@ -1006,7 +1029,7 @@ popover.background {
 }
 .Orion .rice-btn.primario {
   border-color: rgba(203, 166, 247, 0.34);
-  background: rgb(29.45, 25.38, 37.85);
+  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
   color: #cba6f7;
 }
 .Orion .rice-btn.sutil {
@@ -1023,7 +1046,7 @@ popover.background {
   padding: 0 3px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.055);
-  background: rgb(16.645, 16.645, 20.505);
+  background: rgb(6.5274509804%, 6.5274509804%, 8.0411764706%);
   color: rgba(226, 226, 226, 0.32);
   font-family: "Inter", system-ui, sans-serif;
   font-size: 10px;
@@ -1036,7 +1059,7 @@ popover.background {
 }
 .Orion .rice-chip.on {
   border-color: rgba(148, 226, 213, 0.42);
-  background: rgb(30.4, 42.88, 44.16);
+  background: rgb(11.9215686275%, 16.8156862745%, 17.3176470588%);
   color: #94e2d5;
 }
 
@@ -2146,7 +2169,7 @@ window.osd-window > box {
   color: #f38ba8;
 }
 .osd-container.osd-muted .osd-percentage {
-  color: rgb(210.1, 120.66, 146.16);
+  color: rgb(82.3921568627%, 47.3176470588%, 57.3176470588%);
 }
 .osd-container.osd-muted progressbar.osd-progress progress {
   background: rgb(245, 50, 105);
@@ -2180,7 +2203,7 @@ progressbar.osd-progress {
 progressbar.osd-progress trough {
   min-height: 5px;
   border-radius: 999px;
-  background-color: rgb(30.23, 30.23, 33.87);
+  background-color: rgb(11.8549019608%, 11.8549019608%, 13.2823529412%);
 }
 progressbar.osd-progress progress {
   min-height: 5px;
@@ -2314,12 +2337,12 @@ window.qs-window > box,
   margin: 1px;
 }
 .qs-tile:hover {
-  background-color: rgb(16.645, 16.645, 20.505);
+  background-color: rgb(6.5274509804%, 6.5274509804%, 8.0411764706%);
   border-color: rgba(255, 255, 255, 0.045);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.008);
 }
 .qs-tile.active {
-  background: rgb(7.04, 36.08, 41.16);
+  background: rgb(2.7607843137%, 14.1490196078%, 16.1411764706%);
   border-color: rgba(0, 242, 255, 0.45);
   box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.12), 0 0 12px rgba(0, 242, 255, 0.08);
 }
@@ -2331,7 +2354,7 @@ window.qs-window > box,
   text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
 }
 .qs-tile.active:hover {
-  background-color: rgb(6.72, 45.44, 50.88);
+  background-color: rgb(2.6352941176%, 17.8196078431%, 19.9529411765%);
   border-color: rgba(0, 242, 255, 0.58);
   box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.16), 0 0 14px rgba(0, 242, 255, 0.11);
 }
@@ -2388,7 +2411,7 @@ window.qs-window > box,
 }
 
 .qs-media {
-  background-color: rgb(13.16, 14.88, 21.52);
+  background-color: rgb(5.1607843137%, 5.8352941176%, 8.4392156863%);
   border: none;
   border-radius: 20px;
   padding: 0;
@@ -2568,7 +2591,7 @@ window.qs-window > box,
   min-height: 22px;
 }
 .qs-section button.qs-icon-btn.active {
-  background: rgb(7.2, 31.4, 36.3);
+  background: rgb(2.8235294118%, 12.3137254902%, 14.2352941176%);
   border-color: rgba(0, 242, 255, 0.3);
 }
 .qs-section button.qs-icon-btn.active label {
@@ -2683,10 +2706,10 @@ button.qs-dropdown-header {
   transition: all 100ms ease;
 }
 .qs-sink-item:hover {
-  background: rgb(22.82, 22.82, 26.58);
+  background: rgb(8.9490196078%, 8.9490196078%, 10.4235294118%);
 }
 .qs-sink-item.active {
-  background: rgb(31.58, 28.16, 55.74);
+  background: rgb(12.3843137255%, 11.0431372549%, 21.8588235294%);
   border-color: rgba(139, 120, 255, 0.3);
   color: #7000ff;
 }
@@ -2720,7 +2743,7 @@ button.qs-dropdown-header {
 }
 
 button.qs-display-monitor-pill {
-  background: rgb(20.35, 20.35, 24.15);
+  background: rgb(7.9803921569%, 7.9803921569%, 9.4705882353%);
   border: 1px solid transparent;
   border-radius: 8px;
   min-height: 0;
@@ -2730,10 +2753,10 @@ button.qs-display-monitor-pill {
   transition: all 120ms ease;
 }
 button.qs-display-monitor-pill:hover {
-  background: rgb(27.76, 27.76, 31.44);
+  background: rgb(10.8862745098%, 10.8862745098%, 12.3294117647%);
 }
 button.qs-display-monitor-pill.active {
-  background: rgb(43.1, 36.44, 54.3);
+  background: rgb(16.9019607843%, 14.2901960784%, 21.2941176471%);
   border-color: rgba(203, 166, 247, 0.4);
   color: #cba6f7;
 }
@@ -2948,37 +2971,37 @@ button.sp-add-rule:hover {
 }
 
 .qs-panel button.sp-step-btn {
-  background: rgb(22.82, 22.82, 26.58);
+  background: rgb(8.9490196078%, 8.9490196078%, 10.4235294118%);
 }
 .qs-panel button.sp-step-btn:hover {
-  background: rgb(32.7, 32.7, 36.3);
+  background: rgb(12.8235294118%, 12.8235294118%, 14.2352941176%);
 }
 .qs-panel entry.sp-num-input {
-  background: rgb(22.82, 22.82, 26.58);
+  background: rgb(8.9490196078%, 8.9490196078%, 10.4235294118%);
 }
 .qs-panel entry.sp-num-input:focus-within {
-  background: rgb(30.23, 30.23, 33.87);
+  background: rgb(11.8549019608%, 11.8549019608%, 13.2823529412%);
 }
 .qs-panel .sp-rule-card {
-  background: rgb(15.41, 15.41, 19.29);
+  background: rgb(6.0431372549%, 6.0431372549%, 7.5647058824%);
 }
 .qs-panel .sp-rule-card.active {
-  background: rgb(21.65, 19.06, 28.45);
+  background: rgb(8.4901960784%, 7.4745098039%, 11.1568627451%);
 }
 .qs-panel .sp-rule-active-chip {
-  background: rgb(43.1, 36.44, 54.3);
+  background: rgb(16.9019607843%, 14.2901960784%, 21.2941176471%);
 }
 .qs-panel button.sp-rule-del {
-  background: rgb(20.35, 20.35, 24.15);
+  background: rgb(7.9803921569%, 7.9803921569%, 9.4705882353%);
 }
 .qs-panel button.sp-rule-del:hover {
-  background: rgb(50.3, 31.58, 40.08);
+  background: rgb(19.7254901961%, 12.3843137255%, 15.7176470588%);
 }
 .qs-panel button.sp-add-rule {
-  background: rgb(31.4, 26.96, 40.2);
+  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
 }
 .qs-panel button.sp-add-rule:hover {
-  background: rgb(47, 39.6, 59);
+  background: rgb(18.431372549%, 15.5294117647%, 23.137254902%);
 }
 
 .adnd-apps {
@@ -3003,7 +3026,7 @@ scale.qs-slider {
 scale.qs-slider trough {
   min-height: 4px;
   border-radius: 999px;
-  background: rgb(22.82, 22.82, 26.58);
+  background: rgb(8.9490196078%, 8.9490196078%, 10.4235294118%);
 }
 scale.qs-slider progress {
   min-height: 4px;
@@ -3058,7 +3081,7 @@ button.qs-toggle {
   transition: background-color 150ms ease;
 }
 button.qs-toggle:hover {
-  background: rgb(20.35, 20.35, 24.15);
+  background: rgb(7.9803921569%, 7.9803921569%, 9.4705882353%);
 }
 button.qs-toggle:focus {
   outline: none;
@@ -3103,7 +3126,7 @@ button.qs-toggle:disabled {
 }
 
 .qs-avatar {
-  background: rgb(34.2, 30.4, 60.6);
+  background: rgb(13.4117647059%, 11.9215686275%, 23.7647058824%);
   border: 1px solid rgba(139, 120, 255, 0.3);
   border-radius: 999px;
   min-width: 30px;
@@ -3159,13 +3182,13 @@ tooltip label {
   margin: 0;
 }
 .qs-icon-btn:hover {
-  background: rgb(25.29, 25.29, 29.01);
+  background: rgb(9.9176470588%, 9.9176470588%, 11.3764705882%);
 }
 .qs-icon-btn:hover label {
   color: rgba(226, 226, 226, 0.9);
 }
 .qs-icon-btn.active {
-  background: rgb(35.3, 30.12, 44.9);
+  background: rgb(13.8431372549%, 11.8117647059%, 17.6078431373%);
 }
 .qs-icon-btn.active label {
   color: #cba6f7;
@@ -3219,7 +3242,7 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   line-height: 1;
 }
 .qs-wifi-header .qs-wifi-search {
-  background: rgb(10.964, 10.964, 14.916);
+  background: rgb(4.2996078431%, 4.2996078431%, 5.8494117647%);
   border: 1px solid rgba(255, 255, 255, 0.025);
   border-radius: 7px;
   padding: 0 9px;
@@ -3227,10 +3250,10 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   transition: border-color 120ms ease, background 120ms ease;
 }
 .qs-wifi-header .qs-wifi-search:hover {
-  background: rgb(13.434, 13.434, 17.346);
+  background: rgb(5.2682352941%, 5.2682352941%, 6.8023529412%);
 }
 .qs-wifi-header .qs-wifi-search:focus-within {
-  background: rgb(15.41, 15.41, 19.29);
+  background: rgb(6.0431372549%, 6.0431372549%, 7.5647058824%);
   border-color: rgba(203, 166, 247, 0.11);
 }
 .qs-wifi-header .qs-wifi-search .qs-wifi-search-icon {
@@ -3275,17 +3298,17 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   transition: all 100ms ease;
 }
 .qs-wifi-item:hover {
-  background: rgb(22.82, 22.82, 26.58);
+  background: rgb(8.9490196078%, 8.9490196078%, 10.4235294118%);
 }
 .qs-wifi-item.active {
-  background: rgb(7.04, 36.08, 41.16);
+  background: rgb(2.7607843137%, 14.1490196078%, 16.1411764706%);
   border-color: rgba(0, 242, 255, 0.35);
 }
 .qs-wifi-item.active .qs-wifi-signal-bar.active {
   background-color: #00f2ff;
 }
 .qs-wifi-item.portal {
-  background: rgb(45.05, 25.25, 10.2);
+  background: rgb(17.6666666667%, 9.9019607843%, 4%);
   border-color: rgba(255, 123, 0, 0.4);
   box-shadow: 0 0 15px rgba(255, 123, 0, 0.1);
 }
@@ -3300,7 +3323,7 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   font-weight: 700;
 }
 .qs-wifi-item.known {
-  background: rgb(15.11, 9.26, 14.79);
+  background: rgb(5.9254901961%, 3.631372549%, 5.8%);
   border-color: rgba(245, 50, 105, 0.1);
 }
 .qs-wifi-item.known .qs-wifi-signal-bar.active {
@@ -3366,7 +3389,7 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
 }
 
 .qs-wifi-info-section {
-  background: rgb(13.4, 13.4, 20.1);
+  background: rgb(5.2549019608%, 5.2549019608%, 7.8823529412%);
   margin: 0 10px 10px 10px;
   padding: 12px;
   border-radius: 12px;
@@ -3446,7 +3469,7 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
 }
 
 .qs-audio-item {
-  background: rgb(15.41, 15.41, 19.29);
+  background: rgb(6.0431372549%, 6.0431372549%, 7.5647058824%);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   margin-bottom: 3px;
@@ -3454,10 +3477,10 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   transition: background 150ms ease, border-color 150ms ease;
 }
 .qs-audio-item:hover:not(.active) {
-  background: rgb(25.29, 25.29, 29.01);
+  background: rgb(9.9176470588%, 9.9176470588%, 11.3764705882%);
 }
 .qs-audio-item.active {
-  background: rgb(18.53, 30.36, 42.94);
+  background: rgb(7.2666666667%, 11.9058823529%, 16.8392156863%);
   border-color: rgba(89, 180, 250, 0.38);
 }
 .qs-audio-item.active .qs-audio-name {
@@ -3830,7 +3853,7 @@ window.np-window.csd decoration {
 }
 
 .np-unread-badge-btn {
-  background: rgb(31.4, 26.96, 40.2);
+  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
   border: none;
   border-radius: 999px;
   padding: 1px 7px;
@@ -3838,7 +3861,7 @@ window.np-window.csd decoration {
   transition: all 120ms ease;
 }
 .np-unread-badge-btn:hover {
-  background: rgb(50.9, 42.76, 63.7);
+  background: rgb(19.9607843137%, 16.768627451%, 24.9803921569%);
 }
 .np-unread-badge-btn label {
   margin: 0;
@@ -3861,16 +3884,16 @@ window.np-window.csd decoration {
   transition: all 120ms ease-out;
 }
 .np-icon-btn:hover {
-  background: rgb(25.29, 25.29, 29.01);
+  background: rgb(9.9176470588%, 9.9176470588%, 11.3764705882%);
 }
 .np-icon-btn.active {
-  background: rgb(31.4, 26.96, 40.2);
+  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
 }
 .np-icon-btn.active .np-btn-icon {
   color: #cba6f7;
 }
 .np-icon-btn.dnd-active {
-  background: rgb(36.2, 23.72, 30.72);
+  background: rgb(14.1960784314%, 9.3019607843%, 12.0470588235%);
 }
 .np-icon-btn.dnd-active .np-btn-icon {
   color: #f38ba8;
@@ -3879,13 +3902,13 @@ window.np-window.csd decoration {
   color: rgba(243, 139, 168, 0.45);
 }
 .np-icon-btn.danger:hover {
-  background: rgb(31.5, 21.1, 27.6);
+  background: rgb(12.3529411765%, 8.2745098039%, 10.8235294118%);
 }
 .np-icon-btn.danger:hover .np-btn-icon {
   color: #f38ba8;
 }
 .np-icon-btn.danger.confirm {
-  background: rgb(43.25, 27.65, 35.4);
+  background: rgb(16.9607843137%, 10.8431372549%, 13.8823529412%);
 }
 .np-icon-btn.danger.confirm .np-btn-icon {
   color: #f38ba8;
@@ -3954,13 +3977,13 @@ window.np-window.csd decoration {
   transition: background 100ms ease;
 }
 .np-filter-chip.active {
-  background: rgb(31.4, 26.96, 40.2);
+  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
 }
 .np-filter-chip.active .np-filter-chip-label {
   color: #cba6f7;
 }
 .np-filter-chip:hover:not(.active) {
-  background: rgb(22.82, 22.82, 26.58);
+  background: rgb(8.9490196078%, 8.9490196078%, 10.4235294118%);
 }
 .np-filter-chip .np-filter-chip-label {
   font-size: 10px;
@@ -4020,7 +4043,7 @@ window.np-window.csd decoration {
   transition: background 100ms ease;
 }
 .np-group-header:hover {
-  background: rgb(17.88, 17.88, 21.72);
+  background: rgb(7.0117647059%, 7.0117647059%, 8.5176470588%);
 }
 
 .np-group-chevron {
@@ -4038,7 +4061,7 @@ window.np-window.csd decoration {
 }
 
 .np-group-badge {
-  background: rgb(47, 39.6, 59);
+  background: rgb(18.431372549%, 15.5294117647%, 23.137254902%);
   border-radius: 999px;
   padding: 0 5px;
 }
@@ -4215,7 +4238,7 @@ window.np-window.csd decoration {
 }
 
 .notif-dbus-btn {
-  background: rgb(17.88, 17.88, 21.72);
+  background: rgb(7.0117647059%, 7.0117647059%, 8.5176470588%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   padding: 2px 10px;
@@ -4224,7 +4247,7 @@ window.np-window.csd decoration {
   transition: all 100ms ease;
 }
 .notif-dbus-btn:hover {
-  background: rgb(32.7, 32.7, 36.3);
+  background: rgb(12.8235294118%, 12.8235294118%, 14.2352941176%);
   color: #e2e2e2;
 }
 .notif-dbus-btn label {
@@ -4233,12 +4256,12 @@ window.np-window.csd decoration {
 
 .notif-reply-box {
   border-top: 0.5px solid rgba(255, 255, 255, 0.06);
-  background: rgb(12.94, 12.94, 16.86);
+  background: rgb(5.0745098039%, 5.0745098039%, 6.6117647059%);
   padding: 6px 8px;
 }
 
 .notif-reply-entry {
-  background: rgb(22.82, 22.82, 26.58);
+  background: rgb(8.9490196078%, 8.9490196078%, 10.4235294118%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 4px 8px;
@@ -4248,7 +4271,7 @@ window.np-window.csd decoration {
 }
 
 .notif-reply-send {
-  background: rgb(20.9, 25.2, 35.8);
+  background: rgb(8.1960784314%, 9.8823529412%, 14.0392156863%);
   border: 1px solid rgba(137, 180, 250, 0.2);
   border-radius: 6px;
   min-width: 28px;
@@ -4257,7 +4280,7 @@ window.np-window.csd decoration {
   transition: all 100ms ease;
 }
 .notif-reply-send:hover {
-  background: rgb(33.8, 42.4, 59.6);
+  background: rgb(13.2549019608%, 16.6274509804%, 23.3725490196%);
 }
 .notif-reply-send label {
   margin: 0;
@@ -4277,7 +4300,7 @@ window.np-window.csd decoration {
 }
 .notif-reply-cancel:hover {
   color: #f38ba8;
-  background: rgb(31.5, 21.1, 27.6);
+  background: rgb(12.3529411765%, 8.2745098039%, 10.8235294118%);
 }
 .notif-reply-cancel label {
   margin: 0;
@@ -6207,16 +6230,16 @@ window.qs-window.fondo-shell-grafito .qs-tile {
   background: rgb(24, 24, 32);
 }
 window.qs-window.fondo-shell-grafito .qs-tile:hover {
-  background-color: rgb(32.085, 32.085, 39.805);
+  background-color: rgb(12.5823529412%, 12.5823529412%, 15.6098039216%);
 }
 window.qs-window.fondo-shell-grafito .qs-tile.active {
-  background: rgb(21.12, 50.16, 58.76);
+  background: rgb(8.2823529412%, 19.6705882353%, 23.0431372549%);
 }
 window.qs-window.fondo-shell-grafito .qs-tile.active:hover {
-  background-color: rgb(20.16, 58.88, 67.68);
+  background-color: rgb(7.9058823529%, 23.0901960784%, 26.5411764706%);
 }
 window.qs-window.fondo-shell-grafito .qs-media {
-  background-color: rgb(28.52, 30.24, 40.72);
+  background-color: rgb(11.1843137255%, 11.8588235294%, 15.968627451%);
 }
 window.qs-window.fondo-shell-grafito button.qs-inline-value-btn,
 window.qs-window.fondo-shell-grafito entry.qs-inline-number-input,
@@ -6236,28 +6259,28 @@ window.qs-window.fondo-shell-grafito .qs-wifi-item {
 }
 window.qs-window.fondo-shell-grafito .qs-sink-item:hover,
 window.qs-window.fondo-shell-grafito .qs-wifi-item:hover {
-  background: rgb(37.86, 37.86, 45.38);
+  background: rgb(14.8470588235%, 14.8470588235%, 17.7960784314%);
 }
 window.qs-window.fondo-shell-grafito .qs-sink-item.active {
-  background: rgb(44.7, 41.28, 72.14);
+  background: rgb(17.5294117647%, 16.1882352941%, 28.2901960784%);
 }
 window.qs-window.fondo-shell-grafito .qs-wifi-item.active {
-  background: rgb(21.12, 50.16, 58.76);
+  background: rgb(8.2823529412%, 19.6705882353%, 23.0431372549%);
 }
 window.qs-window.fondo-shell-grafito .qs-wifi-item.portal {
-  background: rgb(58.65, 38.85, 27.2);
+  background: rgb(23%, 15.2352941176%, 10.6666666667%);
 }
 window.qs-window.fondo-shell-grafito .qs-wifi-item.known {
-  background: rgb(30.63, 24.78, 34.19);
+  background: rgb(12.0117647059%, 9.7176470588%, 13.4078431373%);
 }
 window.qs-window.fondo-shell-grafito .qs-audio-item {
-  background: rgb(30.93, 30.93, 38.69);
+  background: rgb(12.1294117647%, 12.1294117647%, 15.1725490196%);
 }
 window.qs-window.fondo-shell-grafito .qs-audio-item:hover:not(.active) {
-  background: rgb(40.17, 40.17, 47.61);
+  background: rgb(15.7529411765%, 15.7529411765%, 18.6705882353%);
 }
 window.qs-window.fondo-shell-grafito .qs-audio-item.active {
-  background: rgb(32.45, 44.28, 60.34);
+  background: rgb(12.7254901961%, 17.3647058824%, 23.662745098%);
 }
 
 window.np-window.fondo-shell-grafito .np-bar-connector {

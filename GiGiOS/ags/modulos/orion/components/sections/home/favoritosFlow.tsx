@@ -76,6 +76,12 @@ function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
       showAppContext({
         id: app.id, name: app.name, iconName: app.iconName, gicon,
         execRaw: app.exec, execName, appId: app.id,
+        // Los favoritos guardan el id del `.desktop`, no su ruta: se resuelve
+        // aquí para que el panel derecho pueda identificar el paquete. Un
+        // favorito cuya app ya no existe devuelve `""` y la detección cae en el
+        // binario, que es exactamente el caso en que tampoco lo encontrará —
+        // por eso el panel deja el motivo escrito en vez de un botón muerto.
+        desktopFile: Gio.DesktopAppInfo.new(app.id)?.get_filename() ?? "",
         launch: () => launchApp(app.exec),
       })
     } catch (_) {}
