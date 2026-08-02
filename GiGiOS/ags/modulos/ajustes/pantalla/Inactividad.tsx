@@ -2,8 +2,8 @@ import { createState, type Accessor } from "ags"
 import { Gtk } from "ags/gtk4"
 import GLib from "gi://GLib"
 import Interruptor from "../../../componentes/Interruptor"
-import { TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
-import { parseHypridle, writeHypridle, type HypridleConfig, type ListenerKind } from "../../../servicios/pantalla/hypridle"
+import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
+import { parseHypridle, writeHypridle, writeBloqueoAlSuspender, type HypridleConfig, type ListenerKind } from "../../../servicios/pantalla/hypridle"
 import { reiniciarHypridle } from "../../../servicios/pantalla/reinicioHypridle"
 import textos from "../../../textos/ajustes/pantalla.json" with { type: "json" }
 
@@ -17,11 +17,15 @@ function leerHypridle(): HypridleConfig | null {
   return null
 }
 
-function guardarHypridle(valores: Partial<Record<ListenerKind, { timeout: number; enabled: boolean }>>) {
+function guardarHypridle(
+  valores: Partial<Record<ListenerKind, { timeout: number; enabled: boolean }>>,
+  bloqueoAlSuspender: boolean,
+) {
   try {
     const [ok, contenido] = GLib.file_get_contents(ARCHIVO_HYPRIDLE)
     if (!ok) return
-    const salida = writeHypridle(new TextDecoder().decode(contenido), valores)
+    const texto = writeHypridle(new TextDecoder().decode(contenido), valores)
+    const salida = writeBloqueoAlSuspender(texto, bloqueoAlSuspender)
     GLib.file_set_contents(ARCHIVO_HYPRIDLE, salida)
     reiniciarHypridle().catch(() => {})
   } catch (_) { /* un fallo de hypridle no debe cerrar el shell */ }
@@ -62,6 +66,7 @@ export default function Inactividad() {
     dpms: { timeout: 600, enabled: true },
     lock: { timeout: 630, enabled: true },
     suspend: { timeout: 660, enabled: true },
+    bloqueoAlSuspender: true,
   }
   const aMinutos = (segundos: number) => Math.max(1, Math.round(segundos / 60))
   const [minutosDpms, fijarMinutosDpms] = createState(aMinutos(configuracion.dpms.timeout))
@@ -70,11 +75,12 @@ export default function Inactividad() {
   const [dpmsActivo, fijarDpmsActivo] = createState(configuracion.dpms.enabled)
   const [bloqueoActivo, fijarBloqueoActivo] = createState(configuracion.lock.enabled)
   const [suspensionActiva, fijarSuspensionActiva] = createState(configuracion.suspend.enabled)
+  const [bloquearAlSuspender, fijarBloquearAlSuspender] = createState(configuracion.bloqueoAlSuspender)
   const guardar = () => guardarHypridle({
     dpms: { timeout: minutosDpms.get() * 60, enabled: dpmsActivo.get() },
     lock: { timeout: minutosBloqueo.get() * 60, enabled: bloqueoActivo.get() },
     suspend: { timeout: minutosSuspension.get() * 60, enabled: suspensionActiva.get() },
-  })
+  }, bloquearAlSuspender.get())
 
   return (
     <TarjetaAjustes titulo={textos.suspension.titulo} icono="󰒲">
@@ -84,6 +90,12 @@ export default function Inactividad() {
       <FilaInactividad etiqueta={textos.suspension.apagarPantalla} minutos={minutosDpms} fijarMinutos={fijarMinutosDpms} activo={dpmsActivo} fijarActivo={fijarDpmsActivo} guardar={guardar} />
       <FilaInactividad etiqueta={textos.suspension.bloquear} minutos={minutosBloqueo} fijarMinutos={fijarMinutosBloqueo} activo={bloqueoActivo} fijarActivo={fijarBloqueoActivo} guardar={guardar} />
       <FilaInactividad etiqueta={textos.suspension.suspender} minutos={minutosSuspension} fijarMinutos={fijarMinutosSuspension} activo={suspensionActiva} fijarActivo={fijarSuspensionActiva} guardar={guardar} />
+      <AjusteInterruptor
+        titulo={textos.suspension.bloquearAlSuspender.titulo}
+        informacion={textos.suspension.bloquearAlSuspender.descripcion}
+        activo={bloquearAlSuspender}
+        alAlternar={() => { fijarBloquearAlSuspender(!bloquearAlSuspender.get()); guardar() }}
+      />
     </TarjetaAjustes>
   )
 }

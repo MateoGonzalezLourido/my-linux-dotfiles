@@ -172,6 +172,17 @@ ese 0 llegaría al `.conf` al encender la fila. **El estado del interruptor sale
 no de un `true` fijo**: cuando la UI escribía `enabled: true` a pelo, mover cualquier stepper
 reescribía los tres listeners como activos y resucitaba en silencio un GIGIOS-OFF ya puesto.
 
+**"Bloquear" (el listener) y "Bloquear al suspender" (`before_sleep_cmd`) son ajustes distintos, y
+confundirlos costó un bug.** Con el listener de bloqueo apagado, al despertar de una suspensión
+seguía apareciendo hyprlock: quien lo pone ahí es `before_sleep_cmd = loginctl lock-session` del
+bloque `general`, que **no** cuenta inactividad — lo dispara logind ante *cualquier* suspensión
+(el listener de suspender, el menú de energía, el botón físico, cerrar la tapa, un `systemctl
+suspend` a mano). No tenía interruptor, así que no había forma de suspender sin bloquear. Ahora lo
+gobierna el último interruptor de la tarjeta (`writeBloqueoAlSuspender` en
+`ags/servicios/pantalla/hypridle.ts`), que comenta la línea con el mismo sentinel GIGIOS-OFF para
+conservar el comando escrito. Ojo al tocar ese regex: `after_sleep_cmd` comparte sufijo con
+`before_sleep_cmd` y es lo único que vuelve a encender la pantalla al despertar.
+
 ### Diálogo de contraseña de root: hyprpolkitagent, y por qué sigue siendo feo
 
 El agente de polkit —la ventanita que pide la contraseña al necesitar root— **ya es

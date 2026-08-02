@@ -181,24 +181,30 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
         {/* Las tres formas del icono conviven como ranuras y se alternan con
             `visible`. Elegirlas con un ternario ataba la forma al primer valor: con
             el botón ya indexado por dirección, un juego que empieza sin icono de
-            tema y lo resuelve después se quedaba con el glifo genérico. */}
-        <image
-          gicon={entrada((actual) => actual.iconoGio)}
-          visible={entrada((actual) => !!actual.iconoGio)}
-          pixelSize={18}
-          cssClasses={["game-tray-img"]}
-        />
-        <image
-          iconName={entrada((actual) => actual.iconoGio ? "" : (actual.nombreIcono ?? ""))}
-          visible={entrada((actual) => !actual.iconoGio && !!actual.nombreIcono)}
-          pixelSize={18}
-          cssClasses={["game-tray-img"]}
-        />
-        <label
-          cssClasses={["game-tray-glyph"]}
-          label={GLIFO_JUEGO}
-          visible={entrada((actual) => !actual.iconoGio && !actual.nombreIcono)}
-        />
+            tema y lo resuelve después se quedaba con el glifo genérico.
+            Van dentro de un <box>: `Gtk.Button` admite UN solo hijo, así que
+            colgadas del botón cada ranura sustituía a la anterior y solo quedaba
+            la última (el glifo) — un juego con icono resoluble dejaba el botón
+            literalmente vacío. */}
+        <box valign={Gtk.Align.CENTER} halign={Gtk.Align.CENTER}>
+          <image
+            gicon={entrada((actual) => actual.iconoGio)}
+            visible={entrada((actual) => !!actual.iconoGio)}
+            pixelSize={18}
+            cssClasses={["game-tray-img"]}
+          />
+          <image
+            iconName={entrada((actual) => actual.iconoGio ? "" : (actual.nombreIcono ?? ""))}
+            visible={entrada((actual) => !actual.iconoGio && !!actual.nombreIcono)}
+            pixelSize={18}
+            cssClasses={["game-tray-img"]}
+          />
+          <label
+            cssClasses={["game-tray-glyph"]}
+            label={GLIFO_JUEGO}
+            visible={entrada((actual) => !actual.iconoGio && !actual.nombreIcono)}
+          />
+        </box>
       </button>
     )
   }

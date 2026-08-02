@@ -9,6 +9,8 @@ export interface HypridleConfig {
   dpms: ListenerState
   lock: ListenerState
   suspend: ListenerState
+  /** ¿Bloquea la pantalla al suspender? (before_sleep_cmd del bloque general) */
+  bloqueoAlSuspender: boolean
 }
 
 // on-timeout → tipo de listener.
@@ -41,8 +43,52 @@ function kindOf(onTimeout: string): ListenerKind | null {
 
 const DEFAULT: ListenerState = { timeout: 0, enabled: false }
 
+// ── Bloqueo al suspender (before_sleep_cmd) ─────────────────────────────────
+// El listener "lock" y este ajuste son cosas DISTINTAS: el listener bloquea tras N
+// minutos de inactividad; before_sleep_cmd bloquea al entrar en suspensión, venga
+// de donde venga (el listener de suspensión, el menú de energía, el botón físico,
+// cerrar la tapa, `systemctl suspend` a mano) — logind avisa a hypridle en todos
+// los casos. Por eso apagar el listener de bloqueo NO evitaba encontrarse el
+// bloqueo al despertar: era este comando, que no tenía interruptor.
+//
+// Se desactiva comentando la línea con el mismo sentinel GIGIOS-OFF que los
+// listeners, para no perder el comando escrito (con su envoltura, sea `loginctl
+// lock-session` o cualquier otro) y poder reactivarlo tal cual.
+const RE_BEFORE_SLEEP = /^([ \t]*)(#[ \t]*)?before_sleep_cmd[ \t]*=[ \t]*(.*)$/m
+const SENTINEL = /[ \t]*#[ \t]*GIGIOS-OFF[ \t]*$/
+
+function parseBloqueoAlSuspender(text: string): boolean {
+  const m = text.match(RE_BEFORE_SLEEP)
+  // Sin línea no hay bloqueo al suspender: ausente y comentada son el mismo
+  // comportamiento, así que el interruptor debe enseñarse apagado en ambos casos.
+  if (!m) return false
+  return !m[2]
+}
+
+/**
+ * Activa o desactiva `before_sleep_cmd`. Si la línea no existe (config traída de
+ * otra máquina, o borrada a mano) y se pide activarla, se inserta en el bloque
+ * `general` con el comando por defecto — de lo contrario el interruptor quedaría
+ * encendido en la UI sin efecto ninguno.
+ */
+export function writeBloqueoAlSuspender(text: string, enabled: boolean): string {
+  if (RE_BEFORE_SLEEP.test(text)) {
+    return text.replace(RE_BEFORE_SLEEP, (_todo, sangria: string, _comentada: string | undefined, resto: string) => {
+      const cmd = resto.replace(SENTINEL, "").trim()
+      return enabled
+        ? `${sangria}before_sleep_cmd = ${cmd}`
+        : `${sangria}# before_sleep_cmd = ${cmd}   # GIGIOS-OFF`
+    })
+  }
+  if (!enabled) return text
+  return text.replace(/^([ \t]*)general[ \t]*\{[ \t]*$/m, `$1general {\n$1    before_sleep_cmd = loginctl lock-session`)
+}
+
 export function parseHypridle(text: string): HypridleConfig {
-  const cfg: HypridleConfig = { dpms: { ...DEFAULT }, lock: { ...DEFAULT }, suspend: { ...DEFAULT } }
+  const cfg: HypridleConfig = {
+    dpms: { ...DEFAULT }, lock: { ...DEFAULT }, suspend: { ...DEFAULT },
+    bloqueoAlSuspender: parseBloqueoAlSuspender(text),
+  }
   // Partir en bloques listener { ... }
   const blocks = text.match(/listener\s*\{[^}]*\}/g) || []
   for (const block of blocks) {

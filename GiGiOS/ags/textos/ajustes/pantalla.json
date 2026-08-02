@@ -123,6 +123,10 @@
     "nunca": "Nunca",
     "apagarPantalla": "Apagar pantalla",
     "bloquear": "Bloquear",
-    "suspender": "Suspender"
+    "suspender": "Suspender",
+    "bloquearAlSuspender": {
+      "titulo": "Bloquear al suspender",
+      "descripcion": "Pide la contraseña al despertar el equipo. Es independiente de «Bloquear»: se aplica a cualquier suspensión, también a la del menú de energía, el botón de encendido o cerrar la tapa."
+    }
   }
 }
