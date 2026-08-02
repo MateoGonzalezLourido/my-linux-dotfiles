@@ -1727,6 +1727,15 @@ function QsMedia() {
   const cancelarAnuncioCaratula = isAdState.subscribe(applyCover)
   applyCover()
 
+  // bgCap es una Picture/ScrolledWindow (textura) y colorFilter/coverScrim son
+  // Gtk.DrawingArea (superficie cairo): a escala fraccional (p. ej. 1.25) cada
+  // una redondea su alto físico por su cuenta, y aunque pidan el mismo CARD_H
+  // pueden acabar 1px más cortas que el fondo que deben cubrir. cr.paint() ya
+  // cubre TODO el clip del DrawingArea, pero no puede pintar fuera de él — así
+  // que se les añade un margen inferior negativo (`.qs-media-bleed` en
+  // estilos/style.scss, fuera del clamp ≥0 de la propiedad margin-bottom de
+  // GtkWidget) para que sobresalgan por abajo; el `overflow: HIDDEN` de
+  // `.qs-media` recorta ese sobrante.
   const colorFilter = new Gtk.DrawingArea()
   colorFilter.set_can_target(false)
   colorFilter.set_halign(Gtk.Align.FILL)
@@ -1735,6 +1744,7 @@ function QsMedia() {
   colorFilter.set_vexpand(true)
   colorFilter.set_content_width(1)
   colorFilter.set_content_height(CARD_H)
+  colorFilter.add_css_class("qs-media-bleed")
   colorFilter.set_draw_func((_area, cr, _width, _height) => {
     if (!cover.get()) return
     const [r, g, b] = oneUiBgTone(cssRgbToTuple(coverAccent.get()))
@@ -1759,6 +1769,7 @@ function QsMedia() {
   coverScrim.set_vexpand(true)
   coverScrim.set_content_width(1)
   coverScrim.set_content_height(CARD_H)
+  coverScrim.add_css_class("qs-media-bleed")
   coverScrim.set_draw_func((_area, cr, _width, height) => {
     if (!cover.get()) return
     // Degradado vertical real: arriba casi transparente (se ve la carátula), abajo
@@ -1984,9 +1995,16 @@ function QsMedia() {
         }}
       />
       <Gtk.Overlay $={(self: any) => {
-        self.set_child(bgCap)
-        self.add_overlay(colorFilter)
-        self.add_overlay(coverScrim)
+        // colorFilter/coverScrim van en un Overlay INTERNO cuyo child principal
+        // es bgCap, no en el externo junto a mediaContent: así su tamaño real
+        // sale directamente de la asignación de bgCap en vez de duplicarla con
+        // otra constante (CARD_H) que puede redondear distinto a escala
+        // fraccional (p. ej. 1.25) y dejar sin cubrir la última fila del fondo.
+        const bgOverlay = new Gtk.Overlay()
+        bgOverlay.set_child(bgCap)
+        bgOverlay.add_overlay(colorFilter)
+        bgOverlay.add_overlay(coverScrim)
+        self.set_child(bgOverlay)
         self.add_overlay(mediaContent)
         self.set_measure_overlay(mediaContent, true)
       }} />
