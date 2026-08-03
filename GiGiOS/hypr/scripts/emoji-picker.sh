@@ -9,6 +9,17 @@
 
 set -uo pipefail
 
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
 # Mismo comportamiento toggle que los demás selectores: una segunda pulsación
 # del atajo cierra la ventana que ya esté abierta.
 if pgrep -x rofi >/dev/null; then
@@ -18,8 +29,7 @@ fi
 
 for comando in rofimoji rofi wl-copy wl-paste wtype; do
     if ! command -v "$comando" >/dev/null 2>&1; then
-        notify-send \
-            -h string:x-gigios-source:system \
+        notificar emojis.no-disponible \
             "Selector de emojis no disponible" \
             "Falta '$comando'. Ejecuta bin/preflight.sh --installed para revisar la instalación." \
             2>/dev/null || true

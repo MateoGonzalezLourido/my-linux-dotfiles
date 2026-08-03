@@ -39,13 +39,24 @@ read_meminfo() {
     done < /proc/meminfo
 }
 
+NOTIF_APP="RAM"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
 send_notif() {
-    notify-send -h string:x-gigios-source:system \
-        --app-name="RAM" \
-        --urgency="$1" \
-        --icon="$2" \
+    notificar "$1" \
+        --urgency="$2" \
+        --icon="$3" \
         --expire-time=15000 \
-        "$3" "$4"
+        "$4" "$5"
 }
 
 while true; do
@@ -53,12 +64,12 @@ while true; do
     used_pct=$(( (mem_total_mb - mem_avail_mb) * 100 / mem_total_mb ))
 
     if (( mem_avail_mb <= WARN_AVAILABLE_MB )) && [[ "$ram_alerted" == false ]]; then
-        send_notif critical dialog-warning \
+        send_notif ram.baja critical dialog-warning \
             "RAM muy baja: ${mem_avail_mb}MB disponibles" \
             "$(( mem_total_mb / 1024 ))GB totales, ${used_pct}% en uso. Considera cerrar aplicaciones."
         ram_alerted=true
     elif (( mem_avail_mb >= COOL_AVAILABLE_MB )) && [[ "$ram_alerted" == true ]]; then
-        send_notif normal dialog-information \
+        send_notif ram.normalizada normal dialog-information \
             "RAM normalizada" \
             "${mem_avail_mb}MB disponibles (${used_pct}% en uso)."
         ram_alerted=false

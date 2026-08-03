@@ -10,8 +10,12 @@ import textos from "../../../textos/ajustes/notificaciones.json" with { type: "j
 
 export default function RulesTab() {
   const [editing, setEditing] = createState<NotifRule | null>(null)
-  const [rules, setRules] = createState<NotifRule[]>(allRules())
-  rulesFile.subscribe(() => setRules(allRules()))
+  // Sin el filtro, las ~100 entradas del catálogo del sistema entierran las reglas
+  // predefinidas y las del usuario, que es lo que esta pestaña existe para enseñar. Los
+  // avisos del sistema se editan en su propia pestaña, con su propio fichero.
+  const reglasVisibles = () => allRules().filter(r => r.source !== "system")
+  const [rules, setRules] = createState<NotifRule[]>(reglasVisibles())
+  rulesFile.subscribe(() => setRules(reglasVisibles()))
   const [filter, setFilter] = createState<string>("all")
   const apps = rules((rs) => Array.from(new Set((rs ?? [])
     .map(r => r.match.app?.value).filter((v): v is string => !!v))).sort((a, b) => a.localeCompare(b)))

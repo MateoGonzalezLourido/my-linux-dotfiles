@@ -79,10 +79,21 @@ get_gpu_temp() {
     [[ "$t" =~ ^[0-9]+$ ]] && gpu_temp=$t || gpu_temp=0
 }
 
+NOTIF_APP="Temperatura"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
 send_notif() {
-    local urgency=$1 icon=$2 title=$3 body=$4
-    notify-send -h string:x-gigios-source:system \
-        --app-name="Temperatura" \
+    local evento=$1 urgency=$2 icon=$3 title=$4 body=$5
+    notificar "$evento" \
         --urgency="$urgency" \
         --icon="$icon" \
         --expire-time=15000 \
@@ -95,12 +106,12 @@ while true; do
 
     # --- CPU ---
     if (( cpu_temp >= WARN_TEMP )) && [[ "$cpu_alerted" == false ]]; then
-        send_notif critical temperature-hot \
+        send_notif temperatura.cpu-alta critical temperature-hot \
             "CPU sobrecalentada: ${cpu_temp}°C" \
             "La temperatura del procesador supera los ${WARN_TEMP}°C. Revisa el rendimiento o la ventilación."
         cpu_alerted=true
     elif (( cpu_temp < COOL_TEMP )) && [[ "$cpu_alerted" == true ]]; then
-        send_notif normal temperature \
+        send_notif temperatura.cpu-normal normal temperature \
             "CPU enfriada: ${cpu_temp}°C" \
             "La temperatura del procesador volvió a niveles normales."
         cpu_alerted=false
@@ -108,12 +119,12 @@ while true; do
 
     # --- GPU ---
     if (( gpu_temp >= WARN_TEMP )) && [[ "$gpu_alerted" == false ]]; then
-        send_notif critical temperature-hot \
+        send_notif temperatura.gpu-alta critical temperature-hot \
             "GPU sobrecalentada: ${gpu_temp}°C" \
             "La temperatura de la GPU supera los ${WARN_TEMP}°C. Revisa la carga gráfica o la ventilación."
         gpu_alerted=true
     elif (( gpu_temp < COOL_TEMP )) && [[ "$gpu_alerted" == true ]]; then
-        send_notif normal temperature \
+        send_notif temperatura.gpu-normal normal temperature \
             "GPU enfriada: ${gpu_temp}°C" \
             "La temperatura de la GPU volvió a niveles normales."
         gpu_alerted=false

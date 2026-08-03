@@ -26,6 +26,7 @@ export function validateRule(rule: NotifRule): string[] {
     [textos.validacion.campos.titulo, rule.match.summary],
     [textos.validacion.campos.cuerpo, rule.match.body],
     [textos.validacion.campos.origen, rule.match.source],
+    [textos.validacion.campos.evento, rule.match.event],
   ]
   for (const [label, sm] of fields) {
     if (sm && sm.op === "regex" && !regexValid(sm.value)) {

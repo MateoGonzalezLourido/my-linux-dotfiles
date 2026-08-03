@@ -13,6 +13,7 @@
     "modos": {
       "noCambiar": "No cambiar",
       "encenderA": "Encender a",
+      "apagar": "Apagar",
       "fijarEn": "Fijar en"
     },
     "horario": {
@@ -21,7 +22,8 @@
       "vigente": "vigente",
       "tooltipVigente": "Rige ahora mismo: {{canales}}",
       "sinFranjas": "Ahora ({{hora}}) · sin franjas: manda el ajuste manual de arriba",
-      "resumen": "Ahora ({{hora}}) · luz nocturna: {{luz}} · brillo: {{brillo}}"
+      "resumen": "Ahora ({{hora}}) · luz nocturna: {{luz}} · brillo: {{brillo}}",
+      "luzApagada": "apagada"
     },
     "canales": {
       "luzNocturna": "Luz nocturna",
@@ -103,7 +105,7 @@
   },
   "programacion": {
     "titulo": "Programar por franjas horarias",
-    "descripcion": "Cada franja puede ajustar la luz nocturna, el brillo o ambos, y puede cruzar la medianoche. Al terminar, la luz vuelve al ajuste manual y el brillo recupera su valor anterior.\n«No cambiar» deja ese canal intacto; el brillo solo se fija al entrar."
+    "descripcion": "Cada franja puede ajustar la luz nocturna, el brillo o ambos, y puede cruzar la medianoche. Al terminar, la luz vuelve al ajuste manual y el brillo recupera su valor anterior.\n«No cambiar» deja ese canal intacto; «Apagar» mantiene la luz nocturna apagada aunque esté encendida a mano; el brillo solo se fija al entrar."
   },
   "globales": {
     "titulo": "Fluidez y juegos",

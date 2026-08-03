@@ -97,10 +97,21 @@ threshold_urgency() {
     fi
 }
 
+NOTIF_APP="Batería"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
 send_notif() {
-    local urgency=$1 icon=$2 title=$3 body=$4
-    notify-send -h string:x-gigios-source:system \
-        --app-name="Batería" \
+    local evento=$1 urgency=$2 icon=$3 title=$4 body=$5
+    notificar "$evento" \
         --urgency="$urgency" \
         --icon="$icon" \
         --expire-time=12000 \
@@ -119,7 +130,7 @@ while true; do
             Charging)
                 if [[ -n "$prev_status" ]]; then
                     get_time_label Charging
-                    send_notif normal battery-good \
+                    send_notif bateria.cargando normal battery-good \
                         "Cargando batería" \
                         "${capacity}% — tiempo para carga completa: ~${time_label}"
                 fi
@@ -128,7 +139,7 @@ while true; do
             Discharging)
                 if [[ -n "$prev_status" ]]; then
                     get_time_label Discharging
-                    send_notif normal battery-good \
+                    send_notif bateria.descargando normal battery-good \
                         "Desconectado cargador" \
                         "${capacity}% — tiempo restante: ~${time_label}"
                 fi
@@ -142,7 +153,7 @@ while true; do
     # [D] Full-charge check unified — covers both Full status and Charging@100%.
     if [[ "$charged_notified" == false ]] && \
        [[ "$status" == "Full" || ("$status" == "Charging" && "$capacity" -ge 100) ]]; then
-        send_notif normal battery-full \
+        send_notif bateria.completa normal battery-full \
             "Carga completada"
         charged_notified=true
     fi
@@ -157,7 +168,7 @@ while true; do
         if [[ "$powersave_notified" == false ]] \
                 && (( capacity > 0 && capacity <= power_save_threshold )); then
             powersave_notified=true
-            send_notif normal power-profile-power-saver-symbolic \
+            send_notif bateria.modo-ahorro normal power-profile-power-saver-symbolic \
                 "Modo ahorro de energía activado" \
                 "Batería ${capacity}% (umbral: ${power_save_threshold}%)"
         elif (( capacity > power_save_threshold )); then
@@ -169,7 +180,7 @@ while true; do
             if (( capacity <= thr )) && [[ -z "${notified[$thr]}" ]]; then
                 notified[$thr]=1
                 threshold_urgency "$thr"  # [C]
-                send_notif "$urgency" "$icon" \
+                send_notif bateria.baja "$urgency" "$icon" \
                     "Batería ${capacity}%" \
                     "Tiempo restante ~${time_label}"
             fi

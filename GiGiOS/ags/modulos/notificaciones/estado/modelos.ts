@@ -15,6 +15,10 @@ export interface StoredNotification {
   image?: string
   /** Hint `x-gigios-source`, consumido por el motor de reglas. */
   source?: string
+  /** Hint `x-gigios-event`: la identidad del aviso del sistema (`kernel.oom`, …). Se guarda
+   *  además de casarse porque la pestaña Sistema de Ajustes enseña la última vez que llegó
+   *  cada aviso, y eso se saca del historial ya almacenado. */
+  event?: string
   meta: NotifMeta
 }
 

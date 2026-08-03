@@ -11,32 +11,47 @@ export interface CompiledRule {
 
 export interface RuleIndex {
   byApp: Map<string, CompiledRule[]>
+  /** Reglas ancladas a un `event` exacto — el catálogo del sistema son ~100 de estas y
+   *  meterlas en `rest` habría hecho que CADA notificación las probara todas una a una.
+   *  Con el índice, una notificación sin identidad ni siquiera las mira. */
+  byEvent: Map<string, CompiledRule[]>
   rest: CompiledRule[]
-  candidatesFor(appName: string): CompiledRule[]
+  candidatesFor(appName: string, event?: string): CompiledRule[]
 }
 
 export function compileRules(rules: NotifRule[]): RuleIndex {
   const byApp = new Map<string, CompiledRule[]>()
+  const byEvent = new Map<string, CompiledRule[]>()
   const rest: CompiledRule[] = []
+  const indexar = (mapa: Map<string, CompiledRule[]>, clave: string, compiled: CompiledRule) => {
+    const arr = mapa.get(clave) ?? []
+    arr.push(compiled)
+    mapa.set(clave, arr)
+  }
   for (const rule of rules) {
     if (!rule.enabled) continue
     const compiled: CompiledRule = { rule, test: (input) => matchInput(rule.match, input) }
     const app = rule.match.app
-    if (app && app.op === "equals") {
-      const key = (app.ci !== false ? app.value.toLowerCase() : app.value)
-      const arr = byApp.get(key) ?? []
-      arr.push(compiled)
-      byApp.set(key, arr)
+    const event = rule.match.event
+    // El `event` va PRIMERO: es la clave más selectiva que hay (identifica un único aviso),
+    // mientras que `app` agrupa decenas. Una regla con los dos se indexa por `event` y su
+    // `test` sigue comprobando el `app` igual, así que no se pierde ninguna condición.
+    if (event && event.op === "equals") {
+      indexar(byEvent, event.ci !== false ? event.value.toLowerCase() : event.value, compiled)
+    } else if (app && app.op === "equals") {
+      indexar(byApp, app.ci !== false ? app.value.toLowerCase() : app.value, compiled)
     } else {
       rest.push(compiled)
     }
   }
   return {
     byApp,
+    byEvent,
     rest,
-    candidatesFor(appName: string) {
-      const exact = byApp.get(appName.toLowerCase()) ?? []
-      return [...exact, ...rest]
+    candidatesFor(appName: string, event?: string) {
+      const porEvento = event ? (byEvent.get(event.toLowerCase()) ?? []) : []
+      const porApp = byApp.get(appName.toLowerCase()) ?? []
+      return [...porEvento, ...porApp, ...rest]
     },
   }
 }
@@ -46,7 +61,7 @@ const DEFAULT_DEDUP = "app+summary" as const
 export function evaluate(input: NotifInput, index: RuleIndex, now: number): EvalResult {
   // Matched rules, highest priority first. stopOnMatch cuts the rest.
   const matched: NotifRule[] = []
-  const candidates = index.candidatesFor(input.appName)
+  const candidates = index.candidatesFor(input.appName, input.event)
     .filter(c => c.test(input))
     .sort((a, b) => b.rule.priority - a.rule.priority)
   for (const c of candidates) {

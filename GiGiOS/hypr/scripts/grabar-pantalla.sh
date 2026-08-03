@@ -13,21 +13,27 @@ archivo_estado="$directorio_estado/grabacion-pantalla.estado"
 archivo_bloqueo="$directorio_estado/grabacion-pantalla.lock"
 archivo_log="$directorio_estado/grabacion-pantalla.log"
 
-notificar() {
-    local urgencia="$1"
-    local titulo="$2"
-    local cuerpo="$3"
+NOTIF_APP="GiGiOS"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
+avisar() {
+    local evento="$1" urgencia="$2" titulo="$3" cuerpo="$4"
 
     command -v notify-send >/dev/null 2>&1 || return 0
-    notify-send \
-        -h string:x-gigios-source:system \
-        -a "GiGiOS" \
-        -u "$urgencia" \
-        "$titulo" "$cuerpo" 2>/dev/null || true
+    notificar "$evento" -u "$urgencia" "$titulo" "$cuerpo" 2>/dev/null || true
 }
 
 fallar() {
-    notificar critical "Grabación de pantalla" "$1"
+    avisar grabacion.error critical "Grabación de pantalla" "$1"
     printf 'grabar-pantalla: %s\n' "$1" >&2
     exit 1
 }
@@ -190,7 +196,7 @@ fi
 flock -u 9 || true
 
 if [[ -s "$ruta_grabacion" ]]; then
-    notificar normal "Grabación guardada" "$ruta_grabacion"
+    avisar grabacion.guardada normal "Grabación guardada" "$ruta_grabacion"
     exit 0
 fi
 

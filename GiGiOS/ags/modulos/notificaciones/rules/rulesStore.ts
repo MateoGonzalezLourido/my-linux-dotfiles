@@ -6,6 +6,7 @@ import GLib from "gi://GLib"
 import type { NotifRule } from "./types.ts"
 import { BUILTIN_RULES } from "./defaults.ts"
 import { compileRules, type RuleIndex } from "./engine.ts"
+import { archivoSistema, reglasSistema } from "./sistemaStore.ts"
 import { cargarJson, crearGuardadoJsonProgramado } from "../estado/persistencia.ts"
 
 const RULES_PATH = `${GLib.get_user_config_dir()}/gigios/notif-rules.json`
@@ -15,13 +16,17 @@ interface RulesFile {
   builtinOverrides: Record<string, Partial<NotifRule>> // keyed by builtin id
 }
 
-/** Compose builtin seeds (with overrides applied) + user rules into one list. */
+/** Compose builtin seeds (with overrides applied) + the system catalog + user rules.
+ *
+ *  Las del catálogo NO viven en este fichero (ver `sistemaStore.ts`) pero sí comparten índice
+ *  compilado: son reglas normales, con el mismo `EffectSpec` y el mismo plegado por
+ *  prioridad, y tenerlas aparte en tiempo de evaluación habría significado dos motores. */
 function composeRules(file: RulesFile): NotifRule[] {
   const builtins = BUILTIN_RULES.map(b => {
     const ov = file.builtinOverrides[b.id]
     return ov ? { ...b, ...ov, effects: { ...b.effects, ...(ov.effects ?? {}) }, match: { ...b.match, ...(ov.match ?? {}) } } : b
   })
-  return [...builtins, ...file.userRules]
+  return [...builtins, ...reglasSistema(), ...file.userRules]
 }
 
 const archivoCargado = cargarJson<Partial<RulesFile>>(RULES_PATH, {}, "rules")
@@ -47,6 +52,13 @@ function recompile(file: RulesFile): void {
   programarGuardado()
 }
 
+// Tocar un aviso del sistema cambia el índice igual que tocar una regla, pero NO debe
+// reescribir `notif-rules.json`: son ficheros distintos y cada uno se guarda solo. De ahí que
+// esto recompile a mano en vez de llamar a `recompile`.
+archivoSistema.subscribe(() => setRuleIndex(compileRules(composeRules(rulesFile.get()))))
+
+/** Todas las reglas, incluidas las ~100 del catálogo del sistema. La pestaña Reglas las
+ *  filtra fuera (`source !== "system"`): tienen su propia pestaña y ahogarían la lista. */
 export function allRules(): NotifRule[] { return composeRules(rulesFile.get()) }
 
 export function upsertUserRule(rule: NotifRule): void {

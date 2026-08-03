@@ -23,6 +23,11 @@ export const BUILTIN_RULES: NotifRule[] = [
     match: { source: { op: "equals", value: "system" } },
     effects: { style: "dunst" },
   },
+  // NOTA sobre las cuatro builtin de abajo que casan por TEXTO (`crash`, `coredump`,
+  // `reboot`, `batería`): siguen aquí porque también pescan notificaciones de APPS que digan
+  // eso, pero los avisos del sistema que motivaron su existencia ya no dependen de ellas —
+  // cada uno lleva su `clearOnBoot`/`flash` en `catalogoSistema.ts`, atado a su id en vez de
+  // a una palabra que cualquiera puede escribir en un título.
   {
     id: "builtin.screenshot",
     name: textos.predefinidas.capturas,

@@ -18,7 +18,17 @@
 set -u
 
 APP="Lanzador aislado"
-notify() { notify-send -h string:x-gigios-source:system -a "$APP" "$@"; }
+NOTIF_APP="$APP"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
 
 f="${1:-}"
 
@@ -33,7 +43,7 @@ fi
 # ── Validación ────────────────────────────────────────────────────────────────
 f="$(realpath -- "$f" 2>/dev/null || echo "$f")"
 name="$(basename -- "$f")"
-[[ -n "$f" && -f "$f" ]] || { notify -u critical "🛡️ $APP" "No existe el archivo: $f" -t 8000; exit 1; }
+[[ -n "$f" && -f "$f" ]] || { notificar aislado.sin-archivo -u critical "🛡️ $APP" "No existe el archivo: $f" -t 8000; exit 1; }
 
 # ── 1) Análisis previo (ClamAV) ───────────────────────────────────────────────
 # clamscan lleva --max-filesize/--max-scansize al tope (2 GiB-1); si no, saltaría
@@ -53,7 +63,7 @@ if (( ${#clam[@]} )); then
         out=$(clamscan --no-summary "${CLAMSCAN_MAX[@]}" "$f" 2>/dev/null); rc=$?
     fi
     if grep -q "FOUND" <<< "$out"; then
-        notify -u critical "🦠 Malware detectado — NO se lanza" \
+        notificar aislado.malware -u critical "🦠 Malware detectado — NO se lanza" \
             "$name: $(grep FOUND <<< "$out" | head -1)" -t 0
         exit 2
     elif (( rc != 0 )); then
@@ -64,23 +74,23 @@ if (( ${#clam[@]} )); then
         # análisis de ESTA ejecución ya no se repite; la actualización sirve para las siguientes.
         UPDATE_SIGS="$HOME/.config/hypr/scripts/actualizar-firmas.sh"
         if [[ -x "$UPDATE_SIGS" ]]; then
-            ( act=$(notify-send -h string:x-gigios-source:system -a "$APP" --wait -t 0 \
+            ( act=$(notificar aislado.no-analizado --wait -t 0 \
                 -A "update=🛡️ Activar y actualizar" -u normal "🛡️ No se pudo analizar" \
                 "ClamAV no operativo (sin base de firmas o daemon parado). Se lanzará contenido pero SIN analizar.")
               [[ "$act" == "update" ]] && "$UPDATE_SIGS" ) &
         else
-            notify -u normal "🛡️ No se pudo analizar" \
+            notificar aislado.no-analizado -u normal "🛡️ No se pudo analizar" \
                 "ClamAV no operativo (¿falta ejecutar 'sudo freshclam'?). Se lanzará contenido pero SIN analizar." -t 10000
         fi
     fi
 else
-    notify -u normal "🛡️ Sin antivirus" \
+    notificar aislado.sin-antivirus -u normal "🛡️ Sin antivirus" \
         "ClamAV no instalado: se lanzará contenido pero SIN analizar. Instala 'clamav' para el escaneo." -t 10000
 fi
 
 # ── 2) Contención (Firejail) ──────────────────────────────────────────────────
 if ! command -v firejail >/dev/null 2>&1; then
-    notify -u critical "🛡️ Falta Firejail" \
+    notificar aislado.falta-firejail -u critical "🛡️ Falta Firejail" \
         "Instala 'firejail' (sudo pacman -S firejail) para poder lanzar aislado." -t 0
     exit 3
 fi
@@ -92,14 +102,14 @@ case "${f,,}" in
         if command -v wine >/dev/null 2>&1; then
             launch_cmd=(wine "$f")
         else
-            notify -u critical "🛡️ Falta Wine" "Instala 'wine' para ejecutar .exe/.msi." -t 0
+            notificar aislado.falta-wine -u critical "🛡️ Falta Wine" "Instala 'wine' para ejecutar .exe/.msi." -t 0
             exit 4
         fi ;;
     *.sh)  launch_cmd=(bash "$f") ;;
     *)     chmod +x "$f" 2>/dev/null; launch_cmd=("$f") ;;
 esac
 
-notify -u normal "🛡️ Lanzando aislado" \
+notificar aislado.lanzando -u normal "🛡️ Lanzando aislado" \
     "$name en jaula Firejail (sin red, sin acceso a tus datos)." -t 6000
 
 # --whitelist=$f → el $HOME de la jaula queda vacío salvo este archivo.

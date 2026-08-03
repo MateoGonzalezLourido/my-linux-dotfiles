@@ -44,9 +44,12 @@ export function liberarRelojHorario(): void {
   idReloj = null
 }
 
+// "Apagar" (temp 0) no es redundante con "No cambiar" (temp null): el primero pisa el
+// interruptor manual mientras dure la franja, el segundo se lo deja.
 const MODOS_LUZ = [
   { label: textos.reglas.modos.noCambiar, value: "keep" },
   { label: textos.reglas.modos.encenderA, value: "on" },
+  { label: textos.reglas.modos.apagar, value: "off" },
 ]
 const MODOS_BRILLO = [
   { label: textos.reglas.modos.noCambiar, value: "keep" },
@@ -96,7 +99,7 @@ export default function FilaReglaHorario({
   const minutoInicio = memorizar((valor) => Number(valor.start.split(":")[1]))
   const horaFin = memorizar((valor) => Number(valor.end.split(":")[0]))
   const minutoFin = memorizar((valor) => Number(valor.end.split(":")[1]))
-  const modoLuz = memorizar((valor) => valor.temp == null || valor.temp <= 0 ? "keep" : "on")
+  const modoLuz = memorizar((valor) => valor.temp == null ? "keep" : valor.temp > 0 ? "on" : "off")
   const modoBrillo = memorizar((valor) => valor.brightness == null ? "keep" : "set")
   const temperatura = memorizar((valor) =>
     valor.temp && valor.temp > 0 ? valor.temp : TEMPERATURA_REGLA_PREDETERMINADA)
@@ -176,7 +179,7 @@ export default function FilaReglaHorario({
       <box spacing={6} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
         <label cssClasses={["sp-rule-chan"]} label={textos.reglas.canales.luzNocturna} halign={Gtk.Align.START} />
         {selectorModo(MODOS_LUZ, modoLuz, (modo) =>
-          actualizar({ temp: modo === "keep" ? null : temperatura.get() }))}
+          actualizar({ temp: modo === "keep" ? null : modo === "off" ? 0 : temperatura.get() }))}
         <box spacing={4} valign={Gtk.Align.CENTER} visible={modoLuz((modo) => modo === "on")}>
           <CampoNumerico valor={temperatura} minimo={1000} maximo={6500} caracteres={4} relleno={0} alConfirmar={(valor) => actualizar({ temp: valor })} />
           <TextoInformativo label="K" />

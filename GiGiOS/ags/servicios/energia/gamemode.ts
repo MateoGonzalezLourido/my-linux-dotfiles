@@ -49,7 +49,8 @@ let stopping = false
 function notify(urgency: string, body: string): void {
   try {
     Gio.Subprocess.new(
-      ["notify-send", "-u", urgency, "-h", "string:x-gigios-source:system", "Modo juego", body],
+      ["notify-send", "-u", urgency, "-h", "string:x-gigios-source:system",
+       "-h", "string:x-gigios-event:juegos.modo-juego", "Modo juego", body],
       Gio.SubprocessFlags.NONE,
     )
   } catch (e) {

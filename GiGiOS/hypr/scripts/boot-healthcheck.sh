@@ -19,12 +19,83 @@ has_cmd() { command -v "$1" &>/dev/null; }
 
 log() { echo "[$BOOT_TS] $*" >> "$LOG"; }
 
+# El bus de sesión pasa a exportarse para TODO el script en vez de prefijar la línea de
+# `notify-send`: el aviso ya no se emite aquí sino dentro de `notificar` (lib/notif.sh), y
+# una asignación-prefijo delante de la llamada a una función NO es fiable — bash la deja
+# puesta en el shell al volver salvo en modo POSIX. El valor es el mismo de siempre, y el
+# resto de comandos del script que miran esta variable (`systemctl --user`) resuelven a
+# ese mismo bus.
+export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus"
+
+NOTIF_APP="Arranque"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
+# ── Los problemas se acumulan y se emiten AL FINAL ────────────────────────────
+# Este script comprueba ~19 cosas de una tacada y cada problema salía en su propio
+# popup con `--expire-time=0`, o sea sin autocierre. Un arranque regulero (servicios
+# fallidos + errores en el journal + arranque lento + red inactiva + batería
+# degradada) recibía al usuario con cinco tarjetas permanentes que hay que cerrar a
+# mano una por una — y lo que se aprende de eso es a cerrarlas todas sin leerlas.
+#
+# NO se usa lib/notif-agrupar.sh aquí: aquella agrupa N eventos DEL MISMO tipo
+# llegados en ráfaga, y esto es lo contrario, N problemas de tipos DISTINTOS que
+# comparten un momento. Por eso el resumen es un aviso propio (`arranque.resumen`)
+# en vez de un recuento, y por eso remite al log: el cuerpo de cada problema lleva
+# su remedio concreto («revisa: journalctl -b …») y esos no caben ni se leen
+# apilados en un popup.
+#
+# Hasta RESUMEN_DESDE problemas se emiten individuales —con su identidad y su
+# remedio, que es lo mejor cuando son pocos—; a partir de ahí, uno solo con la lista.
+RESUMEN_DESDE=3
+declare -a prob_ev=() prob_urg=() prob_tit=() prob_body=()
+
 notify_problem() {
-    local urgency=$1 title=$2 body=$3
-    DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus" \
-        notify-send -h string:x-gigios-source:system --urgency="$urgency" --expire-time=0 "$title" "$body" 2>/dev/null
+    local evento=$1 urgency=$2 title=$3 body=$4
+    prob_ev+=("$evento"); prob_urg+=("$urgency")
+    prob_tit+=("$title"); prob_body+=("$body")
     log "[$urgency] $title — $body"
     (( ISSUES++ ))
+}
+
+# `warning` NO ES UN NIVEL DE URGENCIA VÁLIDO. notify-send solo acepta low, normal y
+# critical: con cualquier otro imprime "Unknown urgency" y sale con 1 SIN ENVIAR NADA.
+# Como la llamada llevaba `2>/dev/null`, el fallo era invisible y los once avisos que
+# usan `warning` (errores del journal, arranque lento, red inactiva, batería
+# degradada, PipeWire, Bluetooth, USB…) no se han mostrado NUNCA. Se traduce aquí, en
+# el único punto de emisión, en vez de tocar los once sitios: `warning` describe bien
+# la gravedad para el log, que es el otro consumidor de este campo.
+urgencia_valida() {
+    case "$1" in low|normal|critical) printf '%s' "$1" ;; *) printf 'normal' ;; esac
+}
+
+flush_problems() {
+    local n=${#prob_tit[@]} i cuerpo="" urg=normal
+    (( n )) || return 0
+
+    if (( n < RESUMEN_DESDE )); then
+        for (( i = 0; i < n; i++ )); do
+            notificar "${prob_ev[i]}" --urgency="$(urgencia_valida "${prob_urg[i]}")" \
+                --expire-time=0 "${prob_tit[i]}" "${prob_body[i]}" 2>/dev/null
+        done
+        return 0
+    fi
+
+    for (( i = 0; i < n; i++ )); do
+        cuerpo+="· ${prob_tit[i]}"$'\n'
+        [[ "${prob_urg[i]}" == critical ]] && urg=critical
+    done
+    cuerpo+="Detalle y remedio de cada uno en $LOG"
+    notificar arranque.resumen --urgency="$urg" --expire-time=0 \
+        "⚠️ $n problemas en el arranque" "$cuerpo" 2>/dev/null
 }
 
 log "=== Boot healthcheck START ==="
@@ -112,7 +183,7 @@ failed=$(systemctl --failed --no-legend 2>/dev/null | grep -v "^$")
 if [[ -n "$failed" ]]; then
     count=$(wc -l <<< "$failed")
     names=$(awk '{print $1}' <<< "$failed" | paste -sd ', ')
-    notify_problem critical "Servicios fallidos" \
+    notify_problem arranque.servicios-fallidos critical "Servicios fallidos" \
         "${count} servicio(s) no arrancaron: ${names}"
 fi
 
@@ -133,7 +204,7 @@ kerr_sources=$(journalctl -b -p err --no-pager -q 2>/dev/null \
 kerr_count=$(grep -c "." <<< "$kerr_sources" 2>/dev/null || echo 0)
 if (( kerr_count > 0 )); then
     kerr_names=$(tr '\n' ', ' <<< "$kerr_sources" | sed 's/, $//')
-    notify_problem warning "Errores en el arranque" \
+    notify_problem arranque.errores-journal warning "Errores en el arranque" \
         "${kerr_count} fuente(s) con errores: ${kerr_names} — revisa: journalctl -b -p err"
 fi
 
@@ -170,7 +241,7 @@ if [[ -n "$PREV_BOOT_LOG" ]]; then
 
     if (( ${#suspend_issues[@]} > 0 )); then
         detail=$(printf '%s; ' "${suspend_issues[@]}" | sed 's/; $//')
-        notify_problem warning "Fallo de suspensión/hibernación" \
+        notify_problem arranque.suspension-fallida warning "Fallo de suspensión/hibernación" \
             "El arranque anterior terminó de forma no limpia — ${detail}"
     fi
 fi
@@ -184,7 +255,7 @@ while read -r fs _size _used _avail pct mnt; do
     pct=${pct%\%}
     [[ "$pct" =~ ^[0-9]+$ ]] || continue
     if (( pct >= 90 )); then
-        notify_problem critical "Disco casi lleno" \
+        notify_problem arranque.disco-lleno critical "Disco casi lleno" \
             "${mnt} al ${pct}% — quedan menos del 10% libre"
     fi
 done < <(df -h 2>/dev/null | tail -n +2)
@@ -202,7 +273,7 @@ if [[ -n "$boot_line" ]]; then
         total_secs=$(grep -oP '[\d.]+' <<< "$total_str" | awk '{printf "%d", $1}')
     fi
     if (( total_secs > 30 )); then
-        notify_problem warning "Arranque lento" \
+        notify_problem arranque.lento warning "Arranque lento" \
             "Tiempo total: ${total_str} (umbral: 30s) — revisa: systemd-analyze blame"
     fi
 fi
@@ -212,26 +283,26 @@ if $HAS_NETWORK; then
     up_ifaces=$(grep "state UP" <<< "$IP_LINK_OUTPUT" | grep -v "lo:" \
         | awk -F': ' '{print $2}' | paste -sd ', ')
     if [[ -z "$up_ifaces" ]]; then
-        notify_problem warning "Red inactiva" \
+        notify_problem arranque.red-inactiva warning "Red inactiva" \
             "Ninguna interfaz en estado UP"
     else
         if ! timeout 5 ping -c 1 -W 3 1.1.1.1 &>/dev/null; then
-            notify_problem warning "Sin conectividad" \
+            notify_problem arranque.sin-conectividad warning "Sin conectividad" \
                 "No se puede alcanzar 1.1.1.1 (interfaces activas: ${up_ifaces})"
         fi
     fi
 else
-    notify_problem warning "Sin interfaces de red" \
+    notify_problem arranque.sin-interfaces warning "Sin interfaces de red" \
         "ip link no reporta ninguna interfaz"
 fi
 
 # ── NVIDIA ───────────────────────────────────────────────────────────────────
 if $HAS_NVIDIA; then
     if ! lsmod 2>/dev/null | grep -q "^nvidia[[:space:]]"; then
-        notify_problem critical "NVIDIA sin driver" \
+        notify_problem arranque.nvidia-sin-driver critical "NVIDIA sin driver" \
             "GPU NVIDIA detectada pero el módulo 'nvidia' no está cargado en el kernel"
     elif has_cmd nvidia-smi && ! timeout 5 nvidia-smi &>/dev/null; then
-        notify_problem critical "NVIDIA driver error" \
+        notify_problem arranque.nvidia-error critical "NVIDIA driver error" \
             "nvidia-smi falla — posible corrupción del driver o del módulo"
     fi
 fi
@@ -244,7 +315,7 @@ if $HAS_NVME && $HAS_SMART; then
         grep -qi "Permission denied\|unable to detect\|open device.*failed" <<< "$result" \
             && continue
         if grep -qi "FAILED" <<< "$result"; then
-            notify_problem critical "NVMe SMART: fallo" \
+            notify_problem arranque.nvme-smart critical "NVMe SMART: fallo" \
                 "${dev}: estado SMART FAILED — revisa con: sudo smartctl -a ${dev}"
         fi
     done
@@ -257,7 +328,7 @@ if $HAS_SATA && $HAS_SMART; then
         grep -qi "Permission denied\|unable to detect\|doesn't support\|open device.*failed" \
             <<< "$result" && continue
         if grep -qi "FAILED" <<< "$result"; then
-            notify_problem critical "SATA SMART: fallo" \
+            notify_problem arranque.sata-smart critical "SATA SMART: fallo" \
                 "${dev}: estado SMART FAILED — revisa con: sudo smartctl -a ${dev}"
         fi
     done
@@ -275,7 +346,7 @@ if $HAS_BATTERY; then
         if [[ "$full" =~ ^[0-9]+$ && "$design" =~ ^[0-9]+$ && "$design" -gt 0 ]]; then
             health=$(( full * 100 / design ))
             if (( health < 80 )); then
-                notify_problem warning "Batería degradada" \
+                notify_problem arranque.bateria-degradada warning "Batería degradada" \
                     "${bat}: salud al ${health}% de la capacidad original de diseño"
             fi
         fi
@@ -293,7 +364,7 @@ if $HAS_FANS; then
     if [[ "$cpu_temp" =~ ^[0-9]+$ ]] && (( cpu_temp > 70 )); then
         zero_rpm=$(grep -iE "fan[0-9]+:" <<< "$SENSORS_OUTPUT" | grep -cE "[[:space:]]+0 RPM")
         if (( zero_rpm > 0 )); then
-            notify_problem critical "Ventilador parado" \
+            notify_problem arranque.ventilador-parado critical "Ventilador parado" \
                 "CPU a ${cpu_temp}°C pero ${zero_rpm} ventilador(es) reportan 0 RPM"
         fi
     fi
@@ -304,7 +375,7 @@ fi
 # llegamos aquí es porque $APLAY_OUTPUT ya mostró una tarjeta.)
 if $HAS_AUDIO; then
     if ! systemctl --user is-active pipewire &>/dev/null; then
-        notify_problem warning "PipeWire inactivo" \
+        notify_problem arranque.pipewire-inactivo warning "PipeWire inactivo" \
             "El servicio pipewire no está corriendo en la sesión de usuario"
     fi
 fi
@@ -313,12 +384,12 @@ fi
 # Reutiliza $RFKILL_BT_OUTPUT (Fase 1) — mismo comando, distinto grep.
 if $HAS_BLUETOOTH; then
     if ! systemctl is-active bluetooth &>/dev/null; then
-        notify_problem warning "Bluetooth inactivo" \
+        notify_problem arranque.bluetooth-inactivo warning "Bluetooth inactivo" \
             "bluetooth.service no está corriendo — inicia con: systemctl start bluetooth"
     fi
     blocked=$(grep -E "blocked: yes" <<< "$RFKILL_BT_OUTPUT" | head -1)
     if [[ -n "$blocked" ]]; then
-        notify_problem warning "Bluetooth bloqueado" \
+        notify_problem arranque.bluetooth-bloqueado warning "Bluetooth bloqueado" \
             "rfkill: $blocked — desbloquea con: rfkill unblock bluetooth"
     fi
 fi
@@ -328,12 +399,14 @@ if $HAS_USB; then
     usb_errors=$(journalctl -b 2>/dev/null \
         | grep -ciE "usb.*error|usb.*failed|usb.*unable" || true)
     if (( usb_errors > 0 )); then
-        notify_problem warning "Errores USB en el arranque" \
+        notify_problem arranque.errores-usb warning "Errores USB en el arranque" \
             "${usb_errors} error(s) USB en el journal — revisa: journalctl -b | grep -i 'usb.*error'"
     fi
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
+flush_problems
+
 if (( ISSUES == 0 )); then
     log "Todo OK — sin problemas detectados"
 else

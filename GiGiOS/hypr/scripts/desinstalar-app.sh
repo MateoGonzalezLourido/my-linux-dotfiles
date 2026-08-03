@@ -38,7 +38,17 @@
 set -uo pipefail
 
 APP="Desinstalar"
-notify() { notify-send -h string:x-gigios-source:system -a "$APP" "$@"; }
+NOTIF_APP="$APP"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
 
 # Paquetes cuya desaparición deja la sesión inutilizable o el equipo sin
 # arrancar. pacman ya se niega solo cuando algo depende de ellos, pero varios de
@@ -296,13 +306,13 @@ _desinstalar() {
             if ((rc == 126)); then
                 echo "cancelado"; return 10
             elif ((rc != 0)); then
-                notify -u critical -t 12000 "No se pudo desinstalar «$nombre»" \
+                notificar desinstalar.fallo -u critical -t 12000 "No se pudo desinstalar «$nombre»" \
                     "$(echo "$salida" | tail -n 3)"
                 echo "error"; return 1
             fi
             [[ "$det_metodo" == "aur" ]] && _limpiar_clon_aur "$det_objetivo"
             local n; n=$(grep -c . <<<"$det_paquetes")
-            notify -u normal -t 8000 "🗑️ «$nombre» desinstalada" \
+            notificar desinstalar.ok -u normal -t 8000 "🗑️ «$nombre» desinstalada" \
                 "Se han quitado $n paquete$([[ $n -eq 1 ]] || echo s)."
             ;;
 
@@ -312,10 +322,10 @@ _desinstalar() {
             # sistema; en una instalación de usuario no pide nada.
             salida=$(flatpak uninstall -y --delete-data -- "$det_objetivo" 2>&1); rc=$?
             if ((rc != 0)); then
-                notify -u critical -t 12000 "No se pudo desinstalar «$nombre»" "$(echo "$salida" | tail -n 3)"
+                notificar desinstalar.fallo -u critical -t 12000 "No se pudo desinstalar «$nombre»" "$(echo "$salida" | tail -n 3)"
                 echo "error"; return 1
             fi
-            notify -u normal -t 8000 "🗑️ «$nombre» desinstalada" "Flatpak $det_objetivo, con sus datos."
+            notificar desinstalar.ok -u normal -t 8000 "🗑️ «$nombre» desinstalada" "Flatpak $det_objetivo, con sus datos."
             ;;
 
         steam)
@@ -323,7 +333,7 @@ _desinstalar() {
             # propio diálogo. Se avisa para que el usuario sepa dónde mirar; sin
             # eso, Steam saca una ventana que parece llegar de la nada.
             setsid steam "steam://uninstall/$det_objetivo" >/dev/null 2>&1 &
-            notify -u normal -t 8000 "🎮 Desinstalar «$nombre»" "Confirma en la ventana de Steam."
+            notificar desinstalar.steam -u normal -t 8000 "🎮 Desinstalar «$nombre»" "Confirma en la ventana de Steam."
             # `externo`, no `ok`: aquí NO se ha desinstalado nada todavía y no
             # vamos a enterarnos de si el usuario confirma — lo decide Steam en
             # su propia ventana. Dárselo a AGS como `ok` haría dos cosas mal:
@@ -343,18 +353,18 @@ _desinstalar() {
                 salida=$(_ejecutar_root /usr/bin/rm -f -- "${root[@]}"); rc=$?
                 if ((rc == 126)); then echo "cancelado"; return 10; fi
                 if ((rc != 0)); then
-                    notify -u critical -t 12000 "No se pudo desinstalar «$nombre»" "$(echo "$salida" | tail -n 3)"
+                    notificar desinstalar.fallo -u critical -t 12000 "No se pudo desinstalar «$nombre»" "$(echo "$salida" | tail -n 3)"
                     echo "error"; return 1
                 fi
             fi
             for f in "${fs[@]}"; do [[ "$f" == "$HOME"/* ]] && rm -f -- "$f"; done
 
-            notify -u normal -t 8000 "🗑️ «$nombre» desinstalada" \
+            notificar desinstalar.ok -u normal -t 8000 "🗑️ «$nombre» desinstalada" \
                 "Se han borrado ${#fs[@]} fichero$([[ ${#fs[@]} -eq 1 ]] || echo s). No estaba en el gestor de paquetes, así que puede quedar configuración suya en ~/.config."
             ;;
 
         *)
-            notify -u critical -t 10000 "No se puede desinstalar «$nombre»" "${det_error:-Método desconocido.}"
+            notificar desinstalar.no-soportado -u critical -t 10000 "No se puede desinstalar «$nombre»" "${det_error:-Método desconocido.}"
             echo "error"; return 1
             ;;
     esac
@@ -387,7 +397,7 @@ case "$verbo" in
     desinstalar)
         _detectar "$app_id" "$desktop" "$exec_raw"
         if [[ -n "$det_error" ]]; then
-            notify -u critical -t 10000 "No se puede desinstalar «$nombre»" "$det_error"
+            notificar desinstalar.no-soportado -u critical -t 10000 "No se puede desinstalar «$nombre»" "$det_error"
             echo "error"; exit 0
         fi
         _desinstalar "$nombre"

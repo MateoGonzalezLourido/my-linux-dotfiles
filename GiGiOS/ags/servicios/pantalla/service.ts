@@ -335,7 +335,10 @@ function scheduleKey(): string {
 function baseTemp(): number | null {
   if (!overrideActive() && rulesOn()) {
     const t = activeSetpoint(nowHM(), nightRules.get(), "temp")
-    if (t != null && t > 0) return t   // dentro de la franja: manda el horario
+    // Dentro de la franja manda el horario, TAMBIÉN cuando lo que pide es apagar (0): ahí
+    // se devuelve null sin mirar el manual. Caer al manual convertiría "apagar" en "no
+    // cambiar", que es la otra opción del selector y ya existe (`temp: null`, no entra aquí).
+    if (t != null) return t > 0 ? t : null
   }
   if (nightLightActive.get()) return nightLightTemp.get()
   return null

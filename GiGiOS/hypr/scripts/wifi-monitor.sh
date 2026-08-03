@@ -28,6 +28,18 @@
 #                                      aparece, ahí sí es un problema real → avisar.
 WAIT_SECS=30
 
+NOTIF_APP="WiFi"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
 wifi_hardware_present() {
     local d
     for d in /sys/class/net/*/wireless; do
@@ -50,7 +62,7 @@ if [[ -z "$IFACE" ]]; then
     done
 fi
 if [[ -z "$IFACE" ]]; then
-    notify-send -h string:x-gigios-source:system -u critical "wifi-monitor" \
+    notificar wifi.sin-interfaz -u critical "wifi-monitor" \
         "Hay hardware WiFi pero NetworkManager no publicó ninguna interfaz en ${WAIT_SECS}s. Saliendo." -t 10000
     exit 0
 fi
@@ -66,15 +78,15 @@ get_ssid() {
 }
 
 notify_disconnected() {
-    notify-send -h string:x-gigios-source:system -u critical "WiFi desconectado" "Se perdió la conexión en $IFACE" -t 0
+    notificar wifi.desconectado -u critical "WiFi desconectado" "Se perdió la conexión en $IFACE" -t 0
 }
 
 notify_reconnected() {
-    notify-send -h string:x-gigios-source:system -u normal "WiFi reconectado" "Red: $(get_ssid)" -t 8000
+    notificar wifi.reconectado -u normal "WiFi reconectado" "Red: $(get_ssid)" -t 8000
 }
 
 notify_portal() {
-    notify-send -h string:x-gigios-source:system -u critical "Portal cautivo detectado" \
+    notificar wifi.portal-cautivo -u critical "Portal cautivo detectado" \
         "Abre el navegador para iniciar sesión y acceder a internet" -t 0
 }
 

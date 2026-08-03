@@ -121,6 +121,53 @@ if ! source "$HOME/.config/hypr/scripts/lib/gaming-gate.sh" 2>/dev/null; then
     gaming_gate_wait() { :; }   # sin la librería, los monitores siguen como siempre
 fi
 
+# Identidad por aviso: cada `notificar <id>` declara CUÁL de los ~30 avisos de este
+# script es, para que se pueda configurar por separado en Ajustes. Aquí NO se fija
+# `NOTIF_APP` a propósito: los cuatro avisos con botón ya mandan su propio `-a
+# "Seguridad"` y el resto nunca ha llevado nombre de app; ponerlo ahora cambiaría el
+# `dedupKey` por defecto (app+título) de todo lo que este script ha guardado.
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
+# ── Agrupación de notificaciones en ráfaga ────────────────────────────────────
+# Los eventos NO vienen de uno en uno: una GPU atragantada repite la misma línea
+# NVRM decenas de veces, un `pacman -Syu` toca decenas de ficheros vigilados y un
+# disco muriéndose escupe errores de E/S por segundo. Una notificación por evento
+# —muchas críticas con `-t 0`, sin autocierre— se despacha cerrándolas en bloque
+# sin leer ninguna, que es exactamente el fallo que la allowlist de privEsc ya
+# arregló para GameMode. La librería acumula por categoría y emite UNA notificación
+# cuando la ráfaga se calma. Ver lib/notif-agrupar.sh para el contrato completo.
+#
+# Cada sub-monitor corre en su propio subshell (`func &`), así que registra SUS
+# categorías dentro de la función y no comparte cola con los demás: una ráfaga de
+# GPU no retrasa un cambio en /etc/shadow.
+NOTIF_CALMA=4       # segundos sin eventos que cierran el grupo
+NOTIF_TOPE=20       # tope con la ventana abierta: una actualización larga no la eterniza
+if ! source "$HOME/.config/hypr/scripts/lib/notif-agrupar.sh" 2>/dev/null; then
+    # Sin la librería (instalación a medias) se degrada a una notificación por
+    # evento, que es el comportamiento anterior: ruidoso, pero nunca silencioso.
+    # Misma firma que la librería —<cat> <evento> <urgencia> <timeout> <título> <plural>
+    # [prefijo] [sufijo]— o el respaldo leería cada campo corrido una posición y sacaría
+    # avisos con el id donde va la urgencia. Que sea un camino que casi nunca se toma no
+    # lo salva: se toma justamente cuando la instalación está a medias.
+    declare -A _NGF_EV=() _NGF_URG=() _NGF_TMO=() _NGF_TIT=() _NGF_PRE=() _NGF_SUF=()
+    notif_grupo()   { _NGF_EV[$1]=$2 _NGF_URG[$1]=$3 _NGF_TMO[$1]=$4 _NGF_TIT[$1]=$5 _NGF_PRE[$1]=${7-} _NGF_SUF[$1]=${8-}; }
+    notif_encolar() { notificar "${_NGF_EV[$1]}" -u "${_NGF_URG[$1]}" \
+                        "${_NGF_TIT[$1]}" "${_NGF_PRE[$1]}$2${_NGF_SUF[$1]}" -t "${_NGF_TMO[$1]}"; }
+    notif_leer()    { local -n _d=$1; IFS= read -r _d; }
+    notif_volcar()  { :; }
+    notif_pendiente() { return 1; }
+    notif_grupo_unico() { :; }   # sin agrupación no hay nada que deduplicar
+fi
+
 # ¿Es "lanzable"? Bit de ejecución, tipo de instalador conocido o binario ELF.
 # Se usa en monitor_downloads para avisar solo de lo que podrías ejecutar.
 is_runnable() {
@@ -255,7 +302,30 @@ monitor_kernel() {
     # medio escribir) suelta decenas de líneas por segundo, una notificación cada una.
     declare -A _io_cooldown
 
-    journalctl -kf -n 0 --no-pager 2>/dev/null | while IFS= read -r line; do
+    # Agrupación por tipo de evento. Los cooldowns de arriba y esto son capas
+    # distintas y las dos hacen falta: el cooldown decide QUÉ se encola (un disco
+    # agonizando no aporta nada nuevo cada 200 ms), la agrupación decide CÓMO se
+    # presenta lo encolado. Sin cooldown, agrupar solo cambiaría "40 popups" por
+    # "un popup cada NOTIF_TOPE segundos, para siempre".
+    notif_grupo koom      kernel.oom               critical 10000 "💀 OOM Killer"                  "procesos matados por OOM"   "Proceso: "
+    notif_grupo khung     kernel.tarea-colgada     critical 15000 "⚠️ Proceso colgado"             "procesos colgados"
+    notif_grupo kdisk     disco.error-es           critical 15000 "💾 Error de disco"              "errores de disco"
+    notif_grupo kusb      usb.extraccion-insegura  normal   12000 "⏏️ Extracción insegura"         "extracciones inseguras" \
+        "Se quitó " " con escrituras pendientes. Puede haber archivos incompletos o el sistema de ficheros marcado como sucio. Expúlsalo antes de retirarlo."
+    notif_grupo khw       hardware.error           critical 15000 "🧠 Error de hardware"           "errores de hardware"
+    notif_grupo kmod      kernel.modulo-sin-firmar critical 15000 "🧩 Módulo de kernel sin firmar" "módulos de kernel sin firmar"
+    notif_grupo kgpu      gpu.error                critical 15000 "🖥️ Error GPU"                   "errores de GPU"
+    notif_grupo kthrottle cpu.throttling           normal   10000 "🌡️ CPU Throttling"              "avisos de CPU throttling"
+    notif_grupo kseg      app.crash                critical 15000 "App crasheada"                  "apps crasheadas"            "Proceso: "
+
+    journalctl -kf -n 0 --no-pager 2>/dev/null | while :; do
+
+        notif_leer line; rc=$?
+        if (( rc != 0 )); then
+            notif_volcar
+            (( rc == 2 )) || break   # 1 = se acabó el stream de journalctl
+            continue
+        fi
 
         lower="${line,,}"
 
@@ -275,16 +345,19 @@ monitor_kernel() {
                 process="${BASH_REMATCH[1]} (disparador)"
             fi
 
-            notify-send -h string:x-gigios-source:system -u critical "💀 OOM Killer" "Proceso: $process" -t 10000
+            notif_encolar koom "$process"
 
         # --- Kernel panic ---
+        #     ÚNICO evento que NO se agrupa: el sistema se está yendo AHORA y una
+        #     ventana de calma de 4 s puede ser más de lo que le queda de vida a la
+        #     sesión. Además un panic no llega en ráfaga — llega una vez y ya.
         elif [[ "$sec_kernelPanic" != false ]] && [[ "$lower" == *"kernel panic"* ]]; then
-            notify-send -h string:x-gigios-source:system -u critical "💥 Kernel Panic" "El sistema va a reiniciar" -t 0
+            notificar kernel.panic -u critical "💥 Kernel Panic" "El sistema va a reiniciar" -t 0
 
         # --- Hung task ---
         elif [[ "$sec_hungTask" != false ]] && \
              [[ "$lower" == *"hung_task"* || "$lower" == *"blocked for more than"* ]]; then
-            notify-send -h string:x-gigios-source:system -u critical "⚠️ Proceso colgado" "$line" -t 15000
+            notif_encolar khung "$line"
 
         # --- Error de E/S de disco ---
         #     OJO: no todo "i/o error" es un disco enfermo. Arrancar un pendrive sin
@@ -304,14 +377,10 @@ monitor_kernel() {
                 _io_cooldown[$_key]=$_now
                 if [[ -z "$_base" ]] || _disk_is_internal "$_base"; then
                     # Disco interno (o línea que no nombra dispositivo → no la tragamos).
-                    notify-send -h string:x-gigios-source:system -u critical \
-                        "💾 Error de disco" "$line" -t 15000
+                    notif_encolar kdisk "$line"
                 else
                     # Extraíble: aviso de datos, no de hardware.
-                    notify-send -h string:x-gigios-source:system -u normal \
-                        "⏏️ Extracción insegura" \
-                        "Se quitó ${_dev} con escrituras pendientes. Puede haber archivos incompletos o el sistema de ficheros marcado como sucio. Expúlsalo antes de retirarlo." \
-                        -t 12000
+                    notif_encolar kusb "$_dev"
                 fi
             fi
 
@@ -320,24 +389,24 @@ monitor_kernel() {
              [[ "$lower" == *"machine check"* || "$lower" == *"mce:"* || \
                 "$lower" == *"hardware error"* || "$lower" == *"edac"* || \
                 "$lower" == *"memory error"* ]]; then
-            notify-send -h string:x-gigios-source:system -u critical "🧠 Error de hardware" "$line" -t 15000
+            notif_encolar khw "$line"
 
         # --- Módulo de kernel sin firmar / fuera del árbol (posible rootkit) ---
         elif [[ "$sec_kernelModules" != false ]] && \
              [[ "$lower" == *"tainting kernel"* || "$lower" == *"module verification failed"* || \
                 "$lower" == *"loading out-of-tree module"* || "$lower" == *"unsigned module"* ]]; then
-            notify-send -h string:x-gigios-source:system -u critical "🧩 Módulo de kernel sin firmar" "$line" -t 15000
+            notif_encolar kmod "$line"
 
         # --- GPU / NVIDIA error ---
         elif [[ "$sec_gpuError" != false ]] && \
              [[ "$lower" == *"nvrm"* || \
                 ( "$lower" == *"nvidia"* && "$lower" == *"error"* ) || \
                 ( "$lower" == *"gpu"* && "$lower" == *"error"* ) ]]; then
-            notify-send -h string:x-gigios-source:system -u critical "🖥️ Error GPU" "$line" -t 15000
+            notif_encolar kgpu "$line"
 
         # --- CPU throttling ---
         elif [[ "$sec_cpuThrottling" != false ]] && [[ "$lower" =~ cpu.*throttl ]]; then
-            notify-send -h string:x-gigios-source:system -u normal "🌡️ CPU Throttling" "$line" -t 10000
+            notif_encolar kthrottle "$line"
 
         # --- App crash: segfault ---
         elif [[ "$sec_appCrash" != false ]] && [[ "$lower" == *"segfault"* ]]; then
@@ -347,7 +416,7 @@ monitor_kernel() {
             _now=$(date +%s)
             if (( _now - ${_crash_cooldown[$app]:-0} >= 10 )); then
                 _crash_cooldown[$app]=$_now
-                notify-send -h string:x-gigios-source:system -u critical "App crasheada" "Proceso: $app (segfault)" -t 15000
+                notif_encolar kseg "$app (segfault)"
             fi
 
         fi
@@ -366,23 +435,41 @@ monitor_system() {
     declare -a _coredump_times=()   # ventana deslizante para detectar tormentas
     _storm_last=0
 
+    # Agrupación. Aquí la ráfaga típica no es un fallo de hardware sino un ataque o
+    # un servicio en bucle: un SSH expuesto recibe cientos de "Failed password" por
+    # minuto y un `systemd` con una unidad rota reintenta cada pocos segundos. El
+    # aviso de sudo NO lleva dato variable a propósito (no se filtra la línea del
+    # journal), así que encola texto vacío y lo que informa es el recuento.
+    notif_grupo ssvc     servicio.fallo-arranque      normal   10000 "⚙️ Servicio fallido"           "servicios fallidos"
+    notif_grupo ssudo    sudo.fallo-autenticacion     critical 15000 "🔐 Fallo sudo"                 "fallos de sudo" "Intento fallido de sudo"
+    notif_grupo spriv    seguridad.escalada-privilegios critical 15000 "🔓 Escalada de privilegios"    "escaladas de privilegios"
+    notif_grupo sssh     ssh.evento                   normal   15000 "🌐 SSH"                        "eventos SSH"
+    notif_grupo score    app.crash                    critical 15000 "App crasheada"                 "apps crasheadas" "Proceso: "
+
     # -t restringe a los identificadores que nos interesan → menos volumen y sin
     # falsos positivos de apps que casualmente logueen "failed to start", etc.
     journalctl -f -n 0 --no-pager \
         -t sudo -t sshd -t su -t pkexec -t polkitd -t systemd -t systemd-coredump 2>/dev/null |
-    while IFS= read -r line; do
+    while :; do
+
+        notif_leer line; rc=$?
+        if (( rc != 0 )); then
+            notif_volcar
+            (( rc == 2 )) || break   # 1 = se acabó el stream de journalctl
+            continue
+        fi
 
         lower="${line,,}"
 
         # --- Systemd service failure ---
         if [[ "$sec_serviceFailure" != false ]] && [[ "$lower" == *"failed to start"* ]]; then
-            notify-send -h string:x-gigios-source:system -u normal "⚙️ Servicio fallido" "$line" -t 10000
+            notif_encolar ssvc "$line"
 
         # --- Sudo auth failure ---
         elif [[ "$sec_sudoAuth" != false ]] && \
              [[ "$lower" == *"sudo"* && \
                 ( "$lower" == *"authentication failure"* || "$lower" == *"incorrect password"* ) ]]; then
-            notify-send -h string:x-gigios-source:system -u critical "🔐 Fallo sudo" "Intento fallido de sudo" -t 15000
+            notif_encolar ssudo ""
 
         # --- Escalada de privilegios (pkexec / su / polkit) ---
         #     pkexec emite DOS líneas por escalada: la de PAM ("session opened",
@@ -406,13 +493,13 @@ monitor_system() {
                 fi
             fi
 
-            notify-send -h string:x-gigios-source:system -u critical "🔓 Escalada de privilegios" "$line" -t 15000
+            notif_encolar spriv "$line"
 
         # --- SSH events ---
         elif [[ "$sec_ssh" != false ]] && \
              [[ "$lower" == *"sshd"* && \
                 ( "$lower" == *"failed password"* || "$lower" == *"accepted"* ) ]]; then
-            notify-send -h string:x-gigios-source:system -u normal "🌐 SSH" "$line" -t 15000
+            notif_encolar sssh "$line"
 
         # --- App crash: coredump (systemd-coredump, userspace) ---
         #     La notificación por-app va bajo appCrash; la detección de "tormenta"
@@ -428,7 +515,7 @@ monitor_system() {
 
             if [[ "$sec_appCrash" != false ]] && (( _now - ${_crash_cooldown[$app]:-0} >= 10 )); then
                 _crash_cooldown[$app]=$_now
-                notify-send -h string:x-gigios-source:system -u critical "App crasheada" "Proceso: $app (coredump)" -t 15000
+                notif_encolar score "$app (coredump)"
             fi
 
             if [[ "$sec_serviceHealth" != false ]]; then
@@ -438,7 +525,7 @@ monitor_system() {
                 _coredump_times=("${pruned[@]}")
                 if (( ${#_coredump_times[@]} >= 3 )) && (( _now - _storm_last >= 60 )); then
                     _storm_last=$_now
-                    notify-send -h string:x-gigios-source:system -u critical "🌩️ Tormenta de crashes" \
+                    notificar app.tormenta-crashes -u critical "🌩️ Tormenta de crashes" \
                         "${#_coredump_times[@]} volcados de core en <60s. Algo va muy mal." -t 0
                 fi
             fi
@@ -452,11 +539,17 @@ monitor_system() {
 # los reemplazos atómicos (write-temp + rename) que hacen passwd/visudo/editores,
 # que un watch sobre el inodo del archivo se perdería. Cubre configs de auth,
 # claves SSH y los sitios típicos de persistencia (systemd, autostart, cron).
+#
+# Los eventos se AGRUPAN antes de notificar (lib/notif-agrupar.sh): un solo
+# `pacman -Syu` toca decenas de rutas vigiladas en segundos, y una notificación
+# por fichero —todas críticas y con `-t 0`, o sea sin autocierre— era una avalancha
+# que se despacha cerrándolas en bloque sin leer ninguna: el mismo efecto que
+# desactivar la categoría entera.
 monitor_files() {
     [[ "$sec_fileIntegrity" == false ]] && return
 
     if ! command -v inotifywait &>/dev/null; then
-        notify-send -h string:x-gigios-source:system -u normal "oom-monitor" \
+        notificar monitor.sin-inotify -u normal "oom-monitor" \
             "inotify-tools no instalado. Vigilancia de archivos desactivada." -t 10000
         return
     fi
@@ -477,22 +570,35 @@ monitor_files() {
     done
     [[ ${#watch_paths[@]} -gt 0 ]] || return
 
+    # Un mismo cambio genera DOS eventos (create + close_write) sobre la misma
+    # ruta: la deduplicación de la librería los colapsa en uno.
+    notif_grupo fcrit    archivos.critico-modificado critical 0     "🚨 Archivo crítico modificado"      "archivos críticos modificados"   "Archivo: "
+    notif_grupo fpersist archivos.persistencia       critical 0     "🚨 Posible persistencia"            "cambios de posible persistencia" "Nuevo/modificado: "
+    notif_grupo fssh     archivos.clave-ssh          critical 0     "🔑 Clave SSH autorizada modificada" "cambios en claves SSH autorizadas" "Archivo: "
+    notif_grupo fboot    archivos.boot               normal   15000 "🥾 Cambio en /boot"                 "cambios en /boot"                "Archivo: " " (kernel/initramfs)"
+    # Un cambio = create + close_write: la misma ruta dos veces es UN cambio, no dos.
+    notif_grupo_unico fcrit; notif_grupo_unico fpersist
+    notif_grupo_unico fssh;  notif_grupo_unico fboot
+
+    local path rc
     inotifywait -m -e close_write,moved_to,create --format '%w%f' \
         "${watch_paths[@]}" 2>/dev/null |
-    while IFS= read -r path; do
+    while :; do
+        notif_leer path; rc=$?
+        if (( rc != 0 )); then
+            notif_volcar
+            (( rc == 2 )) || break   # 1 = se acabó el stream de inotifywait
+            continue
+        fi
         case "$path" in
             /etc/passwd|/etc/shadow|/etc/group|/etc/gshadow|/etc/hosts|/etc/sudoers|/etc/ld.so.preload|/etc/ssh/sshd_config)
-                notify-send -h string:x-gigios-source:system -u critical "🚨 Archivo crítico modificado" \
-                    "Archivo: $path" -t 0 ;;
+                notif_encolar fcrit "$path" ;;
             /etc/sudoers.d/*|/etc/pam.d/*|/etc/cron.d/*|/etc/systemd/system/*|"$HOME"/.config/autostart/*|"$HOME"/.config/systemd/user/*)
-                notify-send -h string:x-gigios-source:system -u critical "🚨 Posible persistencia" \
-                    "Nuevo/modificado: $path" -t 0 ;;
+                notif_encolar fpersist "$path" ;;
             "$HOME"/.ssh/authorized_keys|"$HOME"/.ssh/authorized_keys2)
-                notify-send -h string:x-gigios-source:system -u critical "🔑 Clave SSH autorizada modificada" \
-                    "Archivo: $path" -t 0 ;;
+                notif_encolar fssh "$path" ;;
             /boot/*)
-                notify-send -h string:x-gigios-source:system -u normal "🥾 Cambio en /boot" \
-                    "Archivo: $path (kernel/initramfs)" -t 15000 ;;
+                notif_encolar fboot "$path" ;;
         esac
     done
 }
@@ -528,7 +634,7 @@ monitor_smart() {
             if [[ -z "$report" ]]; then
                 if [[ "$warned_perm" == false ]]; then
                     warned_perm=true
-                    notify-send -h string:x-gigios-source:system -u normal "💽 Salud de disco" \
+                    notificar disco.smart-sin-permisos -u normal "💽 Salud de disco" \
                         "smartctl no puede leer SMART (¿faltan privilegios?)." -t 10000
                 fi
                 continue
@@ -536,7 +642,7 @@ monitor_smart() {
             if grep -qiE 'result:[[:space:]]*FAILED|FAILING_NOW' <<< "$report"; then
                 if [[ -z "${_smart_notified[$dev]:-}" ]]; then
                     _smart_notified[$dev]=1
-                    notify-send -h string:x-gigios-source:system -u critical "💽 Disco a punto de fallar" \
+                    notificar disco.smart-fallo -u critical "💽 Disco a punto de fallar" \
                         "$dev: SMART reporta fallo inminente. Haz copia de seguridad YA." -t 0
                 fi
             fi
@@ -562,6 +668,12 @@ monitor_units() {
     declare -A _known
     local seeded=false unit scope flag current
 
+    # Aquí la ráfaga no necesita ventana de tiempo: la PASADA es el lote. Tras un
+    # apagón sucio o una actualización caen varias unidades a la vez y `systemctl
+    # --failed` las devuelve todas en el mismo barrido, así que se encolan durante
+    # la pasada y se vuelcan al terminarla — sin retrasar nada ni un segundo.
+    notif_grupo unit servicio.en-fallo critical 15000 "⚙️ Servicio en fallo" "servicios en fallo" "Unidad: "
+
     while :; do
         # Se congela mientras juegas, pero SOLO una vez sembrado, y esa condición no
         # sobra: `systemctl --failed` es estado de NIVEL, no de flanco, así que una
@@ -581,8 +693,7 @@ monitor_units() {
                 [[ -z "$unit" ]] && continue
                 current+="$scope/$unit"$'\n'
                 if [[ "$seeded" == true && -z "${_known[$scope/$unit]:-}" ]]; then
-                    notify-send -h string:x-gigios-source:system -u critical "⚙️ Servicio en fallo" \
-                        "Unidad ($scope): $unit" -t 15000
+                    notif_encolar unit "$unit ($scope)"
                 fi
                 _known["$scope/$unit"]=1
             done < <(systemctl $flag --failed --no-legend --plain 2>/dev/null | awk '{print $1}')
@@ -591,6 +702,7 @@ monitor_units() {
         for unit in "${!_known[@]}"; do
             grep -qxF "$unit" <<< "$current" || unset "_known[$unit]"
         done
+        notif_volcar        # lote = pasada; con la cola vacía no hace nada
         seeded=true
         sleep 120
     done
@@ -650,13 +762,13 @@ download_alert() {
     local f="$1"
     if [[ "$sec_sandboxLaunch" != false && -x "$RUN_UNTRUSTED" ]]; then
         # notify-send --wait -A bloquea hasta el clic/cierre → subshell en 2º plano.
-        ( act=$(notify-send -h string:x-gigios-source:system -a "Seguridad" --wait -t 45000 \
+        ( act=$(notificar descargas.ejecutable-nuevo -a "Seguridad" --wait -t 45000 \
             -A "launch=🛡️ Lanzar aislado" -u normal \
             "⬇️ Ejecutable nuevo en Descargas" \
             "$(basename "$f") — verifícalo antes de lanzarlo.")
           [[ "$act" == "launch" ]] && "$RUN_UNTRUSTED" "$f" ) &
     else
-        notify-send -h string:x-gigios-source:system -u normal "⬇️ Ejecutable nuevo en Descargas" \
+        notificar descargas.ejecutable-nuevo -u normal "⬇️ Ejecutable nuevo en Descargas" \
             "$(basename "$f") — verifícalo antes de lanzarlo." -t 12000
     fi
 }
@@ -684,6 +796,11 @@ monitor_downloads() {
         done
     fi
     [[ -n "$dir" ]] || return
+
+    # Un `-t 0` por cada firma encontrada no escala a un archivo comprimido lleno de
+    # muestras; se agrupan por lote de clamscan (ver la llamada a notif_volcar).
+    notif_grupo malware descargas.malware critical 0 "🦠 Malware detectado en Descargas" \
+        "amenazas detectadas en Descargas" "" " — NO lo ejecutes."
 
     # Motor antivirus. Preferimos clamscan (standalone, funciona con solo tener la
     # base de firmas) sobre clamdscan, que necesita el daemon clamd corriendo y si
@@ -843,26 +960,38 @@ monitor_downloads() {
         done
 
         # Archivos demasiado grandes para el auto-análisis: aviso con botón.
-        for f in "${big_files[@]}"; do
-            mb=$(( $(stat -c%s "$f" 2>/dev/null || echo 0) / 1048576 ))
-            if [[ -x "$SCAN_FILE" ]]; then
-                ( act=$(notify-send -h string:x-gigios-source:system -a "Seguridad" --wait -t 45000 \
-                    -A "scan=🔍 Escanear igualmente" -u normal \
-                    "⬇️ Archivo grande sin analizar" \
-                    "$(basename "$f") (${mb} MB) supera el tope de auto-análisis. Escanéalo aquí o en Ajustes › Seguridad.")
-                  [[ "$act" == "scan" ]] && "$SCAN_FILE" "$f" ) &
-            else
-                notify-send -h string:x-gigios-source:system -u normal "⬇️ Archivo grande sin analizar" \
-                    "$(basename "$f") (${mb} MB) — escanéalo desde Ajustes › Seguridad." -t 12000
-            fi
-        done
+        #
+        # Mismo tope que los ejecutables nuevos, y por el mismo motivo: el botón
+        # "Escanear igualmente" es POR FICHERO, así que agrupar cuesta el botón.
+        # Hasta 4 compensa (un gesto y lo escaneas); a partir de ahí no, porque
+        # descomprimir un juego suelta media docena de archivos enormes de golpe y
+        # eso son seis popups con botón que nadie va a pulsar uno por uno.
+        if (( ${#big_files[@]} > 4 )); then
+            notificar descargas.archivo-grande -u normal \
+                "⬇️ ${#big_files[@]} archivos grandes sin analizar" \
+                "Superan el tope de auto-análisis. Escanéalos desde Ajustes › Seguridad." -t 15000
+        else
+            for f in "${big_files[@]}"; do
+                mb=$(( $(stat -c%s "$f" 2>/dev/null || echo 0) / 1048576 ))
+                if [[ -x "$SCAN_FILE" ]]; then
+                    ( act=$(notificar descargas.archivo-grande -a "Seguridad" --wait -t 45000 \
+                        -A "scan=🔍 Escanear igualmente" -u normal \
+                        "⬇️ Archivo grande sin analizar" \
+                        "$(basename "$f") (${mb} MB) supera el tope de auto-análisis. Escanéalo aquí o en Ajustes › Seguridad.")
+                      [[ "$act" == "scan" ]] && "$SCAN_FILE" "$f" ) &
+                else
+                    notificar descargas.archivo-grande -u normal "⬇️ Archivo grande sin analizar" \
+                        "$(basename "$f") (${mb} MB) — escanéalo desde Ajustes › Seguridad." -t 12000
+                fi
+            done
+        fi
 
         # Aviso de ejecutables nuevos. ≤4 → individual con botón; más → resumen.
         if (( ${#new_exec[@]} )); then
             if (( ${#new_exec[@]} <= 4 )); then
                 for f in "${new_exec[@]}"; do download_alert "$f"; done
             else
-                notify-send -h string:x-gigios-source:system -u normal "⬇️ ${#new_exec[@]} ejecutables nuevos en Descargas" \
+                notificar descargas.ejecutable-nuevo -u normal "⬇️ ${#new_exec[@]} ejecutables nuevos en Descargas" \
                     "En $(basename "$(dirname "${new_exec[0]}")")/ y otros. Revísalos antes de ejecutarlos (juego, instalador o crack)." -t 15000
             fi
         fi
@@ -910,13 +1039,13 @@ monitor_downloads() {
                     # cierre → subshell en 2º plano, igual que en download_alert; si se quedara en
                     # primer plano detendría el barrido entero hasta que alguien mirase el popup.
                     if [[ -x "$UPDATE_SIGS" ]]; then
-                        ( act=$(notify-send -h string:x-gigios-source:system -a "Seguridad" --wait -t 0 \
+                        ( act=$(notificar antivirus.sin-firmas -a "Seguridad" --wait -t 0 \
                             -A "update=🛡️ Activar y actualizar" -u critical \
                             "🛡️ Antivirus sin base de firmas" \
                             "ClamAV no puede analizar las descargas. Hasta que se actualicen las firmas NO se dan por analizadas.")
                           [[ "$act" == "update" ]] && "$UPDATE_SIGS" ) &
                     else
-                        notify-send -h string:x-gigios-source:system -u critical \
+                        notificar antivirus.sin-firmas -u critical \
                             "🛡️ Antivirus sin base de firmas" \
                             "ClamAV no puede analizar las descargas. Ejecuta 'sudo freshclam' (o activa clamav-freshclam.service). Hasta entonces NO se dan por analizadas." -t 0
                     fi
@@ -925,13 +1054,18 @@ monitor_downloads() {
                 engine_ok=true
             fi
             # Avisar de lo detectado (aunque se cortara: lo ya escaneado cuenta).
+            #
+            # Un solo archivo infectado da UNA línea FOUND, pero un .zip con veinte
+            # muestras dentro da veinte, y eran veinte críticas con `-t 0`. El lote
+            # de clamscan ES el grupo natural: se encola aquí y se vuelca justo al
+            # acabar de leer su salida, sin ventana de tiempo ni retraso.
             while IFS= read -r line; do
                 [[ "$line" == *" FOUND" ]] || continue     # "/ruta: Firma FOUND"
                 vfile="${line%%: *}"
                 vsig="${line##*: }"; vsig="${vsig% FOUND}"
-                notify-send -h string:x-gigios-source:system -u critical "🦠 Malware detectado en Descargas" \
-                    "$(basename "$vfile"): $vsig — NO lo ejecutes. Ruta: $vfile" -t 0
+                notif_encolar malware "$vfile: $vsig"
             done < "$out"
+            notif_volcar
             # Marcar índice + hash del CONTENIDO SOLO si terminó (no cortado) Y el motor
             # funcionaba: un infectado que se queda avisa UNA vez y recrear el mismo
             # contenido no se re-analiza; si se cortó —o si clamscan salió con error—

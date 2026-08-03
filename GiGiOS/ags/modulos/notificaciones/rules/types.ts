@@ -24,6 +24,13 @@ export interface MatchSpec {
    *  Ausente en las notificaciones de apps normales — y una regla que lo exija NO casará
    *  con ellas, porque un subject vacío no puede ser "system". */
   source?: StringMatch
+  /** IDENTIDAD del aviso del sistema: el hint `x-gigios-event` que pone
+   *  `hypr/scripts/lib/notif.sh` (`kernel.oom`, `wifi.desconectado`, …). Es lo que permite
+   *  configurar CADA notificación del sistema por separado: `source` las mete a todas en el
+   *  mismo saco y el título cambia con el contenido (`"RAM muy baja: 812MB disponibles"`),
+   *  así que sin esto la única forma de apuntar a una era un `contains` frágil.
+   *  Ver `catalogoSistema.ts` para la lista de ids y `sistemaStore.ts` para su config. */
+  event?: StringMatch
 }
 
 export type DedupKeySpec =
@@ -57,7 +64,10 @@ export interface NotifRule {
   name: string
   enabled: boolean
   priority: number // higher wins on conflict
-  source: "builtin" | "user"
+  /** Procedencia de la REGLA (no confundir con `match.source`, que es el origen de la
+   *  NOTIFICACIÓN). `system` = una entrada del catálogo de avisos del sistema: su `match` lo
+   *  fija el catálogo y no se edita, solo sus efectos (ver `sistemaStore.ts`). */
+  source: "builtin" | "user" | "system"
   match: MatchSpec
   effects: EffectSpec
   stopOnMatch?: boolean
@@ -71,6 +81,9 @@ export interface NotifInput {
   urgency: number
   /** Hint `x-gigios-source`. Ausente = notificación de una app normal. */
   source?: string
+  /** Hint `x-gigios-event`. Ausente = el emisor no declara identidad (una app normal, o un
+   *  script de sistema al que aún no se le ha dado de alta el id). */
+  event?: string
 }
 
 export interface NotifMeta {

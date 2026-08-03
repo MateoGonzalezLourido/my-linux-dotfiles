@@ -9,6 +9,7 @@
   "pestanas": {
     "general": "General",
     "apps": "Apps",
+    "sistema": "Sistema",
     "sinReglas": "Detectadas",
     "reglas": "Reglas"
   },
@@ -153,6 +154,7 @@
       "cuerpo": "el cuerpo {{operador}} «{{valor}}»",
       "origenSistema": "viene de un script de GiGiOS",
       "origen": "el origen {{operador}} «{{valor}}»",
+      "evento": "el aviso del sistema es «{{valor}}»",
       "si": "Si {{condiciones}}",
       "cualquiera": "Cualquier notificación"
     },
@@ -181,7 +183,8 @@
       "aplicacion": "aplicación",
       "titulo": "título",
       "cuerpo": "cuerpo",
-      "origen": "origen"
+      "origen": "origen",
+      "evento": "aviso del sistema"
     },
     "expresion": "Expresión regular inválida en {{campo}}: \"{{valor}}\".",
     "color": "Color inválido: \"{{valor}}\" (usa un hex como #89b4fa).",

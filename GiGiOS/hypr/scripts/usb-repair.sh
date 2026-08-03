@@ -18,14 +18,24 @@
 set -uo pipefail
 
 APP="USB"
-notify() { notify-send -h string:x-gigios-source:system -a "$APP" "$@"; }
+NOTIF_APP="$APP"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
 
 dev=${1:-}
 [[ -z "$dev" ]] && { echo "uso: $0 /dev/sdXN" >&2; exit 2; }
 part=$(basename "$dev")
 dev="/dev/$part"
 
-[[ -b "$dev" ]] || { notify -u critical "Reparar: no existe $dev" "El volumen ya no está conectado."; exit 1; }
+[[ -b "$dev" ]] || { notificar usb.reparar-sin-dispositivo -u critical "Reparar: no existe $dev" "El volumen ya no está conectado."; exit 1; }
 
 obj="/org/freedesktop/UDisks2/block_devices/$part"
 fstype=$(lsblk -dno FSTYPE "$dev" 2>/dev/null)
@@ -35,13 +45,13 @@ label=$(lsblk -dno LABEL "$dev" 2>/dev/null); : "${label:=$part}"
 # hay ficheros abiertos preferimos fallar y que el usuario cierre, no arriesgar).
 if grep -q "^$dev " /proc/mounts; then
     if ! err=$(udisksctl unmount -b "$dev" --no-user-interaction 2>&1); then
-        notify -u critical -t 15000 "🔧 No se pudo reparar" \
+        notificar usb.reparar-en-uso -u critical -t 15000 "🔧 No se pudo reparar" \
             "Hay que desmontar «$label» y está en uso: ${err##*: }"
         exit 1
     fi
 fi
 
-notify -u low -t 5000 "🔧 Reparando «$label»…" "Se retiró sin expulsar. Sistema de ficheros: ${fstype:-desconocido}"
+notificar usb.reparando -u low -t 5000 "🔧 Reparando «$label»…" "Se retiró sin expulsar. Sistema de ficheros: ${fstype:-desconocido}"
 
 if out=$(busctl --system call org.freedesktop.UDisks2 "$obj" \
             org.freedesktop.UDisks2.Filesystem Repair 'a{sv}' 0 2>&1); then
@@ -53,9 +63,9 @@ if out=$(busctl --system call org.freedesktop.UDisks2 "$obj" \
         # volumen queda usable ya; conviene saber que Windows lo revisará.
         extra="Ya puedes usarlo."
         [[ "$fstype" == ntfs* ]] && extra="Ya puedes usarlo. Windows hará una comprobación completa la próxima vez que lo montes ahí."
-        notify -u normal -t 10000 "✅ Volumen reparado" "«$label» ($fstype). $extra"
+        notificar usb.reparado -u normal -t 10000 "✅ Volumen reparado" "«$label» ($fstype). $extra"
     else
-        notify -u critical -t 15000 "⚠️ Reparación incompleta" \
+        notificar usb.reparacion-incompleta -u critical -t 15000 "⚠️ Reparación incompleta" \
             "«$label» sigue con errores. Haz copia de lo que puedas leer y considera formatearlo."
     fi
     exit 0
@@ -70,5 +80,5 @@ case "$fstype" in
     vfat|fat*) command -v fsck.fat  >/dev/null 2>&1 || hint="\nInstala «dosfstools»." ;;
     exfat) command -v fsck.exfat >/dev/null 2>&1 || hint="\nInstala «exfatprogs»." ;;
 esac
-notify -u critical -t 20000 "🔧 No se pudo reparar «$label»" "${out##*: }${hint}"
+notificar usb.reparar-fallo -u critical -t 20000 "🔧 No se pudo reparar «$label»" "${out##*: }${hint}"
 exit 1

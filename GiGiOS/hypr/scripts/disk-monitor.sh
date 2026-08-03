@@ -14,14 +14,41 @@ MIN_GB=6   # partitions smaller than this are ignored entirely
 WARN_BYTES=$(( WARN_GB * 1024 * 1024 * 1024 ))
 MIN_BYTES=$(( MIN_GB  * 1024 * 1024 * 1024 ))
 
+NOTIF_APP="Disco"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
 send_notif() {
-    notify-send -h string:x-gigios-source:system \
-        --app-name="Disco" \
-        --urgency="$1" \
+    notificar "$1" \
+        --urgency="$2" \
         --icon="drive-harddisk" \
         --expire-time=15000 \
-        "$2" "$3"
+        "$3" "$4"
 }
+
+# El barrido de `df` es una sola pasada, así que es también el lote: con dos o tres
+# sistemas de ficheros al límite (típico con / y /home separados, o varios discos)
+# salía un popup por cada uno diciendo lo mismo. Se encolan y se vuelca al terminar
+# el bucle, sin retrasar nada.
+#
+# El punto de montaje pasa del TÍTULO al cuerpo ("Disco casi lleno: /home" → "Disco
+# casi lleno" + "…libres en /home"): un título fijo es lo que permite que dos discos
+# se fundan en "2 discos casi llenos", y el dato no se pierde, solo cambia de sitio.
+if ! source "$HOME/.config/hypr/scripts/lib/notif-agrupar.sh" 2>/dev/null; then
+    notif_grupo()   { :; }
+    notif_encolar() { send_notif disco.casi-lleno critical "Disco casi lleno" "$2"; }
+    notif_volcar()  { :; }
+fi
+notif_grupo lleno disco.casi-lleno critical 15000 "Disco casi lleno" "discos casi llenos" \
+    "" "" "--icon=drive-harddisk"
 
 # Pure bash formatting (one-decimal GB / whole MB) — no awk fork.
 bytes_to_human() {
@@ -44,8 +71,7 @@ while read -r dev mnt size avail; do
     seen[$dev]=1
 
     if (( avail < WARN_BYTES )); then
-        send_notif critical \
-            "Disco casi lleno: $mnt" \
-            "Solo quedan $(bytes_to_human "$avail") libres en ${mnt}. Libera espacio."
+        notif_encolar lleno "Solo quedan $(bytes_to_human "$avail") libres en ${mnt}. Libera espacio."
     fi
 done < <(df -B1 --output=source,target,size,avail -x tmpfs -x devtmpfs -x efivarfs 2>/dev/null | tail -n +2)
+notif_volcar

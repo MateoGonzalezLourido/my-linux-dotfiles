@@ -49,6 +49,11 @@ export function summarizeRule(rule: NotifRule): string {
   if (rule.match.body) m.push(formatearTexto(textos.resumen.coincidencias.cuerpo, {
     operador: OP_TXT[rule.match.body.op], valor: rule.match.body.value,
   }))
+  // El id del aviso identifica UNA notificación del sistema, así que no se enseña con
+  // operador ("el aviso contiene…" no aporta nada): se enseña el id, que es lo que se busca.
+  if (rule.match.event) m.push(formatearTexto(textos.resumen.coincidencias.evento, {
+    valor: rule.match.event.value,
+  }))
   if (rule.match.source) {
     m.push(rule.match.source.op === "equals" && rule.match.source.value === "system"
       ? textos.resumen.coincidencias.origenSistema

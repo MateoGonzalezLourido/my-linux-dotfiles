@@ -59,7 +59,8 @@ export const [tlpBusy, _setTlpBusy] = createState(false)
 function notify(urgency: string, body: string): void {
   try {
     Gio.Subprocess.new(
-      ["notify-send", "-u", urgency, "-h", "string:x-gigios-source:system", "Perfil TLP", body],
+      ["notify-send", "-u", urgency, "-h", "string:x-gigios-source:system",
+       "-h", "string:x-gigios-event:energia.perfil-tlp", "Perfil TLP", body],
       Gio.SubprocessFlags.NONE,
     )
   } catch (e) {

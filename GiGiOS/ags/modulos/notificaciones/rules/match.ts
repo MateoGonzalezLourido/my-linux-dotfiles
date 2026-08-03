@@ -21,5 +21,7 @@ export function matchInput(spec: MatchSpec, input: NotifInput): boolean {
   if (spec.body && !matchString(spec.body, input.body)) return false
   // Sin hint el subject es "", que no casa con `equals "system"` ni con `contains "system"`.
   if (spec.source && !matchString(spec.source, input.source ?? "")) return false
+  // Ídem para la identidad: una regla que exija `event` NO casa con quien no la declara.
+  if (spec.event && !matchString(spec.event, input.event ?? "")) return false
   return true
 }

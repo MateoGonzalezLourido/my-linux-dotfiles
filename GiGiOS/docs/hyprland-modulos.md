@@ -268,12 +268,35 @@ la única respuesta que no miente. El aviso solo sale cuando la elección **de v
 cumplirse**: con `apagar` el resultado es el mismo venga de quien venga, y avisar ahí sería ruido.
 Un `null` (no se pudo consultar) **no** avisa — no poder comprobarlo no es saber que está mal.
 
-### Notificaciones de los scripts: el hint `x-gigios-source`
+### Notificaciones de los scripts: los hints `x-gigios-source` y `x-gigios-event`
 
-**Todo `notify-send` de `hypr/scripts/` lleva `-h string:x-gigios-source:system`** (56 llamadas,
-17 scripts; cinco de ellos —`run-untrusted.sh`, `scan-file.sh`, `usb-eject.sh`, `usb-repair.sh`,
-`actualizar-firmas.sh`— lo centralizan en su wrapper
-`notify() { notify-send -h … -a "$APP" "$@"; }`). No es decorativo: es lo que hace que el popup
+**Todo `notify-send` de `hypr/scripts/` sale por `notificar <id> …`, de
+[`lib/notif.sh`](../hypr/scripts/lib/notif.sh)**, que pone los dos hints: `x-gigios-source:system`
+(qué clase de notificación es) y `x-gigios-event:<id>` (**cuál** de ellas es). El fichero se sourcea
+con el mismo patrón que `lib/gaming-gate.sh`, con un respaldo inline que emite igual sin el id: sin
+la librería se pierde la identidad del aviso, nunca el aviso.
+
+**El `event` existe porque el `source` no bastaba para configurarlas por separado.** Con solo el
+origen, «USB desconectado», «Disco casi lleno» y «🔓 Escalada de privilegios» eran indistinguibles
+para el motor de reglas: mismo hint, y en 44 de las llamadas mismo `app_name` («notify-send»,
+porque no pasaban `-a`). El único gancho que quedaba era el **título**, que cambia con el contenido
+(`"RAM muy baja: 812MB disponibles"`, `"CPU sobrecalentada: 91°C"`) y con cualquier retoque de
+redacción — o sea que silenciar un aviso concreto exigía escribir a mano una regla con un
+`contains` frágil, y en varios casos ni eso, porque dos avisos distintos comparten prefijo. El id
+es estable, no depende del texto, y **dos ramas del mismo suceso lo comparten a propósito** (el
+singular y el plural de «ejecutable nuevo en Descargas»: quien silencia uno quiere los dos
+callados). El catálogo de ids vive en
+`ags/modulos/notificaciones/rules/catalogoSistema.ts` y es lo que pinta Ajustes > Notificaciones >
+**Sistema**, con una fila por aviso; lo que el usuario cambia va a
+`~/.config/gigios/notif-sistema.json`. **Al añadir un aviso nuevo, da de alta su id en el
+catálogo**: sin eso el aviso funciona igual, pero no aparece en Ajustes — que es lo único que se
+pierde, y todo lo que esto pretendía ganar.
+
+`lib/notif-agrupar.sh` es la capa ortogonal: `notif.sh` da IDENTIDAD, `notif-agrupar.sh` decide
+CUÁNDO y CUÁNTOS avisos salen. El resumen de una ráfaga se emite con el **mismo id** que el aviso
+individual.
+
+El hint de origen no es decorativo: es lo que hace que el popup
 salga con el **skin dunst** — esquinas rectas, marco de 3 px, monoespaciada y fondo sólido por
 urgencia (azul `#285577` normal, `#900000` con marco `#ff0000` crítica, `#222222` baja), y **sin
 nombre de app ni icono**, porque el `format` por defecto de dunst es `"<b>%s</b>\n%b"`. Las apps
@@ -295,7 +318,9 @@ el skin es una regla builtin visible y desactivable desde Ajustes, **`builtin.sy
 (`ags/modulos/notificaciones/rules/defaults.ts`). Una regla de usuario de más prioridad la pisa —
 para sacar del skin a algo del sistema, o para metérselo a una app normal. **Consecuencia
 aceptada**: al estar cubiertas por una regla, las notificaciones de los scripts **no aparecen en
-el historial** ("Tipos sin regla"). Ver `ags/CLAUDE.md`.
+el historial** ("Detectadas"). Hoy eso ya no deja ninguna sin configurar —para eso está la pestaña
+Sistema, que las enumera todas aunque no se hayan disparado nunca—, que era el problema real que
+esa consecuencia arrastraba. Ver `ags/CLAUDE.md`.
 
 Se eligió el hint y no "casar por nombre de app" porque 44 de las 47 llamadas no pasan `-a`, así
 que llegan como app `notify-send`: filtrar por ahí le habría puesto el skin también a cualquier
@@ -304,6 +329,67 @@ se ve. Ojo al leerlo en AGS: se saca con `hints.lookup_value()` de la clave suel
 `extractHints()` que ya existe — ese hace `recursiveUnpack()` de todo el `a{sv}`, y un
 `image-data` trae los píxeles en crudo; hoy solo se libra de ese coste porque únicamente corre
 cuando una regla reescribe texto.
+
+### Agrupar ráfagas de notificaciones (`lib/notif-agrupar.sh`)
+
+**Los eventos no vienen de uno en uno, y una tarjeta por evento no es "informar": es tapar.** Un
+`pacman -Syu` toca decenas de rutas vigiladas; una GPU atragantada repite la misma línea NVRM
+cuarenta veces; un hub con tres pendrives emite tres conexiones a la vez; un SSH expuesto recibe
+cientos de `Failed password` por minuto; apagar el Bluetooth tumba a la vez los cascos, el ratón y
+el mando. Como buena parte de esos avisos son **críticos con `-t 0`** (sin autocierre), la pila
+resultante se despacha cerrándola en bloque sin leer nada — el mismo efecto práctico que apagar la
+categoría entera, y por la misma razón que motivó la allowlist de `privEsc`: **una alerta que
+satura enseña a ignorarla**.
+
+La librería acumula por categoría y emite **una** notificación por categoría. Es ortogonal a
+`lib/notif.sh`: aquella da IDENTIDAD (`x-gigios-event`), esta decide CUÁNDO y CUÁNTOS avisos
+salen. **El resumen lleva el mismo id que el aviso individual** — quien silencia «errores de GPU»
+quiere callados los dos.
+
+**Dos relojes, y los dos hacen falta.** `NOTIF_CALMA` (4 s por defecto) son los segundos sin
+eventos nuevos que cierran el grupo: es lo que hace que un evento **aislado** —el caso que de
+verdad importa— siga avisando casi al instante. `NOTIF_TOPE` (20 s) es el máximo que la ventana
+permanece abierta aunque los eventos no paren: **sin él, una actualización de sistema que genera
+eventos durante minutos no cerraría la ventana nunca** y el aviso llegaría cuando ya no sirve;
+con él sale un resumen cada 20 s mientras dure la ráfaga.
+
+**El recuento del título cuenta EVENTOS, no líneas únicas**, y la distinción no es cosmética:
+cinco fallos de sudo producen cinco veces exactamente el mismo texto, y colapsarlos a uno
+convertiría un intento de fuerza bruta en un despiste. Se deduplica para la **lista** (con su
+multiplicidad, `· <texto> (×5)`) mientras el total sigue siendo el real. **Salvo cuando el texto
+repetido ES el mismo suceso visto dos veces**: `inotifywait` emite `create` **y** `close_write` por
+un único cambio de fichero, y contarlos como dos anunciaría «3 archivos críticos modificados»
+habiendo cambiado dos. Esas categorías se marcan con `notif_grupo_unico`. La regla para elegir:
+¿dos textos iguales son dos sucesos, o uno contado dos veces? Sucesos (sudo, SSH, GPU) → por
+defecto; el mismo (rutas de fichero) → `unico`. `NOTIF_LISTA=8` entradas
+antes del «… y N más»; `NOTIF_CAP=300` entradas únicas retenidas — pasado ese tope el evento
+**sigue contando** en el total pero deja de listarse, porque la deduplicación es un barrido lineal
+y una ráfaga patológica lo volvería cuadrático.
+
+**Con un solo evento el texto es el de siempre, palabra por palabra** (`título` + `<prefijo><texto><sufijo>`).
+Agrupar no debe cambiar el caso de un evento — si lo cambiara, sería un rediseño disfrazado de
+optimización.
+
+**La ventana se implementa con el timeout de `read`** (`notif_leer` → `read -t`), sobre la misma
+tubería que el bucle ya estaba leyendo. Con nada encolado el `read` bloquea **sin** timeout: en
+reposo el bucle sigue costando ~0 % de CPU y **no hay ningún temporizador de fondo ni proceso
+extra**. `rc > 128` es el vencimiento; cualquier otro fallo es fin de la tubería → volcar y salir.
+
+**No todos los usuarios necesitan la ventana.** Cuando el lote ya existe por otro motivo, se usan
+solo `notif_encolar` + `notif_volcar` y el reloj sobra: `monitor_units` vuelca al final de cada
+pasada de `systemctl --failed`, el escáner de descargas al terminar de leer la salida de un
+`clamscan`, `disk-monitor.sh` al acabar el barrido de `df`. Ahí agrupar **no retrasa nada**.
+
+Quien la usa hoy: `oom-monitor.sh` (kernel, sistema, ficheros, unidades, malware), `usb-monitor.sh`,
+`bt-monitor.sh` y `disk-monitor.sh`. **Excepciones deliberadas**: el **kernel panic** no se agrupa
+(el sistema se está yendo y 4 s pueden ser más de lo que le queda a la sesión, y además no llega
+en ráfaga), y la **tormenta de crashes** tampoco (ya es un resumen, con su propio límite de 1/60 s).
+
+**Límite conocido:** lo encolado y aún no volcado se pierde si el proceso muere — como mucho una
+ventana de `NOTIF_CALMA`. No se instala un trap a propósito: en un apagado el bus de
+notificaciones se está cayendo también, así que el volcado de despedida no llegaría a ninguna
+parte. Al recargar un monitor a mano (`pkill -f <script>` + relanzar) se puede perder lo de los
+últimos segundos.
 
 ### Congelar tareas de fondo al jugar — y en modo ahorro (`lib/gaming-gate.sh`)
 
@@ -905,10 +991,10 @@ vez no se cancelan el uno al otro (verificado). El diferido también cubre el ca
 pendrive antes de los 3 s, que antes sacaba un "conectado" **después** del "desconectado".
 
 Los pendientes son un fichero por aviso en `$XDG_RUNTIME_DIR/gigios-usb-pending/` (con su `DEVPATH`
-dentro), y el subshell **reclama el suyo con un `mv`** antes de notificar: el rename es atómico y
-falla si ya no está, así que no hay ventana entre "compruebo que sigue vivo" y "notifico" por la que
-una cancelación pueda colarse. El directorio se **borra al arrancar** el script porque un proceso
-anterior muerto a mitad deja huérfanos que nadie reclamaría.
+y su etiqueta dentro), y quien dispara **reclama el suyo con un `mv`** antes de notificar: el
+rename es atómico y falla si ya no está, así que no hay ventana entre "compruebo que sigue vivo" y
+"notifico" por la que una cancelación pueda colarse. El directorio se **borra al arrancar** el
+script porque un proceso anterior muerto a mitad deja huérfanos que nadie reclamaría.
 
 **Al DESCONECTAR el duplicado tiene la misma raíz, pero se arregla al revés.** Un dispositivo
 compuesto o detrás de un hub expone **varios `usb_device` anidados**, y el kernel emite un `remove`
@@ -931,6 +1017,22 @@ al retirar un hub con tres pendrives, los tres son hermanos entre sí (ninguno d
 en uno. Verificado con A/B sobre seis escenarios (anidado en los dos órdenes, hub con 3 discos,
 hijo sin nombre y padre con él, suelto, y dos dispositivos a la vez): el original saca 13 avisos,
 el nuevo 9 — uno por dispositivo físico.
+
+**Los hermanos siguen siendo tres dispositivos, pero ya no son tres popups.** La fusión resuelve
+"un dispositivo, varios eventos"; no toca —ni debe— el caso de tres dispositivos de verdad. Eso lo
+resuelve la capa de arriba: los tres vencen su espera en el **mismo instante**, así que el volcado
+del temporizador es el lote natural y sale un único «3 dispositivos USB conectados» con los tres
+nombres en el cuerpo. Con uno solo, el texto es el de siempre. Ver `lib/notif-agrupar.sh`.
+
+**El reloj vive ahora en el bucle principal, no en un subshell por pendiente.** Antes cada aviso
+retenido arrastraba su propio `( sleep DEFER_SECS; … ) &`, y de ahí salía la limitación anterior:
+**quien notificaba era el subshell, que no puede saber que hay otros dos hermanos a punto de
+notificar lo mismo**. Hoy el `read` del bucle —que ya estaba bloqueado ahí sin hacer nada— lleva un
+timeout hasta el próximo vencimiento (`pending_at`, epoch en memoria; sin pendientes bloquea sin
+timeout, como siempre), y quien dispara es el único proceso que lo ve todo. De propina: cero
+subshells por evento y **ninguna carrera** entre reclamar y cancelar, porque ya solo hay un actor
+tocando los pendientes. `pending_orden` conserva el orden de llegada — recorrer un array asociativo
+de bash da un orden de hash, y en una lista de tres nombres eso se nota.
 
 Los pendientes de conexión (`c.*`) y de desconexión (`r.*`) **comparten directorio pero no glob**, y
 un aviso ya reclamado se renombra a `.fired.*` —fuera de ambos globs— para que no pueda reaparecer
@@ -1134,6 +1236,13 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
 - `monitor_kernel` — `journalctl -kf` (kernel-only, avoids matching app logs): OOM, panic,
   hung tasks, disk I/O errors, hardware errors (MCE/ECC/EDAC), unsigned/out-of-tree kernel
   modules, GPU/NVIDIA errors, CPU throttling, segfaults.
+  **Cada tipo es su propia categoría agrupada** (`lib/notif-agrupar.sh`): una GPU atragantada repite
+  la misma línea NVRM decenas de veces y ahora sale un «40 errores de GPU» con la línea listada una
+  vez y su `(×40)`. Los **cooldowns** por dispositivo (E/S) y por proceso (segfault) siguen ahí y no
+  sobran: son capas distintas — el cooldown decide **qué se encola** (un disco agonizando no aporta
+  nada nuevo cada 200 ms), la agrupación decide **cómo se presenta**; sin cooldown, agrupar solo
+  cambiaría "40 popups" por "un popup cada 20 s, para siempre". **El kernel panic no se agrupa**: el
+  sistema se está yendo y la ventana de calma puede ser más de lo que le queda a la sesión.
   **`diskError` clasifica el dispositivo antes de alarmar.** Casaba `*"i/o error"*` a pelo contra
   cualquier línea del kernel, así que arrancar un pendrive sin expulsarlo (que suelta un
   `Buffer I/O error on dev sdb1 … lost async page write` por cada página no volcada) disparaba una
@@ -1149,6 +1258,12 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   polkitd, systemd, systemd-coredump): failed-to-start services, sudo/su/polkit auth failures,
   SSH accepted/failed, coredumps, and a sliding-window "crash storm" detector (≥3 coredumps
   in <60s).
+  **Agrupado por tipo**, y aquí la ráfaga típica no es hardware sino un ataque o un servicio en
+  bucle: un SSH expuesto recibe cientos de `Failed password` por minuto y una unidad rota reintenta
+  cada pocos segundos. El aviso de sudo **no lleva dato variable a propósito** (no se filtra la línea
+  del journal al popup), así que encola texto vacío y lo que informa es el recuento: «5 fallos de
+  sudo» + el cuerpo de siempre. **La tormenta de crashes no se agrupa**: ya es un resumen, y trae su
+  propio límite de uno por minuto.
   **Escaladas de privilegios (`privEsc`) — dos filtros contra el ruido de los juegos.** pkexec
   emite **dos** líneas por escalada: la de PAM (`pam_unix(polkit-1:session): session opened`, que
   no dice *qué* se ejecuta) y la de `Executing command … [COMMAND=…]`. Se avisaba en ambas → doble
@@ -1170,10 +1285,21 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   `/etc/passwd`, `shadow`, `sudoers`, `ld.so.preload`, `sshd_config`, plus persistence
   locations (`sudoers.d/`, `pam.d/`, `cron.d/`, `systemd/system/`, `~/.config/autostart/`,
   `~/.ssh/authorized_keys`, `/boot/`).
+  **Notifica por ráfaga, no por fichero** (vía `lib/notif-agrupar.sh`, ver su sección). Emitía una
+  notificación **por cada ruta**, y todas las de `/etc` son críticas con `-t 0` (sin autocierre):
+  un `pacman -Syu` normal dejaba decenas de tarjetas críticas apiladas del mismo tema, que se
+  despachan cerrándolas en bloque sin leer ninguna — el mismo resultado que apagar la categoría, y
+  por la misma razón que la allowlist de `privEsc`. Las cuatro categorías (`archivos.critico-modificado`,
+  `archivos.persistencia`, `archivos.clave-ssh`, `archivos.boot`) se acumulan por separado, así que
+  una avalancha en `/boot` no se traga un cambio en `/etc/shadow`. `create` + `close_write` del
+  mismo fichero son dos eventos del mismo cambio y la deduplicación de la librería los colapsa.
 - `monitor_smart` — hourly `smartctl -H -A` polling per physical disk (zram/loop/dm-/sr
   excluded); warns once if it can't read SMART (permissions), alerts on `FAILED`/`FAILING_NOW`.
 - `monitor_units` — polls `systemctl --failed` (system *and* user buses) every 120s; the first
-  pass only seeds state so pre-existing failures aren't reported as new.
+  pass only seeds state so pre-existing failures aren't reported as new. Tras un apagón sucio o una
+  actualización caen **varias unidades a la vez** y la pasada las devuelve todas juntas: **la pasada
+  es el lote**, se encolan y se vuelcan al terminarla — agrupar aquí no cuesta ni un segundo de
+  retraso, porque no hace falta ninguna ventana de tiempo.
 - `monitor_downloads` — **event-driven `find` sweep** of the locale-aware Downloads dir
   (`xdg-user-dir DOWNLOAD`, falling back to `~/Downloads`/`~/Descargas`; this machine's is
   `~/Descargas`). **inotify is a *wakeup*, not the scanner**: the body is `_dl_sweep` (a nested
@@ -1263,6 +1389,14 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   notification (wired to `scan-file.sh`). `scan-downloads.sh` is the **forced** full scan (Settings
   button) that ignores the master toggle, the pauses and the cap — it resolves the dir and delegates
   to `scan-file.sh` (now also `nice`/`ionice`-wrapped).
+
+  **Un `.zip` lleno de muestras daba una crítica `-t 0` por firma.** Las líneas `FOUND` se encolan y
+  se vuelcan **al terminar de leer la salida de ese `clamscan`**: el lote del escaneo es el grupo
+  natural, así que no hay ventana de tiempo ni retraso. Los **archivos grandes sin analizar** siguen
+  el mismo tope que los ejecutables nuevos (≤4 individuales con su botón «Escanear igualmente», más
+  → un resumen sin botón): el botón es **por fichero**, así que agrupar cuesta el botón, y hasta
+  cuatro compensa; descomprimir un juego suelta media docena de archivos enormes de golpe, y eso son
+  seis popups con botón que nadie va a pulsar uno por uno.
 
 **Config**: every scanned category is gated by a boolean in `~/.config/gigios/security.json`
 (written by `ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`, absent key = enabled). The bash reads it
@@ -1504,6 +1638,25 @@ Es el `exec-once` más caro del arranque —de ahí que vaya al final del calend
 en una máquina sana**: solo notifica por categoría cuando encuentra un problema, y todo (incluida la
 pasada limpia) queda en `hypr/logs/boot-healthcheck.log` (ignorado por git, ver `.gitignore`).
 Ejecutado a mano responde al instante — el retraso lo pone quien lo lanza, no el script.
+
+**Los problemas se acumulan y se emiten al FINAL, no según se encuentran.** Este script comprueba
+~19 cosas de una tacada y cada aviso sale con `--expire-time=0`, o sea **sin autocierre**: un
+arranque regulero (servicios fallidos + errores en el journal + arranque lento + red inactiva +
+batería degradada) recibía al usuario con cinco tarjetas permanentes que hay que cerrar a mano una
+por una — y lo que se aprende de eso es a cerrarlas todas sin leerlas. Desde `RESUMEN_DESDE=3`
+problemas sale **uno solo**, `arranque.resumen`, con la lista de títulos y un puntero al log;
+con uno o dos siguen saliendo individuales, que es lo mejor cuando son pocos porque conservan su
+identidad y su remedio concreto. Aquí **no** se usa `lib/notif-agrupar.sh`: aquella agrupa N
+eventos **del mismo tipo** llegados en ráfaga, y esto es lo contrario —N problemas de tipos
+distintos que comparten un momento—, así que el resumen es un aviso propio y no un recuento.
+El cuerpo de cada problema lleva su remedio (`revisa: journalctl -b …`) y esos ni caben ni se leen
+apilados en un popup: **por eso el resumen remite al log**, que ya los registraba todos.
+
+**Ojo con la urgencia:** once llamadas pasan `warning`, que **no es un nivel válido** (`notify-send`
+solo acepta `low`/`normal`/`critical`; con cualquier otro escribe *«Unknown urgency»* y sale con
+rc=1 **sin enviar nada** — ver la sección de notificaciones). Aquí el campo se conserva porque
+alimenta también el **log**, donde sí distingue gravedad; `urgencia_valida()` lo traduce a `normal`
+en el único punto de emisión. Es la red que impide que ese fallo vuelva a colarse en este script.
 
 **Fase 1 autodescubre el hardware presente** (batería, GPU NVIDIA, NVMe, SATA, soporte SMART,
 sensores de ventilador, swap, Bluetooth, audio, red, USB) y la Fase 2 solo comprueba las categorías
@@ -1772,7 +1925,11 @@ largo con margen de sobra) para reducir despertares. Los tres leen su interrupto
   tiene fuente de eventos y quedarse sin él es raro, así que una sola comprobación al arrancar es el
   compromiso correcto — coste cero el resto de la sesión. Deduplica por dispositivo (los subvolúmenes
   btrfs reportan el mismo dispositivo bajo varios puntos de montaje) e ignora particiones por debajo
-  de 6 GB (EFI, boot) por no valer la pena vigilarlas.
+  de 6 GB (EFI, boot) por no valer la pena vigilarlas. Con **dos o tres sistemas de ficheros al
+  límite** (típico con `/` y `/home` separados) salía un popup por cada uno: el barrido de `df` es
+  una sola pasada, así que se encolan y se vuelcan al terminarlo, sin retrasar nada
+  (`lib/notif-agrupar.sh`). El punto de montaje pasó del **título** al cuerpo — un título fijo es
+  lo que permite fundir dos discos en «2 discos casi llenos», y el dato no se pierde, cambia de sitio.
 - **`bt-monitor.sh`** — distingue una pérdida de Bluetooth **inesperada** de una intencionada.
   Suscripción única y siempre activa a D-Bus del sistema (barata mientras bloquea) a los eventos
   `PropertiesChanged` de `Connected` y a las llamadas al método `Disconnect()` de BlueZ: una
@@ -1781,7 +1938,18 @@ largo con margen de sobra) para reducir despertares. Los tres leen su interrupto
   correspondiente llega dentro de una ventana de 5 s; y si el adaptador está apagado tampoco avisa
   (apagar el Bluetooth no es "perder" un dispositivo). Una pérdida genuina espera 10 s de gracia
   (cubre desconexiones breves con auto-reconexión) antes de confirmar y notificar, comprobando de
-  nuevo el estado en un subproceso en segundo plano mientras el bucle principal sigue leyendo eventos.
-  El nombre del dispositivo se captura en el momento de la caída, mientras todavía está en la caché de
-  `bluetoothd` — puede dejar de resolverse una vez desconectado de verdad.
+  nuevo el estado al vencer esa gracia. El nombre del dispositivo se captura en el momento de la
+  caída, mientras todavía está en la caché de `bluetoothd` — puede dejar de resolverse una vez
+  desconectado de verdad.
+  **Los dispositivos no se pierden de uno en uno**: salirte del alcance o un fallo del controlador
+  tumban a la vez los cascos, el ratón y el mando, y eso eran tres críticas con `-t 0` diciendo lo
+  mismo (al revés igual: al encender el Bluetooth se reconectan en cascada). El vencimiento de la
+  gracia **ya era** el lote para las pérdidas, así que agruparlas no retrasa nada respecto a antes;
+  las conexiones, que eran instantáneas, se retienen `COALESCE=2` s — lo justo para que la cascada
+  quepa en un aviso, en un popup informativo que dura 6.
+  Ese temporizador **ya no es un `( sleep GRACE ) &` por dispositivo sino el `read -t` del bucle
+  principal**, por el mismo motivo que en `usb-monitor.sh`: notificar desde el subshell impide ver
+  que hay otros dos a punto de decir lo mismo. Efecto lateral bueno: una reconexión dentro de la
+  gracia ahora **anula** la pérdida pendiente en memoria en vez de resolverse con dos consultas más
+  a `bluetoothctl`.
 

@@ -90,7 +90,9 @@ export default function SeccionPantalla() {
     }
     const temp = activeSetpoint(t, nightRules(), "temp")
     const bright = activeSetpoint(t, nightRules(), "brightness")
-    const luz = temp != null && temp > 0 ? `${temp} K` : "—"
+    // "—" es "ninguna franja lo programa"; una franja que APAGA (temp 0) sí programa algo
+    // y se dice, o el resumen no distinguiría "manda el manual" de "la fuerzo apagada".
+    const luz = temp == null ? "—" : temp > 0 ? `${temp} K` : textos.reglas.horario.luzApagada
     const bri = bright != null ? `${bright} %` : "—"
     return formatearTexto(textos.reglas.horario.resumen, { hora: hh, luz: luz, brillo: bri })
   })

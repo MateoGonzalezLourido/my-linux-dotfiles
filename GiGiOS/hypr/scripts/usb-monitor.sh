@@ -49,6 +49,36 @@
 EJECT="$HOME/.config/hypr/scripts/usb-eject.sh"
 REPAIR="$HOME/.config/hypr/scripts/usb-repair.sh"
 
+NOTIF_APP="USB"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
+# ── Agrupación: un enchufe, un aviso; varios a la vez, TAMBIÉN un aviso ───────
+# La fusión por parentesco de más abajo arregla "un dispositivo, varios eventos",
+# pero deja pasar el caso HERMANOS: enchufar (o retirar) un hub con tres pendrives
+# son tres dispositivos distintos, ninguno antecesor de otro, y salían tres popups
+# seguidos diciendo lo mismo. Como todos vencen su espera en el mismo instante, el
+# volcado del temporizador es el lote natural: se encolan y sale un único
+# "3 dispositivos USB conectados" con los tres nombres en el cuerpo. Ver
+# lib/notif-agrupar.sh; aquí NO se usa su ventana de calma (la espera ya la marca
+# DEFER_SECS), solo el formateo del grupo.
+if ! source "$HOME/.config/hypr/scripts/lib/notif-agrupar.sh" 2>/dev/null; then
+    declare -A _NGF_EV=() _NGF_URG=() _NGF_TMO=() _NGF_TIT=()
+    notif_grupo()   { _NGF_EV[$1]=$2 _NGF_URG[$1]=$3 _NGF_TMO[$1]=$4 _NGF_TIT[$1]=$5; }
+    notif_encolar() { notificar "${_NGF_EV[$1]}" -u "${_NGF_URG[$1]}" "${_NGF_TIT[$1]}" "$2" -t "${_NGF_TMO[$1]}"; }
+    notif_volcar()  { :; }
+fi
+notif_grupo uconn usb.conectado    normal 8000 "USB conectado"    "dispositivos USB conectados"
+notif_grupo udisc usb.desconectado normal 8000 "USB desconectado" "dispositivos USB desconectados"
+
 # Avisos genéricos retenidos a la espera de que se confirme (o no) que el
 # dispositivo es almacenamiento. Un fichero por aviso pendiente, con su DEVPATH
 # dentro. Se limpia al arrancar porque un proceso anterior muerto a mitad deja
@@ -59,6 +89,22 @@ rm -rf "$PENDING_DIR"
 mkdir -p -m 700 "$PENDING_DIR" || exit 1
 trap 'rm -rf "$PENDING_DIR"' EXIT
 
+# Vencimiento de cada pendiente, en epoch y EN MEMORIA del proceso principal.
+#
+# Antes cada pendiente llevaba su propio `( sleep DEFER_SECS; … ) &`: el reloj vivía
+# en un subshell, y por eso el aviso tenía que salir DESDE el subshell, donde no hay
+# forma de saber que hay otros dos hermanos a punto de notificar lo mismo. Ahora el
+# reloj es el `read -t` del bucle principal (que ya estaba bloqueado ahí sin hacer
+# nada) y quien notifica es el proceso que lo sabe TODO. Ventajas de propina: cero
+# subshells por evento y ninguna carrera entre reclamar y cancelar, porque solo hay
+# un actor tocando los pendientes.
+declare -A pending_at=()
+# Los arrays asociativos de bash NO conservan el orden de inserción (recorrerlos da
+# un orden de hash), y en un aviso agrupado eso se ve: los tres dispositivos del hub
+# salían listados en orden arbitrario. `pending_orden` guarda el orden de llegada,
+# que es el único que le significa algo a quien lee el popup.
+declare -a pending_orden=()
+
 subsystem=""; action=""; devtype=""; devname=""; devpath=""
 vendor=""; model=""; ifaces=""; bus=""; fstype=""; fslabel=""
 pending_n=0
@@ -68,9 +114,11 @@ reset_event() {
     vendor=""; model=""; ifaces=""; bus=""; fstype=""; fslabel=""
 }
 
+# El id va explícito y no derivado del verbo (`usb.$verb`): así `usb.conectado` y
+# `usb.desconectado` se encuentran con un grep desde el catálogo de AGS.
 notify_usb() {
-    local verb=$1 label=$2
-    notify-send -h string:x-gigios-source:system -u normal "USB $verb" "$label" -t 8000
+    local evento=$1 verb=$2 label=$3
+    notificar "$evento" -u normal "USB $verb" "$label" -t 8000
 }
 
 # Respaldo para cuando el evento no trae ID_USB_INTERFACES: las interfaces del
@@ -108,17 +156,16 @@ claim_pending() {   # $1 = fichero; éxito = es mío y nadie lo canceló
     rm -f "$PENDING_DIR/.fired.${1##*/}"
 }
 
-# Retiene el aviso genérico de CONEXIÓN. El subshell RECLAMA su pendiente antes
-# de notificar: el rename es atómico y falla si el fichero ya no está, así que no
-# hay ventana entre "compruebo que sigue vivo" y "notifico" en la que una
-# cancelación pueda colarse y salir el popup igualmente.
+# Retiene el aviso genérico de CONEXIÓN. La ETIQUETA se guarda ahora en el fichero
+# (segunda línea): antes la capturaba el subshell al nacer, y sin subshell hace
+# falta que el pendiente se baste a sí mismo cuando lo dispare el bucle principal.
+# `cancel_usb_notice` solo lee la primera línea, así que no le afecta.
 defer_usb_notice() {
     local dev=$1 label=$2 f
     f="$PENDING_DIR/c.$$.$((++pending_n))"
-    printf '%s\n' "$dev" > "$f" || return
-    ( sleep "$DEFER_SECS"
-      claim_pending "$f" || exit 0   # cancelado mientras dormía
-      notify_usb "conectado" "$label" ) &
+    printf '%s\n%s\n' "$dev" "$label" > "$f" || return
+    pending_at[$f]=$(( $(printf '%(%s)T' -1) + DEFER_SECS ))
+    pending_orden+=("$f")
 }
 
 # Cancela los avisos de CONEXIÓN pendientes de este dispositivo o de cualquier
@@ -132,7 +179,7 @@ cancel_usb_notice() {
         [[ -f "$f" ]] || continue
         read -r stored < "$f" || continue
         [[ -n "$stored" ]] || continue
-        [[ "$dev" == "$stored" || "$dev" == "$stored"/* ]] && rm -f "$f"
+        [[ "$dev" == "$stored" || "$dev" == "$stored"/* ]] && { rm -f "$f"; unset 'pending_at[$f]'; }
     done
 }
 
@@ -160,7 +207,7 @@ cancel_usb_notice() {
 # se guardara el del hub, los tres se fusionarían en un único aviso.
 defer_usb_removal() {
     local dev=$1 label=$2 known=$3 f stored slabel sknown covered=0 tmp
-    [[ -n "$dev" ]] || { notify_usb "desconectado" "$label"; return; }
+    [[ -n "$dev" ]] || { notify_usb usb.desconectado "desconectado" "$label"; return; }
 
     for f in "$PENDING_DIR"/r.*; do
         [[ -f "$f" ]] || continue
@@ -170,11 +217,14 @@ defer_usb_removal() {
         if [[ "$dev" == "$stored"/* ]]; then
             # Entrante más profundo: absorbe al antecesor.
             [[ "$known" == 1 ]] || { label=$slabel; known=$sknown; }
-            rm -f "$f"
+            rm -f "$f"; unset 'pending_at[$f]'
         elif [[ "$stored" == "$dev"/* || "$dev" == "$stored" ]]; then
             # El pendiente ya cubre este tirón. Solo le pasamos el nombre si él
-            # no lo tenía. Escritura atómica: su subshell puede reclamarlo justo
-            # ahora, y media línea leída sería un aviso con el texto partido.
+            # no lo tenía. La escritura sigue siendo atómica (tmp + mv) aunque ya
+            # no haya subshell que pueda leerlo a medias: el fichero es el registro
+            # y dejarlo a medias por un fallo de disco costaría el aviso entero.
+            # El VENCIMIENTO no se toca: lo marca el primer evento del tirón, para
+            # que mejorar el nombre no retrase el aviso otros DEFER_SECS.
             if [[ "$known" == 1 && "$sknown" != 1 ]]; then
                 tmp="$PENDING_DIR/.tmp.$$.$((++pending_n))"
                 printf '%s\n%s\n1\n' "$stored" "$label" > "$tmp" && mv "$tmp" "$f"
@@ -186,15 +236,54 @@ defer_usb_removal() {
 
     f="$PENDING_DIR/r.$$.$((++pending_n))"
     printf '%s\n%s\n%s\n' "$dev" "$label" "$known" > "$f" || return
-    ( sleep "$DEFER_SECS"
-      # Se relee del fichero: otro remove ha podido mejorar el nombre mientras
-      # dormíamos, y el valor que capturó el subshell al nacer sería el viejo.
-      # El guarda evita que un pendiente ya absorbido —caso normal, no error—
-      # deje un fallo de redirección en stderr; quien decide si toca notificar
-      # es el claim de la línea siguiente, no esta lectura.
-      [[ -f "$f" ]] && { read -r stored; read -r slabel; } < "$f"
-      claim_pending "$f" || exit 0
-      notify_usb "desconectado" "${slabel:-$label}" ) &
+    pending_at[$f]=$(( $(printf '%(%s)T' -1) + DEFER_SECS ))
+    pending_orden+=("$f")
+}
+
+# ── Disparo de los pendientes vencidos ────────────────────────────────────────
+# Lo llama el bucle principal cuando se le agota el `read -t`. Todo lo que vence en
+# la misma pasada sale en UNA notificación por verbo (ver notif_grupo arriba).
+#
+# La etiqueta se relee del fichero y no de lo que se guardó al crearlo: un `remove`
+# posterior ha podido mejorar el nombre («dispositivo desconocido» → el bueno)
+# reescribiendo el pendiente, y usar el valor viejo era el bug que la fusión existe
+# para evitar.
+fire_due_pendings() {
+    local ahora f stored slabel
+    local -a quedan=()
+    printf -v ahora '%(%s)T' -1
+    for f in "${pending_orden[@]}"; do
+        # Ya cancelado o absorbido por una fusión: fuera de la lista sin más.
+        [[ -n "${pending_at[$f]+x}" ]] || continue
+        if (( pending_at[$f] > ahora )); then
+            quedan+=("$f")
+            continue
+        fi
+        unset 'pending_at[$f]'
+        stored=""; slabel=""
+        [[ -f "$f" ]] && { read -r stored; read -r slabel; } < "$f"
+        claim_pending "$f" || continue   # cancelado entre medias
+        case "${f##*/}" in
+            c.*) notif_encolar uconn "${slabel:-dispositivo desconocido}" ;;
+            r.*) notif_encolar udisc "${slabel:-dispositivo desconocido}" ;;
+        esac
+    done
+    pending_orden=("${quedan[@]}")   # se poda aquí: si no, crecería toda la sesión
+    notif_volcar
+}
+
+# Segundos hasta el próximo vencimiento (mínimo 1, para no hacer espera activa con
+# `read -t 0`). Vacío si no hay pendientes: entonces el bucle bloquea sin timeout,
+# que es como se comportaba antes de existir todo esto.
+next_deadline_wait() {
+    local f menor="" ahora
+    printf -v ahora '%(%s)T' -1
+    for f in "${!pending_at[@]}"; do
+        [[ -z "$menor" || ${pending_at[$f]} -lt $menor ]] && menor=${pending_at[$f]}
+    done
+    [[ -n "$menor" ]] || return 1
+    (( menor <= ahora )) && { printf 1; return 0; }
+    printf '%s' "$(( menor - ahora ))"
 }
 
 # Aviso de almacenamiento conectado, con botón de expulsión segura.
@@ -202,7 +291,7 @@ defer_usb_removal() {
 # idiom que download_alert() en oom-monitor.sh.
 notify_storage() {
     local disk=$1 name=$2
-    ( act=$(notify-send -h string:x-gigios-source:system -a "USB" --wait -t 20000 \
+    ( act=$(notificar usb.almacenamiento --wait -t 20000 \
               -u normal -A "eject=⏏️ Expulsar" \
               "💾 Almacenamiento USB conectado" \
               "$name — expúlsalo antes de retirarlo para no perder datos.")
@@ -251,7 +340,7 @@ check_volume() {
           exit 0
       fi
 
-      act=$(notify-send -h string:x-gigios-source:system -a "USB" --wait -t 30000 \
+      act=$(notificar usb.volumen-con-errores --wait -t 30000 \
               -u critical -A "repair=🔧 Reparar" \
               "⚠️ Volumen con errores" \
               "«$name» ($fs) no está limpio y ya está montado — repáralo cuando dejes de usarlo.")
@@ -259,7 +348,22 @@ check_volume() {
 }
 
 reset_event
-while IFS= read -r line; do
+while :; do
+    # El bucle es el reloj de los pendientes: bloquea sin timeout cuando no hay
+    # ninguno (coste cero, como siempre) y con timeout hasta el próximo
+    # vencimiento cuando sí. `read` marca el timeout con un código >128; cualquier
+    # otro código no-cero es fin del stream de udevadm → se vuelca y se sale.
+    if wait_secs=$(next_deadline_wait); then
+        IFS= read -r -t "$wait_secs" line; rc=$?
+    else
+        IFS= read -r line; rc=$?
+    fi
+    if (( rc != 0 )); then
+        fire_due_pendings
+        (( rc > 128 )) && continue
+        break
+    fi
+
     case "$line" in
         "UDEV  ["*)                 reset_event ;;
         "SUBSYSTEM="*)              subsystem=${line#SUBSYSTEM=} ;;

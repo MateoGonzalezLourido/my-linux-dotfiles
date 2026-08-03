@@ -15,6 +15,18 @@ set -u
 APP="Análisis ClamAV"
 SCAN_FILE="$HOME/.config/hypr/scripts/scan-file.sh"
 
+NOTIF_APP="$APP"
+# shellcheck source=lib/notif.sh
+if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
+    # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
+    # separado en Ajustes > Notificaciones > Sistema), pero NO el aviso: eso sería peor.
+    notificar() {
+        shift
+        local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
+        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+    }
+fi
+
 # Carpeta de descargas locale-aware (misma lógica que monitor_downloads).
 dir=""
 command -v xdg-user-dir >/dev/null 2>&1 && dir=$(xdg-user-dir DOWNLOAD 2>/dev/null)
@@ -26,7 +38,7 @@ if [[ -z "$dir" ]]; then
 fi
 
 if [[ -z "$dir" ]]; then
-    notify-send -h string:x-gigios-source:system -a "$APP" -u critical "🔍 $APP" "No encuentro la carpeta de descargas." -t 8000
+    notificar analisis.sin-carpeta -u critical "🔍 $APP" "No encuentro la carpeta de descargas." -t 8000
     exit 1
 fi
 
