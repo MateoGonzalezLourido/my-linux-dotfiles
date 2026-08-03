@@ -133,8 +133,8 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
 
   El tipo se decide por el **nombre de nodo** (`wpctl inspect <id>` → `node.name`, `…hdmi-stereo` vs `…analog-stereo`): `Endpoint.name` viene a **null** y el `icon` es el mismo (`audio-card-analog-pci`) en ambos, y la `description` sí se traduce, así que buscar "(HDMI)" ahí dependería del locale. El jack de auriculares **no** pasa por aquí: enchufarlo no crea un sink, cambia la *ruta* del mismo nodo analógico (por eso `bar/Volume.tsx` escucha `notify::route`). Un `set-default` por ráfaga (debounce) y por id de endpoint — no parseando `pactl` con awk.
 
-  **Bluetooth — el "apagado" del usuario lo borraba el propio BlueZ, y el tile mentía.** Dos bugs
-  distintos con la misma raíz: *nadie puede distinguir "lo encendió el usuario" de "lo encendió
+  **Bluetooth — el "apagado" del usuario lo borraba el propio BlueZ, y el tile mentía.** Tres bugs
+  con la misma raíz: *nadie puede distinguir "lo encendió el usuario" de "lo encendió
   BlueZ" si no se le da tiempo al adaptador*.
   1. **`AutoEnable` (activado por defecto en `/etc/bluetooth/main.conf`) enciende el controlador él
      solo en cuanto lo encuentra — y lo hace DESPUÉS de registrar el adaptador.** Queda una ventana
@@ -155,7 +155,41 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
      (`finalizarRestauracionBluetooth()` desde `toggleBluetoothPower`): sin eso, encender el BT
      dentro de esos 5 s haría que la restauración se lo volviera a apagar en la cara. Un encendido
      externo *pasada* la ventana sí se adopta y se guarda, como siempre.
-  2. **El tile tenía dos fuentes de verdad para el mismo hecho.** El CSS salía de
+  2. **Pero la ventana era de UN SOLO USO, y un dongle USB no es un adaptador estable.** El punto 1
+     arregla el arranque; el mismo encendido vuelve a mitad de sesión y ahí no lo corregía nadie.
+     Al volver de una suspensión el kernel **reenumera el dongle** (`Bluetooth: hci0: RTL: loading
+     rtl_bt/rtl8761bu_fw.bin` en el log de esta máquina, en el mismo segundo que el `PM: suspend
+     exit`), BlueZ lo registra **como si acabara de aparecer** y su `AutoEnable` lo enciende otra
+     vez — solo que con `restauracionBluetoothCompletada` ya en `true`, así que
+     `registrarEstadoBluetoothConfirmado` lo adoptaba como decisión del usuario y
+     `guardarEstadoSistemaAhora` reescribía `bluetooth: true`. En la sesión siguiente ya no quedaba
+     nada que restaurar: **el apagado no sobrevivía a una suspensión**, que es lo que se veía como
+     "casi siempre lo apago y vuelve encendido". Hoy **la ventana se REABRE** con
+     `reabrirVentanaRestauracion` (puro, con test) en las dos rutas que hacen falta y que no se
+     cubren entre sí: (a) cuando el adaptador pasa de **ausente a presente** — se sigue con
+     `habiaAdaptadorBluetooth`, y por eso `adapter-removed` también está conectado a
+     `sincronizarEstadoBluetooth`: es lo único que baja esa bandera si el adaptador desaparece **ya
+     apagado**, porque entonces `is-powered` no cambia y no se emite; y (b) al recibir
+     `PrepareForSleep(false)` de logind, porque si el kernel recupera el dongle con `reset_resume`
+     el objeto de BlueZ **nunca desaparece** y no hay alta que observar, pero el controlador sí ha
+     pasado por un reinicio; y (c) al entrar el adaptador en **`PowerState: off-blocked`**, o sea un
+     bloqueo de rfkill, que tampoco da de baja el objeto. Con reenumeración se solapan y la segunda
+     reapertura es idempotente.
+     **(c) es además el único reproductor sin privilegios, y con él está medido el A/B**: con
+     `bluetooth: false` en disco, el BT apagado y la restauración ya cerrada, `rfkill block
+     bluetooth` + `rfkill unblock bluetooth` terminaba en `Powered: yes` **y el fichero reescrito a
+     `true`**; con el arreglo, la traza de `dbus-monitor` sobre `/org/bluez/hci0` enseña la
+     secuencia completa — `off-blocked` → `off-enabling` → `on` (**lo enciende BlueZ**) →
+     `on-disabling` → `off` (**lo corrige AGS**) — y el disco se queda en `false`. Se engancha a
+     `off-blocked` y **no** al encendido posterior porque es lo único que distingue ese encendido de
+     uno pedido a mano con `bluetoothctl` o blueman, que **sí** se adoptan: pelearse con ellos sería
+     peor que el bug. `on-disabling`/`off-enabling`, por los que pasa cualquier apagado o encendido
+     normal, se ignoran a propósito. De paso, `objetivoBluetoothInicial` (congelado en el arranque) y
+     `ultimoEstadoBluetoothConfirmado` (el que se guardaba) se **fundieron en `intencionBluetooth`**:
+     eran dos nombres de la misma cosa y en cuanto la ventana se reabre a mitad de sesión discrepan
+     — la ventana nueva habría restaurado el valor del arranque en vez del último que pidió el
+     usuario.
+  3. **El tile tenía dos fuentes de verdad para el mismo hecho.** El CSS salía de
      `createComputed(() => btSupported() && btPowered())` sobre un `createBinding(bt, "isPowered")`,
      y el texto de un `createState` que escribía `syncBtInfo`. Los dos cuelgan de
      `notify::is-powered`, pero son **handlers distintos** y GObject los invoca en orden de
@@ -167,6 +201,16 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
      código muerto. Y se escucha **`notify::is-connected`**: conectar unos cascos **ya emparejados**
      no cambia la lista, así que `notify::devices` no salta y el tile se quedaba en "Desconectado"
      con los cascos puestos.
+     **Queda una asimetría que no cierra sola: el tile es una FOTO y el interruptor del submenú es
+     un `createBinding`.** Una foto que se pierda una emisión miente el resto de la sesión; un
+     binding relee la propiedad y se recompone. Eso es exactamente el segundo síntoma reportado —el
+     texto en "Desactivado" con el interruptor encendido, o sea las dos lecturas del *mismo*
+     `bt.isPowered` contradiciéndose— y por eso `syncBtInfo` (y el `btSupported` del submenú) se
+     **resiembran al abrir Quick Settings**, igual que ya hacía el tile de red. No sustituye a las
+     señales, las cubre: **no se ha aislado qué emisión concreta se pierde** (el ciclo
+     quitar/poner adaptador de AstalBluetooth acaba siempre en un `sync()` que debería notificar),
+     así que se ataca la clase entera en vez de un caso. Si vuelve a aparecer el síntoma **con el
+     panel ya abierto**, ahí sí hay que buscar la emisión.
 - `servicios/pantalla/` — cola de pantallas compartida por QuickSettings y Ajustes > Pantalla. `modes.ts` es la lógica pura (testeada con node); `service.ts` tiene el poller, `applyPatch` (aplica en vivo con `hyprctl eval 'hl.monitor{…}'` — bajo config Lua `hyprctl keyword` ya no existe) y la persistencia. **Persiste en UN solo fichero, `~/.config/gigios/display.json`, que lee también el config del compositor** (`hypr/gigios/pantalla.lua`: recorre `monitors` y emite un `hl.monitor{output="desc:…"}` por entrada, después del comodín de `gigios/monitores.lua`). Hace falta porque sin nadie que aplique las prefs al cargar, un **`hyprctl reload`** releía el comodín — `preferred`/escala 1 — y tiraba la pantalla de 240 Hz a 60 y de escala 1.25 a 1, sin que AGS pudiera enterarse (no hay señal de recarga; el poller solo observa). **Antes esto se resolvía volcando además un `monitor-settings.lua` generado**, o sea el mismo dato escrito dos veces, un fichero machine-specific dentro del árbol de git y la `description` del EDID interpolada en un chunk Lua (una comilla suelta rompía la config entera). Consecuencia de que el JSON ya no sea solo nuestro: `saveMonitorPref` llama a **`saveDisplayConfigNow()`**, escritura síncrona, y no al debounce de 2 s que usa el resto — con la espera de por medio, un `hyprctl reload` justo después de tocar la resolución releería el fichero viejo y desharía el cambio. Detalle en el `CLAUDE.md` raíz.
   - **Franjas horarias (`schedule.ts`, puro y testeado) — dos canales independientes, no uno.** Las reglas
     de `global.nightRules` (Ajustes > Pantalla > "Programar por franjas horarias") son **franjas**

@@ -28,6 +28,31 @@ export function resolverRestauracionBluetooth(
   return { accion: objetivo, completada: false }
 }
 
+export type VentanaRestauracionBluetooth = {
+  completada: boolean
+  asentado: boolean
+}
+
+/**
+ * Ventana de restauración a reabrir cuando el adaptador cambia de generación.
+ *
+ * Un dongle USB **no es un adaptador estable**: al volver de una suspensión el kernel lo
+ * reenumera (recarga el firmware) y BlueZ lo registra como si acabara de aparecer, así que
+ * su `AutoEnable` lo enciende otra vez — exactamente el mismo encendido que
+ * `resolverRestauracionBluetooth` corrige en el arranque, solo que a mitad de sesión. Con la
+ * restauración ya cerrada nadie lo corregía y `registrarEstadoBluetoothConfirmado` lo adoptaba
+ * como decisión del usuario: el "apagado" se reescribía a `true` en `system_state.json` y en la
+ * sesión siguiente ya no quedaba nada que restaurar. Reabrir la ventana en cada generación
+ * nueva del adaptador es lo que convierte aquella corrección de arranque en una permanente.
+ *
+ * Sin intención guardada no se reabre nada: no hay objetivo que restaurar y mantener la ventana
+ * viva solo retrasaría la adopción de lo que haga el usuario.
+ */
+export function reabrirVentanaRestauracion(intencion: boolean | null): VentanaRestauracionBluetooth {
+  if (intencion === null) return { completada: true, asentado: true }
+  return { completada: false, asentado: false }
+}
+
 export function valorBluetoothParaGuardar(
   objetivo: boolean | null,
   restauracionCompletada: boolean,

@@ -51,6 +51,7 @@ import { conectarCambioDeslizador } from "../../utilidades/deslizador"
 import { obtenerGlifoAplicacion as getIcon } from "../../servicios/aplicaciones/glifos"
 import { obtenerEntradaEscritorio } from "../../servicios/aplicaciones/entradasEscritorio"
 import {
+  reabrirVentanaRestauracion,
   resolverRestauracionBluetooth,
   valorBluetoothParaGuardar,
 } from "../../servicios/bluetooth/estadoInicio"
@@ -491,11 +492,14 @@ async function setBluetoothPower(powered: boolean, notifyOnError = true) {
 }
 
 function toggleBluetoothPower(bt: any) {
-  // Una acción explícita del usuario cierra la restauración de arranque: manda lo que
-  // acaba de pedir, no lo que había guardado. Sin esto, encender el BT dentro de la
-  // ventana de asentamiento haría que la restauración se lo volviera a apagar en la cara.
-  finalizarRestauracionBluetooth()
-  return setBluetoothPower(!bt.isPowered)
+  const objetivo = !bt.isPowered
+  // Una acción explícita del usuario cierra la restauración de arranque y pasa a ser la
+  // intención vigente: manda lo que acaba de pedir, no lo que había guardado, y es lo que se
+  // volverá a aplicar la próxima vez que el dongle reaparezca. Sin cerrar la restauración,
+  // encender el BT dentro de la ventana de asentamiento haría que se lo volviera a apagar
+  // en la cara.
+  finalizarRestauracionBluetooth(objetivo)
+  return setBluetoothPower(objetivo)
 }
 
 // ── System State Persistence (Wifi, BT, Vol) ──────────────────────────────────
@@ -517,11 +521,18 @@ function cargarEstadoSistemaGuardado(): Record<string, unknown> {
 }
 
 const estadoSistemaGuardado = cargarEstadoSistemaGuardado()
-const objetivoBluetoothInicial = typeof estadoSistemaGuardado.bluetooth === "boolean"
+
+// Intención Bluetooth del usuario: nace del disco, la fija su pulsación del interruptor y la
+// adopta cualquier cambio externo hecho con la restauración ya cerrada y el adaptador presente.
+// Es a la vez el OBJETIVO de la restauración y el valor que se persiste. Antes eran dos
+// variables —`objetivoBluetoothInicial`, congelada en el arranque, y
+// `ultimoEstadoBluetoothConfirmado`, la que se guardaba— y en cuanto la restauración se reabre a
+// mitad de sesión (ver `reabrirVentanaRestauracion`) podían decir cosas distintas: la ventana
+// nueva habría restaurado el valor del arranque en vez del último que pidió el usuario.
+let intencionBluetooth: boolean | null = typeof estadoSistemaGuardado.bluetooth === "boolean"
   ? estadoSistemaGuardado.bluetooth
   : null
-let ultimoEstadoBluetoothConfirmado = objetivoBluetoothInicial
-let restauracionBluetoothCompletada = objetivoBluetoothInicial === null
+let restauracionBluetoothCompletada = intencionBluetooth === null
 let restauracionBluetoothEnCurso = false
 
 // Ventana de asentamiento del adaptador. BlueZ registra el adaptador y solo DESPUÉS lo
@@ -535,6 +546,8 @@ let restauracionBluetoothEnCurso = false
 const BT_SETTLE_MS = 5000
 let bluetoothAsentado = false
 let temporizadorAsentadoBt: number | null = null
+/** Última generación vista del adaptador; su alta reabre la ventana de restauración. */
+let habiaAdaptadorBluetooth = false
 
 function armarAsentadoBluetooth() {
   if (bluetoothAsentado || temporizadorAsentadoBt !== null) return
@@ -548,13 +561,105 @@ function armarAsentadoBluetooth() {
   })
 }
 
-function finalizarRestauracionBluetooth() {
+function finalizarRestauracionBluetooth(intencion?: boolean) {
   bluetoothAsentado = true
   if (temporizadorAsentadoBt !== null) {
     GLib.source_remove(temporizadorAsentadoBt)
     temporizadorAsentadoBt = null
   }
   restauracionBluetoothCompletada = true
+  if (intencion !== undefined) intencionBluetooth = intencion
+}
+
+/**
+ * Reabre la ventana de restauración: el adaptador que tenemos delante es NUEVO para BlueZ, así
+ * que su `AutoEnable` va a encenderlo igual que en el arranque y hay que volver a corregirlo.
+ * Ver `reabrirVentanaRestauracion` para el porqué; aquí solo se aplica el estado que devuelve.
+ */
+function rearmarRestauracionBluetooth() {
+  const ventana = reabrirVentanaRestauracion(intencionBluetooth)
+  if (temporizadorAsentadoBt !== null) {
+    GLib.source_remove(temporizadorAsentadoBt)
+    temporizadorAsentadoBt = null
+  }
+  restauracionBluetoothCompletada = ventana.completada
+  bluetoothAsentado = ventana.asentado
+  // Con intención nula las dos llamadas son no-ops: la ventana nace ya cerrada.
+  armarAsentadoBluetooth()
+  void restaurarEstadoInicialBluetooth()
+}
+
+/**
+ * Reabre la ventana también AL DESPERTAR, y no sobra con el alta del adaptador.
+ *
+ * Que el dongle se reenumere al volver de una suspensión depende del hardware y del modo de
+ * suspensión: si el kernel lo recupera con `reset_resume` el objeto de BlueZ nunca desaparece,
+ * así que no hay alta que observar — pero el controlador sí ha pasado por un reinicio y BlueZ
+ * puede volver a encenderlo. Esto cubre ese caso; cuando sí hay reenumeración las dos rutas se
+ * solapan y la segunda reapertura es idempotente.
+ *
+ * Fail-open: sin logind no hay señal y se degrada al comportamiento de antes.
+ */
+function vigilarSuspensionBluetooth() {
+  try {
+    const bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, null)
+    bus.signal_subscribe(
+      "org.freedesktop.login1",
+      "org.freedesktop.login1.Manager",
+      "PrepareForSleep",
+      "/org/freedesktop/login1",
+      null,
+      Gio.DBusSignalFlags.NONE,
+      (_c, _s, _p, _i, _sig, params) => {
+        // `true` = nos vamos a dormir; `false` = ya hemos vuelto, que es cuando el adaptador
+        // puede haber revivido encendido por su cuenta.
+        const [durmiendo] = params.deep_unpack() as [boolean]
+        if (!durmiendo) rearmarRestauracionBluetooth()
+      },
+    )
+  } catch (error) {
+    console.warn(`No se pudo vigilar la suspensión para Bluetooth: ${bluetoothPowerError(error)}`)
+  }
+}
+
+/**
+ * Y la reabre también cuando la radio pasa por un BLOQUEO de rfkill.
+ *
+ * Tercera vía por la que BlueZ enciende el controlador sin que lo pida nadie, y la única que se
+ * reproduce sin privilegios: `rfkill block bluetooth` deja el adaptador en `PowerState:
+ * off-blocked` **sin darlo de baja** (el objeto de `org.bluez` sigue ahí), así que no hay alta que
+ * observar; al desbloquear, BlueZ lo enciende él solo. Medido en esta máquina con la restauración
+ * ya cerrada y `bluetooth: false` en disco: block + unblock terminaba con `Powered: yes` y el
+ * fichero reescrito a `true` — el mismo borrado del "apagado" del usuario que los otros dos casos.
+ *
+ * Se engancha a `off-blocked` (la entrada al bloqueo) y no al encendido posterior, porque es lo
+ * único que distingue este encendido de uno que el usuario haya pedido a mano con `bluetoothctl` o
+ * blueman: esos **sí** se adoptan, y pelearse con ellos sería peor que el bug. `on-disabling` y
+ * `off-enabling`, que son los estados por los que pasa un apagado/encendido normal, se ignoran a
+ * propósito.
+ */
+function vigilarBloqueoRadioBluetooth() {
+  try {
+    const bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, null)
+    bus.signal_subscribe(
+      "org.bluez",
+      "org.freedesktop.DBus.Properties",
+      "PropertiesChanged",
+      null,
+      "org.bluez.Adapter1",
+      Gio.DBusSignalFlags.NONE,
+      (_c, _s, _p, _i, _sig, params) => {
+        // `lookup_value` de la clave suelta, no `recursiveUnpack()` del `a{sv}` entero: el mismo
+        // criterio que la ingesta de notificaciones.
+        const estado = params
+          .get_child_value(1)
+          .lookup_value("PowerState", GLib.VariantType.new("s"))
+        if (estado?.get_string()[0] === "off-blocked") rearmarRestauracionBluetooth()
+      },
+    )
+  } catch (error) {
+    console.warn(`No se pudo vigilar el bloqueo de radio Bluetooth: ${bluetoothPowerError(error)}`)
+  }
 }
 
 let temporizadorGuardadoSistema: number | null = null
@@ -573,7 +678,7 @@ function programarGuardadoEstadoSistema(demora: number) {
       const configuracion = {
         wifi: red?.wifi?.enabled ?? true,
         bluetooth: valorBluetoothParaGuardar(
-          ultimoEstadoBluetoothConfirmado,
+          intencionBluetooth,
           restauracionBluetoothCompletada,
           !!bluetooth?.adapter,
           bluetooth?.isPowered ?? false,
@@ -601,7 +706,7 @@ function guardarEstadoSistemaAhora() {
 function registrarEstadoBluetoothConfirmado() {
   const bluetooth = AstalBluetooth.get_default()
   if (restauracionBluetoothCompletada && bluetooth?.adapter)
-    ultimoEstadoBluetoothConfirmado = bluetooth.isPowered
+    intencionBluetooth = bluetooth.isPowered
 }
 
 async function restaurarEstadoInicialBluetooth() {
@@ -609,7 +714,7 @@ async function restaurarEstadoInicialBluetooth() {
 
   const bluetooth = AstalBluetooth.get_default()
   const estado = resolverRestauracionBluetooth(
-    objetivoBluetoothInicial,
+    intencionBluetooth,
     !!bluetooth?.adapter,
     bluetooth?.isPowered ?? false,
     bluetoothAsentado,
@@ -627,7 +732,7 @@ async function restaurarEstadoInicialBluetooth() {
     restauracionBluetoothEnCurso = false
     const bluetoothActual = AstalBluetooth.get_default()
     const estadoActual = resolverRestauracionBluetooth(
-      objetivoBluetoothInicial,
+      intencionBluetooth,
       !!bluetoothActual?.adapter,
       bluetoothActual?.isPowered ?? false,
       bluetoothAsentado,
@@ -648,6 +753,15 @@ try {
   if (network?.wifi) network.wifi.connect("notify::enabled", guardarEstadoSistema)
   if (bt) {
     const sincronizarEstadoBluetooth = () => {
+      // Un adaptador que pasa de ausente a presente es una GENERACIÓN NUEVA para BlueZ, no el
+      // mismo de antes: al volver de una suspensión el dongle USB se reenumera y su AutoEnable
+      // lo enciende otra vez. Reabrir aquí la ventana de restauración es lo que impide que ese
+      // encendido se adopte como decisión del usuario y borre su "apagado" del disco.
+      const hayAdaptador = !!bt.adapter
+      if (hayAdaptador !== habiaAdaptadorBluetooth) {
+        habiaAdaptadorBluetooth = hayAdaptador
+        if (hayAdaptador) rearmarRestauracionBluetooth()
+      }
       armarAsentadoBluetooth()
       void restaurarEstadoInicialBluetooth()
       registrarEstadoBluetoothConfirmado()
@@ -656,6 +770,13 @@ try {
     bt.connect("notify::is-powered", sincronizarEstadoBluetooth)
     bt.connect("notify::adapter", sincronizarEstadoBluetooth)
     bt.connect("adapter-added", sincronizarEstadoBluetooth)
+    // `adapter-removed` también, y no es simetría gratuita: es lo único que baja
+    // `habiaAdaptadorBluetooth` cuando el adaptador desaparece ya apagado (ahí AstalBluetooth
+    // no emite `notify::is-powered`, porque su valor no cambia), y sin esa bajada la vuelta del
+    // dongle no se vería como generación nueva.
+    bt.connect("adapter-removed", sincronizarEstadoBluetooth)
+    vigilarSuspensionBluetooth()
+    vigilarBloqueoRadioBluetooth()
   }
   if (wp?.audio) {
     wp.audio.connect("notify::default-speaker", () => {
@@ -677,6 +798,10 @@ try {
 // los ya disponibles y las señales de arriba reintentan cuando BlueZ registra uno;
 // hasta entonces las demás escrituras conservan el valor Bluetooth leído del disco.
 GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+  // Siembra la generación vista: el adaptador que ya esté aquí no es un alta, su ventana de
+  // restauración es la del arranque y ya está abierta. Sin sembrarlo, la primera señal la
+  // contaría como generación nueva y reiniciaría el asentamiento sin motivo.
+  habiaAdaptadorBluetooth = !!AstalBluetooth.get_default()?.adapter
   armarAsentadoBluetooth()
   void restaurarEstadoInicialBluetooth()
   registrarEstadoBluetoothConfirmado()
@@ -1045,6 +1170,17 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   bt.connect("notify::adapter", syncBtInfo)
   bt.connect("adapter-added", syncBtInfo)
   bt.connect("adapter-removed", syncBtInfo)
+  // Y un resembrado al ABRIR el panel, igual que el tile de red.
+  //
+  // No sustituye a las señales: cubre que se pierda alguna. `btInfoState` es una FOTO, y una foto
+  // que se pierda una emisión miente el resto de la sesión; el interruptor del submenú de
+  // Bluetooth es un `createBinding`, que relee la propiedad y por tanto se recompone solo. Esa
+  // asimetría es exactamente el síntoma reportado —el texto en "Desactivado" con el interruptor
+  // encendido—, así que la foto necesita un punto de reconciliación con lo real, y abrir el panel
+  // es el único momento en que alguien mira el tile. No se ha aislado qué emisión concreta se
+  // pierde (el ciclo quitar/poner adaptador de AstalBluetooth acaba siempre en un `sync()` que
+  // debería notificar), así que esto ataca la clase entera en vez de un caso.
+  quickSettingsVisible.subscribe(() => { if (quickSettingsVisible.get()) syncBtInfo() })
 
   // Update monitor info
   const updateMonitor = () => {
@@ -2788,7 +2924,12 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
 
   // Al cerrar el panel: cortar el discovery y todos sus timers (antes la radio
   // seguía escaneando en background hasta agotar el `duration`).
-  quickSettingsVisible.subscribe(() => { if (!quickSettingsVisible.get()) { stopScan(); clearPowerOnTimer() } })
+  // Al abrir, resembrar `btSupported` por lo mismo que el tile: es una foto y el adaptador puede
+  // haber ido y venido con el panel cerrado.
+  quickSettingsVisible.subscribe(() => {
+    if (quickSettingsVisible.get()) setBtSupported(!!bt.adapter)
+    else { stopScan(); clearPowerOnTimer() }
+  })
 
   // Solo refrescamos la lista mientras la vista Bluetooth está visible. Con el QS
   // cerrado o en otra pestaña ignoramos las señales: antes cada notify::devices
@@ -3493,10 +3634,12 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
     if (!entrancePending) return
     entrancePending = false
     cancelPrepare()
-    // Medir ANTES de añadir la clase que dispara el transform: así la región
-    // clicable queda fija en su posición final desde el primer frame de la
-    // animación, en vez de arrastrar la posición transformada hasta el reclip
-    // de más abajo.
+    // Región completa mientras dura la entrada; la silueta real la fija el reclip
+    // del guard de abajo. Medir aquí NO vale: `qs-preparing` ya trae su propio
+    // `translateY(-220px)` (no solo la clase de la animación), y GTK4 pliega el
+    // transform de CSS en la asignación, así que `compute_bounds()` devolvía el
+    // panel 220 px más arriba — la región caía fuera de la superficie por arriba y
+    // los 220 px inferiores del panel se quedaban sordos al ratón hasta el reclip.
     reclipInput?.(true)
     qsAnimationRef?.remove_css_class("qs-preparing")
     qsAnimationRef?.add_css_class("qs-entering")
@@ -3709,6 +3852,8 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
       </box>
     </window>
 
-  reclipInput = clipWindowInputToContent(result, qsPanelRef)
+  reclipInput = clipWindowInputToContent(result, qsPanelRef, {
+    superficieCompletaMientras: () => entranceActive,
+  })
   return result
 }

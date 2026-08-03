@@ -15,6 +15,12 @@ interface OpcionesRecorteEntrada {
   /** Añade únicamente la silueta pintada de dos curvas laterales pegadas a las
    * esquinas inferiores, sin convertir sus anchos en franjas verticales. */
   radioCurvasInferioresLaterales?: number
+  /** Mientras devuelva `true`, la región abarca la superficie entera en vez de la
+   * silueta del contenido. Es para las animaciones de entrada con `transform`:
+   * ahí `compute_bounds()` mide la posición DESPLAZADA (GTK4 pliega el transform
+   * de CSS en la asignación del widget), así que cualquier silueta que se calcule
+   * durante el recorrido deja muerta la parte del panel que aún no ha llegado. */
+  superficieCompletaMientras?: () => boolean
 }
 
 function anadirRectanguloRedondeado(
@@ -116,6 +122,19 @@ export function clipWindowInputToContent(
     try {
       const surface = win.get_surface?.()
       if (!surface) return
+
+      if (opciones.superficieCompletaMientras?.()) {
+        const ancho = surface.get_width?.() ?? 0
+        const alto = surface.get_height?.() ?? 0
+        // Sin medidas válidas se conserva la región anterior: la predeterminada de
+        // un `map` ya es la superficie entera, que es justo lo que se busca aquí.
+        if (ancho <= 0 || alto <= 0) return
+        const completa = new (cairo as any).Region()
+        completa.unionRectangle({ x: 0, y: 0, width: ancho, height: alto })
+        surface.set_input_region(completa)
+        return
+      }
+
       const region = new (cairo as any).Region()
       let contenidosValidos = 0
 
