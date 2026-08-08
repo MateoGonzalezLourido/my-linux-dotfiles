@@ -8,6 +8,7 @@ import {
   resolveNotifColor,
   type StoredNotification,
 } from "../store"
+import { aMarcadoPango, limpiarMarcado } from "../marcado"
 import { obtenerAccionesVisibles } from "./logica.ts"
 
 const DURACION_ANIMACION_SALIDA_MS = 220
@@ -89,7 +90,7 @@ export default function ElementoPopup({
         />
         <label
           cssClasses={["notif-popup-summary"]}
-          label={notificacion.summary}
+          label={limpiarMarcado(notificacion.summary)}
           hexpand
           halign={Gtk.Align.START}
           ellipsize={3}
@@ -99,7 +100,8 @@ export default function ElementoPopup({
       </box>
       <label
         cssClasses={["notif-popup-body"]}
-        label={notificacion.body}
+        label={aMarcadoPango(notificacion.body)}
+        useMarkup={true}
         halign={Gtk.Align.START}
         xalign={0}
         wrap={true}

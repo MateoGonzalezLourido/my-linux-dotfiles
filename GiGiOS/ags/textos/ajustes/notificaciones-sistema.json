@@ -89,6 +89,8 @@
     "archivos.persistencia": "Cambio con posible persistencia",
     "archivos.clave-ssh": "Claves SSH autorizadas modificadas",
     "archivos.boot": "Cambio en /boot",
+    "archivos.actualizacion": "Archivos de sistema tocados por una actualización",
+    "sistema.reinicio-pendiente": "Reinicio pendiente tras actualizar kernel o drivers",
     "monitor.sin-inotify": "Vigilancia de ficheros desactivada (falta inotify-tools)",
 
     "descargas.malware": "Malware detectado en Descargas",

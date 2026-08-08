@@ -43,6 +43,18 @@
 -- pide un `hyprctl reload` (que no reinicia nada — no hay proceso detrás).
 local util = require("gigios.util")
 
+-- El traslado va envuelto: la ventana se REINSERTA en el árbol del escritorio
+-- destino y con dwindle:smart_split el eje de ese corte lo decidiría el
+-- cuadrante del cursor, que aquí señala el escritorio LLENO del que viene, no
+-- el destino. Ver gigios/ventanas.lua. pcall + repliegue por la trampa nº 1.
+local sin_smart_split = function(accion) return accion() end
+do
+  local ok, ventanas = pcall(require, "gigios.ventanas")
+  if ok and type(ventanas) == "table" and type(ventanas.sin_smart_split) == "function" then
+    sin_smart_split = ventanas.sin_smart_split
+  end
+end
+
 local LIMITE_DEFECTO = 8
 local SEGUIR = true      -- ver arriba: la ventana recién lanzada no se pierde
 local WS_MAX = 20        -- techo del barrido de candidatos (ids normales)
@@ -90,11 +102,13 @@ hl.on("window.open", function(ventana)
     local destino = hueco(ws.id, limite)
     if not destino then return end            -- todo lleno: mejor apretujar que
                                               -- mandarla a un sitio igual de malo
-    hl.dispatch(hl.dsp.window.move({
-      workspace = destino,
-      window = ventana,                       -- el OBJETO, no la address (ver compactar.lua)
-      follow = SEGUIR,                        -- "silent" se dice follow = false
-    }))
+    sin_smart_split(function()
+      hl.dispatch(hl.dsp.window.move({
+        workspace = destino,
+        window = ventana,                     -- el OBJETO, no la address (ver compactar.lua)
+        follow = SEGUIR,                      -- "silent" se dice follow = false
+      }))
+    end)
   end)
   if not ok then
     util.notificar("limite-ventanas: " .. tostring(err):sub(1, 200))

@@ -27,6 +27,22 @@ local vars = require("gigios.variables")
 
 local mod = vars.mainMod
 
+-- gigios/ventanas.lua presta el envoltorio que apaga dwindle:smart_split
+-- mientras dura una inserción en la que NO hay un ratón señalando el destino
+-- (allí está el porqué y la medición). Aquí lo pide SUPER+SHIFT+número.
+--
+-- pcall + repliegue a "ejecuta la acción tal cual", por el mismo motivo que el
+-- require de `aspecto` del final: si ventanas.lua llegara a fallar, un error en
+-- este módulo dejaría la sesión SIN NINGÚN ATAJO, y mover una ventana con el
+-- reparto de antes es infinitamente mejor que no poder mover nada.
+local sin_smart_split = function(accion) return accion() end
+do
+  local ok, ventanas = pcall(require, "gigios.ventanas")
+  if ok and type(ventanas) == "table" and type(ventanas.sin_smart_split) == "function" then
+    sin_smart_split = ventanas.sin_smart_split
+  end
+end
+
 -- Forma canónica de una combinación: mods ordenados + tecla, todo en
 -- mayúsculas — así "SUPER SHIFT + E", "SUPER + SHIFT + E" y "shift+super+e"
 -- casan igual aunque cambien el orden, el separador o la caja. La comparte
@@ -161,10 +177,19 @@ for _, d in ipairs({ "left", "right", "up", "down" }) do
 end
 
 -- cambiar de workspace (mod+[0-9]) y llevarse la ventana (mod+SHIFT+[0-9])
+--
+-- El SHIFT + número va envuelto: la ventana se REINSERTA en el árbol del
+-- escritorio destino, y con smart_split el eje de ese corte lo decidiría el
+-- cuadrante del cursor, que aquí no señala nada (has pulsado una tecla, no
+-- soltado un ratón). Ver gigios/ventanas.lua.
 for i = 1, 10 do
   local tecla = tostring(i % 10) -- la tecla 0 es el workspace 10
   bind(mod .. " + " .. tecla, hl.dsp.focus({ workspace = i }))
-  bind(mod .. " + SHIFT + " .. tecla, hl.dsp.window.move({ workspace = i }))
+  bind(mod .. " + SHIFT + " .. tecla, function()
+    sin_smart_split(function()
+      hl.dispatch(hl.dsp.window.move({ workspace = i }))
+    end)
+  end)
 end
 
 -- Escritorio ancla

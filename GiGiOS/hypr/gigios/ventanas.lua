@@ -18,6 +18,31 @@ local aspecto = {
   rounding    = 6,
 }
 
+-- FUENTE ÚNICA de los ajustes de dwindle, por el mismo motivo que `aspecto`:
+-- `sin_smart_split()` (más abajo) los apaga y los vuelve a encender, y con el
+-- valor escrito a mano en dos sitios el día que se cambie aquí el envoltorio
+-- restauraría el de antes.
+local dwindle = {
+  -- preserve_split = true CONGELA la orientación del nodo padre: al arrastrar
+  -- (SUPER + clic izq) la ventana solo INTERCAMBIA posición, nunca cambia de
+  -- horizontal a vertical — había que pasar antes por SUPER + SHIFT + J
+  -- (togglesplit). En false, dwindle recalcula la orientación al reinsertar la
+  -- ventana en el árbol, que es justo lo que hace un drop.
+  preserve_split = false,
+
+  -- Y smart_split es lo que da el control fino al soltar: la orientación sale
+  -- del CUADRANTE de la ventana destino sobre el que sueltas (mitad izq/dcha →
+  -- se parten en vertical, lado a lado; mitad sup/inf → se apilan). Ignora
+  -- preserve_split y force_split por diseño; también aplica al abrir ventana
+  -- nueva, que pasa a nacer partiendo por donde tengas el cursor.
+  --
+  -- ⚠️ Y ESO ÚLTIMO ES SU PRECIO: el cuadrante del cursor solo significa algo
+  -- cuando ACABAS de señalar con el ratón, o sea en el drop. En cualquier otra
+  -- inserción el cursor está donde lo dejaste hace un rato y la orientación
+  -- sale a suertes. Ver `sin_smart_split` aquí abajo.
+  smart_split = true,
+}
+
 hl.config({
   general = {
     gaps_in  = aspecto.gaps_in,
@@ -63,21 +88,7 @@ hl.config({
   },
 
   -- https://wiki.hypr.land/Configuring/Dwindle-Layout/
-  dwindle = {
-    -- preserve_split = true CONGELA la orientación del nodo padre: al arrastrar
-    -- (SUPER + clic izq) la ventana solo INTERCAMBIA posición, nunca cambia de
-    -- horizontal a vertical — había que pasar antes por SUPER + SHIFT + J
-    -- (togglesplit). En false, dwindle recalcula la orientación al reinsertar la
-    -- ventana en el árbol, que es justo lo que hace un drop.
-    preserve_split = false,
-
-    -- Y smart_split es lo que da el control fino al soltar: la orientación sale
-    -- del CUADRANTE de la ventana destino sobre el que sueltas (mitad izq/dcha →
-    -- se parten en vertical, lado a lado; mitad sup/inf → se apilan). Ignora
-    -- preserve_split y force_split por diseño; también aplica al abrir ventana
-    -- nueva, que pasa a nacer partiendo por donde tengas el cursor.
-    smart_split = true,
-  },
+  dwindle = dwindle,
 
   -- https://wiki.hypr.land/Configuring/Master-Layout/
   master = {
@@ -108,7 +119,61 @@ hl.config({
   },
 })
 
+-- ── smart_split y las inserciones QUE NO SON UN DROP ────────────────────────
+--
+-- MOVER UNA VENTANA A OTRO ESCRITORIO DESORDENABA EL ESCRITORIO DESTINO, y la
+-- causa es `smart_split`, no el módulo que la mueve. dwindle resuelve un
+-- `movetoworkspace` sacando la ventana de un árbol y REINSERTÁNDOLA en el otro,
+-- exactamente igual que si naciera allí: parte la última enfocada del destino y,
+-- con smart_split, el eje del corte sale del cuadrante del CURSOR sobre ella. En
+-- un drop eso es justo lo que quieres (acabas de señalar con el ratón); en un
+-- movimiento por teclado el cursor está donde lo dejaste hace diez minutos, así
+-- que el eje sale a suertes y encima repetido — la misma tecla parte siempre por
+-- el mismo sitio mientras no muevas el ratón, que es como se acaba con tiras de
+-- pantalla completa en vez de una rejilla.
+--
+-- MEDIDO en instancia anidada a 2032x1098, destino con tres ventanas en rejilla
+-- (una columna de 1004x1080 y dos de 1004x537) y el cursor abajo a la derecha:
+--
+--   smart_split = true   la que llega parte la COLUMNA por su lado corto y
+--                        salen dos tiras de 500x1080 — la rejilla se rompe.
+--   smart_split = false  la que llega cae en 1019,552 con 1004x537: la rejilla
+--                        se completa.
+--
+-- `preselect` NO SIRVE AQUÍ, aunque sea el truco que usa gigios/keybinds.lua
+-- para SUPER+SHIFT+dirección. Medido: con smart_split activo, un `preselect
+-- right` inmediatamente antes del `movetoworkspace` —incluso en el mismo
+-- `hyprctl --batch`, para descartar que se perdiera entre llamadas— da el MISMO
+-- resultado que sin él. El override solo lo consulta el camino de ventana nueva.
+--
+-- De ahí este envoltorio: apagar smart_split durante la inserción y volver a
+-- encenderlo. Sin él, el arrastre pierde el control por cuadrante, que es la
+-- única razón por la que smart_split está puesto. Lo usan los tres sitios que
+-- mueven ventanas entre escritorios sin que haya un ratón señalando el destino:
+-- gigios/keybinds.lua (SUPER+SHIFT+número), gigios/compactar.lua y
+-- gigios/limite-ventanas.lua; y scripts/anclaje.py por `hyprctl eval`, a través
+-- del global GiGiOS.sin_smart_split de abajo.
+--
+-- El apagado es GLOBAL mientras dura la llamada, así que `accion` tiene que ser
+-- corta y síncrona: nada de timers ni de esperar a un evento dentro. Los tres
+-- consumidores despachan y vuelven.
+local function sin_smart_split(accion)
+  if not dwindle.smart_split then return accion() end
+  pcall(hl.config, { dwindle = { smart_split = false } })
+  -- pcall para que el restaurado ocurra SIEMPRE: dejar smart_split apagado por
+  -- un fallo de `accion` sería un cambio de comportamiento permanente y mudo
+  -- (el arrastre dejaría de responder al cuadrante) hasta el siguiente reload.
+  local ok, err = pcall(accion)
+  pcall(hl.config, { dwindle = { smart_split = dwindle.smart_split } })
+  if not ok then error(err, 0) end
+end
+
+-- Para quien no puede requerir el módulo: scripts/anclaje.py lo invoca con
+-- `hyprctl eval`, que comparte el estado Lua del config (ver hyprland.lua).
+GiGiOS = GiGiOS or {}
+GiGiOS.sin_smart_split = sin_smart_split
+
 -- Lo consume gigios/keybinds.lua (require cachea: es la misma tabla que acaba de
 -- aplicarse, no una copia). hyprland.lua carga este módulo con util.carga() e
 -- ignora el retorno; el valor solo importa para quien lo pida.
-return { aspecto = aspecto }
+return { aspecto = aspecto, dwindle = dwindle, sin_smart_split = sin_smart_split }

@@ -54,7 +54,7 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 2 | `gigios/monitores.lua` | Regla comodín: preferido, escala 1 (fallback) | a mano |
 | 3 | `gigios/pantalla.lua` | Resolución/Hz/escala/VRR por monitor concreto (`desc:`) | a mano — **el dato** lo escribe AGS en `display.json` |
 | 4 | `gigios/input.lua` | Teclado, ratón, touchpad y gestos (valores base) | a mano |
-| 5 | `gigios/ventanas.lua` | Gaps, bordes, sombras, blur, `layout` | a mano |
+| 5 | `gigios/ventanas.lua` | Gaps, bordes, sombras, blur, `layout` + `sin_smart_split()`, el envoltorio que usan los cuatro caminos que mueven ventanas entre escritorios | a mano |
 | 6 | `gigios/animaciones.lua` | Curvas y animaciones | a mano |
 | 7 | `gigios/reglas.lua` | Reglas de ventana y de capa | a mano |
 | 8 | `gigios/compactar.lua` | `GiGiOS.compactar()` — renumera escritorios | a mano |

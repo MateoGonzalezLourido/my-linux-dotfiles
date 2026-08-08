@@ -7,6 +7,7 @@ import { getRelativeTime, timeTick, type StoredNotification } from "../../store"
 interface PropiedadesContenidoItemNotificacion {
   notificacion: StoredNotification
   resumen: string
+  /** Cuerpo ya convertido a marcado de Pango (ver `../../marcado.ts`). */
   cuerpo: string
   necesitaExpansion: boolean
   expandida: Accessor<boolean>
@@ -79,6 +80,7 @@ export default function ContenidoItemNotificacion({
         <label
           cssClasses={["notif-body"]}
           label={cuerpo}
+          useMarkup={true}
           halign={Gtk.Align.START}
           wrap={true}
           wrapMode={Pango.WrapMode.WORD_CHAR}

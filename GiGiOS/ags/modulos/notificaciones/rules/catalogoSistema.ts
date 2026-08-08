@@ -129,6 +129,8 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("archivos.persistencia", "seguridad", "oom-monitor.sh"),
   ev("archivos.clave-ssh", "seguridad", "oom-monitor.sh"),
   ev("archivos.boot", "seguridad", "oom-monitor.sh"),
+  ev("archivos.actualizacion", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
+  ev("sistema.reinicio-pendiente", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
   ev("monitor.sin-inotify", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
 
   // ── Antivirus y descargas ──────────────────────────────────────────────────────────────

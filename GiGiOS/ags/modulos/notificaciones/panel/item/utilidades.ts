@@ -17,17 +17,6 @@ export function esAppMensajeria(nombreApp: string): boolean {
     nombreNormalizado.includes(fragmento))
 }
 
-/** Elimina el subconjunto de marcado que aceptan los cuerpos de notificación. */
-export function limpiarMarcado(texto: string): string {
-  return texto
-    .replace(/<[^>]*>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-}
-
 /** Aproximación conservadora al límite visual de dos líneas del cuerpo. */
 export function necesitaExpansionCuerpo(texto: string): boolean {
   return texto.length > 90 || texto.split("\n").length > 2

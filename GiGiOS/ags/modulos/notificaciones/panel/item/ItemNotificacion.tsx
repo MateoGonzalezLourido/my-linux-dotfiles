@@ -29,9 +29,9 @@ import {
 import {
   esAppMensajeria,
   fondoOpacoDesdeHex,
-  limpiarMarcado,
   necesitaExpansionCuerpo,
 } from "./utilidades"
+import { aMarcadoPango, limpiarMarcado } from "../../marcado"
 
 export default function ItemNotificacion({ notif }: { notif: StoredNotification }) {
   // Color de regla > color por app > valor del sistema. Se actualiza en vivo
@@ -42,9 +42,12 @@ export default function ItemNotificacion({ notif }: { notif: StoredNotification 
   const [descartada, establecerDescartada] = createState(false)
   const expansion = usarExpansionItemNotificacion(notif.id)
 
+  // El resumen va en texto plano (la especificación solo admite marcado en el
+  // cuerpo) y el cuerpo se pinta como marcado; la versión limpia sigue haciendo
+  // falta para medir cuántas líneas ocupa de verdad.
   const resumen = limpiarMarcado(notif.summary)
-  const cuerpo = limpiarMarcado(notif.body)
-  const necesitaExpansion = necesitaExpansionCuerpo(cuerpo)
+  const cuerpo = aMarcadoPango(notif.body)
+  const necesitaExpansion = necesitaExpansionCuerpo(limpiarMarcado(notif.body))
   const esMensajeria = esAppMensajeria(notif.appName)
   const seleccionada = selectedIds((ids) => ids?.has(notif.id) ?? false)
   const silenciada = appSettings((ajustes) => ajustes?.[notif.appName]?.muted ?? false)

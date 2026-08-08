@@ -121,6 +121,39 @@ def dispatch(lua):
                    capture_output=True, text=True)
 
 
+def mover_a_workspace(addr, ws, follow):
+    """Mueve una ventana a otro escritorio SIN que dwindle desordene el destino.
+
+    Mover es reinsertar en el árbol del destino: dwindle parte allí la última
+    enfocada, y con `dwindle:smart_split` el eje de ese corte sale del cuadrante
+    del CURSOR sobre ella. Aquí el cursor no señala el destino —está donde lo
+    dejaste al lanzar la app— así que el eje salía a suertes y el escritorio de
+    llegada acababa en tiras. El envoltorio `GiGiOS.sin_smart_split` de
+    gigios/ventanas.lua apaga el ajuste mientras dura la inserción y lo
+    restaura; allí está la medición y por qué `preselect` NO vale para esto.
+
+    Va por `hyprctl eval` y no por `dispatch` porque hace falta ejecutar una
+    CLOSURE en el estado Lua del config, que es donde vive el global GiGiOS
+    (verificado: `eval` acepta varias sentencias y ejecuta funciones anónimas;
+    lo que no hace es devolver su valor — siempre responde "ok").
+
+    Si el envoltorio no existiera —config a medio recargar, ventanas.lua roto—
+    se mueve igual, sin él: llegar desordenada es mejor que no llegar.
+    """
+    lua = (f"hl.dsp.window.move({{workspace={ws}, window='address:{addr}', "
+           f"follow={'true' if follow else 'false'}}})")
+    r = subprocess.run(
+        ["hyprctl", "eval",
+         "if GiGiOS and GiGiOS.sin_smart_split then "
+         f"GiGiOS.sin_smart_split(function() hl.dispatch({lua}) end) "
+         f"else hl.dispatch({lua}) end"],
+        capture_output=True, text=True)
+    # El rc de hyprctl no distingue "ejecutado" de "error de Lua" (la misma
+    # trampa que documenta CLAUDE.md para dispatch): se mira el stdout.
+    if "ok" not in r.stdout:
+        dispatch(lua)
+
+
 def anclaje_activado():
     """Lee `anclarVentanasRofi` de preferences.json (Ajustes > Personalización).
 
@@ -369,8 +402,7 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                 # escritorio. Ver _hueco_en().
                 if (anclar and cli["workspace"]["id"] != target_ws
                         and _hueco_en(clientes, target_ws, addr, limite)):
-                    dispatch(f"hl.dsp.window.move({{workspace={target_ws}, "
-                             f"window='address:{addr}', follow=false}})")
+                    mover_a_workspace(addr, target_ws, follow=False)
 
             elif event == "urgent":
                 # urgent>>ADDR  (ADDR sin "0x")
@@ -382,7 +414,6 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                     # Relanzamiento single-instance: traer al workspace actual.
                     cli = client_of(addr)
                     if cli and cli["workspace"]["id"] != target_ws:
-                        dispatch(f"hl.dsp.window.move({{workspace={target_ws}, "
-                                 f"window='address:{addr}', follow=true}})")
+                        mover_a_workspace(addr, target_ws, follow=True)
                     dispatch(f"hl.dsp.focus({{window='address:{addr}'}})")
                     return

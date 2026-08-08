@@ -579,6 +579,8 @@ sin él, 1014x1098 (lo correcto para una apaisada). O sea que enfocar la mayor s
 daba ocho tiras de **2032x134**. `preselect` tiene prioridad sobre el cuadrante, sobre `smart_split`
 y sobre `force_split` (ya documentado en `gigios/keybinds.lua`, donde se usa para lo mismo en
 SUPER+SHIFT+dirección), así que no hay que tocar `smart_split`, que sigue mandando en el arrastre.
+En el camino de **mover a otro escritorio** `preselect` no basta y la palanca es otra: ver
+*Mover una ventana a otro escritorio sin desordenarlo*, más abajo.
 
 **La cercanía al ratón es el SEGUNDO criterio, no el primero**, y el orden es lo que lo hace
 funcionar: elegir por cercanía a secas devuelve el problema de partida, porque el hueco pegado al
@@ -654,6 +656,67 @@ siga siendo la ventana que soltaste antes de tocar nada.
 `repartoVentanas` (**ausente = activado**, se comprueba `== false`), `anchoMinimoVentana` /
 `altoMinimoVentana` (**ausentes = 480x320**; los dos a 0 lo desactivan). Se leen por `util.prefs()`,
 o sea una vez por ejecución del config: cambiarlos pide un `hyprctl reload`.
+
+### Mover una ventana a otro escritorio sin desordenarlo (`sin_smart_split`, en `gigios/ventanas.lua`)
+
+**Mover desordenaba el escritorio destino, y la culpa no era del módulo que movía.** Para dwindle un
+`movetoworkspace` no es "cambiar de sitio": es **sacar la ventana de un árbol y reinsertarla en
+otro**, exactamente igual que si naciera allí. Parte la última enfocada del destino y, con
+`smart_split`, el eje de ese corte sale del **cuadrante del cursor** sobre ella. En un drop eso es
+justo lo que quieres —acabas de señalar con el ratón—, pero al mover con el teclado el cursor está
+donde lo dejaste hace diez minutos: el eje sale a suertes, y encima **repetido**, porque mientras no
+muevas el ratón la misma tecla parte siempre por el mismo sitio. De ahí las tiras de pantalla
+completa en vez de una rejilla.
+
+**Medido** en instancia anidada con config Lua (monitor de 1014x1082, destino con una ventana que lo
+ocupa entero, cursor "rancio" en el borde izquierdo, x=5 y=540):
+
+| | ventana que llega | la que estaba |
+|---|---|---|
+| sin envoltorio (`smart_split` activo) | 497x1082 | 497x1082 — dos columnas estrechas |
+| con envoltorio | 998x539 | 998x539 — la rejilla que toca |
+
+Con el cursor en (500,5) **las dos salidas son idénticas**: el envoltorio solo cambia el resultado
+cuando `smart_split` iba a elegir un eje distinto al del lado largo, no toca nada más.
+
+**`preselect` NO sirve aquí**, aunque sea el truco con el que `gigios/keybinds.lua` arregla
+SUPER+SHIFT+dirección y `gigios/reparto-ventanas.lua` la ventana nueva. Medido: con `smart_split`
+activo, un `preselect right` inmediatamente antes del `movetoworkspace` —incluido en el **mismo
+`hyprctl --batch`**, para descartar que se perdiera entre llamadas— da **exactamente el mismo
+resultado** que sin él. El override solo lo consulta el camino de ventana nueva.
+
+Así que la palanca es apagar `dwindle:smart_split` mientras dura la inserción y volver a encenderlo,
+que es lo que hace `sin_smart_split(accion)` en `gigios/ventanas.lua` (donde vive la tabla `dwindle`,
+para que el valor restaurado no sea un literal copiado que se quede obsoleto). El restaurado va en
+`pcall` **siempre**: dejarlo apagado por un fallo de `accion` sería un cambio permanente y mudo — el
+arrastre dejaría de responder al cuadrante hasta el siguiente `hyprctl reload`. El apagado es
+**global mientras dura la llamada**, así que la acción tiene que ser corta y síncrona: nada de
+timers ni de esperar un evento dentro.
+
+**Lo usan los cuatro caminos que mueven ventanas entre escritorios sin un ratón señalando el
+destino** — y ninguno más, porque el arrastre sí tiene ese ratón y es la única razón por la que
+`smart_split` está puesto:
+
+| camino | qué mueve |
+|---|---|
+| `gigios/keybinds.lua`, SUPER+SHIFT+número | la ventana activa |
+| `gigios/compactar.lua` | **el escritorio entero**, ventana a ventana |
+| `gigios/limite-ventanas.lua` | la que rebasa el tope, al primer escritorio con sitio |
+| `scripts/anclaje.py` | la recién lanzada, a su escritorio de lanzamiento |
+
+**`compactar` es el que más lo necesita**: no mueve una ventana, vacía un escritorio en otro, así que
+el destino se reconstruye entero y el cuadrante rancio se aplicaba a **cada** corte. Verificado tras
+el arreglo: tres ventanas en ws5 y una en ws9 acaban en ws1 (rejilla de 998x539 + dos de 497x539) y
+ws2, con `smart_split` y `preserve_split` de vuelta en sus valores.
+
+**`anclaje.py` va por `hyprctl eval`, no por `hyprctl dispatch`**, porque necesita ejecutar una
+*closure* en el estado Lua del config, que es donde vive el global `GiGiOS` (verificado: `eval`
+acepta varias sentencias y ejecuta funciones anónimas; lo que no hace es **devolver** su valor —
+siempre responde `ok`, de ahí que el script mire el stdout y no el código de salida). Si el
+envoltorio no existiera —config a medio recargar, `ventanas.lua` roto— mueve igual sin él: llegar
+desordenada es mejor que no llegar. Los cuatro consumidores Lua hacen lo propio con un
+`pcall(require, "gigios.ventanas")` y repliegue a "ejecuta la acción tal cual", por la trampa nº 1
+de la migración (un error aquí deja la sesión sin atajos).
 
 ### Tope de ventanas en mosaico por escritorio (`gigios/limite-ventanas.lua`)
 
@@ -1063,8 +1126,8 @@ cuando llega el `add` del `usb_device`.
   (y solo ahí) se cae al aviso con botón, donde el desmontaje lo autoriza el clic.
 
 **Por qué udisks y no `fsck`/`ntfsfix` directos**: van a un dispositivo `root:disk 660`, harían falta
-privilegios, y escalarlos desde un script de `~/.config` (escribible por el usuario) sería
-exactamente la escalada silenciosa contra la que avisa la sección de `PRIVESC_ALLOW`. Con udisks el
+privilegios, y escalarlos vía pkexec desde un script de `~/.config` (escribible por el usuario) sería
+exactamente la escalada silenciosa contra la que avisa CLAUDE.md. Con udisks el
 trabajo privilegiado lo hace `udisksd` y lo autoriza polkit — y **no hay prompt de contraseña**
 porque `modify-device` es `allow_active=yes` para dispositivos que **no** son del sistema (en un
 disco interno sí lo pediría: `modify-device-system` → `auth_admin_keep`). `Check`/`Repair` **exigen
@@ -1264,22 +1327,24 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   del journal al popup), así que encola texto vacío y lo que informa es el recuento: «5 fallos de
   sudo» + el cuerpo de siempre. **La tormenta de crashes no se agrupa**: ya es un resumen, y trae su
   propio límite de uno por minuto.
-  **Escaladas de privilegios (`privEsc`) — dos filtros contra el ruido de los juegos.** pkexec
-  emite **dos** líneas por escalada: la de PAM (`pam_unix(polkit-1:session): session opened`, que
-  no dice *qué* se ejecuta) y la de `Executing command … [COMMAND=…]`. Se avisaba en ambas → doble
-  notificación, y la de PAM era además infiltrable por comando. Ahora **solo** notifica la de
-  `COMMAND`; no se pierde nada, porque un pkexec **denegado** no abre sesión PAM pero sí loguea su
-  `Not authorized`, que la rama sigue captando. Sobre esa línea se aplica `PRIVESC_ALLOW`, una
-  allowlist de **globs** comparados contra el `COMMAND=` (que viene con argumentos). Contiene
-  **GameMode**: `gamemoded` escala por pkexec **cada vez que un juego arranca y otra vez al
-  cerrarse** (`/usr/lib/gamemode/cpugovctl set performance`, `procsysctl split_lock_mitigate`,
-  `gpuclockctl`), así que jugar era una lluvia de avisos críticos "🔓 Escalada de privilegios" —
-  la clase de ruido que enseña a ignorar la categoría entera. **No se puede exponer la allowlist
-  en `security.json`**: el guardado de `ags/modulos/ajustes/seguridad/preferencias.ts`
-  reconstruye ese JSON desde cero, así que
-  una clave añadida a mano moriría al tocar cualquier switch de la UI. Se amplía editando el array
-  en el script — y cada patrón es un agujero permanente, porque una ruta *escribible por el
-  usuario* en esa lista es una escalada silenciosa.
+  **Escaladas de privilegios (`privEsc`) — solo avisa de lo que NO se autorizó con contraseña.**
+  pkexec emite **dos** líneas por escalada: la de PAM (`pam_unix(polkit-1:session): session
+  opened`, que no dice *qué* se ejecuta) y la de `Executing command … [COMMAND=…]`. Ninguna de las
+  dos avisa: la de PAM se descarta siempre (no es informativa), y la de `COMMAND=` significa que el
+  propio usuario acaba de meter su contraseña en el diálogo de polkit para autorizar justo esa
+  escalada — notificarla no añade señal, solo ruido. Esto empezó siendo una allowlist de globs
+  (`PRIVESC_ALLOW`) para silenciar solo a GameMode, que escala por pkexec **cada vez que un juego
+  arranca y otra vez al cerrarse** (`/usr/lib/gamemode/cpugovctl set performance`,
+  `procsysctl split_lock_mitigate`, `gpuclockctl`) y convertía jugar en una lluvia de avisos
+  críticos "🔓 Escalada de privilegios" que enseñaba a ignorar la categoría entera; se generalizó a
+  *todo* `COMMAND=` porque cualquier pkexec autenticado con contraseña tiene el mismo problema, no
+  solo el de GameMode. Lo que **sigue** avisando es la escalada que NO pasó por una contraseña
+  válida: un pkexec **denegado** no abre sesión PAM ni loguea `COMMAND=`, pero sí `Not authorized`,
+  que la rama sigue captando — igual que los fallos de autenticación de `su` y de polkit. Ojo: esto
+  asume que todo pkexec de este repo pide contraseña (`auth_admin`/`auth_admin_keep`); si algún día
+  se invocara pkexec para una acción `allow_active=yes` (sin prompt, como hace UDisks para
+  removibles — ver la sección de USB para por qué esa ruta deliberadamente NO pasa por pkexec),
+  esa escalada también callaría sin haber pasado por una contraseña.
 - `monitor_files` — `inotifywait` on the *parent directories* of critical paths (not the files
   themselves, so atomic write+rename replacements like `visudo`/`passwd` are still caught):
   `/etc/passwd`, `shadow`, `sudoers`, `ld.so.preload`, `sshd_config`, plus persistence
@@ -1293,6 +1358,38 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   `archivos.persistencia`, `archivos.clave-ssh`, `archivos.boot`) se acumulan por separado, así que
   una avalancha en `/boot` no se traga un cambio en `/etc/shadow`. `create` + `close_write` del
   mismo fichero son dos eventos del mismo cambio y la deduplicación de la librería los colapsa.
+
+  **Una actualización de paquetes NO es persistencia, y por eso se desvía entera a un aviso
+  informativo.** Agrupar bajó el volumen pero no arregló el fondo: `pacman -Syu` deja `.pacnew` en
+  `/etc/pam.d`, reinstala units en `/etc/systemd/system`, toca `/etc/passwd` vía sysusers y renueva
+  kernel+initramfs, así que cada actualización disparaba "🚨 Posible persistencia" con `-t 0`
+  hablando de cambios que el propio usuario acababa de autorizar con su contraseña. Dos filtros:
+
+  1. Los **artefactos del gestor** (`*.pacnew`, `*.pacsave`, `*.pacorig`, sus equivalentes
+     `dpkg-*`/`rpm*`) se descartan **siempre**, dentro o fuera de una actualización. Un `.pacnew`
+     es justo la prueba de que pacman **no** tocó tu fichero activo — anunciarlo como persistencia
+     dice lo contrario de lo que significa. Es el fichero de las capturas del usuario
+     (`/etc/pam.d/chpasswd.pacnew`).
+  2. Mientras hay **transacción de paquetes en curso** (`pkg_tx_activa`), `fcrit`/`fpersist`/`fboot`
+     se encolan en `fpkg` → `archivos.actualizacion`, urgencia `low` y autocierre a 15 s: un solo
+     "📦 Actualización del sistema · N archivos" en vez de decenas de críticas. **No se callan del
+     todo a propósito**: si algo tocó `/etc` mientras actualizabas, sigue constando. `~/.ssh/authorized_keys`
+     es la excepción que **nunca** se desvía — ningún paquete la escribe.
+
+  La detección es el **lock** (`/var/lib/pacman/db.lck`), no el proceso: existe exactamente durante
+  la transacción *incluidos los hooks* —que es cuando llegan la mayoría de los eventos— y mirarlo
+  es un `stat` por evento. Para gestores cuyo lock es un fichero permanente con `flock` (dpkg) el
+  `-e` no valdría, así que ahí se cae a un `pgrep -x` limitado a uno cada 2 s. `PKG_GRACIA`=90 s de
+  margen tras soltarse el lock porque `paru`/`yay` lo sueltan y retoman entre la fase de repos y la
+  del AUR, y hay hooks (dkms, mkinitcpio) que escriben justo después; sin margen la avalancha
+  volvía por ese hueco. Eso **es** una ventana ciega de 90 s por operación de paquetes, aceptada a
+  sabiendas: quien puede correr pacman como root no necesita esconder nada en `/etc`.
+
+  Durante la transacción la ventana de agrupación se ensancha (`PKG_CALMA`=30 s / `PKG_TOPE`=900 s)
+  y se restaura al acabar. Sin eso, el tope normal de 20 s partiría una actualización de tres
+  minutos en quince resúmenes. Efecto colateral asumido: la ventana es de todo el bucle, así que la
+  alerta de clave SSH puede llegar hasta 30 s tarde si coincide con una actualización.
+
 - `monitor_smart` — hourly `smartctl -H -A` polling per physical disk (zram/loop/dm-/sr
   excluded); warns once if it can't read SMART (permissions), alerts on `FAILED`/`FAILING_NOW`.
 - `monitor_units` — polls `systemctl --failed` (system *and* user buses) every 120s; the first
@@ -1397,6 +1494,31 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   → un resumen sin botón): el botón es **por fichero**, así que agrupar cuesta el botón, y hasta
   cuatro compensa; descomprimir un juego suelta media docena de archivos enormes de golpe, y eso son
   seis popups con botón que nadie va a pulsar uno por uno.
+
+#### El mismo gate, en los otros cuatro monitores
+
+`pkg_tx_activa` no es solo cosa de `monitor_files`: una actualización hace ruido en casi todos, y
+**solo se silencia lo que una actualización provoca por definición**. Lo que sigue avisando durante
+una actualización: OOM, errores de E/S, MCE/ECC, kernel panic, throttling, sudo/pkexec/SSH. Lo que
+se descarta mientras dura la transacción (+`PKG_GRACIA`):
+
+| Monitor | Evento silenciado | Por qué es ruido |
+|---|---|---|
+| `monitor_kernel` | `gpu.error`, `kernel.modulo-sin-firmar` | reemplazar el `.ko` de nvidia bajo una sesión viva escupe NVRM/`nvidia_drm` *ERROR*; dkms recompilando loguea "loading out-of-tree module" |
+| `monitor_kernel` | `app.crash` (segfault) | cambiarle las `.so` a un proceso vivo lo tumba; se descarta **antes** del cooldown, para no gastarlo en un crash que no se iba a notificar |
+| `monitor_system` | `servicio.fallo-arranque`, coredumps y la tormenta de crashes | las units se reinician con los binarios a medio reemplazar |
+| `monitor_units` | la pasada **entera** | no se filtra el aviso: se salta el barrido sin tocar `_known`, así que una unidad que quede rota se reporta en la pasada siguiente — filtrando solo el aviso se habría sembrado como "preexistente" y no habría avisado nunca |
+
+**La GPU necesita algo más que la ventana de la transacción, y ese es el caso que motivó todo esto.**
+Al actualizar `nvidia`/`linux` los módulos del disco se reemplazan pero el cargado sigue siendo el
+viejo **hasta que reinicias**: a partir de ahí cada acceso a la GPU suelta un `*ERROR*` de
+`nvidia_drm`, horas después de que pacman terminara. `pkg_sesion_desincronizada` lo detecta sin
+preguntarle al gestor de paquetes — `/usr/lib/modules/$(uname -r)` desaparecido (el kernel en
+ejecución ya no está instalado), o `/sys/module/nvidia/version` (en ejecución) ≠ `modinfo -F version
+nvidia` (en disco) — y a partir de ahí calla GPU y módulos hasta el reinicio. Una vez da positivo no
+se vuelve a comprobar: sin reiniciar no puede dejar de ser cierto. **No calla en silencio**: la
+primera vez emite `sistema.reinicio-pendiente` ("🔄 Reinicio pendiente", `normal`, autocierre),
+que es a la vez la explicación del silencio y la acción que lo arregla.
 
 **Config**: every scanned category is gated by a boolean in `~/.config/gigios/security.json`
 (written by `ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`, absent key = enabled). The bash reads it
@@ -1624,12 +1746,10 @@ guardan una foto, cierran sin limpiar y la reponen. Ver `ags/CLAUDE.md` para las
 tiene: qué pasa si el usuario reabre Orion por su cuenta, por qué la ficha del panel derecho solo se
 suelta tras un `ok`, y por qué `externo` **descarta** la foto en vez de olvidarla.
 
-**Cada desinstalación disparará el aviso «🔓 Escalada de privilegios» de `oom-monitor.sh`, y eso es
-correcto.** `pkexec` loguea su `COMMAND=`, que es justo lo que esa rama vigila. **No lo metas en
-`PRIVESC_ALLOW`**: el patrón tendría que ser `*/pacman -Rns*`, o sea una autorización permanente para
-borrar cualquier paquete, y la sección de `oom-monitor.sh` ya avisa de que cada entrada de esa lista
-es un agujero permanente. Un aviso por una escalada que el usuario acaba de autorizar a mano no es
-ruido.
+**Cada desinstalación pasa por pkexec, y `oom-monitor.sh` NO avisa de ello.** `pkexec` loguea su
+`COMMAND=`, y desde que esa rama calla todo pkexec autenticado con contraseña (ver la sección de
+`monitor_system` → `privEsc`), una desinstalación no genera «🔓 Escalada de privilegios»: el usuario
+acaba de autorizarla a mano, así que no hay nada que señalar.
 
 ### Almacenamiento y autolimpieza (`analizar-almacenamiento.sh`, `limpiar-almacenamiento.sh`, `limpieza-arranque.sh` + `system/limpieza/`)
 

@@ -67,39 +67,6 @@ DELAY_UNITS=25      # primera pasada solo siembra: no notifica nada, retrasarla 
 DELAY_SMART=45      # un disco muriéndose lo sigue estando 45 s después
 DELAY_DOWNLOADS=60  # el más caro del script; nada se descarga en el primer minuto de sesión
 
-# ── Escaladas de confianza (allowlist de privEsc) ─────────────────────────────
-# GameMode (Feral) escala por pkexec CADA VEZ que un juego arranca y otra vez
-# cuando termina: cambia el governor de la CPU (cpugovctl), el split_lock
-# (procsysctl) y los relojes de la GPU (gpuclockctl). Son escaladas esperadas y
-# frecuentísimas, así que jugar significaba una lluvia de avisos críticos "🔓
-# Escalada de privilegios" que enseñaban al usuario a ignorar la categoría
-# entera — justo lo contrario de lo que queremos de una alerta de seguridad.
-# Se comparan como GLOB (no regex) contra el COMMAND= que loguea pkexec, que
-# viene con argumentos: "/usr/lib/gamemode/cpugovctl set performance".
-#
-# NO se puede exponer esto en security.json:
-# ags/modulos/ajustes/seguridad/preferencias.ts
-# reconstruye ese JSON desde cero al guardar, así que una clave añadida a mano
-# desaparecería al tocar cualquier switch de la UI. Para añadir excepciones,
-# amplía esta lista. Ojo: cada patrón es un agujero permanente en la vigilancia,
-# porque una ruta *escribible por el usuario* aquí es una escalada silenciosa.
-PRIVESC_ALLOW=(
-    '/usr/lib/gamemode/*'
-    '/usr/libexec/gamemode/*'
-    '/usr/lib/*/gamemode/*'   # multiarch (Debian/Ubuntu)
-)
-
-# ¿El comando de este pkexec es una escalada de confianza?
-privesc_trusted() {
-    local cmd="$1" pat
-    [[ -n "$cmd" ]] || return 1
-    for pat in "${PRIVESC_ALLOW[@]}"; do
-        # shellcheck disable=SC2053  # $pat sin comillas A PROPÓSITO: es un glob.
-        [[ "$cmd" == $pat ]] && return 0
-    done
-    return 1
-}
-
 # Lanzador aislado (contención + análisis) que dispara el botón de la notificación.
 RUN_UNTRUSTED="$HOME/.config/hypr/scripts/run-untrusted.sh"
 # Escaneo a demanda (para archivos grandes que el barrido se salta).
@@ -142,8 +109,8 @@ fi
 # NVRM decenas de veces, un `pacman -Syu` toca decenas de ficheros vigilados y un
 # disco muriéndose escupe errores de E/S por segundo. Una notificación por evento
 # —muchas críticas con `-t 0`, sin autocierre— se despacha cerrándolas en bloque
-# sin leer ninguna, que es exactamente el fallo que la allowlist de privEsc ya
-# arregló para GameMode. La librería acumula por categoría y emite UNA notificación
+# sin leer ninguna, que es el mismo fallo que motivó callar el pkexec autenticado
+# en monitor_system (ver esa sección). La librería acumula por categoría y emite UNA notificación
 # cuando la ráfaga se calma. Ver lib/notif-agrupar.sh para el contrato completo.
 #
 # Cada sub-monitor corre en su propio subshell (`func &`), así que registra SUS
@@ -318,6 +285,31 @@ monitor_kernel() {
     notif_grupo kthrottle cpu.throttling           normal   10000 "🌡️ CPU Throttling"              "avisos de CPU throttling"
     notif_grupo kseg      app.crash                critical 15000 "App crasheada"                  "apps crasheadas"            "Proceso: "
 
+    # ¿Este evento es ruido garantizado de una actualización, y no un fallo? Vale para
+    # GPU y para módulos del kernel, que son los dos que una actualización de drivers
+    # dispara sí o sí: reemplazar el .ko de nvidia bajo una sesión viva produce NVRM
+    # *ERROR* a punta pala, y un dkms recompilando produce "loading out-of-tree module".
+    # Cubre las dos fases, que son distintas y las dos hacen ruido:
+    #   · DURANTE la transacción (pkg_tx_activa).
+    #   · DESPUÉS, hasta que reinicies, si la sesión quedó desincronizada — ahí no se
+    #     calla y ya está: se avisa UNA vez de que hay que reiniciar y de que por eso
+    #     se silencian. Un aviso que explica su propio silencio es honesto; callar sin
+    #     decirlo sería quitarle al usuario la única pista de qué está pasando.
+    # El resto de eventos del kernel (OOM, E/S, MCE, panic) NO pasan por aquí: una
+    # actualización no los provoca, así que si aparecen son de verdad.
+    aviso_reinicio=false
+    _ruido_de_drivers() {
+        pkg_tx_activa && return 0
+        pkg_sesion_desincronizada || return 1
+        if [[ "$aviso_reinicio" == false ]]; then
+            aviso_reinicio=true
+            notificar sistema.reinicio-pendiente -u normal "🔄 Reinicio pendiente" \
+                "Se actualizaron el kernel o los drivers y la sesión sigue con los antiguos. Los errores de GPU y de módulos quedan silenciados hasta que reinicies." \
+                -t 20000
+        fi
+        return 0
+    }
+
     journalctl -kf -n 0 --no-pager 2>/dev/null | while :; do
 
         notif_leer line; rc=$?
@@ -395,14 +387,14 @@ monitor_kernel() {
         elif [[ "$sec_kernelModules" != false ]] && \
              [[ "$lower" == *"tainting kernel"* || "$lower" == *"module verification failed"* || \
                 "$lower" == *"loading out-of-tree module"* || "$lower" == *"unsigned module"* ]]; then
-            notif_encolar kmod "$line"
+            _ruido_de_drivers || notif_encolar kmod "$line"
 
         # --- GPU / NVIDIA error ---
         elif [[ "$sec_gpuError" != false ]] && \
              [[ "$lower" == *"nvrm"* || \
                 ( "$lower" == *"nvidia"* && "$lower" == *"error"* ) || \
                 ( "$lower" == *"gpu"* && "$lower" == *"error"* ) ]]; then
-            notif_encolar kgpu "$line"
+            _ruido_de_drivers || notif_encolar kgpu "$line"
 
         # --- CPU throttling ---
         elif [[ "$sec_cpuThrottling" != false ]] && [[ "$lower" =~ cpu.*throttl ]]; then
@@ -410,6 +402,11 @@ monitor_kernel() {
 
         # --- App crash: segfault ---
         elif [[ "$sec_appCrash" != false ]] && [[ "$lower" == *"segfault"* ]]; then
+            # Una app que revienta mientras actualizas casi siempre es la actualización
+            # cambiándole las .so bajo los pies (el proceso vivo sigue mapeando las
+            # viejas). Se descarta ANTES del cooldown para no gastarlo en un crash que
+            # no se va a notificar y perder así el siguiente, que sí sería real.
+            pkg_tx_activa && continue
             app="desconocida"
             pat_seg='kernel: ([^[]+)\[[0-9]+\]: segfault'
             [[ "$line" =~ $pat_seg ]] && app="${BASH_REMATCH[1]}"
@@ -463,7 +460,11 @@ monitor_system() {
 
         # --- Systemd service failure ---
         if [[ "$sec_serviceFailure" != false ]] && [[ "$lower" == *"failed to start"* ]]; then
-            notif_encolar ssvc "$line"
+            # Una actualización reinicia units con los binarios a medio reemplazar: los
+            # "failed to start" de esos segundos son del proceso de actualización, no
+            # del servicio. Lo que siga roto DESPUÉS lo caza monitor_units, que mira
+            # estado y no flanco — así que esto se descarta, no se pierde.
+            pkg_tx_activa || notif_encolar ssvc "$line"
 
         # --- Sudo auth failure ---
         elif [[ "$sec_sudoAuth" != false ]] && \
@@ -474,11 +475,16 @@ monitor_system() {
         # --- Escalada de privilegios (pkexec / su / polkit) ---
         #     pkexec emite DOS líneas por escalada: la de PAM ("session opened",
         #     que NO dice qué se ejecuta) y la de "Executing command [...]
-        #     [COMMAND=…]". Avisábamos en ambas: doble notificación, y la de PAM
-        #     era además imposible de filtrar por comando. Ahora solo notifica la
-        #     de COMMAND, que es la única informativa. No se pierde ninguna
-        #     escalada: un pkexec DENEGADO no abre sesión PAM pero sí loguea su
-        #     "Not authorized", que esta rama sigue captando.
+        #     [COMMAND=…]". Ninguna de las dos avisa: un pkexec con COMMAND= es una
+        #     escalada que el propio usuario acaba de autorizar metiendo su
+        #     contraseña en el diálogo de polkit — no es una señal de nada
+        #     sospechoso, así que notificarla solo enseña a ignorar la categoría
+        #     (era el mismo ruido que antes motivaba una allowlist ad-hoc para
+        #     GameMode; ahora sobra porque TODA escalada autenticada calla).
+        #     Lo que sigue vigilando esta rama es la escalada que NO pasó por una
+        #     contraseña válida: un pkexec DENEGADO no abre sesión PAM ni loguea
+        #     COMMAND=, pero sí "Not authorized", que esta rama capta; igual que
+        #     los fallos de autenticación de `su` y de polkit.
         elif [[ "$sec_privEsc" != false ]] && \
              [[ "$lower" == *"pkexec"* || \
                 ( "$lower" == *"(su:auth)"* && "$lower" == *"authentication failure"* ) || \
@@ -486,11 +492,8 @@ monitor_system() {
 
             if [[ "$lower" == *"pkexec"* ]]; then
                 [[ "$lower" == *"pam_unix(polkit-1:session)"* ]] && continue
-                pat_pkexec='\[COMMAND=(.*)\]'
-                if [[ "$line" =~ $pat_pkexec ]]; then
-                    # Escalada esperada (GameMode al arrancar/cerrar un juego…) → callar.
-                    privesc_trusted "${BASH_REMATCH[1]}" && continue
-                fi
+                # COMMAND= presente → autenticación correcta, callar.
+                [[ "$line" == *"[COMMAND="* ]] && continue
             fi
 
             notif_encolar spriv "$line"
@@ -509,6 +512,10 @@ monitor_system() {
              [[ "$lower" == *"coredump"* && \
                 ( "$lower" == *"dumped core"* || "$lower" == *"terminated abnormally"* ) ]]; then
             app="desconocida"
+            # Mismo caso que el segfault de monitor_kernel: reemplazar bibliotecas bajo
+            # procesos vivos los tumba en cascada, y esa cascada dispararía además la
+            # "tormenta de crashes" (3 volcados en 60 s) con un crítico sin autocierre.
+            pkg_tx_activa && continue
             pat_core='Process [0-9]+ \(([^)]+)\)'
             [[ "$line" =~ $pat_core ]] && app="${BASH_REMATCH[1]}"
             _now=$(date +%s)
@@ -532,6 +539,95 @@ monitor_system() {
 
         fi
     done
+}
+
+# ── ¿Hay una transacción de paquetes en curso? ────────────────────────────────
+# Una actualización del sistema REESCRIBE medio /etc por diseño: `pacman -Syu` deja
+# `.pacnew` en /etc/pam.d, reinstala units en /etc/systemd/system, toca /etc/passwd
+# vía sysusers y renueva kernel+initramfs en /boot. Eso no es persistencia de un
+# atacante: es el gestor de paquetes haciendo su trabajo, autenticado por el propio
+# usuario segundos antes. Avisarlo como "🚨 Posible persistencia" con `-t 0` durante
+# una actualización larga entierra la pantalla en tarjetas críticas que el usuario
+# aprende a cerrar sin leer — y el día que una SÍ importe, la cerrará igual.
+#
+# Se detecta por el LOCK del gestor, no por el proceso: `/var/lib/pacman/db.lck`
+# existe exactamente mientras dura la transacción (incluidos los hooks post-install,
+# que es cuando llegan la mayoría de los eventos) y comprobarlo es un `stat`, barato
+# de hacer por evento. Para los gestores cuyo lock es un fichero PERMANENTE que se
+# bloquea con flock (dpkg) el `-e` no serviría, así que ahí se cae a un `pgrep`
+# limitado a una vez cada 2 s (esta máquina es Arch/CachyOS; el resto es cortesía).
+#
+# GRACIA posterior: `paru`/`yay` sueltan y retoman el lock entre la fase de repos y
+# la del AUR, y hay hooks (dkms, mkinitcpio disparado aparte) que escriben justo
+# después de liberarlo. Sin margen, ese hueco de segundos volvía a disparar la
+# avalancha. Es una ventana ciega de PKG_GRACIA segundos tras cada operación de
+# paquetes, aceptada a sabiendas: quien puede lanzar pacman como root ya no necesita
+# esconder nada de /etc, y a cambio la alerta vuelve a significar algo.
+PKG_LOCKS=(/var/lib/pacman/db.lck)
+# `pgrep -x` ancla el patrón al NOMBRE completo del proceso (sin -f: la línea de
+# órdenes de un `sudo apt install …` no casaría con un nombre suelto).
+PKG_PROCS='apt|apt-get|aptitude|dpkg|unattended-upgr|dnf|dnf5|zypper|rpm'
+PKG_GRACIA=90       # segundos de margen tras soltarse el lock
+PKG_CALMA=30        # ventana de calma ANCHA mientras dura la actualización (ver monitor_files)
+PKG_TOPE=900        # tope de esa ventana: una actualización larga cabe entera en un resumen
+_pkg_hasta=0        # epoch hasta el que se sigue considerando "en actualización"
+_pkg_pgrep_ts=0     # última vez que se consultó pgrep (limitador de ráfaga)
+_pkg_pgrep_res=1    # último veredicto de pgrep (0 = había gestor corriendo)
+pkg_tx_activa() {
+    local ahora l
+    printf -v ahora '%(%s)T' -1
+    for l in "${PKG_LOCKS[@]}"; do
+        [[ -e "$l" ]] || continue
+        _pkg_hasta=$(( ahora + PKG_GRACIA ))
+        return 0
+    done
+    if (( ahora - _pkg_pgrep_ts >= 2 )); then
+        _pkg_pgrep_ts=$ahora
+        pgrep -x "$PKG_PROCS" >/dev/null 2>&1 && _pkg_pgrep_res=0 || _pkg_pgrep_res=1
+    fi
+    if (( _pkg_pgrep_res == 0 )); then
+        _pkg_hasta=$(( ahora + PKG_GRACIA ))
+        return 0
+    fi
+    (( ahora < _pkg_hasta ))
+}
+
+# ── ¿La sesión corre con drivers distintos a los que hay instalados? ──────────
+# La ventana de la transacción NO basta para la GPU, y por eso hace falta esto: al
+# actualizar `nvidia`/`linux` los .ko del disco se reemplazan pero el módulo cargado
+# sigue siendo el viejo hasta que reinicias. A partir de ahí, cada vez que algo toca
+# la GPU el kernel escupe NVRM/`nvidia_drm` *ERROR* — durante horas, mucho después de
+# que pacman haya terminado. Es exactamente el aviso de la captura del usuario, y no
+# es un fallo de hardware: es una sesión desincronizada que se arregla reiniciando.
+#
+# Dos comprobaciones, las dos baratas y sin depender del gestor de paquetes:
+#   · `/usr/lib/modules/$(uname -r)` desaparecido → el paquete del kernel en ejecución
+#     ya no está instalado (el árbol de módulos se fue con él).
+#   · versión de nvidia EN EJECUCIÓN (`/sys/module/nvidia/version`) distinta de la del
+#     .ko EN DISCO (`modinfo -F version nvidia`).
+# Sin nvidia cargado (AMD/Intel) la segunda no aplica y no inventa un desajuste.
+#
+# Una vez detectado, NO se vuelve a mirar: sin reiniciar no puede dejar de ser cierto,
+# y así el caso caro (dos forks) se paga como mucho una vez por minuto y solo hasta
+# que da positivo.
+PKG_DESYNC_TTL=60
+_pkg_desync=-1      # -1 = sin calcular, 0 = desincronizada, 1 = al día
+_pkg_desync_ts=0
+pkg_sesion_desincronizada() {
+    local ahora ejecutando disco
+    (( _pkg_desync == 0 )) && return 0
+    printf -v ahora '%(%s)T' -1
+    if (( _pkg_desync == -1 || ahora - _pkg_desync_ts >= PKG_DESYNC_TTL )); then
+        _pkg_desync_ts=$ahora
+        _pkg_desync=1
+        [[ -d "/usr/lib/modules/$(uname -r)" ]] || _pkg_desync=0
+        if (( _pkg_desync == 1 )) && [[ -r /sys/module/nvidia/version ]]; then
+            ejecutando=$(</sys/module/nvidia/version)
+            disco=$(modinfo -F version nvidia 2>/dev/null)
+            [[ -n "$disco" && "$disco" != "$ejecutando" ]] && _pkg_desync=0
+        fi
+    fi
+    (( _pkg_desync == 0 ))
 }
 
 # ── File integrity monitor ────────────────────────────────────────────────────
@@ -576,9 +672,36 @@ monitor_files() {
     notif_grupo fpersist archivos.persistencia       critical 0     "🚨 Posible persistencia"            "cambios de posible persistencia" "Nuevo/modificado: "
     notif_grupo fssh     archivos.clave-ssh          critical 0     "🔑 Clave SSH autorizada modificada" "cambios en claves SSH autorizadas" "Archivo: "
     notif_grupo fboot    archivos.boot               normal   15000 "🥾 Cambio en /boot"                 "cambios en /boot"                "Archivo: " " (kernel/initramfs)"
+    # Durante una actualización de paquetes los tres grupos de arriba se desvían a
+    # este, que es informativo y se autocierra (ver pkg_tx_activa). No se callan del
+    # todo a propósito: si algo tocó /etc mientras actualizabas, sigue constando.
+    notif_grupo fpkg     archivos.actualizacion      low      15000 "📦 Actualización del sistema"       "archivos de sistema actualizados" "Archivo: "
     # Un cambio = create + close_write: la misma ruta dos veces es UN cambio, no dos.
     notif_grupo_unico fcrit; notif_grupo_unico fpersist
     notif_grupo_unico fssh;  notif_grupo_unico fboot
+    notif_grupo_unico fpkg
+
+    # Ventana de agrupación: la normal, y la ANCHA que se usa mientras dura una
+    # actualización. Con la normal (calma 4 s / tope 20 s) un `pacman -Syu` de tres
+    # minutos escupiría un resumen cada 20 s — quince tarjetas en vez de una. Con la
+    # ancha sale UNA al terminar, ~30 s después del último fichero tocado. Ojo al
+    # efecto colateral: la ventana es de TODAS las categorías de este bucle, así que
+    # un cambio en `authorized_keys` justo mientras actualizas —lo único que NO se
+    # desvía a fpkg— avisa hasta PKG_CALMA segundos tarde. Se acepta: llega igual, y
+    # el aviso sirve para enterarse, no para interrumpir el ataque en curso.
+    local calma_base=$NOTIF_CALMA tope_base=$NOTIF_TOPE en_tx=false
+    # Nested a propósito: ve `en_tx`/`calma_base` por ámbito dinámico, igual que
+    # _dl_sweep en monitor_downloads.
+    _ventana_paquetes() {
+        if pkg_tx_activa; then
+            [[ "$en_tx" == true ]] && return 0
+            en_tx=true;  NOTIF_CALMA=$PKG_CALMA;  NOTIF_TOPE=$PKG_TOPE
+        else
+            [[ "$en_tx" == false ]] && return 0
+            en_tx=false; NOTIF_CALMA=$calma_base; NOTIF_TOPE=$tope_base
+        fi
+        return 0
+    }
 
     local path rc
     inotifywait -m -e close_write,moved_to,create --format '%w%f' \
@@ -588,8 +711,35 @@ monitor_files() {
         if (( rc != 0 )); then
             notif_volcar
             (( rc == 2 )) || break   # 1 = se acabó el stream de inotifywait
+            _ventana_paquetes        # volcado hecho: si la actualización acabó, ventana normal
             continue
         fi
+
+        # Artefactos del gestor de paquetes: NUNCA son el evento. Un `.pacnew` es un
+        # fichero de referencia que pacman deja al lado del tuyo justamente para NO
+        # tocar el activo — avisar de él como "posible persistencia" es exactamente
+        # al revés de lo que significa. Se descartan pase lo que pase (llegan también
+        # fuera de la ventana de la transacción, p. ej. al hacer `pacdiff` después).
+        case "$path" in
+            *.pacnew|*.pacsave|*.pacorig|*.pacsave.[0-9]|\
+            *.dpkg-new|*.dpkg-dist|*.dpkg-old|*.dpkg-tmp|\
+            *.rpmnew|*.rpmsave|*.rpmorig|*~)
+                continue ;;
+        esac
+
+        _ventana_paquetes
+        if [[ "$en_tx" == true ]]; then
+            case "$path" in
+                # Las claves SSH del usuario NO las escribe ningún paquete: si cambian
+                # en mitad de una actualización, sigue siendo la alerta crítica de
+                # siempre. Todo lo demás (/etc, /boot, units) es el gestor trabajando.
+                "$HOME"/.ssh/authorized_keys|"$HOME"/.ssh/authorized_keys2)
+                    notif_encolar fssh "$path"; continue ;;
+                *)
+                    notif_encolar fpkg "$path"; continue ;;
+            esac
+        fi
+
         case "$path" in
             /etc/passwd|/etc/shadow|/etc/group|/etc/gshadow|/etc/hosts|/etc/sudoers|/etc/ld.so.preload|/etc/ssh/sshd_config)
                 notif_encolar fcrit "$path" ;;
@@ -684,6 +834,16 @@ monitor_units() {
         # notificaría NUNCA. La siembra son 4 forks una sola vez: congelarla no
         # ahorra nada y cuesta avisos.
         [[ "$seeded" == true ]] && gaming_gate_wait units
+
+        # Durante una actualización las units caen y se levantan sin parar. Se SALTA la
+        # pasada entera en vez de filtrar el aviso, y la diferencia importa: al no tocar
+        # `_known`, una unidad que quede rota no se siembra como "ya conocida" y la
+        # siguiente pasada —ya con la actualización terminada— la reporta como nueva.
+        # Filtrar solo el aviso la habría enterrado para siempre.
+        if pkg_tx_activa; then
+            sleep 120
+            continue
+        fi
 
         current=""
         for scope in system user; do
