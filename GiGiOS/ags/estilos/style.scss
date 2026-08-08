@@ -1572,7 +1572,8 @@ window.qs-window > box,
   // pone el contenido interno. overflow hidden en el box recorta la imagen al radio.
   padding: 0;
   margin-top: 10px;
-  min-height: 94px;
+  // A la par que `CARD_H` en QuickSettings.tsx, ver el comentario de allí.
+  min-height: 108px;
 
   .qs-media-art {
     font-family: $font-icon;
@@ -1657,6 +1658,35 @@ window.qs-window > box,
     color: rgba(255, 255, 255, 0.72);
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.9);
     margin-top: -3px;
+  }
+
+  // Título + artista van en una caja con `valign: center` dentro del hueco que deja
+  // `vexpand`, así que un margen inferior los sube LA MITAD de su valor: estos 10 px
+  // son los 5 que se apartan de las ondas. Subirlos con un margen negativo en el
+  // título no serviría — encoge la caja y el centrado devuelve el bloque a su sitio.
+  .qs-media-meta {
+    margin-bottom: 10px;
+  }
+
+  // Barra, ondas, botones y tiempos bajan juntos: son un solo bloque y lo que se
+  // busca es aire entre ellos y el texto, no separarlos entre sí.
+  .qs-media-footer {
+    margin-top: 3px;
+  }
+
+  // El DrawingArea del progreso pinta la barra (4 px, abajo) MÁS las dos ondas que
+  // salen de ella hacia arriba, así que pide 20 px de alto. El margen superior
+  // negativo devuelve 16 de esos px al layout: la tarjeta mide 94 px justos y
+  // crecer aquí la desbordaría. Las ondas quedan por encima del hueco que ya hay
+  // entre el artista y la barra; el `overflow: hidden` de `.qs-media` recorta si
+  // algún día se pasan. Mismo truco (y mismo salto del clamp ≥0 de la propiedad
+  // margin de GtkWidget) que `.qs-media-bleed`, ver QuickSettings.tsx.
+  .qs-media-progress-ondas {
+    margin-top: -16px;
+    // El lienzo pide 5 px de más por abajo para la mitad inferior del tirador de
+    // arrastre (`PROGRESO_HOLGURA` en QuickSettings.tsx); se devuelven aquí para que
+    // el pie de la tarjeta no se desplace, igual que el margen negativo de arriba.
+    margin-bottom: -5px;
   }
 
   progressbar.qs-media-progress {

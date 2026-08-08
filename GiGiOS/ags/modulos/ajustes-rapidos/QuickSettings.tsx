@@ -30,7 +30,7 @@ import {
 } from "../../estado/shell"
 import { applyBrightness, brightnessSupported } from "../../servicios/pantalla/brightness"
 import { gamemodeAvailable, gamemodeActive, toggleGamemode } from "../../servicios/energia/gamemode"
-import { forcePowerSave, setForcePowerSave } from "../../servicios/energia/powerState"
+import { forcePowerSave, setForcePowerSave, powerSaveActive } from "../../servicios/energia/powerState"
 import { GLIFO_JUEGO as GAME_GLYPH } from "../../servicios/juegos/iconos"
 import { clipWindowInputToContent } from "../../utilidades/inputRegion"
 import * as Spotify from "../../servicios/spotify/SpotifyService"
@@ -1374,6 +1374,21 @@ function oneUiFgTone(rgb: [number, number, number]): [number, number, number] {
   return hslToRgb([h, sat, 0.55])
 }
 
+// Tono COMPAÑERO de las ondas: sale de la misma semilla que el resto de la tarjeta,
+// pero con reglas propias, para que las dos ondas no sean el mismo color repetido a
+// distinto alfa. Tres diferencias respecto a `oneUiFgTone`, y las tres importan:
+// gira el hue ~27° (análogo — un giro mayor se pelea con la carátula, del que sale
+// el color), sube algo la saturación y sobre todo lo **aclara** (0.68 frente a 0.55).
+// La luminosidad es lo que de verdad separa las dos ondas cuando la carátula es
+// monocroma y el giro de hue no se aprecia: ahí la diferencia de color no existiría
+// y seguirían distinguiéndose por claridad.
+function oneUiOndaTone(rgb: [number, number, number]): [number, number, number] {
+  const [h, s] = rgbToHsl(rgb)
+  const hue = (h + 0.075) % 1
+  const sat = Math.min(0.46, s * 0.55 + 0.16)
+  return hslToRgb([hue, sat, 0.68])
+}
+
 function cssRgbToTuple(rgb: string): [number, number, number] {
   const values = rgb.match(/\d+/g)?.map(Number)
   if (!values || values.length < 3) return hexToRgb(ACENTO_MEDIA_PREDETERMINADO)
@@ -1568,10 +1583,34 @@ function QsMedia() {
   const temporizadoresTransitorios = new Set<number>()
   let duracionActual: number | null = null
 
+  // ── Arrastre de la cabeza de reproducción ───────────────────────────────────
+  // `puedeBuscar` se refresca en cada sondeo desde `can_seek`; sin él el tirador
+  // se ofrecería también en fuentes que no admiten Seek (radios, streams en vivo).
+  // Se trata `undefined` como "sí": hay reproductores que no publican la propiedad
+  // y sí obedecen SetPosition, y esconder el tirador ahí sería peor que intentarlo.
+  let puedeBuscar = false
+  let arrastrando = false
+  // `progressArea` se construye más abajo (con el resto del lienzo de ondas) y
+  // `update()` ya ha corrido para entonces: la petición de repintado va por esta
+  // indirección para no leer la constante antes de su inicialización.
+  let repintarProgreso: () => void = () => {}
+  let fraccionArrastre = 0
+  let hoverProgreso = false
+  // Tras un Seek el reproductor tarda en publicar la nueva posición (hasta el
+  // siguiente tick de 1 s). Sin esta gracia el sondeo devolvía la posición VIEJA y
+  // la barra saltaba hacia atrás un instante antes de aterrizar donde se soltó.
+  let posicionBuscada: number | null = null
+  let buscadaHastaUs = 0
+  const SEEK_GRACIA_US = 1_500_000
+  const SEEK_TOLERANCIA_S = 1.5
+
   /** Actualiza solo los datos que avanzan con el tiempo; es la única ruta sondeada. */
   const actualizarPosicion = () => {
     const p = currentP
     if (!p || duracionActual === null) {
+      if (puedeBuscar) { puedeBuscar = false; repintarProgreso() }
+      arrastrando = false
+      posicionBuscada = null
       setHasProgress(false)
       setProg(0)
       setPositionLabel("")
@@ -1579,11 +1618,35 @@ function QsMedia() {
       return
     }
 
+    const buscableAhora = p.can_seek !== false
+    if (buscableAhora !== puedeBuscar) { puedeBuscar = buscableAhora; repintarProgreso() }
+
+    // Mientras el dedo está en la barra la fuente de verdad es el gesto, no el
+    // reproductor: dejar entrar el sondeo aquí haría vibrar el tirador bajo el ratón.
+    if (arrastrando) return
+
     const posicion = safeMediaPosition(p.position, duracionActual)
+    if (posicionBuscada !== null) {
+      const llego = Math.abs(posicion - posicionBuscada) <= SEEK_TOLERANCIA_S
+      if (llego || GLib.get_monotonic_time() > buscadaHastaUs) posicionBuscada = null
+      else return
+    }
     setHasProgress(true)
     setProg(posicion / duracionActual)
     setPositionLabel(formatMediaTime(posicion))
     setDurationLabel(formatMediaTime(duracionActual))
+  }
+
+  /** Lleva la reproducción a `fraccion` (0..1) de la pista. */
+  const buscarEnPista = (fraccion: number) => {
+    const p = currentP
+    if (!p || duracionActual === null || duracionActual <= 0) return
+    const destino = Math.max(0, Math.min(duracionActual, fraccion * duracionActual))
+    try { p.position = destino } catch (_) { return }
+    posicionBuscada = destino
+    buscadaHastaUs = GLib.get_monotonic_time() + SEEK_GRACIA_US
+    setProg(destino / duracionActual)
+    setPositionLabel(formatMediaTime(destino))
   }
 
   /** Recalcula la duración únicamente cuando cambia el estado MPRIS o el jugador. */
@@ -1830,7 +1893,12 @@ function QsMedia() {
   // Un ScrolledWindow con propagate_natural_height=false + min/max_content_height
   // CORTA la altura del fondo pase lo que pase con la imagen. Es el hijo principal
   // del Overlay; así el Overlay no puede crecer más que la tarjeta.
-  const CARD_H = 94
+  // 94 hasta que las ondas pidieron aire: el bloque de metadatos subió 5 px y el pie
+  // (barra, ondas, botones y tiempos) bajó 3, y la tarjeta NO tenía holgura — medido
+  // con `grim`, el contenido ocupaba los 94 justos, así que crece con ellos. Tiene
+  // que ir a la par que el `min-height` de `.qs-media` en style.scss: aquí es el
+  // alto que se pide al contenido y a los DrawingArea del fondo (filtro y scrim).
+  const CARD_H = 108
   // 70% del ancho útil: (panel 330 - padding panel 20 - padding media 28) × 0.7.
   const MEDIA_SOURCE_MAX_W = 197
   const MEDIA_SOURCE_MAX_CHARS = 32
@@ -1927,13 +1995,220 @@ function QsMedia() {
   const cancelarScrimCaratula = cover.subscribe(queueCoverScrim)
   const cancelarScrimAnuncio = isAdState.subscribe(queueCoverScrim)
 
+  // La barra de progreso ocupa los 4 px de abajo; el resto del área lo llenan dos
+  // ondas viajeras que salen de ella hacia arriba, dentro del tramo ya reproducido.
+  // El alto pedido (20) NO lo paga el layout: `.qs-media-progress-ondas` lo devuelve
+  // con un margen superior negativo (ver style.scss).
+  const PROGRESO_ALTO = 20
+  const PROGRESO_BARRA = 4
+  // El tirador de arrastre es un círculo CENTRADO en la barra: su mitad inferior
+  // cae por debajo de los 4 px de la barra, que antes era el borde del lienzo — ahí
+  // GTK lo recortaba y se veía medio círculo plano. Se pide esa holgura extra de
+  // alto y `.qs-media-progress-ondas` la devuelve con un margen inferior negativo
+  // (igual que ya hacía arriba con las ondas), así el layout de la tarjeta no cambia.
+  const TIRADOR_R = 5.5
+  const TIRADOR_R_ACTIVO = 6.5
+  const PROGRESO_HOLGURA = Math.ceil(TIRADOR_R_ACTIVO - PROGRESO_BARRA / 2)
+  // Las ondas NACEN EN LA BARRA, no unos píxeles por encima: el medio píxel de
+  // solape con su borde superior evita que el antialiasing deje una línea de aire
+  // entre el relleno y la barra.
+  const ONDA_SOLAPE = 0.5
+  // `velocidad` es px/s **hacia la derecha**: las dos ondas viajan en el MISMO
+  // sentido, naciendo al principio de la barra y avanzando hasta la cabeza de
+  // reproducción (el envolvente de entrada y el de salida son lo que hace visible
+  // ese nacer y morir). Van en el orden en que se pintan: primero la de detrás
+  // —más rápida y de onda más corta— y encima la de delante, más lenta y algo más
+  // alta. La diferencia de velocidad es lo que hace que la trasera **alcance** a
+  // la delantera: unas veces asoma por encima de su cresta y otras queda dentro de
+  // su relleno, que es justo el efecto pedido. Con la misma velocidad no se
+  // adelantarían nunca y se leerían como una sola onda gruesa.
+  // La amplitud está topada por la línea del ARTISTA, que queda justo encima: la
+  // cresta llega a `amplitud` px sobre la barra y a partir de ~13,5 cruza el texto —
+  // medido con `grim` sobre la tarjeta.
+  //
+  // **Cada onda es un tren de PULSOS SUELTOS, no una senoidal continua.** Esto es una
+  // corrección, y la razón por la que no basta con alargar la onda: una senoidal
+  // llena la barra de crestas pegadas *por definición* — al estirarla salen menos
+  // lomos, pero siguen siendo uno tras otro sin un hueco donde descansar la vista, y
+  // eso es lo que satura. Aquí cada pulso es una campana de Gauss de anchura `ancho`,
+  // y entre el final de uno y el principio del siguiente se deja `hueco` px de barra
+  // **plana, onda a 0**: se ven dos o tres ondas con aire entre ellas, no un tren.
+  //
+  // Los dos parámetros son independientes y conviene no confundirlos, que ha costado
+  // un par de vueltas: `ancho` es lo que ocupa cada onda (su ancho visible son
+  // `ONDA_ANCHO_VISIBLE` sigmas) y `hueco` es el margen vacío entre una y la
+  // siguiente. Cada cuánto se crea una — el `espaciado` de antes — ya no se escribe a
+  // mano: **sale de sumar los dos**, así que tocar `ancho` no descuadra el margen.
+  //
+  // La vida ya no sale de batir dos senos (ver `alturaPulso`): **cada pulso nace con
+  // su propia altura** y la conserva mientras viaja, así que unos pasan altos y otros
+  // bajos. Es lo mismo que se buscaba con el batido, pero por pulso y sin que la
+  // altura cambie bajo los pies del que ya está en pantalla.
+  const ONDAS = [
+    {
+      // Va DETRÁS pero con el trazo MÁS marcado que la grande, no al revés: si la de
+      // delante es la opaca, la trasera se pierde bajo su relleno justo cuando la
+      // adelanta, que es el momento que da sentido a que sean dos. Los dos alfas son
+      // ALTOS (0,95 y 0,80): con 0,62 y 0,45 el trazo se diluía sobre la carátula y
+      // apenas se veía la onda — el orden entre ellos es lo que importa, no que sean
+      // discretos.
+      // Su altura es CASI la de la grande (11,5 frente a 13), no la mitad: con una
+      // claramente menor deja de leerse como otra onda y parece el eco de la otra.
+      // Lo que las distingue es el ritmo, la velocidad y el TONO — esta usa el
+      // compañero (`oneUiOndaTone`) y la de delante el mismo acento que la barra.
+      amplitud: 11.5, alfa: 0.95, grosor: 1.1, tono: "companero" as const,
+      ancho: 9, hueco: 30, velocidad: 20, semilla: 7,
+    },
+    {
+      // Los dos ritmos resultantes son PARECIDOS (78 y 66 px entre pulsos) y las dos
+      // `velocidad` casi iguales (20 y 16), y las dos cosas son deliberadas: así los
+      // pulsos de una y otra nacen más o menos a la par al principio de la barra y
+      // solo se van separando conforme avanzan. Con ritmos muy distintos (84/110 y
+      // 30/15, que es como estuvo) cada onda iba a su aire y se leían como dos cosas
+      // sin relación. La diferencia que queda es la que interesa: la pequeña emite
+      // antes, así que **cambia de altura más a menudo** que la grande, y la ligera
+      // diferencia de velocidad hace que se alcancen y se crucen despacio.
+      amplitud: 13.0, alfa: 0.80, grosor: 1.4, tono: "acento" as const,
+      ancho: 11, hueco: 34, velocidad: 16, semilla: 31,
+    },
+  ]
+  // Ancho visible de un pulso en sigmas: más allá de dos sigmas a cada lado la
+  // campana ya no se distingue de la barra, así que es lo que cuenta como "ocupado"
+  // al repartir el hueco.
+  const ONDA_ANCHO_VISIBLE = 4
+  // **Cada pulso varía en ALTURA Y EN ANCHO, no solo en altura.** Con el ancho fijo,
+  // dos pulsos de altura parecida salían calcados y el tramo se leía repetitivo — y
+  // eso se nota sobre todo cuando la barra dibujada es corta (al principio de la
+  // pista, o en una canción larga), porque ahí caben pocos y cada uno tiene que
+  // aguantar la mirada él solo. La variación ENTRE pulsos es POCA pero perceptible:
+  // la base va del 82 % al 100 % de `amplitud` y `ancho` del 92 % al 122 % del suyo.
+  // Lo que sí recorre todo el rango es el latido de cada uno en el tiempo, ver
+  // `alturaPulso`.
+  //
+  // Los dos SUELOS son altos, y ese es el ajuste que costó encontrar: con rangos
+  // amplios (0,42 de altura, 0,65 de ancho) el extremo bajo no aportaba variedad,
+  // solo estorbaba — salían agujas y pulsos aplastados que no se leen como una onda,
+  // y el conjunto parecía irregular en vez de vivo. Si hay que retocar esto, muévete
+  // en el suelo; el techo apenas cambia nada.
+  //
+  // El ancho máximo lo topa el `hueco`, que con 1,22× sigue dejando barra plana entre
+  // pulsos.
+  const ONDA_PULSO_BASE_MIN = 0.82
+  const ONDA_PULSO_ANCHO_MIN = 0.92
+  const ONDA_PULSO_ANCHO_MAX = 1.22
+  // Duración del ciclo de cada pulso, en segundos: un bajón más el descanso que le
+  // sigue. Sorteado por pulso, ver `alturaPulso`. **El rango es ANCHO a propósito.**
+  // Con 2,8-4,6 las fases ya salían descorrelacionadas (medido: correlación entre
+  // pulsos vecinos −0,10), pero todos se movían casi a la misma velocidad —entre el
+  // más rápido y el más lento había un factor 1,5— y eso el ojo lo lee como que suben
+  // y bajan a la vez. Aquí el factor real es 2,3.
+  //
+  // Y son ciclos LARGOS —de 6 a 14 s— porque esto es una onda, no un indicador: todo
+  // movimiento tiene que resultar lento y progresivo. Con 2,4-6,0 s el bajón más
+  // breve duraba 0,67 s de ida y vuelta, o sea que la altura cambiaba a **4,5 alturas
+  // por segundo** en su punto más rápido y se veía como un tirón. Con estos valores
+  // el bajón más breve dura 2,7 s y el pico baja a 0,99 alturas/s.
+  const ONDA_CICLO_MIN = 6.0
+  const ONDA_CICLO_MAX = 14.0
+  // Parte del ciclo ocupada por el bajón. El resto (25-55 %) es descanso arriba, y
+  // ese descanso es el "margen" entre un movimiento y el siguiente: al sortearse por
+  // pulso, los bajones no se encadenan a intervalos regulares.
+  const ONDA_BAJON_MIN = 0.45
+  const ONDA_BAJON_MAX = 0.75
+  // Profundidad del bajón: hasta dónde cae respecto de su altura de reposo. Se quedó
+  // en 0,85 y no más: la profundidad es la otra mitad de lo brusco que se ve el
+  // movimiento —cuanto más hondo, más recorrido en el mismo tiempo—, y bajar hasta un
+  // hilo de onda solo salía suave con ciclos aún más largos.
+  const ONDA_BAJON_FONDO_MIN = 0.55
+  const ONDA_BAJON_FONDO_MAX = 0.85
+  // Ruido determinista por índice de pulso (el mismo truco que `OndaSpotify`): sin
+  // estado y sin acumular nada entre frames. Lo que fija es la IDENTIDAD del pulso k
+  // —su ancho, su ritmo y su fase—, que no cambia mientras cruza la barra.
+  // Las constantes son las del hash clásico de GLSL y **no son intercambiables**: con
+  // las que había (127.1 / 311.7) el reparto para índices consecutivos sale sesgado
+  // —11 de 24 valores caían en el cuartil alto y solo 1 en el segundo—, así que los
+  // periodos se agolpaban todos en la parte lenta del rango. Con estas el reparto es
+  // 4/5/9/6 por cuartil. Si se tocan, hay que volver a medirlo.
+  const ruidoPulso = (indice: number): number => {
+    const seno = Math.sin(indice * 12.9898 + 78.233) * 43758.5453
+    return seno - Math.floor(seno)
+  }
+  // **El pulso NO respira sin parar: descansa arriba y de vez en cuando pega un
+  // bajón.** Antes era un seno continuo entre casi 0 y el 100 %, y tenía dos defectos
+  // medidos sobre 1.200 muestras: pasaba **más tiempo abajo que arriba** (38 % por
+  // encima del 70 % de su altura frente a un 35 % por debajo del 30 %), y como un
+  // seno no tiene descansos, los movimientos iban encadenados uno tras otro sin
+  // respiro. El modelo de bajones da 75 % arriba / 11 % abajo.
+  //
+  // Tres factores, cada uno sorteado del índice del pulso y fijo de por vida:
+  //
+  // 1. **Base** — su altura en reposo, donde pasa la mayor parte del tiempo. Varía
+  //    POCO entre pulsos (82 %–100 %): se parecen entre sí, que es lo que se buscaba.
+  // 2. **Ciclo y fase** — cada cuánto le toca bajar y en qué momento arranca.
+  // 3. **Bajón** — qué parte del ciclo dura el movimiento (`ONDA_BAJON_*`) y hasta
+  //    dónde cae (`ONDA_BAJON_FONDO_*`). Lo que queda del ciclo es descanso arriba, y
+  //    **ese descanso es el margen aleatorio entre un movimiento y el siguiente**.
+  //
+  // El movimiento en sí es un coseno completo (baja y vuelve, sin esquinas); lo
+  // aleatorio son solo los cuatro sorteos, nunca el valor de un frame.
+  const alturaPulso = (indice: number, tiempo: number): number => {
+    const base = ONDA_PULSO_BASE_MIN + (1 - ONDA_PULSO_BASE_MIN) * ruidoPulso(indice + 4091)
+    const ciclo = ONDA_CICLO_MIN + (ONDA_CICLO_MAX - ONDA_CICLO_MIN) * ruidoPulso(indice)
+    const duracion = ONDA_BAJON_MIN + (ONDA_BAJON_MAX - ONDA_BAJON_MIN) * ruidoPulso(indice + 3571)
+    const fondo = ONDA_BAJON_FONDO_MIN
+      + (ONDA_BAJON_FONDO_MAX - ONDA_BAJON_FONDO_MIN) * ruidoPulso(indice + 6151)
+    const avance = (tiempo / ciclo + ruidoPulso(indice + 2027)) % 1
+    if (avance >= duracion) return base
+    return base * (1 - fondo * (0.5 - 0.5 * Math.cos((2 * Math.PI * avance) / duracion)))
+  }
+  // El desplazamiento del índice descorrelaciona las dos tiradas: sin él, el pulso
+  // más alto sería siempre además el más ancho y la variación se notaría la mitad.
+  const anchoPulso = (indice: number): number =>
+    ONDA_PULSO_ANCHO_MIN + (ONDA_PULSO_ANCHO_MAX - ONDA_PULSO_ANCHO_MIN) * ruidoPulso(indice + 1013)
+  // El relleno bajo la curva lleva **el mismo alfa y la misma rampa** en las dos
+  // ondas (referida a la cresta de la MÁS ALTA, no a la de cada una); lo único que
+  // cambia entre ellas es el COLOR, ver `tono`. Con un alfa por onda, la pequeña se
+  // leía como "sin fondo" al lado de la grande; y con la rampa referida a la amplitud
+  // propia, dos puntos a la misma altura salían de distinta intensidad, que es la
+  // otra mitad de lo mismo. Al ser semitransparente, el relleno de la onda de detrás
+  // se ve a través del de delante y los dos se mezclan donde se cruzan — con dos
+  // tonos distintos ese cruce ya no es solo más opaco, es otro color.
+  const ONDA_RELLENO = 0.75
+  const ONDA_RELLENO_ALTO = Math.max(...ONDAS.map((onda) => onda.amplitud))
+  // Medio trazo del más grueso: es lo que sobresale de la ruta al dibujarla, y lo
+  // que hay que descontar del lienzo para que la cresta no toque el borde.
+  const ONDA_MARGEN_TRAZO = Math.max(...ONDAS.map((onda) => onda.grosor)) / 2
+  // Tramo en el que la onda entra y se apaga. Va MUY sobrado en la salida (38 px, no
+  // los 12 de antes) porque la onda tiene que **desaparecer** acercándose a la cabeza
+  // de reproducción, no acabarse: con un tramo corto la amplitud se desploma en un
+  // palmo y el ojo lo lee igual que un corte. Actúan sobre la amplitud y también
+  // sobre el alfa del trazo (ver el degradado longitudinal más abajo).
+  const ONDA_ENTRADA = 30
+  const ONDA_SALIDA = 38
+  const ONDA_PASO = 2
+  const ONDA_FPS = 30
+  const ONDA_FPS_AHORRO = 20
+
+  let tiempoOndas = 0
+  // 0 = ondas planas, 1 = amplitud completa. Se cruza en vez de conmutarse para que
+  // pausar no dé un salto.
+  let energiaOndas = 0
+  let ultimoFrameOndas = 0
+  let acumuladoOndas = 0
+  let idTickOndas: number | null = null
+
+  const suave = (t: number) => {
+    const v = Math.min(1, Math.max(0, t))
+    return v * v * (3 - 2 * v)
+  }
+
   const progressArea = new Gtk.DrawingArea()
-  progressArea.set_can_target(false)
   progressArea.set_hexpand(true)
   progressArea.set_content_width(1)
-  progressArea.set_content_height(4)
+  progressArea.set_content_height(PROGRESO_ALTO + PROGRESO_HOLGURA)
+  progressArea.add_css_class("qs-media-progress-ondas")
   progressArea.set_draw_func((_area, cr, width, height) => {
-    const barHeight = 4
+    const barHeight = PROGRESO_BARRA
     const radius = Math.min(barHeight / 2, 3)
     const drawRoundRect = (x: number, y: number, w: number, h: number) => {
       const r = Math.min(radius, w / 2, h / 2)
@@ -1945,21 +2220,247 @@ function QsMedia() {
       cr.closePath()
     }
 
-    const y = Math.max(0, (height - barHeight) / 2)
+    // La barra se ancla ABAJO —lo que hay por encima es el lienzo de las ondas, y
+    // centrarla las dejaría sin sitio— pero por debajo se reserva `PROGRESO_HOLGURA`
+    // para la mitad inferior del tirador.
+    const y = Math.max(0, height - barHeight - PROGRESO_HOLGURA)
     drawRoundRect(0, y, width, barHeight)
     cr.setSourceRGBA(0, 0, 0, 0.42)
     cr.fill()
 
-    const fillW = Math.max(0, Math.min(width, width * prog.get()))
-    if (fillW <= 0) return
-    const [r, g, b] = oneUiFgTone(cssRgbToTuple(coverAccent.get()))
+    // Los dos tonos salen de la MISMA semilla (el acento de la carátula) por reglas
+    // distintas; ver `oneUiOndaTone`. La barra usa siempre el de acento.
+    const semilla = cssRgbToTuple(coverAccent.get())
+    const tonos = { acento: oneUiFgTone(semilla), companero: oneUiOndaTone(semilla) }
+    const [r, g, b] = tonos.acento
+
+    // El tirador se pinta SIEMPRE al final, encima de las ondas, y por eso vive en
+    // una función: el cuerpo de abajo tiene varias salidas tempranas (sin relleno,
+    // sin energía de ondas) y en todas debe seguir viéndose la cabeza.
+    const pintarTirador = () => {
+      if (!puedeBuscar) return
+      const radio = arrastrando || hoverProgreso ? TIRADOR_R_ACTIVO : TIRADOR_R
+      // Centro acotado a los bordes: en 0 % y en 100 % el círculo quedaría medio
+      // fuera del lienzo y GTK lo recortaría en plano.
+      const cx = Math.max(radio, Math.min(width - radio, fillW))
+      const cy = y + barHeight / 2
+      cr.newPath()
+      cr.arc(cx, cy, radio, 0, 2 * Math.PI)
+      cr.setSourceRGBA(0, 0, 0, 0.35)
+      cr.fill()
+      cr.newPath()
+      cr.arc(cx, cy, radio - 1.5, 0, 2 * Math.PI)
+      cr.setSourceRGBA(r / 255, g / 255, b / 255, 1)
+      cr.fill()
+    }
+
+    const fraccion = arrastrando ? fraccionArrastre : prog.get()
+    const fillW = Math.max(0, Math.min(width, width * fraccion))
+    if (fillW <= 0) { pintarTirador(); return }
     drawRoundRect(0, y, fillW, barHeight)
     cr.setSourceRGBA(r / 255, g / 255, b / 255, 1)
     cr.fill()
+
+    if (energiaOndas < 0.004) { pintarTirador(); return }
+    const base = y + ONDA_SOLAPE
+    cr.setLineCap(cairo.LineCap.ROUND)
+    cr.setLineJoin(cairo.LineJoin.ROUND)
+    // Techo real del lienzo: por encima de `y = 0` está el borde del DrawingArea y
+    // ahí GTK recorta el dibujo. Subir `amplitud` más allá de esto NO hace la onda
+    // más alta — la deja **cortada en plano**, que es el síntoma con el que se
+    // descubrió. Se reduce la amplitud para que quepa en vez de dejar que la corte el
+    // borde; con los valores actuales (cresta 13 px de 16 disponibles) no actúa.
+    const amplitudMaxima = Math.max(0, base - ONDA_MARGEN_TRAZO)
+    for (const onda of ONDAS) {
+      const [or_, og, ob] = tonos[onda.tono]
+      const amplitud = Math.min(onda.amplitud, amplitudMaxima) * energiaOndas
+      // `sobre - desfase` y no `+`: restar desplaza el pulso hacia la derecha según
+      // avanza el tiempo, que es el sentido de marcha pedido.
+      const desfase = tiempoOndas * onda.velocidad
+      const espaciado = ONDA_ANCHO_VISIBLE * onda.ancho + onda.hueco
+      // Los puntos se calculan UNA vez y se recorren dos: `fill` consume la ruta, así
+      // que el trazo tendría que rehacerla — y con dos bucles independientes el
+      // relleno y su contorno podrían separarse un píxel.
+      const puntos: Array<[number, number]> = []
+      for (let x = 0; x <= fillW; x += ONDA_PASO) {
+        const sobre = Math.min(x, fillW)
+        const envolvente = suave(sobre / ONDA_ENTRADA) * suave((fillW - sobre) / ONDA_SALIDA)
+        // Posición en ciclos: la parte entera identifica al pulso, que es lo que fija
+        // su ancho y el ritmo de su latido. Se miran también los vecinos porque en la frontera
+        // entre dos ciclos el de al lado todavía aporta cola; sin ellos ahí saldría un
+        // escalón. El sigma se toma del pulso VECINO, no del actual: es su campana la
+        // que se está evaluando.
+        const ciclo = (sobre - desfase) / espaciado
+        const actual = Math.floor(ciclo)
+        let forma = 0
+        for (let indice = actual - 1; indice <= actual + 1; indice++) {
+          const distancia = (ciclo - (indice + 0.5)) * espaciado
+          const sigma = onda.ancho * anchoPulso(indice + onda.semilla)
+          forma += alturaPulso(indice + onda.semilla, tiempoOndas)
+            * Math.exp(-(distancia * distancia) / (2 * sigma * sigma))
+        }
+        puntos.push([sobre, base - amplitud * envolvente * Math.min(1, forma)])
+      }
+      if (puntos.length < 2) continue
+
+      const trazar = () => {
+        cr.newPath()
+        puntos.forEach(([px, py], indice) => {
+          if (indice === 0) cr.moveTo(px, py)
+          else cr.lineTo(px, py)
+        })
+      }
+
+      // **Relleno y trazo se pintan en un GRUPO y se enmascaran juntos.** Aplanar la
+      // onda contra la barra al llegar a la cabeza NO la hace desaparecer: el
+      // degradado del relleno es vertical y su borde inferior está siempre al alfa
+      // máximo, así que por muy fina que quede la lámina se sigue viendo una banda
+      // maciza hasta el final — ese era el "no llegan a cero". Un degradado
+      // longitudinal en cada uno tampoco vale: cairo pinta con UNA fuente por
+      // operación y el relleno ya gasta la suya en el degradado vertical. La máscara
+      // se aplica al resultado ya compuesto, que es lo único que apaga las dos cosas
+      // a la vez y de forma idéntica.
+      cr.pushGroup()
+
+      // Relleno: la misma curva cerrada contra la barra. El degradado se desvanece
+      // hacia arriba para que el área no tape la carátula.
+      trazar()
+      cr.lineTo(puntos[puntos.length - 1][0], base)
+      cr.lineTo(puntos[0][0], base)
+      cr.closePath()
+      const alfaRelleno = ONDA_RELLENO * energiaOndas
+      try {
+        // Mismo fallback que `coverScrim`: si el binding de GJS no expone
+        // LinearGradient, se rellena plano en vez de quedarse sin área.
+        const grad = new (cairo as any).LinearGradient(0, base - ONDA_RELLENO_ALTO, 0, base)
+        grad.addColorStopRGBA(0, or_ / 255, og / 255, ob / 255, 0)
+        grad.addColorStopRGBA(1, or_ / 255, og / 255, ob / 255, alfaRelleno)
+        cr.setSource(grad)
+      } catch (_) {
+        cr.setSourceRGBA(or_ / 255, og / 255, ob / 255, alfaRelleno * 0.6)
+      }
+      cr.fill()
+
+      trazar()
+      cr.setLineWidth(onda.grosor)
+      cr.setSourceRGBA(or_ / 255, og / 255, ob / 255, onda.alfa * energiaOndas)
+      cr.stroke()
+
+      cr.popGroupToSource()
+      try {
+        // Solo cuenta el alfa de la máscara; el color de sus paradas es irrelevante.
+        const mascara = new (cairo as any).LinearGradient(0, 0, fillW, 0)
+        const entrada = Math.min(0.45, ONDA_ENTRADA / fillW)
+        const salida = Math.min(0.45, ONDA_SALIDA / fillW)
+        mascara.addColorStopRGBA(0, 0, 0, 0, 0)
+        mascara.addColorStopRGBA(entrada, 0, 0, 0, 1)
+        mascara.addColorStopRGBA(1 - salida, 0, 0, 0, 1)
+        mascara.addColorStopRGBA(1, 0, 0, 0, 0)
+        cr.mask(mascara)
+      } catch (_) {
+        // Sin máscara la onda se ve entera (como antes), no se pierde.
+        cr.paint()
+      }
+    }
+
+    pintarTirador()
   })
   const queueProgress = () => progressArea.queue_draw()
+  repintarProgreso = queueProgress
+
+  // ── Arrastre / clic para buscar en la pista ─────────────────────────────────
+  // El gesto de arrastre cubre también el clic simple: GTK emite `drag-begin` y
+  // `drag-end` con desplazamiento 0, así que pulsar en un punto salta a él sin
+  // necesidad de un `GestureClick` aparte.
+  const fraccionEnX = (x: number): number => {
+    const ancho = progressArea.get_width()
+    if (ancho <= 0) return 0
+    return Math.max(0, Math.min(1, x / ancho))
+  }
+
+  const previsualizarArrastre = (fraccion: number) => {
+    fraccionArrastre = fraccion
+    if (duracionActual !== null) setPositionLabel(formatMediaTime(fraccion * duracionActual))
+    progressArea.queue_draw()
+  }
+
+  let inicioArrastreX = 0
+  const gestoBusqueda = new Gtk.GestureDrag()
+  gestoBusqueda.set_button(Gdk.BUTTON_PRIMARY)
+  gestoBusqueda.connect("drag-begin", (_g: any, x: number) => {
+    if (!puedeBuscar || duracionActual === null) return
+    inicioArrastreX = x
+    arrastrando = true
+    previsualizarArrastre(fraccionEnX(x))
+  })
+  gestoBusqueda.connect("drag-update", (_g: any, dx: number) => {
+    if (!arrastrando) return
+    previsualizarArrastre(fraccionEnX(inicioArrastreX + dx))
+  })
+  gestoBusqueda.connect("drag-end", (_g: any, dx: number) => {
+    if (!arrastrando) return
+    const fraccion = fraccionEnX(inicioArrastreX + dx)
+    // Se suelta el arrastre ANTES de buscar: `buscarEnPista` publica la posición
+    // nueva en `prog`, y con la bandera aún puesta el dibujo seguiría leyendo
+    // `fraccionArrastre` y el sondeo siguiente no podría corregir nada.
+    arrastrando = false
+    buscarEnPista(fraccion)
+    progressArea.queue_draw()
+  })
+  progressArea.add_controller(gestoBusqueda)
+
+  const punteroProgreso = new Gtk.EventControllerMotion()
+  punteroProgreso.connect("enter", () => { hoverProgreso = true; progressArea.queue_draw() })
+  punteroProgreso.connect("leave", () => { hoverProgreso = false; progressArea.queue_draw() })
+  progressArea.add_controller(punteroProgreso)
+
+  const frameOndas = (_widget: any, reloj: any): boolean => {
+    const ahoraUs = reloj.get_frame_time()
+    const transcurrido = ultimoFrameOndas ? (ahoraUs - ultimoFrameOndas) / 1e6 : 1 / 60
+    ultimoFrameOndas = ahoraUs
+    acumuladoOndas += Math.min(0.1, transcurrido)
+    if (acumuladoOndas < 1 / (powerSaveActive.get() ? ONDA_FPS_AHORRO : ONDA_FPS)) return true
+    const delta = acumuladoOndas
+    acumuladoOndas = 0
+    tiempoOndas += delta
+
+    const objetivo = isPlaying.get() ? 1 : 0
+    energiaOndas += (objetivo - energiaOndas) * (1 - Math.exp(-delta / 0.24))
+    progressArea.queue_draw()
+
+    if (objetivo === 0 && energiaOndas < 0.004) {
+      energiaOndas = 0
+      progressArea.queue_draw()
+      idTickOndas = null
+      return false
+    }
+    return true
+  }
+
+  // El reloj de frames solo vive con el panel abierto y con la barra a la vista: es
+  // el mismo criterio que ya usan el temporizador de posición y `OndaSpotify`.
+  const sincronizarOndas = () => {
+    const necesario = quickSettingsVisible.get() && hasProgress.get()
+      && (isPlaying.get() || energiaOndas > 0)
+    if (necesario && idTickOndas === null) {
+      ultimoFrameOndas = 0
+      acumuladoOndas = 0
+      idTickOndas = progressArea.add_tick_callback(frameOndas)
+    } else if (!necesario && idTickOndas !== null) {
+      progressArea.remove_tick_callback(idTickOndas)
+      idTickOndas = null
+      // Sin frames que la crucen, la energía tiene que caer de golpe: si no, al
+      // reabrir el panel las ondas reaparecerían con la amplitud congelada.
+      if (!isPlaying.get()) energiaOndas = 0
+    }
+  }
+
   const cancelarProgreso = prog.subscribe(queueProgress)
   const cancelarProgresoAcento = coverAccent.subscribe(queueProgress)
+  const cancelarOndasReproduccion = isPlaying.subscribe(sincronizarOndas)
+  const cancelarOndasProgreso = hasProgress.subscribe(sincronizarOndas)
+  const cancelarOndasPanel = quickSettingsVisible.subscribe(sincronizarOndas)
+  sincronizarOndas()
 
   const mediaContent = (
     <box
@@ -1996,7 +2497,7 @@ function QsMedia() {
         </box>
       </box>
 
-      <box spacing={10} vexpand valign={Gtk.Align.CENTER}>
+      <box spacing={10} vexpand valign={Gtk.Align.CENTER} cssClasses={["qs-media-meta"]}>
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand valign={Gtk.Align.CENTER}>
           <label
             cssClasses={["qs-media-title"]}
@@ -2023,9 +2524,15 @@ function QsMedia() {
           {progressArea}
         </box>
         <box valign={Gtk.Align.CENTER}>
+          {/* Los dos tiempos van con `canTarget={false}` porque `.qs-media-time` lleva
+              `margin-top: -3px` y esta fila se PRUEBA ANTES que la del progreso (GTK4
+              recorre los hijos al revés al elegir destino): siendo alcanzables se
+              tragaban la pulsación en los últimos píxeles de la barra y el arrastre no
+              llegaba a empezar. No pierden nada: son texto sin interacción. */}
           <label
             cssClasses={["qs-media-time"]}
             label={positionLabel}
+            canTarget={false}
             halign={Gtk.Align.START}
             hexpand
             marginEnd={10}
@@ -2081,6 +2588,7 @@ function QsMedia() {
           <label
             cssClasses={["qs-media-time"]}
             label={durationLabel}
+            canTarget={false}
             halign={Gtk.Align.END}
             hexpand
             marginStart={10}
@@ -2105,6 +2613,13 @@ function QsMedia() {
     cancelarScrimAnuncio()
     cancelarProgreso()
     cancelarProgresoAcento()
+    cancelarOndasReproduccion()
+    cancelarOndasProgreso()
+    cancelarOndasPanel()
+    if (idTickOndas !== null) {
+      progressArea.remove_tick_callback(idTickOndas)
+      idTickOndas = null
+    }
     if (mediaTimer !== null) GLib.source_remove(mediaTimer)
     for (const id of temporizadoresTransitorios) GLib.source_remove(id)
     temporizadoresTransitorios.clear()

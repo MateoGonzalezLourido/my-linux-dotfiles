@@ -2416,7 +2416,7 @@ window.qs-window > box,
   border-radius: 20px;
   padding: 0;
   margin-top: 10px;
-  min-height: 94px;
+  min-height: 108px;
 }
 .qs-media .qs-media-art {
   font-family: "MesloLGS Nerd Font";
@@ -2487,6 +2487,16 @@ window.qs-window > box,
   color: rgba(255, 255, 255, 0.72);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.9);
   margin-top: -3px;
+}
+.qs-media .qs-media-meta {
+  margin-bottom: 10px;
+}
+.qs-media .qs-media-footer {
+  margin-top: 3px;
+}
+.qs-media .qs-media-progress-ondas {
+  margin-top: -16px;
+  margin-bottom: -5px;
 }
 .qs-media progressbar.qs-media-progress {
   min-height: 5px;
