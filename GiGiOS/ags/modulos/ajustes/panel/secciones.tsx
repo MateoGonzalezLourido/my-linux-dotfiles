@@ -2,6 +2,7 @@ import SettingsTabs from "../../notificaciones/settings/SettingsTabs"
 import SeccionAccesibilidad from "../accesibilidad/SeccionAccesibilidad"
 import SeccionBarraEscritorios from "../barra/SeccionBarraEscritorios"
 import SeccionCuenta from "../cuenta/SeccionCuenta"
+import SeccionAlmacenamiento from "../disco/SeccionAlmacenamiento"
 import SeccionDispositivos from "../dispositivos/SeccionDispositivos"
 import SeccionEnergia from "../energia/SeccionEnergia"
 import SeccionFechaIdioma from "../fecha-idioma/SeccionFechaIdioma"
@@ -17,6 +18,7 @@ export type IdSeccion =
   | "display" | "accessibility" | "personalization"
   | "mouse" | "touchpad" | "keyboard" | "printers"
   | "energy" | "games" | "bar" | "workspaces" | "orion" | "clipboard"
+  | "storage" | "cleanup"
   | "notifications" | "monitoring" | "scans" | "supervision" | "system"
 
 export interface SeccionNavegacion {
@@ -43,6 +45,8 @@ export const SECCIONES_NAVEGACION: SeccionNavegacion[] = [
   { id: "workspaces", label: textos.secciones.workspaces, icon: "󰆾" },
   { id: "orion", label: textos.secciones.orion, icon: "󰆍" },
   { id: "clipboard", label: textos.secciones.portapapeles, icon: "󰅇" },
+  { id: "storage", label: textos.secciones.almacenamiento, icon: "󰋊" },
+  { id: "cleanup", label: textos.secciones.liberarEspacio, icon: "󰃢" },
   { id: "notifications", label: textos.secciones.notificaciones, icon: "󰂚" },
   { id: "monitoring", label: textos.secciones.vigilancia, icon: "󰒃" },
   { id: "scans", label: textos.secciones.escaneos, icon: "󰇚" },
@@ -68,6 +72,8 @@ const FABRICAS_SECCION: Record<IdSeccion, () => unknown> = {
   workspaces: () => <SeccionBarraEscritorios vista="workspaces" />,
   orion: () => <SeccionFuncionesShell vista="orion" />,
   clipboard: () => <SeccionFuncionesShell vista="portapapeles" />,
+  storage: () => <SeccionAlmacenamiento vista="uso" />,
+  cleanup: () => <SeccionAlmacenamiento vista="limpieza" />,
   notifications: () => <SettingsTabs />,
   monitoring: () => <SeccionSeguridad vista="vigilancia" />,
   scans: () => <SeccionSeguridad vista="escaneos" />,

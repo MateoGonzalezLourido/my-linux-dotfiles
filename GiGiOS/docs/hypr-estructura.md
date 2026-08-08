@@ -136,6 +136,7 @@ completo en la cabecera de ese módulo y en `CLAUDE.md`):
 | 3–6 | `bt-monitor.sh`, `usb-monitor.sh`, `wifi-monitor.sh`, `screencast-monitor.sh` | dirigidos por eventos, compiten con el servicio al que se enganchan |
 | 8–15 | `ram-monitor.sh`, `temp-monitor.sh`, `battery-monitor.sh`, `disk-monitor.sh` | sondeos de estado, nada urgente al segundo 0 |
 | 20–30 | `updates-monitor.sh`, `boot-healthcheck.sh` | lo caro (red, journal completo, SMART) |
+| 45 | `limpieza-arranque.sh` | el único que puede borrar decenas de miles de ficheros; **no es un daemon**: lee un JSON, decide y sale (2,9 ms si no toca) |
 
 El escáner de apps de inicio ya no es un script: vive en
 `gigios/escaner-apps.lua`, que escucha `window.open` con datos ya tipados en vez
@@ -155,7 +156,10 @@ de daltonismo (`GiGiOS.daltonismo`) y el launcher Orion
 
 **3. Invocados por AGS** (toggles de Ajustes, con `pkill` + re-exec en caliente
 donde aplica): `updates-monitor.sh`, `screencast-monitor.sh` (interruptores
-maestros), `wallpaper.sh <ruta>` / `--random` (Orion), `lanzar-anclado.py`
+maestros), `analizar-almacenamiento.sh todo`, `limpiar-almacenamiento.sh <accion>`
+y `limpieza-arranque.sh --ahora` (Ajustes > Almacenamiento; ninguno de los tres
+es residente, así que no llevan `pkill`),
+`wallpaper.sh <ruta>` / `--random` (Orion), `lanzar-anclado.py`
 (lanzador de Orion).
 
 `usb-monitor.sh` llama él mismo a `usb-eject.sh` (botón "Expulsar" de la

@@ -21,6 +21,8 @@
     "workspaces": "Espacios de trabajo",
     "orion": "Orion",
     "portapapeles": "Portapapeles",
+    "almacenamiento": "Almacenamiento",
+    "liberarEspacio": "Liberar espacio",
     "notificaciones": "Notificaciones",
     "vigilancia": "Vigilancia del sistema",
     "escaneos": "Antivirus",

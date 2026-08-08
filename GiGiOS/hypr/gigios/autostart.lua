@@ -179,6 +179,19 @@ hl.on("hyprland.start", function()
   -- acabado, y con él se perdía el aviso de arranque lento.
   hl.exec_cmd("sleep 30 && ~/.config/hypr/scripts/boot-healthcheck.sh")
 
+  -- ── t=45 · autolimpieza de disco ───────────────────────────────────────────
+  -- **No es un daemon.** Lee un JSON, decide, y o limpia o se muere: en el caso
+  -- normal (todavía no toca) son 2,9 ms y UN solo proceso `jq`, y no queda nada
+  -- en `ps`. Antes era un bucle que despertaba cada hora forkeando hasta quince
+  -- veces solo para responder «aún no»; ver la cabecera del script.
+  --
+  -- Va el ÚLTIMO, detrás incluso del healthcheck, porque es el único de la lista
+  -- que puede ponerse a borrar decenas de miles de ficheros: un `paccache` sobre
+  -- 2360 paquetes y un `du` del hogar no deben coincidir con nada del arranque.
+  -- Cuando no toca limpiar —lo normal, 23 de cada 24 sesiones con el intervalo
+  -- por defecto— el retardo no cuesta nada, porque el script tampoco.
+  hl.exec_cmd("sleep 45 && ~/.config/hypr/scripts/limpieza-arranque.sh")
+
   -- (KWallet retirado) Las credenciales de Spotify viven en texto plano en
   -- ~/.config/gigios/spotify-creds.json — no se arranca ningún ksecretd/KWallet.
 end)

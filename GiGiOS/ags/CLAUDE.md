@@ -540,7 +540,7 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
   por `ags request brightness-up|down` → `stepBrightness()`, que aplica al backend que toque y enseña
   el OSD. `inicializador/init.sh` **no restaura brillo en un sobremesa** (sale si `/sys/class/backlight`
   está vacío) y tampoco hace falta: el monitor guarda su brillo en su propia firmware.
-- `modulos/ajustes/SettingsPanel.tsx` — ventana general de ajustes abierta desde el engranaje de Quick Settings (`settingsPanelVisible` en `estado/shell.tsx`). La navegación lateral es una lista continua de destinos concretos, sin encabezados de categoría ni buscador. `PersonalizationSection` y el antiguo `AppsSection` ya no existen: sus preferencias se reparten entre `modulos/ajustes/barra/SeccionBarraEscritorios.tsx`, `modulos/ajustes/personalizacion/SeccionFuncionesShell.tsx`, Energía, Juegos, Sistema y Notificaciones. La bandeja del sistema forma parte de Barra; la suspensión se edita desde Energía mediante `modulos/ajustes/pantalla/Inactividad.tsx`; `modulos/ajustes/juegos/SeccionJuegos.tsx` contiene las preferencias generales activadas al jugar; `modulos/ajustes/pantalla/SeccionPantalla.tsx` reúne en Pantallas la disposición, el color y brillo, la automatización y los ajustes gráficos de fluidez. `modulos/ajustes/seguridad/SeccionSeguridad.tsx` ofrece «Vigilancia del sistema» y «Antivirus»; esta última reúne el escáner automático de Descargas, el análisis manual y el lanzador aislado. No confundir esa sección con `modulos/menu-energia/`, que contiene la ventana independiente de apagado, reinicio y cierre de sesión.
+- `modulos/ajustes/SettingsPanel.tsx` — ventana general de ajustes abierta desde el engranaje de Quick Settings (`settingsPanelVisible` en `estado/shell.tsx`). La navegación lateral es una lista continua de destinos concretos, sin encabezados de categoría ni buscador. `PersonalizationSection` y el antiguo `AppsSection` ya no existen: sus preferencias se reparten entre `modulos/ajustes/barra/SeccionBarraEscritorios.tsx`, `modulos/ajustes/personalizacion/SeccionFuncionesShell.tsx`, Energía, Juegos, Sistema y Notificaciones. La bandeja del sistema forma parte de Barra; la suspensión se edita desde Energía mediante `modulos/ajustes/pantalla/Inactividad.tsx`; `modulos/ajustes/juegos/SeccionJuegos.tsx` contiene las preferencias generales activadas al jugar; `modulos/ajustes/pantalla/SeccionPantalla.tsx` reúne en Pantallas la disposición, el color y brillo, la automatización y los ajustes gráficos de fluidez. `modulos/ajustes/disco/SeccionAlmacenamiento.tsx` aporta los destinos «Almacenamiento» y «Liberar espacio»; `modulos/ajustes/seguridad/SeccionSeguridad.tsx` ofrece «Vigilancia del sistema» y «Antivirus»; esta última reúne el escáner automático de Descargas, el análisis manual y el lanzador aislado. No confundir esa sección con `modulos/menu-energia/`, que contiene la ventana independiente de apagado, reinicio y cierre de sesión.
   - **El coste con Ajustes cerrado es 0, y eso lo sostiene un `<With>` sobre `vistaActiva`** (`= settingsPanelVisible() ? section() : null`), **no sobre `section` a secas**. Con el gate solo por sección, `panel` se evalúa en el cuerpo de `SettingsPanel()` —que `app.ts` invoca con `.map()` **por monitor** al arrancar— y `<With>` renderiza con `immediate: true`, así que **la sección por defecto (Cuenta) se construía al arrancar el shell y seguía montada toda la sesión sin haber abierto Ajustes nunca**; cerrar el panel solo cambiaba `visible` de la ventana y no desmontaba nada. Hoy abrir construye, cerrar desmonta y corren los `onCleanup` de la sección viva. La nav lateral queda **fuera** del `<With>` a propósito: es estática, barata, y reconstruirla perdería el scroll. `section` sobrevive entre aperturas; lo que se tira es el árbol de widgets.
   - **Tiene que ser UN solo `<With>`; dos anidados (visibilidad → sección) NO funcionan**, y es lo primero que se intenta. `<With>` devuelve un `Fragment` y `Fragment.append` lanza `nesting Fragments are not yet supported`. **El error se traga dentro del efecto**, así que no explota nada: el panel se queda **sin contenido** y, además, el fragment externo nunca llega a tener hijos → su scope **no se dispone jamás** y no corre ni un `onCleanup`, o sea que pierdes justo lo que venías a arreglar y en silencio. Medido (dos `JS ERROR: nesting Fragments` en el log y `CONSTRUIDA` sin `LIMPIADA` en cada ciclo). Por lo mismo el caso cerrado devuelve **`<box />` y no `null`**: `<With>` no añade nada al fragment ante `null`/`undefined`/`false`/`""`, y el ciclo de disposición cuelga de **iterar los hijos del fragment** — sin hijo no hay `dispose`.
   - **La limpieza de una sección va SIEMPRE por `onCleanup`, nunca por `connect("destroy")`** — mismo bug que documenta `ReproduccionSpotify.tsx`, y que tenían `modulos/ajustes/barra/SeccionBarraEscritorios.tsx` y `modulos/ajustes/dispositivos/SeccionDispositivos.tsx`: en GTK4 `destroy` sale de `dispose`, y al desmontar con `<With>` el widget solo se **desparenta** (los cierres de JS lo siguen referenciando), así que el manejador no llegaba a correr y cada visita a Barra/Escritorios/Ratón/Touchpad/Teclado/Impresoras dejaba un suscriptor vivo para siempre. `<With>` sí hace `scope.dispose()`, que es lo que ejecuta los `onCleanup`.
@@ -584,6 +584,48 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
   que hacía `pgrep -x wf-recorder` cada 2 s *por monitor* y no veía los screencasts por portal
   (Discord, OBS, navegador). Condicionado en `Barra.tsx` por `screencastIndicatorEnabled`, cuyo setter
   en `preferences.ts` es **maestro y en caliente**: lanza o mata el script.
+- `modulos/ajustes/disco/SeccionAlmacenamiento.tsx` + `servicios/disco/` — **Ajustes > Almacenamiento**
+  («Almacenamiento» = qué ocupa el disco + catálogo de apps por tamaño; «Liberar espacio» = limpiezas
+  manuales y autolimpieza). El trabajo sucio lo hacen tres scripts bash
+  (`hypr/scripts/analizar-almacenamiento.sh`, `limpiar-almacenamiento.sh`, `limpieza-arranque.sh`) y un
+  helper root (`system/limpieza/`); **el porqué de cada decisión está en la sección «Almacenamiento y
+  autolimpieza» de [`docs/hyprland-modulos.md`](../docs/hyprland-modulos.md) — léela antes de tocar
+  nada de esto.** Lo que hay que saber del lado del shell:
+  - **El directorio se llama `disco/`, no `almacenamiento/`, y el servicio `servicios/disco/`.** Ese
+    nombre ya está cogido por `servicios/almacenamiento/`, que es la lectura y escritura de los JSON
+    del shell — nada que ver con el espacio en disco. Dos cosas con el mismo nombre a dos niveles del
+    árbol es una trampa para el siguiente que grepee.
+  - **Se pinta llena en el primer frame**, con la caché de `~/.cache/gigios/almacenamiento.json`
+    (síncrona, ~1 ms) mientras el análisis nuevo entra por detrás. Mismo patrón que
+    `modulos/ajustes/sistema/informacion.ts`, incluida la guarda `vivo` de `onCleanup`: el análisis
+    tarda ~1,4 s y puede volver con la sección ya desmontada.
+  - **`bytes: null` NO es `0`.** `null` = no se ha podido medir (`du` agotó su timeout, o sin
+    permisos); `0` = medido y vacío. `formatearBytes` los distingue (`—` vs `0 B`) y `agrupar` manda
+    los `null` al final de la lista. Unificarlos hace creer que ya está limpio lo que pueden ser
+    decenas de GB. Hay test.
+  - **`catalogo.ts` es la única lista**, y de él sale `ACCIONES_AUTOMATIZABLES` filtrando por
+    `privilegio !== "pkexec"` en vez de escribirse a mano: eso es lo que impide que una acción con
+    diálogo de contraseña acabe en el lote desatendido, donde el diálogo aparecería solo de madrugada.
+    La invariante tiene prueba propia. Una categoría que llegue del script y no esté catalogada se
+    **ignora**, no se pinta con el id crudo — el bash puede ir por delante del shell.
+  - **Las acciones de `pkexec` van envueltas en `withPrivilegedPrompt`** (`limpieza.ts`). Sin eso el
+    diálogo queda detrás de la ventana de Ajustes, que es una capa OVERLAY, y el botón se queda
+    pensando para siempre. Mismo caso que `servicios/dispositivos/printers.ts`.
+  - **Ningún camino puede acabar sin algo que pintar**: `ejecutarLimpieza` convierte cualquier
+    rechazo en un `ResultadoLimpieza` con estado `error`, porque quien llama es un `onClicked` y una
+    promesa rechazada ahí deja el botón en «Limpiando…» el resto de la sesión.
+  - **`{ACCIONES.map(...)}` suelto junto a otro hijo revienta la sección entera.** Un array como
+    hijo *único* se aplana; dos hijos donde uno es un array llegan a `Fragment.append` sin aplanar y
+    lanzan «Object … is not a subclass of GObject_Object, it's a Array», que tumba la construcción de
+    toda la vista (medido: «Liberar espacio» salía en blanco). El `.map` va dentro de su propia caja.
+  - **El catálogo de apps se recorta a 12 filas** con «Ver más»: son ~1600 paquetes dentro de un
+    `ScrolledWindow` que no virtualiza nada. El `<For>` va con `id={app => app.nombre}` por lo mismo
+    que la barra (ver la sección de escritorios): sin clave, cada tecla del buscador reconstruiría
+    las doce filas enteras.
+  - Las preferencias viven en `~/.config/gigios/almacenamiento.json` y **nacen todas apagadas**, al
+    revés que `security.json`: allí los defaults deciden si algo se *vigila*, aquí si algo se *borra
+    sin preguntar*. Los scripts las releen en cada pasada, así que solo el interruptor maestro
+    necesita `pkill` + relanzar el vigilante.
 - `modulos/ajustes/preferences.ts` — preferencias globales del shell que persisten en `~/.config/gigios/preferences.json`, a diferencia del estado solo en RAM de `modulos/barra/funciones/estado.ts`. Incluye los toggles `startupVolumeMuted` y `startupMicMuted`: `inicializador/init.sh` los lee al arrancar, espera a que WirePlumber publique cada endpoint predeterminado y fuerza su mute según el valor. Para añadir una preferencia: crea un `createState`, léela en `load()`, escríbela en `save()` y expón un setter que llame a `save()`.
   **`absorberSuperSinAtajo`** es de las que se aplican en caliente: su setter escribe la preferencia
   (`save()` es síncrono, así que el fichero ya está en disco) y dispara `hyprctl reload`. Lo demás lo

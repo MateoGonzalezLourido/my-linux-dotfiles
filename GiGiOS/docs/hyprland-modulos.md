@@ -1631,6 +1631,142 @@ borrar cualquier paquete, y la sección de `oom-monitor.sh` ya avisa de que cada
 es un agujero permanente. Un aviso por una escalada que el usuario acaba de autorizar a mano no es
 ruido.
 
+### Almacenamiento y autolimpieza (`analizar-almacenamiento.sh`, `limpiar-almacenamiento.sh`, `limpieza-arranque.sh` + `system/limpieza/`)
+
+Ajustes > **Almacenamiento** (qué ocupa el disco, catálogo de apps por tamaño) y **Liberar espacio**
+(limpiezas manuales y autolimpieza). Cuatro piezas, y están separadas a propósito:
+
+| Pieza | Qué hace | Privilegio |
+| --- | --- | --- |
+| `analizar-almacenamiento.sh` | mide y emite JSON. **No borra nada.** | usuario (+ `sudo -n` solo para contar instantáneas) |
+| `limpiar-almacenamiento.sh` | ejecuta una o varias acciones, emite JSON con lo liberado | mezcla, ver abajo |
+| `limpieza-arranque.sh` | comprobación de un disparo al iniciar sesión: decide si toca | ninguno propio |
+| `system/limpieza/gigios-limpieza.sh` | la parte de root, root-owned + sudoers NOPASSWD | root |
+
+**Un solo `pacman -Qi` para todo el análisis.** Se invocaba tres veces —el total instalado, los
+huérfanos y el catálogo de aplicaciones— y sobre 1632 paquetes cuesta **~290 ms cada vez**, o sea
+que casi 0,6 s del análisis se iban en volver a preguntar lo mismo. Hoy se vuelca una vez a un
+temporal y los tres consumidores lo leen; los huérfanos se filtran **dentro de awk** contra un
+conjunto en vez de con `pacman -Qi -- pkg…`, y la cuenta de paquetes sale de contar los `Name:` del
+volcado en lugar de un `pacman -Qq | wc -l`. Medido: **1,03 s → 0,72 s de CPU**, con salida
+byte-idéntica. El volcado se genera **antes** de forkear los tres sondeos paralelos del verbo
+`todo`: una variable asignada dentro de un subshell no vuelve al padre, así que con creación
+perezosa habrían seguido siendo tres invocaciones, solo que simultáneas — la misma CPU con mejor
+pinta en el reloj de pared. Su `trap` de borrado se **encadena** con el de los tres temporales de
+salida: un `trap` nuevo sustituye al anterior, y sin eso el volcado se quedaba en `/tmp`.
+
+**El análisis se cachea en `~/.cache/gigios/almacenamiento.json` y por eso la sección se pinta llena
+en el primer frame**, igual que Ajustes > Sistema: recorrer `~/.cache`, `/var/cache/pacman` y el hogar
+con `du` cuesta ~1,4 s con caché de inodos caliente y decenas de segundos en frío. Cada `du` corre
+bajo `timeout` (20 s por defecto) y lo que no llega sale como **`bytes: null`**, que la UI pinta como
+`—`. **`null` y `0` NO son lo mismo y no deben unificarse**: una carpeta sin permisos de lectura
+pintada como `0 B` hace creer que ya está limpio lo que pueden ser 40 GB.
+
+**`df` lista los subvolúmenes btrfs como discos distintos, con cifras idénticas.** En esta
+instalación de CachyOS, `/`, `/home`, `/root`, `/srv`, `/var/cache`, `/var/log` y `/var/tmp` son
+subvolúmenes del **mismo** `/dev/nvme0n1p3`: la sección enseñaba siete discos de 1 TB, como si
+hubiera siete. Se deduplica por **dispositivo**, quedándose con el punto de montaje más corto (`/`).
+`disk-monitor.sh` ya hacía lo mismo (`declare -A seen  # device -> 1, to dedup btrfs subvolumes`):
+es el mismo problema resuelto dos veces porque las dos piezas leen `df` por su cuenta.
+
+**El color de la barra NO usa los umbrales de `disk-monitor.sh`.** La barra corta en 75/90 % de
+*uso*; el monitor avisa por espacio libre **absoluto** (menos de 5 GB). Que no coincidan es
+correcto: un 10 % libre son 100 GB en un disco de 1 TB y 5 GB en uno de 50. El color es una pista
+de lectura del reparto, la notificación es la alarma.
+
+**Contar instantáneas es de root, y snapper miente con rc=0.** `snapper --machine-readable csv list`
+sin privilegios responde «Sin permisos» y **sale con 0**, así que el `grep -c` daba 0 y la fila
+desaparecía como si el equipo no tuviera instantáneas; `btrfs subvolume list /` al menos falla con
+rc≠0. Por eso la cuenta sale del helper root (`gigios-limpieza instantaneas`) vía `sudo -n`, y sin
+helper instalado **la fila no se enseña** en vez de afirmar que hay cero. El *tamaño* de las
+instantáneas no se da y no es un olvido: el espacio exclusivo de un snapshot solo lo sabe
+`btrfs qgroup show` (qgroups + root), y sumar sus `du` daría una cifra enorme y falsa —todo lo
+compartido contado una vez por snapshot—.
+
+**Tres niveles de privilegio, y de ahí sale qué se puede automatizar:**
+
+1. **usuario** — todo lo que vive bajo `$HOME` (cachés, miniaturas, papelera, descargas, flatpak).
+2. **`sudo -n` al helper** — lo de root que **se regenera solo**: caché de pacman (`paccache -rk1`
+   + `-ruk0`), journal (`--vacuum-size`), `/var/tmp`, huérfanos (`pacman -Rns $(pacman -Qtdq)`).
+   El NOPASSWD es lo que permite la autolimpieza desatendida.
+3. **`pkexec`** — lo irreversible: vaciar la caché **entera** (`pacman -Scc`), que deja el equipo sin
+   poder revertir una actualización sin red. **Nunca automatizable**, y esa invariante está probada
+   (`servicios/disco/catalogo.test.ts`): si alguien añade una acción de pkexec, la prueba la impide
+   entrar en el lote desatendido. Un diálogo de contraseña que aparece solo, de madrugada, no lo lee
+   nadie — se aprende a darle a Enter sin mirar, que es peor que no tenerlo.
+
+**Ninguna herramienta informa de forma fiable de cuánto liberó** (`paccache` imprime texto libre,
+`journalctl --vacuum-size` no imprime nada útil, `rm` menos), así que el espacio liberado se mide con
+`du` **antes y después**. Como `du` mide un blanco móvil —el navegador reescribe su caché entre las
+dos pasadas—, la resta puede salir negativa y se recorta a 0; el estado sigue siendo `ok`.
+
+**Lo que `cacheUsuario` NO borra, y por qué.** Un `rm -rf ~/.cache/*` a ciegas cuesta datos reales:
+se excluyen `gigios` (mapa de fuentes del CSS, sondeo de hardware), `paru`/`yay` (tienen su propia
+acción y su propia forma correcta de limpiarse, `-Sc`; borrarlos a mano deja al helper
+reconstruyéndolo todo) y las cachés de shaders de Mesa/NVIDIA (reconstruirlas cuesta más que lo que
+liberan, en forma de tirones la primera vez que abres cada juego). `/tmp` tampoco se toca: es un
+tmpfs (RAM) y borrarlo bajo los pies de los procesos vivos rompe sockets y ficheros de bloqueo.
+
+**La autolimpieza NO es un daemon, y esto es una corrección de la primera versión.** Empezó siendo
+`limpieza-monitor.sh`: dormía 60 s, comprobaba y se quedaba en un `while :; do pasada; sleep 3600;
+done` el resto de la sesión. Coste medido de **cada** pasada: hasta **15 procesos `jq`** —uno por
+clave de configuración, más uno por cada una de las 11 acciones automatizables, dentro del bucle—
+más un `df`, y casi siempre para responder «todavía no toca»: con el intervalo por defecto de 24 h,
+23 de cada 24 despertares no hacían nada salvo forkear quince veces y volverse a dormir. Encima
+dejaba un bash residente por sesión.
+
+Hoy `limpieza-arranque.sh` corre **una vez**, desde el autostart (t=45), y su camino normal es
+**una lectura y un `if`**: un solo `jq -n --slurpfile` que abre los dos JSON (configuración y
+estado) y emite una línea TSV con todo lo que hace falta decidir. Medido: **2,9 ms** y cero
+procesos residentes cuando no toca limpiar. `command -v jq` no cuenta — es un builtin de bash— y
+`date` desapareció a favor de `printf '%(%s)T'`, que también lo es. El `df` del umbral solo se
+ejecuta si hay umbral configurado.
+
+**Lo que se pierde, y es deliberado**: un equipo encendido durante días ya no autolimpia hasta el
+siguiente inicio de sesión. Se acepta porque lo que esto borra —caché de paquetes, journal,
+temporales, miniaturas— crece con el **uso**, no con el reloj, y porque el botón «Ejecutar ahora»
+(`--ahora`, que se salta intervalo y umbral) cubre el caso raro. Si algún día hiciera falta la
+comprobación periódica, el sitio correcto es un timer de `systemd --user`, **no** volver al bucle:
+un timer duerme sin proceso.
+
+La marca de la última limpieza vive en `~/.cache/gigios/limpieza.json` y **no** en el JSON de
+configuración: AGS reescribe ese fichero entero con un `replace_contents`, así que se llevaría la
+marca por delante. Se pone **antes** de limpiar — si algo se cuelga se pierde un ciclo, en vez de
+relanzar la limpieza entera en cada inicio de sesión para siempre. El umbral se mira **después**
+del intervalo y sin tocar la marca: con el disco holgado no hay nada que hacer, pero un disco que
+se llena mañana no debe esperar un ciclo entero.
+
+**`//` de jq considera falsy a `false`, no solo a `null`.** `.notificar // true` devolvía `true`
+con la opción desactivada, o sea que la limpieza avisaba igual después de que el usuario apagara el
+aviso. Las claves **booleanas** se leen con `if (… | has("clave")) then …`; las numéricas sí pueden
+usar `//` porque en jq un `0` es truthy.
+
+**Configuración y defaults.** `~/.config/gigios/almacenamiento.json`, escrito por
+`servicios/disco/preferencias.ts` y releído por los scripts **en cada pasada** (a diferencia de
+`security.json`, que `oom-monitor.sh` lee una sola vez al arrancar). La autolimpieza nace **apagada
+y con todas las casillas sin marcar**, al revés que `security.json` —donde todo viene ON—: allí los
+defaults deciden si algo se *vigila*, aquí si algo se *borra sin preguntar*. Encender o apagar el
+interruptor no lanza ni mata nada: la comprobación de arranque leerá el valor nuevo en la
+siguiente sesión.
+
+**No hay proceso que relanzar al tocar el interruptor**, y esa es la consecuencia visible de lo
+anterior: `setAutoLimpieza` solo escribe `auto` en el JSON, que es lo que leerá el siguiente
+arranque. La versión de bucle hacía `pkill -f limpieza-monitor.sh` + re-exec, como
+`screencast-monitor` y `updates-monitor`; eso ya no aplica y se quitó. (Al actualizar desde la
+versión antigua, un `limpieza-monitor.sh` de la sesión en curso sigue vivo hasta cerrar sesión: el
+fichero ya no existe, así que no vuelve.)
+
+**Instalación:** `install.sh` paso 9-bis instala el helper en `/usr/local/bin/gigios-limpieza` y la
+regla en `/etc/sudoers.d/gigios-limpieza` (validada con `visudo -cf` antes de moverla). Sin el
+helper, las acciones de nivel 2 devuelven `estado:"sin-permisos"` con el paso que falta, y todo lo
+de `$HOME` sigue funcionando. Igual que los helpers de TLP y ClamAV, **no se symlinkea**: apuntar un
+comando NOPASSWD a un fichero escribible por el usuario es una escalada silenciosa.
+
+**La desinstalación de aplicaciones NO está aquí**, aunque el catálogo las liste por tamaño: la hace
+`desinstalar-app.sh` desde Orion, que ya distingue repos, AUR, Flatpak, Steam e instalación manual y
+tiene su propia lógica fail-safe (ver su sección más arriba). Duplicarla en Ajustes habría dado dos
+caminos con dos criterios distintos para la misma operación irreversible.
+
 ### Comprobación de arranque (`boot-healthcheck.sh`)
 
 Es el `exec-once` más caro del arranque —de ahí que vaya al final del calendario escalonado, a

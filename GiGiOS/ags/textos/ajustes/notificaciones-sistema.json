@@ -54,6 +54,7 @@
     "kernel.modulo-sin-firmar": "Módulo de kernel sin firmar",
 
     "disco.casi-lleno": "Disco casi lleno",
+    "limpieza.completada": "Limpieza automática terminada",
     "disco.error-es": "Error de entrada/salida del disco",
     "disco.smart-fallo": "Disco a punto de fallar (SMART)",
     "disco.smart-sin-permisos": "No se puede leer SMART",

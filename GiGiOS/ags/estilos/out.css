@@ -6200,6 +6200,155 @@ button.dl-city-result:hover {
   color: #cba6f7;
 }
 
+/* ── Ajustes > Almacenamiento ────────────────────────────────────────────────
+   Prefijo `alm-`. Reutiliza las tarjetas y filas de `dev-*` (el mismo chasis que
+   Dispositivos y Seguridad) y solo añade lo propio de esta sección: la barra de
+   uso por disco, la columna de tamaños y las etiquetas del catálogo de apps. */
+.alm-section {
+  padding-bottom: 12px;
+}
+
+.alm-icono {
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 15px;
+  min-width: 20px;
+}
+
+/* Ancho fijo para que la columna de tamaños quede alineada entre filas: sin él,
+   "17,2 GiB" y "0 B" empujan el botón de limpieza a posiciones distintas y la
+   tarjeta parece dentada. */
+.alm-tamano {
+  min-width: 78px;
+  color: #f0edf5;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.alm-disco {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.alm-disco-punto {
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.alm-disco-fs {
+  color: #8b8799;
+  font-family: "Inter", sans-serif;
+  font-size: 10.5px;
+}
+
+.alm-disco-libre {
+  color: #aaa7b4;
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+}
+
+.alm-disco-uso {
+  font-family: "Inter", sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #a6e3a1;
+}
+.alm-disco-uso.aviso {
+  color: #fab387;
+}
+.alm-disco-uso.critico {
+  color: rgb(245, 50, 105);
+}
+
+/* Los tres estados salen de `severidadUso` (75/90 % de uso). No son los umbrales
+   de `disk-monitor.sh`, que avisa por espacio libre ABSOLUTO (<5 GB) — ver la
+   nota en `servicios/disco/formato.ts` sobre por qué no deben alinearse. */
+progressbar.alm-barra {
+  min-height: 6px;
+}
+progressbar.alm-barra trough {
+  min-height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+progressbar.alm-barra progress {
+  min-height: 6px;
+  border-radius: 999px;
+  background: #a6e3a1;
+}
+progressbar.alm-barra.aviso progress {
+  background: #fab387;
+}
+progressbar.alm-barra.critico progress {
+  background: rgb(245, 50, 105);
+}
+
+.alm-resultado {
+  font-size: 11px;
+}
+.alm-resultado.ok {
+  color: #a6e3a1;
+}
+.alm-resultado.omitida, .alm-resultado.cancelado {
+  color: #aaa7b4;
+}
+.alm-resultado.error, .alm-resultado.sin-permisos {
+  color: rgb(245, 50, 105);
+}
+
+.alm-cargando {
+  min-height: 220px;
+  color: #aaa7b4;
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+}
+
+.alm-cargando spinner {
+  color: #cba6f7;
+}
+
+.alm-totales {
+  color: #cba6f7;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.alm-buscador {
+  min-width: 240px;
+}
+
+.alm-app {
+  min-height: 40px;
+}
+
+/* Distintivos del catálogo: origen (repos/AUR) y motivo de instalación. Son la
+   diferencia entre "una lista de paquetes" y algo accionable — lo que entró como
+   dependencia no se desinstala a mano, se limpia con los huérfanos. */
+.alm-etiqueta {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: "Inter", sans-serif;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #cdd0e0;
+  background: rgba(255, 255, 255, 0.07);
+}
+.alm-etiqueta.aur {
+  color: #89b4fa;
+  background: rgba(137, 180, 250, 0.13);
+}
+.alm-etiqueta.explicita {
+  color: #a6e3a1;
+  background: rgba(166, 227, 161, 0.13);
+}
+.alm-etiqueta.dependencia {
+  color: #8b8799;
+}
+
 /* ── Centered notification-settings window (Phase 5) ────────────────── */
 .nsw-window {
   background: transparent;

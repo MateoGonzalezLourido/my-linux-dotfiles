@@ -6,9 +6,11 @@ componentes específicos vivan juntos:
 - `panel/`: navegación y registro de secciones del panel.
 - `componentes/`: piezas visuales reutilizables entre secciones.
 - `estado/`: preferencias compartidas y persistencia general.
-- `accesibilidad/`, `barra/`, `cuenta/`, `dispositivos/`, `energia/`,
+- `accesibilidad/`, `barra/`, `cuenta/`, `disco/`, `dispositivos/`, `energia/`,
   `fecha-idioma/`, `juegos/`, `pantalla/`, `personalizacion/`, `seguridad/` y
-  `sistema/`: implementación de cada dominio.
+  `sistema/`: implementación de cada dominio. `disco/` (Almacenamiento y Liberar
+  espacio) se llama así y no `almacenamiento/` porque ese nombre ya identifica a
+  `servicios/almacenamiento/`, que es la persistencia JSON del shell.
 
 `SettingsPanel.tsx` es el punto de entrada de la ventana. Los archivos
 `preferences.ts`, `ProfileAvatar.tsx`, `trayApps.ts` y `AutoDndSetting.tsx`

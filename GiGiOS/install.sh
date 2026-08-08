@@ -389,6 +389,24 @@ if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
   else
     info "ClamAV no está instalado; omito el helper de firmas (se activará al instalar 'clamav')."
   fi
+  # Limpieza de disco: Ajustes > Almacenamiento > Liberar espacio. Tercer helper con el mismo
+  # esquema (root-owned + sudoers acotado), y aquí el NOPASSWD es lo que hace posible la
+  # AUTOLIMPIEZA desatendida: un diálogo de contraseña que aparece solo, de madrugada, no lo lee
+  # nadie. Por eso el helper solo expone verbos cuyo efecto se regenera (caché de pacman, journal,
+  # /var/tmp, huérfanos); vaciar la caché entera y borrar instantáneas siguen pidiendo contraseña
+  # por pkexec desde su botón. Sin esto, esas limpiezas salen como "falta el ayudante" en la UI y
+  # el resto (todo lo que vive bajo $HOME) sigue funcionando.
+  sudo install -Dm755 "$SYSTEM_DIR/limpieza/gigios-limpieza.sh" /usr/local/bin/gigios-limpieza \
+    || warn "No pude instalar el helper de limpieza; las limpiezas de sistema pedirán instalarlo."
+  limpieza_sudoers_tmp="$(mktemp)"
+  sed "s/__GIGIOS_USER__/$(id -un)/" "$SYSTEM_DIR/limpieza/sudoers-gigios-limpieza" > "$limpieza_sudoers_tmp"
+  if sudo visudo -cf "$limpieza_sudoers_tmp" >/dev/null; then
+    sudo install -Dm440 "$limpieza_sudoers_tmp" /etc/sudoers.d/gigios-limpieza \
+      || warn "No pude instalar /etc/sudoers.d/gigios-limpieza; la autolimpieza no podrá tocar caché ni journal."
+  else
+    warn "La regla sudoers de limpieza no validó; no la instalo. La autolimpieza quedará limitada a tu carpeta personal."
+  fi
+  rm -f "$limpieza_sudoers_tmp"
 else
   warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
 fi
@@ -444,6 +462,9 @@ cat <<'EOF'
   • Antivirus: las firmas de ClamAV las descarga clamav-freshclam, que quedó habilitado;
               tarda unos minutos la primera vez. Ajustes > Seguridad > Antivirus enseña la
               fecha, permite actualizarlas al momento y apagar la actualización automática.
+  • Disco:    Ajustes > Almacenamiento analiza qué ocupa el equipo y cataloga las apps por
+              tamaño; "Liberar espacio" limpia y, si lo activás, lo hace solo. La autolimpieza
+              nace APAGADA y con todas las casillas sin marcar: nada se borra sin pedirlo.
   • Sistema:  si necesitás sensores, ejecutá 'sudo sensors-detect'.
   • Sesión:   cerrá y abrí sesión; después comprobá con 'ags run ~/.config/ags/app.ts'.
 EOF

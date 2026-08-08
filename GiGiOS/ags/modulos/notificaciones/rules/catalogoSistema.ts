@@ -90,6 +90,9 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
 
   // ── Almacenamiento ─────────────────────────────────────────────────────────────────────
   ev("disco.casi-lleno", "almacenamiento", "disk-monitor.sh"),
+  // `clearOnBoot`: informa de algo que ya pasó y no requiere ninguna acción; arrastrarlo al
+  // siguiente arranque solo ensucia el panel.
+  ev("limpieza.completada", "almacenamiento", "limpiar-almacenamiento.sh", { clearOnBoot: true }),
   ev("disco.error-es", "almacenamiento", "oom-monitor.sh"),
   ev("disco.smart-fallo", "almacenamiento", "oom-monitor.sh"),
   ev("disco.smart-sin-permisos", "almacenamiento", "oom-monitor.sh"),

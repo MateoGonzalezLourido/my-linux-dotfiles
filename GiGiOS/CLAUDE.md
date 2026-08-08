@@ -17,9 +17,10 @@ XDG paths via **symlinks**, not copies. The three big components are:
 
 Supporting dirs: `Wallpapers/` (used directly by `wallpaper.sh`, no symlink),
 `bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
-`system/` (ficheros que van a `/etc`, **no** se symlinkean: se instalan con `sudo` — la regla udev de
-escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP y la cesión del botón de encendido
-a Hyprland; ver las secciones de USB, de brillo, de TLP y del botón de encendido).
+`system/` (ficheros que van a `/etc` y `/usr/local/bin`, **no** se symlinkean: se instalan con `sudo` —
+la regla udev de escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP, el helper de
+firmas de ClamAV, el helper de limpieza de disco y la cesión del botón de encendido a Hyprland; ver
+las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento y del botón de encendido).
 
 `mime/`, `qt6ct/`, `menus/`, `kdeglobals`, `mimeapps.list` en la raíz no son un componente
 propio: son fragmentos sueltos de integración de escritorio (tema Qt, asociación de apps, menú
@@ -78,7 +79,9 @@ unless the application's limitations are documented there.
 ## Runtime config & secrets live OUTSIDE the repo
 
 User/runtime state is **not** versioned. It lives in `~/.config/gigios/` (`display.json`,
-`system_state.json`, `notifications.json`, `preferences.json`, …), plus `~/.config/jarvis/`
+`system_state.json`, `notifications.json`, `preferences.json`, `almacenamiento.json` —la
+autolimpieza de disco, que además leen `hypr/scripts/limpiar-almacenamiento.sh` y
+`limpieza-arranque.sh` con `jq`—, …), plus `~/.config/jarvis/`
 and `~/.local/share/jarvis/` for the Orion launcher, `~/.config/power-save/config.json`
 (umbral y filtros de modo ahorro) and `~/.local/share/orion/favorites.json` (favoritos del
 launcher — ver "What this is" para por qué estos dos últimos dejaron de vivir dentro del repo).
@@ -131,9 +134,10 @@ imprescindible para no romper la sesión:
 Para el directorio, el orden de carga de módulos y qué script se dispara desde dónde, ver
 [`docs/hypr-estructura.md`](docs/hypr-estructura.md). Para el detalle y el porqué de cada módulo
 individual (GPU/pantalla/idioma por máquina, Wake up, congelar tareas al jugar, USB, brillo DDC,
-puntero/hyprcursor, TLP, security monitor, ClamAV, desinstalar apps, boot-healthcheck, grabar
-pantalla, portapapeles, franjas horarias de fondos, monitores de batería/temperatura/RAM/disco/BT,
-y una decena más), ver **[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) — léelo antes de
+puntero/hyprcursor, TLP, security monitor, ClamAV, desinstalar apps, almacenamiento y autolimpieza,
+boot-healthcheck, grabar pantalla, portapapeles, franjas horarias de fondos, monitores de
+batería/temperatura/RAM/disco/BT, y una decena más), ver
+**[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) — léelo antes de
 tocar el script o módulo que nombra su título**, porque casi todos documentan un fallo silencioso
 ya medido (efecto sin error visible) que se repite si no se conoce.
 
