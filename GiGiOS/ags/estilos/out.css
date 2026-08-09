@@ -2449,6 +2449,8 @@ window.qs-window > box,
   font-family: "MesloLGS Nerd Font";
   font-size: 16px;
   padding: 0 1px;
+  margin-top: 3px;
+  margin-bottom: -3px;
   border-radius: 7px;
   transition: opacity 200ms ease, background-color 200ms ease;
   transform: none;
@@ -2479,7 +2481,8 @@ window.qs-window > box,
   margin: 0;
 }
 .qs-media .qs-media-like {
-  min-width: 18px;
+  margin-left: -1px;
+  margin-right: 1px;
 }
 .qs-media .qs-media-time {
   font-size: 8px;

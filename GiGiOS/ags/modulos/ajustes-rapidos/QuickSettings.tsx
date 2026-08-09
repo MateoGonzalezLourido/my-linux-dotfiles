@@ -1533,14 +1533,13 @@ function QsMedia() {
       ?? null
   }
 
-  // El corazón solo aplica con cuenta Premium (los endpoints /me/tracks dan 403 en
-  // free). isPremium() implica estar configurado. Se resuelve una vez (async) y se
-  // cachea aquí para leerlo síncronamente en update(); si no es Premium, el corazón
-  // no llega a mostrarse.
+  // El corazón solo necesita credenciales: "Me gusta" también funciona en cuentas
+  // free. Se resuelve una vez (async) y se cachea aquí para leerlo síncronamente en
+  // update(); si la API niega la biblioteca, `isLiked` responde `denied` y se oculta.
   let desmontado = false
-  Spotify.isPremium().then((premium) => {
+  Spotify.isConfigured().then((configurado) => {
     if (desmontado) return
-    setCanLike(premium)
+    setCanLike(configurado)
     update()
   })
 
@@ -1766,8 +1765,14 @@ function QsMedia() {
       if (id !== lastQueriedId) {
         lastQueriedId = id
         setTrackIdState(id)
-        Spotify.isLiked(id).then((guardada) => {
-          if (!desmontado && lastQueriedId === id) setLiked(guardada)
+        Spotify.isLiked(id).then((estado) => {
+          if (desmontado || lastQueriedId !== id) return
+          if (estado === "denied") {
+            setCanLike(false)
+            setLikeVisible(false)
+            return
+          }
+          if (estado !== "unavailable") setLiked(estado === "liked")
         })
       }
     } else {
@@ -2523,31 +2528,31 @@ function QsMedia() {
         <box visible={hasProgress}>
           {progressArea}
         </box>
-        <box valign={Gtk.Align.CENTER}>
+        {/* `centerbox` para que el corazón no entre en el centrado: el slot central
+            lleva solo prev/play/next y queda centrado en toda la fila pase lo que pase
+            a los lados. */}
+        <centerbox valign={Gtk.Align.CENTER}>
           {/* Los dos tiempos van con `canTarget={false}` porque `.qs-media-time` lleva
               `margin-top: -3px` y esta fila se PRUEBA ANTES que la del progreso (GTK4
               recorre los hijos al revés al elegir destino): siendo alcanzables se
               tragaban la pulsación en los últimos píxeles de la barra y el arrastre no
               llegaba a empezar. No pierden nada: son texto sin interacción. */}
-          <label
-            cssClasses={["qs-media-time"]}
-            label={positionLabel}
-            canTarget={false}
-            halign={Gtk.Align.START}
-            hexpand
-            marginEnd={10}
-            ellipsize={3}
-            maxWidthChars={MEDIA_TIME_MAX_CHARS}
-          />
-          <box
-            spacing={2}
-            halign={Gtk.Align.CENTER}
-            valign={Gtk.Align.CENTER}
-            cssClasses={["qs-media-controls"]}
-          >
+          <box $type="start" hexpand valign={Gtk.Align.CENTER}>
+            <label
+              cssClasses={["qs-media-time"]}
+              label={positionLabel}
+              canTarget={false}
+              halign={Gtk.Align.START}
+              hexpand
+              marginEnd={10}
+              ellipsize={3}
+              maxWidthChars={MEDIA_TIME_MAX_CHARS}
+            />
             <button
               cssClasses={["qs-media-btn", "qs-media-like"]}
               visible={likeVisible}
+              halign={Gtk.Align.END}
+              marginEnd={2}
               onClicked={() => {
                 const id = trackId.get()
                 if (!id) return
@@ -2560,6 +2565,14 @@ function QsMedia() {
             >
               <label label={liked((v) => v ? "󰋑" : "󰋕")} />
             </button>
+          </box>
+          <box
+            $type="center"
+            spacing={2}
+            halign={Gtk.Align.CENTER}
+            valign={Gtk.Align.CENTER}
+            cssClasses={["qs-media-controls"]}
+          >
             <button cssClasses={["qs-media-btn"]} onClicked={() => {
               const p = reproductoresMultimedia.get()[playerIndex.get()]
               if (p) {
@@ -2586,16 +2599,17 @@ function QsMedia() {
             </button>
           </box>
           <label
+            $type="end"
             cssClasses={["qs-media-time"]}
             label={durationLabel}
             canTarget={false}
             halign={Gtk.Align.END}
-            hexpand
+            valign={Gtk.Align.CENTER}
             marginStart={10}
             ellipsize={3}
             maxWidthChars={MEDIA_TIME_MAX_CHARS}
           />
-        </box>
+        </centerbox>
       </box>
     </box>
   )

@@ -40,22 +40,6 @@ export async function isConfigured(): Promise<boolean> {
   return (await getCredentials()) !== null
 }
 
-/**
- * true solo si la cuenta es Premium. Los endpoints de biblioteca (/me/tracks)
- * devuelven 403 en cuentas free, así que el botón "Me gusta" solo tiene sentido
- * con Premium. Implica estar configurado (getAccessToken requiere credenciales).
- */
-export async function isPremium(): Promise<boolean> {
-  const token = await getAccessToken()
-  if (!token) return false
-  try {
-    const out = await execAsync(["curl", "-s", "https://api.spotify.com/v1/me",
-      "-H", `Authorization: Bearer ${token}`,
-    ])
-    const json = JSON.parse(out)
-    return json?.product === "premium"
-  } catch (e) { return false }
-}
 
 function readTokenCache(): TokenCache | null {
   try {
@@ -101,28 +85,47 @@ export async function getAccessToken(): Promise<string | null> {
   } catch (e) { return null }
 }
 
-/** true si el track está en Liked Songs. false ante cualquier fallo. */
-export async function isLiked(trackId: string): Promise<boolean> {
-  const token = await getAccessToken()
-  if (!token) return false
-  try {
-    const out = await execAsync(["curl", "-s",
-      `https://api.spotify.com/v1/me/tracks/contains?ids=${trackId}`,
-      "-H", `Authorization: Bearer ${token}`,
-    ])
-    const json = JSON.parse(out)
-    return Array.isArray(json) && json[0] === true
-  } catch (e) { return false }
+/**
+ * Biblioteca ("Me gusta"). `/me/tracks` y `/me/tracks/contains` están **deprecados** y
+ * responden 403 `Forbidden` con un token válido y los scopes concedidos, sin mencionar
+ * la deprecación. El reemplazo es `/me/library`, con las pistas como URIs
+ * (`spotify:track:<id>`) en `uris`, no como ids.
+ */
+const LIBRARY = "https://api.spotify.com/v1/me/library"
+
+/** `spotify:track:<id>` percent-encoded. Los ids son base62: solo hay que escapar los `:`. */
+function trackUri(trackId: string): string {
+  return `spotify%3Atrack%3A${trackId}`
 }
 
-/** Guarda (PUT) o quita (DELETE) el track de Liked Songs. true si tuvo éxito. */
+/** `denied` (401/403) = ocultar el corazón; `unavailable` (red/parseo) = dejarlo como está. */
+export type LikeState = "liked" | "unliked" | "denied" | "unavailable"
+
+/** Consulta si el track está en la biblioteca. Nunca lanza. */
+export async function isLiked(trackId: string): Promise<LikeState> {
+  const token = await getAccessToken()
+  if (!token) return "unavailable"
+  try {
+    const out = await execAsync(["curl", "-s", "-w", "\n%{http_code}",
+      `${LIBRARY}/contains?uris=${trackUri(trackId)}`,
+      "-H", `Authorization: Bearer ${token}`,
+    ])
+    const { body, code } = splitHttpCode(out)
+    if (code === 401 || code === 403) return "denied"
+    if (code !== 200) return "unavailable"
+    const json = JSON.parse(body)
+    return Array.isArray(json) && json[0] === true ? "liked" : "unliked"
+  } catch (e) { return "unavailable" }
+}
+
+/** Guarda (PUT) o quita (DELETE) el track de la biblioteca. true si tuvo éxito. */
 export async function setLiked(trackId: string, liked: boolean): Promise<boolean> {
   const token = await getAccessToken()
   if (!token) return false
   try {
     const out = await execAsync(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
       "-X", liked ? "PUT" : "DELETE",
-      `https://api.spotify.com/v1/me/tracks?ids=${trackId}`,
+      `${LIBRARY}?uris=${trackUri(trackId)}`,
       "-H", `Authorization: Bearer ${token}`,
       "-H", "Content-Length: 0",
     ])

@@ -1609,6 +1609,11 @@ window.qs-window > box,
     font-family: $font-icon;
     font-size: 16px;
     padding: 0 1px;
+    // 3 px abajo para despegarlos de la barra de progreso. El margen inferior negativo
+    // compensa al superior: la tarjeta va a `min-height: 108px` justos y crecer aquí
+    // la desbordaría.
+    margin-top: 3px;
+    margin-bottom: -3px;
     border-radius: 7px;
     transition: opacity 200ms ease, background-color 200ms ease;
     transform: none;
@@ -1647,9 +1652,18 @@ window.qs-window > box,
     }
   }
 
+  // El corazón de "Me gusta" hereda TODO el diseño de `.qs-media-btn` (tamaño, color,
+  // hover, focus): esta clase solo lo recoloca en horizontal — verticalmente ya
+  // queda centrado como el resto con el 3/-3 heredado de `.qs-media-btn`, el
+  // desplazamiento de -5/+5 que llevaba antes lo bajaba 2px de más (medido con un
+  // A/B de píxeles: con 5/-5 el glifo quedaba con el centro 3px por debajo del de
+  // prev/play/next; con el 3/-3 heredado coincide exacto). Izquierda/derecha se
+  // anulan por pares para no mover al vecino. Tiene que ir aquí y no en un `css=`
+  // inline: el proveedor inline de AGS usa una sola clase y pierde por
+  // especificidad contra `.qs-media .qs-media-btn`.
   .qs-media-like {
-    // Hereda tamaño/estilo de .qs-media-btn; los botones de acción se mantienen blancos.
-    min-width: 18px;
+    margin-left: -1px;
+    margin-right: 1px;
   }
 
   .qs-media-time {
