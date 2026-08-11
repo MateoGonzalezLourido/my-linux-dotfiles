@@ -56,6 +56,7 @@ util.carga("gigios.autostart")      -- arranque escalonado (hl.on "hyprland.star
 util.carga("gigios.escaner-apps")   -- salto al escritorio de las apps de autostart
 util.carga("gigios.reparto-ventanas") -- que una ventana nueva no nazca estrujada
 util.carga("gigios.limite-ventanas") -- tope de ventanas en mosaico por escritorio
+util.carga("gigios.traer-steam")    -- trae aquí la ventana single-instance de Steam
 util.carga("gigios.permisos")       -- permisos del ecosistema (screencopy, plugins)
 util.carga("gigios.gpu")            -- perfil por máquina (~/.config/gigios/gpu-perfil)
 util.carga("gigios.gaming")         -- ajustes para juegos (tearing, VRR)

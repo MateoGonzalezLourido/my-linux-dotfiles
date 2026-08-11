@@ -4,10 +4,9 @@
     "pantallasDetectadas": "PANTALLAS DETECTADAS"
   },
   "grupos": {
-    "disposicion": "Disposición y modo",
+    "disposicion": "Funcionamiento",
     "colorMonitor": "Color del monitor",
-    "brilloLuz": "Brillo y luz nocturna",
-    "automatizacion": "Automatización"
+    "brilloLuz": "Brillo y luz nocturna"
   },
   "reglas": {
     "modos": {
@@ -17,7 +16,6 @@
       "fijarEn": "Fijar en"
     },
     "horario": {
-      "desde": "de",
       "hasta": "a",
       "vigente": "vigente",
       "tooltipVigente": "Rige ahora mismo: {{canales}}",
@@ -42,8 +40,7 @@
       "opcionNativa": "{{resolucion}} (nativa)"
     },
     "frecuencia": {
-      "titulo": "Frecuencia",
-      "descripcion": "Una frecuencia mayor hace el movimiento más fluido, pero puede aumentar el consumo."
+      "titulo": "Frecuencia"
     },
     "escala": {
       "titulo": "Escala",

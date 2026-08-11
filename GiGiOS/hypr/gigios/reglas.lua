@@ -90,6 +90,38 @@ hl.window_rule({
     center = true,
 })
 
+-- Ventanas secundarias de Steam (lista de amigos, chats — el título de un
+-- chat es el nombre del amigo, distinto cada vez, así que no se puede fijar
+-- uno por uno): todo lo que sea class=steam salvo la ventana principal
+-- ("Steam" a secas) nace flotante.
+--
+-- Deliberadamente SIN `size`: Steam pide su propia geometría por ventana (la
+-- que usa fuera de Hyprland) y la regla, al aplicarse en el map, deja que la
+-- conserve. Cuidado con el falso negativo que llevó aquí: flotar a mano una
+-- ventana YA mapeada tiled (hl.dsp.window.float sobre una existente) le deja
+-- la geometría del tiling, que en este monitor es casi media pantalla — se ve
+-- como si la regla forzara "tamaño máximo" cuando en realidad no había regla
+-- actuando. Hay que juzgar la regla con una ventana recién abierta.
+--
+-- `persistent_size` guarda el tamaño al que TÚ la dejes y lo restaura en la
+-- siguiente apertura, que es lo que hace Steam por su cuenta en otros WMs.
+hl.window_rule({
+    name  = "steam-ventanas-secundarias",
+    match = { class = "steam" },
+    float  = true,
+    center = true,
+    persistent_size = true,
+})
+
+-- La regla anterior también atraparía la ventana principal de Steam; esta
+-- va después y la vuelve a fijar tiled (las reglas se aplican en orden y la
+-- última que casa gana para cada propiedad).
+hl.window_rule({
+    name  = "steam-principal-tiled",
+    match = { class = "steam", title = "^Steam$" },
+    float = false,
+})
+
 -- Picture-in-Picture de Firefox: flotante y SIEMPRE encima, que es su razón de
 -- ser (la ves mientras haces otra cosa). `pin` la mantiene además al cambiar de
 -- workspace. Ojo: título sin verificar aquí — si Firefox lo traduce en tu

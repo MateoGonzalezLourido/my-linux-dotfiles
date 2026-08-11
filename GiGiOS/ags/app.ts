@@ -1,6 +1,7 @@
 import app from "ags/gtk4/app"
 import style from "./estilos/out.css"
 import Barra from "./modulos/barra/Barra"
+import Lagarto from "./modulos/mascotas/Lagarto"
 import MenuEnergia from "./modulos/menu-energia/MenuEnergia"
 import OSD, { showOSD } from "./modulos/osd/OSD"
 import { showMicOSD } from "./modulos/osd/MicOSD"
@@ -105,6 +106,11 @@ app.start({
   },
   main() {
     app.get_monitors().flatMap(Barra)
+    // Mascota puramente cosmética: se monta siempre (ventana barata, oculta por
+    // `visible`) para que el toggle de Ajustes se aplique en caliente, igual
+    // que spotifyBarEnabled. El try/catch la aísla de las demás ventanas por
+    // si el sprite no carga en una máquina nueva.
+    try { app.get_monitors().map(Lagarto) } catch (e) { console.error("[app] Lagarto failed:", e) }
     app.get_monitors().map(MenuEnergia)
     app.get_monitors().map(OSD)
     // Resumen inicial simultáneo: cada tarjeta aplica su propia condición (el

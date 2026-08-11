@@ -18,6 +18,7 @@ import {
   trayBarEnabled, setTrayBarEnabled,
   notificationBarEnabled, setNotificationBarEnabled,
   workspacesBarEnabled, setWorkspacesBarEnabled,
+  lagartoBarraEnabled, setLagartoBarraEnabled,
   titulosAppsWorkspaceActivos, setTitulosAppsWorkspaceActivos,
   workspaceAppLimit, setWorkspaceAppLimit,
   WORKSPACE_APP_LIMIT_MIN, WORKSPACE_APP_LIMIT_MAX,
@@ -137,6 +138,7 @@ export default function SeccionBarraEscritorios({ vista }: { vista: VistaBarra }
         <AjusteInterruptor titulo={textos.barra.compartirPantalla.titulo} informacion={textos.barra.compartirPantalla.descripcion} activo={screencastIndicatorEnabled} alAlternar={() => setScreencastIndicatorEnabled(!screencastIndicatorEnabled.get())} />
         <AjusteInterruptor titulo={textos.barra.bandeja.titulo} informacion={textos.barra.bandeja.descripcion} activo={trayBarEnabled} alAlternar={() => setTrayBarEnabled(!trayBarEnabled.get())} />
         <AjusteInterruptor titulo={textos.barra.notificaciones.titulo} informacion={textos.barra.notificaciones.descripcion} activo={notificationBarEnabled} alAlternar={() => setNotificationBarEnabled(!notificationBarEnabled.get())} />
+        <AjusteInterruptor titulo={textos.barra.lagarto.titulo} informacion={textos.barra.lagarto.descripcion} activo={lagartoBarraEnabled} alAlternar={() => setLagartoBarraEnabled(!lagartoBarraEnabled.get())} />
       </TarjetaAjustes>}
 
       {vista === "barra" && <TarjetaAjustes titulo={textos.seccionesNuevas.barraEscritorios.espaciosBarra} icono="󰆾">

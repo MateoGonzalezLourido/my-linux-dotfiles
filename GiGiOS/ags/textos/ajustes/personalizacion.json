@@ -97,6 +97,10 @@
       "titulo": "Notificaciones en la barra",
       "descripcion": "Muestra el botón cuando hay notificaciones.\nOcultarlo no afecta a los avisos, el panel ni el historial."
     },
+    "lagarto": {
+      "titulo": "Lagarto en la barra",
+      "descripcion": "Se pasea por debajo de la barra mientras el escritorio activo no tenga ventanas o ninguna esté enfocada."
+    },
     "workspaces": {
       "titulo": "Workspaces en la barra",
       "descripcion": "Oculta solo el selector de la barra; los escritorios y sus atajos siguen funcionando.",

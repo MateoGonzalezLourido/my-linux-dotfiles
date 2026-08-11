@@ -201,10 +201,6 @@ export default function SeccionPantalla() {
             })}
             onSelect={(value) => { const s = selected(); if (s) applyPatch(s, { mode: `${s.width}x${s.height}@${value}Hz` }) }}
           />
-          <TextoInformativo
-            label={textos.monitor.frecuencia.descripcion}
-            halign={Gtk.Align.START} wrap xalign={0}
-          />
         </box>
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
@@ -217,10 +213,6 @@ export default function SeccionPantalla() {
               return SCALE_PRESETS.map(sc => ({ label: sc.toFixed(2), value: String(sc), active: sc === cur }))
             })}
             onSelect={(value) => { const s = selected(); if (s) applyPatch(s, { scale: Number(value) }) }}
-          />
-          <TextoInformativo
-            label={textos.monitor.escala.descripcion}
-            halign={Gtk.Align.START} wrap xalign={0}
           />
         </box>
 
@@ -317,8 +309,6 @@ export default function SeccionPantalla() {
       </box>
 
       <ControlesLuz />
-
-      <TituloSubseccion label={textos.grupos.automatizacion} halign={Gtk.Align.START} />
 
       {/* ── Franjas horarias: luz nocturna y/o brillo (independiente del manual) ── */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["sp-field"]}>

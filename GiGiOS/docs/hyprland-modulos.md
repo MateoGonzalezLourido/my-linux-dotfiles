@@ -833,6 +833,80 @@ bajas, no de movimientos), así que `ags/modulos/barra/escritorios/Escritorios.t
 Sin eso los iconos de la barra se quedaban en el escritorio donde nació la ventana hasta que otra
 cosa forzara un refresco. Ver `ags/CLAUDE.md`.
 
+### Traer aquí la ventana single-instance de Steam (`gigios/traer-steam.lua`)
+
+La lista de amigos y los chats de Steam son **single-instance**: si ya tienes uno abierto en otro
+escritorio y lo vuelves a pedir desde la ventana principal, Steam **no abre una segunda ventana**,
+reutiliza la existente allí donde esté. Con `misc.focus_on_activate = false` (`gigios/ventanas.lua`)
+Hyprland tampoco te lleva hasta ella: solo la marca **urgent**. El síntoma es *"hago clic y no pasa
+nada"* cuando en realidad la ventana sí respondió, en un escritorio que no estás mirando.
+
+Es el mismo razonamiento del `urgent` que ya documenta la sección de `anclaje.py`, pero **aquel solo
+vigila lo que lanzas desde el lanzador**, durante su ventana de observación tras el `exec`. Pedir un
+chat desde la propia UI de Steam no pasa por el lanzador: ahí no hay nadie escuchando, de ahí este
+módulo, que engancha `hl.on("window.urgent", …)` de forma permanente.
+
+**`HL.Window.workspace` parece escribible y NO lo es.** `w.workspace = ws` se acepta sin error,
+devuelve `ok` en `pcall`, y la ventana **se queda donde estaba** (medido en vivo con la ventana
+principal de Steam, asignando tanto un objeto `HL.Workspace` como un id crudo). Es un fallo
+silencioso perfecto: el código parece correcto y no hace nada. La vía real es el dispatcher.
+
+**El mensaje de error de la API miente por omisión, y creerlo cuesta un parpadeo.** Llamar a
+`hl.dsp.window.move` con una clave inválida enumera lo que espera: `direction`, `x+y(+relative)`,
+`workspace`, `into_group`, `out_of_group`. **`window` no sale en esa lista, pero se acepta y
+funciona.** La diferencia no es cosmética:
+
+- **Sin selector**, `move` actúa sobre la ventana **activa**, así que hay que enfocar primero; `focus`
+  salta al escritorio de la ventana y `move` trae la vista de vuelta. Funciona, pero **se ve el
+  parpadeo** del escritorio yendo y viniendo.
+- **Con selector**, un solo dispatch: la ventana viene sola y la vista no se mueve en ningún momento.
+
+Comprobado en vivo: estando en el escritorio 2 con kitty enfocado y la ventana de Steam en el 3, el
+dispatch único la trajo al 2 dejando `activews` en 2. El `focus` explícito posterior es solo
+determinismo (el `move` ya la deja enfocada, pero eso es efecto colateral observado, no contrato) y
+no puede reintroducir el salto, porque para entonces la ventana ya está en tu escritorio.
+
+**Enfocar y elevar son dos cosas distintas, y hay que pedir las dos.** Enfocar una flotante **no la
+sube en el z-order**: si en el escritorio de destino ya había otra flotante solapada, la ventana
+llega enfocada pero **tapada**, y se ve el mismo *"no ha pasado nada"* que el módulo venía a
+arreglar. Medido con dos ventanas flotantes colocadas en las mismas coordenadas y `grim` sobre la
+zona solapada: tras `focus()` el píxel del centro seguía siendo el de la ventana de arriba
+(`srgb(0,0,255)`), y solo tras `bring_to_top()` pasó a ser el de la traída (`srgb(98%,1%,1%)`). De
+ahí que la secuencia termine siempre en `hl.dsp.window.bring_to_top`, también en la rama de "ya
+estaba en este escritorio" — que es justo donde el tapado ocurre.
+
+**El puntero saltaba al centro de la ventana, y el culpable es `move`.** Medido: con el cursor en
+`348,765` y la ventana en `400,300` de `500x400`, tras el `move` el cursor estaba en `650,500` — el
+centro exacto. `focus` y `bring_to_top` **no lo tocan**, así que evitar el enfoque no habría servido
+de nada. Se arregla con **`cursor.no_warps = true`** en `gigios/input.lua`, global a propósito y no
+como apaño local (guardar la posición y restaurarla con `hl.dsp.cursor.move` también funciona): el
+salto molesta igual venga de donde venga, así que afecta por igual al anclaje de `anclaje.py` y a los
+atajos de foco. Verificado tras el cambio: el cursor se queda quieto durante los tres dispatch y la
+ventana llega igual.
+
+**`silent` promete menos de lo que parece: no impide que la vista siga a la ventana si la que mueves
+es la ACTIVA.** Medido: mover con `silent` la ventana enfocada se llevó `activews` con ella. Lo que
+garantiza que aquí no haya salto **no es la bandera**, es que la ventana urgente por definición no es
+la activa — si lo fuera, ya estarías mirándola y no habría nada que traer. Se mantiene `silent`
+porque en ese caso degenerado es justo lo que evita el rebote, no porque sea lo que arregla el
+parpadeo.
+
+**Acotado a `class = "steam"` a propósito**, no a cualquier `urgent`. La sección de `anclaje.py` ya
+midió el precio de generalizar: cualquier ventana que pida atención acaba viajando al escritorio del
+usuario, y el síntoma es *"ventanas que aparecen de repente y se van solas"*. Un `urgent` puede
+venir de un diálogo de fondo, y teletransportarlo sería peor que el problema que arregla.
+
+Fail-open hacia **no hacer nada** (todo en `pcall`): el peor caso es que la ventana se quede donde
+estaba, justo el comportamiento previo al módulo. Los escritorios especiales (`id <= 0`) quedan
+fuera, mismo criterio que `ancla-escritorio.lua` y `compactar.lua`. Y ojo al tocarlo: los callbacks
+tienen **timeout de 100 ms**, los dos `dispatch` son inmediatos y no debe entrar nada que espere.
+
+La regla que las hace flotantes vive aparte, en `gigios/reglas.lua` (`steam-ventanas-secundarias`).
+Va **sin `size`**: Steam pide su propia geometría por ventana y `persistent_size` recuerda la que tú
+le dejes. Cuidado con el falso negativo de ahí: **flotar a mano una ventana ya mapeada en mosaico**
+le deja la geometría del tiling —casi media pantalla— y parece que la regla fuerza "tamaño máximo"
+cuando en realidad no había regla actuando. Hay que juzgarla con una ventana **recién abierta**.
+
 ### SUPER + tecla sin atajo no debe escribirse (`gigios/nop-binds.lua`)
 
 Con SUPER pulsado, una tecla que **no** forma un atajo llegaba a la aplicación: `SUPER+C` escribía

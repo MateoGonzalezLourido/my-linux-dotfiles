@@ -93,6 +93,14 @@ export { notificationBarEnabled }
 const [workspacesBarEnabled, _setWorkspacesBarEnabled] = createState(true)
 export { workspacesBarEnabled }
 
+// Mascota lagarto: cuando está activo se pasea por debajo de la barra
+// mientras el escritorio activo no tenga clientes o no haya ninguno enfocado
+// (ver modulos/mascotas/estado/disparador.ts). Puramente cosmético, así que
+// nace DESACTIVADO — a diferencia del resto de indicadores de la barra, aquí
+// no hay comportamiento previo que conservar.
+const [lagartoBarraEnabled, _setLagartoBarraEnabled] = createState(false)
+export { lagartoBarraEnabled }
+
 // Títulos emergentes de las aplicaciones en el selector de workspaces. Al
 // desactivarlos, pasar el ratón por un icono no crea el tooltip nativo de GTK.
 // Valor predeterminado: activados para conservar el comportamiento existente.
@@ -324,6 +332,7 @@ function load() {
     if (typeof saved.trayBar === "boolean") _setTrayBarEnabled(saved.trayBar)
     if (typeof saved.notificationBar === "boolean") _setNotificationBarEnabled(saved.notificationBar)
     if (typeof saved.workspacesBar === "boolean") _setWorkspacesBarEnabled(saved.workspacesBar)
+    if (typeof saved.lagartoBarra === "boolean") _setLagartoBarraEnabled(saved.lagartoBarra)
     if (typeof saved.titulosAppsWorkspace === "boolean") {
       _setTitulosAppsWorkspaceActivos(saved.titulosAppsWorkspace)
     }
@@ -394,6 +403,7 @@ function save() {
       notificationBar: notificationBarEnabled.get(),
       workspacesBar: workspacesBarEnabled.get(),
       titulosAppsWorkspace: titulosAppsWorkspaceActivos.get(),
+      lagartoBarra: lagartoBarraEnabled.get(),
       workspaceAppLimit: workspaceAppLimit.get(),
       workspaceVisibleLimit: workspaceVisibleLimit.get(),
       barAutoHide: barAutoHideEnabled.get(),
@@ -490,6 +500,10 @@ export function setWorkspacesBarEnabled(on: boolean) {
 }
 export function setTitulosAppsWorkspaceActivos(activos: boolean) {
   _setTitulosAppsWorkspaceActivos(activos)
+  save()
+}
+export function setLagartoBarraEnabled(on: boolean) {
+  _setLagartoBarraEnabled(on)
   save()
 }
 export function setWorkspaceAppLimit(value: number) {

@@ -1244,6 +1244,28 @@ window.osd-window > box {
   background-color: transparent;
 }
 
+window.lagarto-window,
+window.lagarto-window.background,
+window.lagarto-window.csd {
+  background: none;
+  background-color: transparent;
+}
+
+window.lagarto-window decoration,
+window.lagarto-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+window.lagarto-window > box {
+  background: none;
+  background-color: transparent;
+}
+
 .osd-container {
   min-width: 210px;
   min-height: 30px;
