@@ -23,7 +23,8 @@ export default function SettingsWindow(gdkmonitor: Gdk.Monitor) {
       </box>
       <box vexpand>
         <With value={notifSettingsVisible}>
-          {(v: boolean) => v ? <SettingsTabs /> : <box />}
+          {/* Sin título de sección: la cabecera de arriba ya dice «Ajustes de notificaciones». */}
+          {(v: boolean) => v ? <SettingsTabs mostrarTitulo={false} /> : <box />}
         </With>
       </box>
     </box>

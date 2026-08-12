@@ -21,11 +21,15 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "rules", label: textos.pestanas.reglas },
 ]
 
-export default function SettingsTabs() {
+/** `mostrarTitulo` existe porque estas pestañas se montan en DOS sitios con cabeceras distintas:
+ *  en Ajustes > Notificaciones, donde el «✦ Notificaciones» es el título de la sección igual que
+ *  en el resto de secciones; y en la ventana propia (`SettingsWindow`), que ya rotula
+ *  «Ajustes de notificaciones» encima y ahí el título repetido sobra. */
+export default function SettingsTabs({ mostrarTitulo = true }: { mostrarTitulo?: boolean } = {}) {
   const [tab, setTab] = createState<TabId>("general")
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section"]} hexpand vexpand>
-      <TituloSeccion titulo={textos.seccion.titulo} />
+      {mostrarTitulo && <TituloSeccion titulo={textos.seccion.titulo} />}
       <box cssClasses={["st-tabbar"]} spacing={4} hexpand>
         {TABS.map(t => (
           <button

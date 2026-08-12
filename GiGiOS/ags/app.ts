@@ -20,6 +20,9 @@ import { initAutoDnd } from "./modulos/notificaciones/autoDnd/watcher"
 import { initNotifDaemonCheck } from "./modulos/notificaciones/daemon/comprobacion"
 import { initTrayApps } from "./modulos/ajustes/trayApps"
 import { initGamingState } from "./servicios/energia/gamingState"
+import { initBrilloAhorro } from "./servicios/energia/brilloAhorro"
+import { initTlpAuto } from "./servicios/energia/tlpAuto"
+import { initInactividadAhorro } from "./servicios/pantalla/inactividadAhorro"
 import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
 import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
@@ -178,6 +181,15 @@ app.start({
       // autostart de Hyprland, y este solo vigila el próximo cambio de franja
       // contra el reloj de pared — cuatro segundos no pueden perderle ninguno.
       initPlanificadorFondos()
+      // Las tres medidas de ahorro que actúan sobre el SISTEMA (brillo del panel, perfil
+      // de TLP y tiempos de hypridle). Van aquí por el mismo criterio: siembran del
+      // ESTADO —`powerSaveActive` ya está resuelto y sus apuntes están en disco—, no de
+      // eventos ocurridos mientras esperan, así que cuatro segundos no les pierden nada.
+      // Su primera pasada es además la recuperación de un apunte huérfano que pudiera
+      // haber dejado un AGS muerto con el ahorro puesto (brillo bajo, tiempos cortos).
+      initBrilloAhorro()
+      initTlpAuto()
+      initInactividadAhorro()
     }, 4000)
   },
 })

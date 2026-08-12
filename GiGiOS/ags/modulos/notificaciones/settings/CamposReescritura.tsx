@@ -22,12 +22,17 @@ export default function CamposReescritura({
   cambiarTexto: (campo: CampoReescrituraId, texto: string) => void
   cambiarVaciado: (campo: CampoReescrituraId, activo: boolean) => void
 }) {
+  // Cada campo va en su PROPIA `<box>`, no en un `<>`: un Fragment dentro de otro Fragment
+  // hace que `Fragment.append` lance «nesting Fragments are not yet supported», y ese error
+  // reventaba la construcción entera de `RuleEditor` — o sea que el botón "editar" de CUALQUIER
+  // pestaña de Ajustes de notificaciones dejaba el panel en blanco, sin error visible: `<With>`
+  // ya había quitado la vista de lista antes de intentar montar el editor.
   return (
     <>
       {CAMPOS.map(({ id, titulo, accion }) => {
         const valorInicial = reglaInicial.effects.rewrite?.[id]
         return (
-          <>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
             <box spacing={6} valign={Gtk.Align.CENTER}>
               <label cssClasses={["re-field-label"]} label={titulo} hexpand halign={Gtk.Align.START} />
               <button
@@ -47,7 +52,7 @@ export default function CamposReescritura({
                 if (borrador.get().effects.rewrite?.[id] !== "") cambiarTexto(id, self.text)
               }}
             />
-          </>
+          </box>
         )
       })}
     </>

@@ -6,6 +6,8 @@
     "bateria": "Batería y modo de ahorro",
     "modoAhorro": "Comportamiento durante el ahorro",
     "tlp": "Perfil de energía TLP",
+    "brilloAhorro": "Brillo durante el ahorro",
+    "inactividadAhorro": "Inactividad durante el ahorro",
     "botonEncendido": "Botón de encendido"
   },
   "estado": {
@@ -29,7 +31,23 @@
     "descripcion": "Cambia el perfil de TLP: «Normal» equilibra rendimiento y consumo; «Ahorro» prioriza la autonomía. Sustituye /etc/tlp.conf y lo aplica al momento.",
     "normal": "Normal",
     "ahorro": "Ahorro",
-    "aplicando": "Aplicando…"
+    "aplicando": "Aplicando…",
+    "automatico": {
+      "titulo": "Cambiar al perfil de ahorro automáticamente",
+      "descripcion": "Al entrar en modo ahorro aplica el perfil «Ahorro» y devuelve el anterior al salir. Es el mayor ahorro después del brillo: TLP baja de golpe la política de energía de la CPU, el PCIe, los discos, el wifi y el USB. Si cambias el perfil a mano durante el ahorro, se respeta tu elección y no se restaura nada."
+    }
+  },
+  "brillo": {
+    "titulo": "Reducir el brillo de la pantalla",
+    "descripcion": "Baja el brillo al entrar en modo ahorro y lo devuelve al salir. La pantalla es el mayor consumidor de un portátil, muy por encima de los procesos en segundo plano. Si cambias el brillo a mano mientras dura el ahorro, manda tu valor y ya no se restaura nada.",
+    "nivel": "Bajar el brillo hasta",
+    "tooltip": "Editar el brillo del modo ahorro",
+    "sinSoporte": "En este equipo no se ha detectado ningún control de brillo (ni panel interno ni DDC/CI), así que este ajuste no puede aplicarse."
+  },
+  "inactividadAhorro": {
+    "titulo": "Usar tiempos de inactividad más cortos",
+    "descripcion": "Durante el ahorro sustituye los tiempos de «Suspensión e inactividad» por los de aquí abajo, y los devuelve al salir. Con la batería baja, diez minutos de pantalla encendida cuestan más que todo el mantenimiento en segundo plano junto.",
+    "aviso": "Mientras el ahorro esté activo, los tiempos generales de arriba se guardan aparte y no se aplican hasta salir de él."
   },
   "botonEncendido": {
     "titulo": "Al pulsar el botón de encendido",
@@ -63,6 +81,10 @@
   "spotify": {
     "titulo": "Ocultar Spotify de la barra",
     "descripcion": "Oculta el reproductor de Spotify y detiene sus actualizaciones y animaciones durante el ahorro. Vuelve a mostrarse al salir."
+  },
+  "mascota": {
+    "titulo": "Ocultar la mascota del escritorio",
+    "descripcion": "Retira el lagarto durante el ahorro. Su paseo redibuja la pantalla unas once veces por segundo y, por diseño, solo se anima cuando el escritorio está en reposo — justo cuando el equipo no debería estar gastando en un adorno. Vuelve al salir."
   },
   "ondaSpotify": {
     "titulo": "Onda de Spotify sin analizar el audio",

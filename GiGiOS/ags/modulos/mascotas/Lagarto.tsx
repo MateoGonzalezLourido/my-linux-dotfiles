@@ -25,6 +25,7 @@ import { obtenerControlVisibilidadBarra } from "../../estado/visibilidadBarra"
 import { calendarVisible, quickSettingsVisible } from "../../estado/shell"
 import { notifPanelVisible } from "../notificaciones/store"
 import { lagartoBarraEnabled } from "../ajustes/preferences"
+import { mascotaSuspended } from "../../servicios/energia/powerState"
 import { suscribirActividadMascota } from "./estado/monitorActividad"
 import { avanzarPaso, estadoAleatorio, PARAMETROS_PREDETERMINADOS, type EstadoMovimiento } from "./estado/movimiento"
 import {
@@ -120,13 +121,17 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
   const visibilidadBarra = obtenerControlVisibilidadBarra(gdkmonitor)
 
-  // Se activa solo con las TRES condiciones a la vez: preferencia encendida,
+  // Se activa solo con las CUATRO condiciones a la vez: preferencia encendida,
   // barra visible en esta salida (si la barra está retraída, el lagarto no
-  // debe quedar flotando solo en el escritorio) y escritorio inactivo.
+  // debe quedar flotando solo en el escritorio), escritorio inactivo y el modo
+  // ahorro sin pedir que se retire. El ahorro entra aquí y no en un `visible`
+  // aparte porque desmontar es lo único que de verdad ahorra: el paseo son ~11
+  // fotogramas/s, y cada uno es un commit de esta capa que Hyprland recompone.
+  // Mismo gesto que `spotifyBarSuspended` en `Barra.tsx`.
   const [mostrarPorActividad, setMostrarPorActividad] = createState(false)
   const visible = createComputed(
-    [lagartoBarraEnabled, visibilidadBarra.visible, mostrarPorActividad],
-    (activado, barraVisible, inactivo) => activado && barraVisible && inactivo,
+    [lagartoBarraEnabled, visibilidadBarra.visible, mostrarPorActividad, mascotaSuspended],
+    (activado, barraVisible, inactivo, ahorro) => activado && barraVisible && inactivo && !ahorro,
   )
 
   let picture: Gtk.Picture | null = null
@@ -230,19 +235,46 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
     }
   }
 
+  // Última imagen realmente escrita en el widget. `pintar()` se llama en CADA
+  // tick de la marcha (~11 veces por segundo) y casi siempre con parte de esos
+  // valores sin cambiar, así que se comparan antes de tocar nada.
+  //
+  // Lo caro no son los setters —GTK ya ignora una asignación idéntica— sino el
+  // `reclip()`: mide con `compute_bounds()`, construye una `cairo.Region` y la
+  // manda al compositor con `set_input_region`, y para hacerlo **pide un tick
+  // callback a la ventana**, o sea que mantiene vivo el reloj de FRAMES de la
+  // superficie. Llamarlo a ciegas 11 veces por segundo dejaba a la mascota
+  // despertando el reloj de frames sin parar incluso con el lagarto quieto — y
+  // está quieto a menudo, porque el modelo de movimiento se para a propósito
+  // (`estado: "parado"`, de 20 a 70 ticks, o sea entre 1,8 y 6,3 s) y porque
+  // colgado y tumbado no se mueven en absoluto. Con la guarda, esos ratos no
+  // cuestan ni una medición ni un frame. Es el mismo principio que ya aplica el
+  // temporizador al esconderse la ventana, un escalón más adentro.
+  let ultimaTextura: Gdk.Texture | null = null
+  let ultimoAncho = -1
+  let ultimoAlto = -1
+  let ultimoMargen = Number.NaN
+
   function pintar() {
     if (!picture) return
     const { textura, ancho, alto } = texturaYTamanoActual()
-    picture.set_paintable(textura ?? null)
-    picture.widthRequest = ancho
-    picture.heightRequest = alto
     // `m.x` es la posición de referencia del "carril" de la marcha (ancho
     // ANCHO_CAMINANDO). Colgado es mucho más estrecho: centrarlo dentro de
     // ese mismo carril evita que salte hacia la izquierda al cambiar de pose.
-    picture.marginStart = Math.round(m.x + (ANCHO_CAMINANDO - ancho) / 2)
-    // El hueco de clic depende del tamaño y la posición de la pose actual,
-    // así que hay que volver a recortar la región de entrada cada vez.
-    reclip?.()
+    const margen = Math.round(m.x + (ANCHO_CAMINANDO - ancho) / 2)
+    // La región de entrada es la silueta del sprite DENTRO de la ventana, así
+    // que la mueve tanto el tamaño de la pose como la posición horizontal.
+    const cambiaGeometria = ancho !== ultimoAncho || alto !== ultimoAlto || margen !== ultimoMargen
+
+    if (textura !== ultimaTextura) {
+      picture.set_paintable(textura ?? null)
+      ultimaTextura = textura
+    }
+    if (ancho !== ultimoAncho) { picture.widthRequest = ancho; ultimoAncho = ancho }
+    if (alto !== ultimoAlto) { picture.heightRequest = alto; ultimoAlto = alto }
+    if (margen !== ultimoMargen) { picture.marginStart = margen; ultimoMargen = margen }
+
+    if (cambiaGeometria) reclip?.()
   }
 
   function cancelarTemporizadorPose() {

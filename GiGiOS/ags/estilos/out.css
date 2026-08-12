@@ -5588,6 +5588,12 @@ window.cal-window.csd decoration {
   font-family: "MesloLGS Nerd Font";
 }
 
+.re-row-time {
+  font-size: 9px;
+  color: rgba(226, 226, 226, 0.35);
+  font-family: "MesloLGS Nerd Font";
+}
+
 .re-badge {
   font-size: 9px;
   color: rgba(226, 226, 226, 0.5);

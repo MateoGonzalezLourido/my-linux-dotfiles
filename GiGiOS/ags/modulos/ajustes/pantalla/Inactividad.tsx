@@ -1,68 +1,20 @@
-import { createState, type Accessor } from "ags"
+import { createState } from "ags"
 import { Gtk } from "ags/gtk4"
-import GLib from "gi://GLib"
-import Interruptor from "../../../componentes/Interruptor"
-import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
-import { parseHypridle, writeHypridle, writeBloqueoAlSuspender, type HypridleConfig, type ListenerKind } from "../../../servicios/pantalla/hypridle"
-import { reiniciarHypridle } from "../../../servicios/pantalla/reinicioHypridle"
+import { AjusteInterruptor, TarjetaAjustes, TextoInformativo } from "../componentes"
+import FilaInactividad from "./FilaInactividad"
+import { guardarInactividadGeneral, leerInactividadGeneral } from "../../../servicios/pantalla/inactividadAhorro"
 import textos from "../../../textos/ajustes/pantalla.json" with { type: "json" }
 
-const ARCHIVO_HYPRIDLE = `${GLib.get_user_config_dir()}/hypr/hypridle.conf`
-
-function leerHypridle(): HypridleConfig | null {
-  try {
-    const [ok, contenido] = GLib.file_get_contents(ARCHIVO_HYPRIDLE)
-    if (ok) return parseHypridle(new TextDecoder().decode(contenido))
-  } catch (_) { /* la sección conserva valores seguros si no puede leer el archivo */ }
-  return null
-}
-
-function guardarHypridle(
-  valores: Partial<Record<ListenerKind, { timeout: number; enabled: boolean }>>,
-  bloqueoAlSuspender: boolean,
-) {
-  try {
-    const [ok, contenido] = GLib.file_get_contents(ARCHIVO_HYPRIDLE)
-    if (!ok) return
-    const texto = writeHypridle(new TextDecoder().decode(contenido), valores)
-    const salida = writeBloqueoAlSuspender(texto, bloqueoAlSuspender)
-    GLib.file_set_contents(ARCHIVO_HYPRIDLE, salida)
-    reiniciarHypridle().catch(() => {})
-  } catch (_) { /* un fallo de hypridle no debe cerrar el shell */ }
-}
-
-function SelectorMinutos({ valor, alCambiar }: { valor: Accessor<number>, alCambiar: (minutos: number) => void }) {
-  return (
-    <box spacing={6} valign={Gtk.Align.CENTER}>
-      <button cssClasses={["sp-step-btn"]} onClicked={() => alCambiar(Math.max(1, valor.get() - 1))}><label label="−" /></button>
-      <label cssClasses={["sp-step-val"]} label={valor((minutos: number) => `${minutos} min`)} />
-      <button cssClasses={["sp-step-btn"]} onClicked={() => alCambiar(valor.get() + 1)}><label label="+" /></button>
-    </box>
-  )
-}
-
-function FilaInactividad({ etiqueta, minutos, fijarMinutos, activo, fijarActivo, guardar }: {
-  etiqueta: string
-  minutos: Accessor<number>
-  fijarMinutos: (valor: number) => void
-  activo: Accessor<boolean>
-  fijarActivo: (valor: boolean) => void
-  guardar: () => void
-}) {
-  return (
-    <box cssClasses={["dev-row"]} spacing={8} valign={Gtk.Align.CENTER}>
-      <TituloAjuste label={etiqueta} hexpand halign={Gtk.Align.START} />
-      <label cssClasses={["sp-step-val", "off"]} label={textos.suspension.nunca} visible={activo((valor) => !valor)} />
-      <box visible={activo}>
-        <SelectorMinutos valor={minutos} alCambiar={(valor) => { fijarMinutos(valor); guardar() }} />
-      </box>
-      <Interruptor activo={activo} alAlternar={() => { fijarActivo(!activo.get()); guardar() }} />
-    </box>
-  )
-}
-
+/**
+ * Tiempos de inactividad GENERALES. No escribe en hypridle.conf directamente: pasa por
+ * `guardarInactividadGeneral`, que desvía la escritura al apunte mientras el modo ahorro
+ * tiene sus propios tiempos puestos — si no, la restauración del final del ahorro borraría
+ * lo que se acabara de editar aquí. Por lo mismo lee con `leerInactividadGeneral`, que con
+ * el override puesto devuelve los valores de siempre y no los del ahorro.
+ * Ver `servicios/pantalla/inactividadAhorro.ts`.
+ */
 export default function Inactividad() {
-  const configuracion = leerHypridle() || {
+  const configuracion = leerInactividadGeneral() || {
     dpms: { timeout: 600, enabled: true },
     lock: { timeout: 630, enabled: true },
     suspend: { timeout: 660, enabled: true },
@@ -76,7 +28,7 @@ export default function Inactividad() {
   const [bloqueoActivo, fijarBloqueoActivo] = createState(configuracion.lock.enabled)
   const [suspensionActiva, fijarSuspensionActiva] = createState(configuracion.suspend.enabled)
   const [bloquearAlSuspender, fijarBloquearAlSuspender] = createState(configuracion.bloqueoAlSuspender)
-  const guardar = () => guardarHypridle({
+  const guardar = () => guardarInactividadGeneral({
     dpms: { timeout: minutosDpms.get() * 60, enabled: dpmsActivo.get() },
     lock: { timeout: minutosBloqueo.get() * 60, enabled: bloqueoActivo.get() },
     suspend: { timeout: minutosSuspension.get() * 60, enabled: suspensionActiva.get() },

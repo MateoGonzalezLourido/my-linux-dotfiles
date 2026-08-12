@@ -31,7 +31,14 @@ export function shouldIndex(input: HistoryInput): boolean {
 
 export function trimByRecency(entries: HistoryEntry[], cap: number): HistoryEntry[] {
   if (entries.length <= cap) return entries
-  return [...entries].sort((a, b) => b.lastSeen - a.lastSeen).slice(0, cap)
+  return sortByRecency(entries).slice(0, cap)
+}
+
+/** Más reciente primero. `upsertEntry` mantiene ese orden por su cuenta (inserta al frente);
+ *  esto es para el barrido de mantenimiento y para enderezar ficheros guardados por versiones
+ *  anteriores, que solo quedaban ordenados de rebote al desbordar el tope. */
+export function sortByRecency(entries: HistoryEntry[]): HistoryEntry[] {
+  return [...entries].sort((a, b) => b.lastSeen - a.lastSeen)
 }
 
 export function upsertEntry(entries: HistoryEntry[], input: HistoryInput, now: number, cap: number): HistoryEntry[] {
@@ -40,6 +47,12 @@ export function upsertEntry(entries: HistoryEntry[], input: HistoryInput, now: n
     const filtered = entries.filter(e => e.dedupKey !== input.dedupKey)
     return filtered.length === entries.length ? entries : filtered
   }
+  // La entrada tocada va SIEMPRE al frente. La lista se lee de más reciente a más antigua, y
+  // esa propiedad tiene que sostenerse en cada upsert, no solo cuando se desborda el tope:
+  // `trimByRecency` devuelve el array tal cual mientras no se pase de `cap`, así que dejar la
+  // entrada en su sitio significaba (a) por debajo del tope, orden de alta = lo más viejo
+  // arriba; (b) en el tope, una notificación repetida se quedaba enterrada donde se vio la
+  // primera vez, que es justo la que el usuario acaba de recibir y viene a buscar.
   const idx = entries.findIndex(e => e.dedupKey === input.dedupKey)
   let next: HistoryEntry[]
   if (idx >= 0) {
@@ -52,9 +65,9 @@ export function upsertEntry(entries: HistoryEntry[], input: HistoryInput, now: n
       count: prev.count + 1,
       lastSeen: now,
     }
-    next = [...entries.slice(0, idx), updated, ...entries.slice(idx + 1)]
+    next = [updated, ...entries.slice(0, idx), ...entries.slice(idx + 1)]
   } else {
-    next = [...entries, {
+    next = [{
       dedupKey: input.dedupKey,
       app: input.app,
       summary: input.summary,
@@ -63,7 +76,7 @@ export function upsertEntry(entries: HistoryEntry[], input: HistoryInput, now: n
       count: 1,
       firstSeen: now,
       lastSeen: now,
-    }]
+    }, ...entries]
   }
   return trimByRecency(next, cap)
 }

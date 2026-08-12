@@ -31,6 +31,7 @@
     "vacio": "No hay tipos de notificación sin regla",
     "sinTitulo": "(sin título)",
     "crearRegla": "󰐕 Crear regla",
+    "veces": "×{{cantidad}}",
     "todas": "Todas"
   },
   "reglas": {

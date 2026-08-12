@@ -15,8 +15,14 @@ import {
   hideSpotifyBarInPowerSave, setHideSpotifyBarInPowerSave,
   fallbackWaveInPowerSave, setFallbackWaveInPowerSave,
   freezeBackgroundInPowerSave, setFreezeBackgroundInPowerSave,
+  hideMascotaInPowerSave, setHideMascotaInPowerSave,
+  reduceBrightnessInPowerSave, setReduceBrightnessInPowerSave,
+  powerSaveBrightnessPct, setPowerSaveBrightnessPct,
+  tlpAutoInPowerSave, setTlpAutoInPowerSave,
   powerSaveActive, batteryStatusText,
 } from "../../../servicios/energia/powerState.ts"
+import { brightnessSupported } from "../../../servicios/pantalla/brightness.ts"
+import InactividadAhorro from "./InactividadAhorro"
 import { tlpAvailable, tlpMode, tlpBusy, setTlpMode } from "../../../servicios/energia/tlp.ts"
 import { botonApagado, setBotonApagado } from "../preferences.ts"
 import {
@@ -27,15 +33,24 @@ import {
 } from "../../../servicios/energia/botonEncendido.ts"
 import { DisplaySelect } from "../../../servicios/pantalla/controls"
 
-function DeslizadorUmbral(): Gtk.Scale {
-  const adj = new Gtk.Adjustment({ lower: 0, upper: 100, stepIncrement: 1, pageIncrement: 5 })
-  adj.value = powerSaveThreshold.get()
-  onCleanup(powerSaveThreshold.subscribe(() => {
-    if (adj.value !== powerSaveThreshold.get()) adj.value = powerSaveThreshold.get()
+/** Deslizador 0..100 atado a un estado de `powerState`. Lo comparten el umbral de batería
+ *  y el brillo del ahorro: los dos son un porcentaje entero con la misma presentación.
+ *  `minimo` existe porque el brillo no puede llegar a 0 (dejaría la pantalla apagada sin
+ *  nada visible con lo que volver a subirla), mientras que en el umbral el 0 significa
+ *  "desactivado" y sí es un valor legítimo. */
+function DeslizadorPorcentaje(
+  valor: typeof powerSaveThreshold,
+  fijar: (v: number) => void,
+  minimo = 0,
+): Gtk.Scale {
+  const adj = new Gtk.Adjustment({ lower: minimo, upper: 100, stepIncrement: 1, pageIncrement: 5 })
+  adj.value = valor.get()
+  onCleanup(valor.subscribe(() => {
+    if (adj.value !== valor.get()) adj.value = valor.get()
   }))
   const scale = new Gtk.Scale({ orientation: Gtk.Orientation.HORIZONTAL, adjustment: adj, drawValue: false, hexpand: true })
   scale.cssClasses = ["qs-slider", "brightness"]
-  conectarCambioDeslizador(scale, setPowerSaveThreshold)
+  conectarCambioDeslizador(scale, fijar)
   return scale
 }
 
@@ -147,7 +162,7 @@ export default function SeccionEnergia() {
               tooltip={textos.umbral.tooltip}
             />
           </box>
-          {DeslizadorUmbral() as unknown as any}
+          {DeslizadorPorcentaje(powerSaveThreshold, setPowerSaveThreshold) as unknown as any}
           <TextoInformativo label={textos.umbral.descripcion} halign={Gtk.Align.START} wrap />
         </box>
         <AjusteInterruptor titulo={textos.forzar.titulo} informacion={textos.forzar.descripcion} activo={forcePowerSave} alAlternar={() => setForcePowerSave(!forcePowerSave.get())} />
@@ -173,12 +188,57 @@ export default function SeccionEnergia() {
               halign={Gtk.Align.START} wrap
             />
           </box>
+          <AjusteInterruptor
+            titulo={textos.tlp.automatico.titulo}
+            informacion={textos.tlp.automatico.descripcion}
+            activo={tlpAutoInPowerSave}
+            alAlternar={() => setTlpAutoInPowerSave(!tlpAutoInPowerSave.get())}
+          />
         </TarjetaAjustes>
       )}
+
+      {/* Brillo. La tarjeta se pinta SIEMPRE, también sin backend de brillo: ocultarla
+          dejaría el ajuste indescubrible y sin nada que explicara la ausencia — el mismo
+          criterio que la tarjeta de firmas de ClamAV. Lo que se oculta es el deslizador,
+          que sin backend escribiría en el vacío, y en su sitio queda el porqué. */}
+      <TarjetaAjustes titulo={textos.grupos.brilloAhorro} icono="󰃞">
+        <AjusteInterruptor
+          titulo={textos.brillo.titulo}
+          informacion={textos.brillo.descripcion}
+          activo={reduceBrightnessInPowerSave}
+          alAlternar={() => setReduceBrightnessInPowerSave(!reduceBrightnessInPowerSave.get())}
+        />
+        <box
+          orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand
+          visible={createComputed(() => reduceBrightnessInPowerSave() && brightnessSupported())}
+        >
+          <box spacing={8} valign={Gtk.Align.CENTER}>
+            <TituloAjuste label={textos.brillo.nivel} hexpand halign={Gtk.Align.START} />
+            <InlineEditableValue
+              display={powerSaveBrightnessPct((v) => `${Math.round(v)} %`)}
+              getValue={() => powerSaveBrightnessPct.get()}
+              onCommit={setPowerSaveBrightnessPct}
+              min={5} max={100}
+              labelClass="sp-field-value"
+              tooltip={textos.brillo.tooltip}
+            />
+          </box>
+          {DeslizadorPorcentaje(powerSaveBrightnessPct, setPowerSaveBrightnessPct, 5) as unknown as any}
+        </box>
+        <box cssClasses={["dev-row"]} visible={brightnessSupported((s) => !s)}>
+          <TextoInformativo
+            label={textos.brillo.sinSoporte}
+            cssClasses={["sp-field-hint-warn"]}
+            halign={Gtk.Align.START} wrap
+          />
+        </box>
+      </TarjetaAjustes>
 
       <TarjetaBotonEncendido />
 
       <Inactividad />
+
+      <InactividadAhorro />
 
       <TarjetaAjustes titulo={textos.grupos.modoAhorro} icono="󰌪">
         <AjusteInterruptor titulo={textos.notificaciones.titulo} informacion={textos.notificaciones.descripcion} activo={suspendNotifFilters} alAlternar={() => setSuspendNotifFilters(!suspendNotifFilters.get())} />
@@ -186,6 +246,7 @@ export default function SeccionEnergia() {
         <AjusteInterruptor titulo={textos.procesosFondo.titulo} informacion={textos.procesosFondo.descripcion} activo={freezeBackgroundInPowerSave} alAlternar={() => setFreezeBackgroundInPowerSave(!freezeBackgroundInPowerSave.get())} />
         <AjusteInterruptor titulo={textos.spotify.titulo} informacion={textos.spotify.descripcion} activo={hideSpotifyBarInPowerSave} alAlternar={() => setHideSpotifyBarInPowerSave(!hideSpotifyBarInPowerSave.get())} />
         <AjusteInterruptor titulo={textos.ondaSpotify.titulo} informacion={textos.ondaSpotify.descripcion} activo={fallbackWaveInPowerSave} alAlternar={() => setFallbackWaveInPowerSave(!fallbackWaveInPowerSave.get())} />
+        <AjusteInterruptor titulo={textos.mascota.titulo} informacion={textos.mascota.descripcion} activo={hideMascotaInPowerSave} alAlternar={() => setHideMascotaInPowerSave(!hideMascotaInPowerSave.get())} />
       </TarjetaAjustes>
 
     </box>

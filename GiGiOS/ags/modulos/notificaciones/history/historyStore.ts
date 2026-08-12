@@ -11,13 +11,18 @@ import { evaluate } from "../rules/engine.ts"
 import { computeDedupKey } from "../rules/dedup.ts"
 import {
   type HistoryEntry, type HistoryInput, HISTORY_CAP,
-  upsertEntry, collapseDuplicates, trimByRecency, applyRuleExclusion,
+  upsertEntry, collapseDuplicates, trimByRecency, sortByRecency, applyRuleExclusion,
 } from "./historyLogic.ts"
 
 const HISTORY_PATH = `${GLib.get_user_config_dir()}/gigios/notif-history.json`
 
 const historialCargado = cargarJson<{ entries?: HistoryEntry[] }>(HISTORY_PATH, {}, "history")
-export const [historyEntries, setHistoryEntries] = createState<HistoryEntry[]>(historialCargado.entries ?? [])
+// Se ordena AL CARGAR, no solo al escribir: los ficheros que dejaron las versiones anteriores
+// solo quedaban ordenados de rebote al desbordar el tope, así que por debajo de él se leían del
+// revés (lo más viejo arriba). `upsertEntry` mantiene el orden a partir de aquí.
+export const [historyEntries, setHistoryEntries] = createState<HistoryEntry[]>(
+  sortByRecency(historialCargado.entries ?? []),
+)
 
 const scheduleSave = crearGuardadoJsonProgramado(
   HISTORY_PATH,
@@ -58,9 +63,16 @@ export function cleanHistory(): void {
   let entries = collapseDuplicates(historyEntries.get())
   entries = applyRuleExclusion(entries, matchesAnyRule)
   entries = trimByRecency(entries, HISTORY_CAP)
-  setHistoryEntries(entries)
+  setHistoryEntries(sortByRecency(entries))
   scheduleSave()
 }
 
 // Re-clean whenever the settings panel opens.
+//
+// OJO: esto cubre SOLO la ventana propia (el engranaje de la cabecera del panel de
+// notificaciones). La misma pestaña «Detectadas» se abre también desde Ajustes > Notificaciones,
+// que va por `settingsPanelVisible` y no dispara esto — por eso `HistoryTab` llama a
+// `cleanHistory()` al montarse y al volver del editor. Sin ese barrido la pestaña enseña
+// entradas que YA casan con una regla, empezando por la que acabas de crear desde ahí mismo,
+// que es exactamente lo que la pestaña promete no enseñar.
 notifSettingsVisible.subscribe(() => { if (notifSettingsVisible.get()) cleanHistory() })
