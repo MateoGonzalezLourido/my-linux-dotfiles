@@ -90,6 +90,16 @@ hl.window_rule({
     center = true,
 })
 
+-- Diálogo de extracción de Dolphin (KIO). Título fijo "Extraer — Dolphin", sin
+-- el nombre del archivo, así que el match por título no varía entre usos.
+-- Solo class hubiera flotado también la ventana principal de Dolphin.
+hl.window_rule({
+    name  = "dolphin-extraer",
+    match = { class = "org.kde.dolphin", title = "^Extraer" },
+    float  = true,
+    center = true,
+})
+
 -- Ventanas secundarias de Steam (lista de amigos, chats — el título de un
 -- chat es el nombre del amigo, distinto cada vez, así que no se puede fijar
 -- uno por uno): todo lo que sea class=steam salvo la ventana principal

@@ -157,24 +157,63 @@ mkdir -p "$directorio_grabaciones" \
 ruta_grabacion="$directorio_grabaciones/${prefijo_archivo}_$(date +%Y%m%d_%H%M%S).mp4"
 : > "$archivo_log"
 
-wf-recorder \
-    "${argumentos_captura[@]}" \
-    --audio="$fuente_audio" \
-    -f "$ruta_grabacion" \
-    >"$archivo_log" 2>&1 &
-pid_grabador=$!
+# Codificación por hardware primero. El bloque NVENC de la GPU es silicio aparte
+# de los núcleos de render, así que grabar deja de competir con la composición
+# del escritorio: con el libx264 por defecto una grabación de monitor costaba
+# ~175% de CPU y dejaba toda la sesión a tirones (Hyprland compone cada frame,
+# y el codificador le robaba los núcleos). El encoder por software se mantiene
+# como respaldo — sin GPU NVIDIA, con un driver que no expone NVENC o con las
+# sesiones concurrentes de NVENC agotadas, la grabación arranca igual en vez de
+# no arrancar. La cadena termina en "" (sin -c), que es el defecto de
+# wf-recorder, para que el respaldo sea exactamente el comportamiento anterior.
+codecs_grabacion=(h264_nvenc "")
 
-printf '%s\n%s\n' "$pid_grabador" "$ruta_grabacion" > "$archivo_estado"
+iniciar_grabador() {
+    local codec="$1"
+    local -a argumentos_codec=()
 
-# Una pausa corta permite detectar fallos inmediatos de salida, audio o codec sin
-# anunciar una grabación que realmente no llegó a empezar.
-sleep 0.25
-if ! kill -0 "$pid_grabador" 2>/dev/null; then
+    [[ -n "$codec" ]] && argumentos_codec=(-c "$codec")
+
+    wf-recorder \
+        "${argumentos_captura[@]}" \
+        "${argumentos_codec[@]}" \
+        --audio="$fuente_audio" \
+        -f "$ruta_grabacion" \
+        >"$archivo_log" 2>&1 &
+    pid_grabador=$!
+
+    printf '%s\n%s\n' "$pid_grabador" "$ruta_grabacion" > "$archivo_estado"
+
+    # Una pausa corta permite detectar fallos inmediatos de salida, audio o codec
+    # sin anunciar una grabación que realmente no llegó a empezar. Es además la
+    # ventana en la que se decide el respaldo: un NVENC que no inicializa muere
+    # aquí, al abrir el dispositivo, no a mitad de la grabación. 0,25 s bastaba
+    # para un fallo de audio o de fichero; abrir el codificador de la GPU es más
+    # lento, y quedarse corto haría fallar la grabación en vez de degradarla.
+    sleep 0.5
+    if kill -0 "$pid_grabador" 2>/dev/null; then
+        return 0
+    fi
+
     wait "$pid_grabador" 2>/dev/null || true
     rm -f "$archivo_estado"
+    pid_grabador=""
+    return 1
+}
+
+for codec_grabacion in "${codecs_grabacion[@]}"; do
+    iniciar_grabador "$codec_grabacion" && break
+
     detalle="$(tail -n 1 "$archivo_log" 2>/dev/null)"
-    fallar "No se pudo iniciar la grabación${detalle:+: $detalle}"
-fi
+    # Degradar a software no es un error para el usuario: la grabación va a
+    # ocurrir igual. Queda en el log de la sesión, no en una notificación.
+    [[ -n "$codec_grabacion" ]] && printf \
+        'grabar-pantalla: %s no disponible%s; se recurre al codec por software\n' \
+        "$codec_grabacion" "${detalle:+: $detalle}" >&2
+done
+
+[[ -n "$pid_grabador" ]] \
+    || fallar "No se pudo iniciar la grabación${detalle:+: $detalle}"
 
 flock -u 9
 

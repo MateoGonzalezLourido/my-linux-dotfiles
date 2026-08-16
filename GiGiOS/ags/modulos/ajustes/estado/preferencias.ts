@@ -78,6 +78,15 @@ const [startupVolumeMuted, _setStartupVolumeMuted] = createState(false)
 const [startupMicMuted, _setStartupMicMuted] = createState(false)
 export { startupVolumeMuted, startupMicMuted }
 
+// Dispositivos de audio que el usuario ha apartado con el clic derecho en el
+// menú de Quick Settings ("spk:<node.name>" / "mic:<node.name>", ver
+// `servicios/multimedia/endpointsAudio.ts`). No se normalizan a minúsculas como
+// las clases de app: un `node.name` distingue mayúsculas y es una identidad
+// exacta, no un texto que el usuario teclee. Lo que el hardware da por MUERTO se
+// oculta al margen de esta lista.
+const [audioDispositivosOcultos, _setAudioDispositivosOcultos] = createState<string[]>([])
+export { audioDispositivosOcultos }
+
 // Apps en segundo plano (BandejaSistema) de la barra. Desactivada, no se monta el
 // contenedor ni se renderizan sus iconos, bindings, menús o popovers.
 const [trayBarEnabled, _setTrayBarEnabled] = createState(true)
@@ -329,6 +338,11 @@ function load() {
     if (typeof saved.brightnessOsd === "boolean") _setBrightnessOsdEnabled(saved.brightnessOsd)
     if (typeof saved.startupVolumeMuted === "boolean") _setStartupVolumeMuted(saved.startupVolumeMuted)
     if (typeof saved.startupMicMuted === "boolean") _setStartupMicMuted(saved.startupMicMuted)
+    if (Array.isArray(saved.audioDispositivosOcultos)) {
+      _setAudioDispositivosOcultos(
+        saved.audioDispositivosOcultos.filter((c: unknown): c is string => typeof c === "string" && c.length > 0),
+      )
+    }
     if (typeof saved.trayBar === "boolean") _setTrayBarEnabled(saved.trayBar)
     if (typeof saved.notificationBar === "boolean") _setNotificationBarEnabled(saved.notificationBar)
     if (typeof saved.workspacesBar === "boolean") _setWorkspacesBarEnabled(saved.workspacesBar)
@@ -399,6 +413,7 @@ function save() {
       brightnessOsd: brightnessOsdEnabled.get(),
       startupVolumeMuted: startupVolumeMuted.get(),
       startupMicMuted: startupMicMuted.get(),
+      audioDispositivosOcultos: audioDispositivosOcultos.get(),
       trayBar: trayBarEnabled.get(),
       notificationBar: notificationBarEnabled.get(),
       workspacesBar: workspacesBarEnabled.get(),
@@ -485,6 +500,15 @@ export function setStartupVolumeMuted(on: boolean) {
 export function setStartupMicMuted(on: boolean) {
   _setStartupMicMuted(on)
   save()
+}
+/** Flip-flop: aparta el dispositivo o lo devuelve a la lista. Devuelve el estado
+ * nuevo por si el llamador quiere reaccionar. */
+export function alternarDispositivoAudioOculto(clave: string): boolean {
+  const actuales = audioDispositivosOcultos.get()
+  const estaba = actuales.includes(clave)
+  _setAudioDispositivosOcultos(estaba ? actuales.filter((c) => c !== clave) : [...actuales, clave])
+  save()
+  return !estaba
 }
 export function setTrayBarEnabled(on: boolean) {
   _setTrayBarEnabled(on)

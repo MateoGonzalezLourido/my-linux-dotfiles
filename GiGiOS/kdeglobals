@@ -133,9 +133,9 @@ ForegroundVisited=155,89,182
 [General]
 ColorScheme=BreezeDark
 Name=Breeze Dark
-shadeSortColumn=true
 TerminalApplication=kitty
 TerminalService=kitty.desktop
+shadeSortColumn=true
 
 [Icons]
 Theme=Tela-circle-grey
@@ -143,8 +143,22 @@ Theme=Tela-circle-grey
 [KDE]
 contrast=4
 
-[UiSettings]
-ColorScheme=BreezeDark
+[KFileDialog Settings]
+Allow Expansion=false
+Automatically select filename extension=true
+Breadcrumb Navigation=true
+Decoration position=2
+Show Full Path=false
+Show Inline Previews=true
+Show Preview=false
+Show Speedbar=true
+Show hidden files=false
+Sort by=Name
+Sort directories first=true
+Sort hidden files last=false
+Sort reversed=false
+Speedbar Width=142
+View Style=DetailTree
 
 [WM]
 activeBackground=39,44,49

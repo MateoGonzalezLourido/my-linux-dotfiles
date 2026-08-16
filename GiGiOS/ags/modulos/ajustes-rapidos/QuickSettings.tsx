@@ -6,7 +6,23 @@ import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import ProfileAvatar from "../ajustes/ProfileAvatar"
 import Interruptor from "../../componentes/Interruptor"
-import { barTopMargin, clasesFondoShell } from "../ajustes/preferences"
+import {
+  barTopMargin, clasesFondoShell,
+  audioDispositivosOcultos, alternarDispositivoAudioOculto,
+} from "../ajustes/preferences"
+import {
+  MIC_SAFE_MAX,
+  porcentajeMic,
+  crudoDesdePorcentajeMic,
+} from "../../servicios/multimedia/volumenMicrofono"
+import {
+  esSalidaDigital,
+  esEndpointMuerto,
+  etiquetaEndpoint,
+  claveEndpoint,
+  repartirEndpoints,
+  type InfoEndpoint,
+} from "../../servicios/multimedia/endpointsAudio"
 import AstalWp from "gi://AstalWp"
 import AstalNetwork from "gi://AstalNetwork"
 import AstalBluetooth from "gi://AstalBluetooth"
@@ -146,11 +162,59 @@ const AUDIO_SETTLE_MS = 1500
 // `Endpoint.name` viene a null, y el `icon` es el mismo ("audio-card-analog-pci") en
 // el HDMI que en el analógico. Las claves de `wpctl inspect` no se traducen; la
 // `description` sí, así que buscar "(HDMI)" ahí dependería del locale.
-const nodeNameOf = async (id: number): Promise<string> => {
-  const out = await execAsync(["wpctl", "inspect", String(id)]).catch(() => "")
+//
+// El endpoint YA lo lleva en `node.name` (`get_pw_property`), así que el `wpctl
+// inspect` queda solo de red: en el instante de `speaker-added` las propiedades
+// del proxy pueden no estar pobladas todavía, y ahí sí hace falta preguntar fuera.
+const nodeNameOf = async (ep: AstalWp.Endpoint): Promise<string> => {
+  const propio = nodeNameSync(ep)
+  if (propio) return propio
+  const out = await execAsync(["wpctl", "inspect", String(ep.id)]).catch(() => "")
   return /node\.name\s*=\s*"([^"]+)"/.exec(out)?.[1] ?? ""
 }
-const isDisplayOutput = (nodeName: string) => /hdmi|displayport|iec958/i.test(nodeName)
+const nodeNameSync = (ep: AstalWp.Endpoint): string => {
+  try { return ep.get_pw_property("node.name") ?? "" } catch { return "" }
+}
+const isDisplayOutput = esSalidaDigital
+
+/** Traduce un `AstalWp.Endpoint` a los cuatro datos que necesita el filtro puro
+ * de `servicios/multimedia/endpointsAudio.ts`. Todo va entre try: `route` es un
+ * boxed que puede venir a null mientras WirePlumber aún enumera. */
+function infoEndpoint(ep: AstalWp.Endpoint): InfoEndpoint {
+  let disponibilidadRuta: number | null = null
+  let disponibilidadRutas: number[] = []
+  try { disponibilidadRuta = ep.route ? ep.route.available : null } catch { }
+  try { disponibilidadRutas = (ep.routes ?? []).map((r) => r.available) } catch { }
+  return { id: ep.id, nodeName: nodeNameSync(ep), disponibilidadRuta, disponibilidadRutas }
+}
+
+/** Fija el endpoint por defecto de forma PERSISTENTE.
+ *
+ * ⚠️ Esto NO puede hacerse con `pw-metadata … default.audio.sink`, y era justo
+ * lo que hacía: `default.audio.sink` es la clave que dice cuál es el default
+ * AHORA, y su dueño es WirePlumber, que la **recalcula entera** en cada rescan
+ * (alta o baja de un nodo, cambio de perfil, el nodo HDMI recreándose al
+ * reconfigurar monitores…). El resultado era un cambio que se oía al instante y
+ * se deshacía solo unos segundos después, sin ningún error por medio: el
+ * síntoma reportado de "cambia de repente a la salida digital" y, peor, "al
+ * tocar el volumen del analógico vuelve a saltar" — porque tocar el slider
+ * dispara este mismo `activate`, que escribía la clave equivocada y provocaba el
+ * rescan que lo revertía.
+ *
+ * La clave de PREFERENCIA es `default.configured.audio.sink|source`, y encima
+ * WirePlumber guarda ahí una PILA de todo lo que se ha configurado alguna vez
+ * (`~/.local/state/wireplumber/default-nodes`, con sufijos `.0`, `.1`…: ver
+ * `/usr/share/wireplumber/scripts/default-nodes/state-default-nodes.lua`). En su
+ * selección, estar en la pila suma +20001-posición, o sea que un dispositivo
+ * configurado una vez gana a cualquier otro por prioridad de sesión. Como AGS
+ * nunca escribía esa clave desde aquí, los cascos USB no llegaban a entrar en la
+ * pila y el HDMI —que sí estaba, puesto por el switch-on-connect de arriba, que
+ * siempre usó `wpctl`— ganaba cada rescan.
+ *
+ * `wpctl set-default` escribe exactamente esa clave, y de paso ahorra tener que
+ * traducir el id a `node.name` con un `pactl | awk`. */
+const setDefaultEndpoint = (id: number) =>
+  execAsync(["wpctl", "set-default", String(id)])
 
 try {
   const wp = AstalWp.get_default()
@@ -176,10 +240,10 @@ try {
     // execAsync concurrentes pueden resolverse en cualquier orden. Esto los colapsa
     // y deja ganar al último *pedido*, no al último en terminar.
     const switchOnConnect = (skipDisplayOutputs: boolean) => {
-      let pending: number | null = null
+      let pending: AstalWp.Endpoint | null = null
       let timer: number | null = null
-      return (id: number) => {
-        pending = id
+      return (ep: AstalWp.Endpoint) => {
+        pending = ep
         if (timer !== null) GLib.source_remove(timer)
         timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
           timer = null
@@ -188,7 +252,12 @@ try {
           if (target === null) return GLib.SOURCE_REMOVE
           void (async () => {
             if (skipDisplayOutputs && isDisplayOutput(await nodeNameOf(target))) return
-            await execAsync(["wpctl", "set-default", String(target)])
+            // Un endpoint que el hardware da por muerto tampoco es destino, y aquí
+            // el caso NO es teórico: la entrada analógica de la placa (sin nada en
+            // ningún jack) se recrea al cambiar el perfil de la tarjeta y llegaba
+            // como "micrófono recién conectado", robándole la entrada a los cascos.
+            if (esEndpointMuerto(infoEndpoint(target))) return
+            await execAsync(["wpctl", "set-default", String(target.id)])
           })().catch(() => {})
           return GLib.SOURCE_REMOVE
         })
@@ -199,11 +268,11 @@ try {
 
     audio.connect("speaker-added", (_, speaker) => {
       if (!settled) { armSettle(); return }
-      switchSpeaker(speaker.id)
+      switchSpeaker(speaker)
     })
     audio.connect("microphone-added", (_, mic) => {
       if (!settled) { armSettle(); return }
-      switchMic(mic.id)
+      switchMic(mic)
     })
   }
 } catch (e) {
@@ -823,16 +892,6 @@ function getTime() { return GLib.DateTime.new_now_local().format("%H:%M") ?? "" 
 function getDate() { return GLib.DateTime.new_now_local().format("%A, %-d %B") ?? "" }
 function clamp(v: number, lo = 0, hi = 1) { return Math.max(lo, Math.min(hi, v)) }
 
-// Techo de volumen de ENTRADA (micrófono), en fracción cruda de PipeWire (0-1).
-// En este equipo (Realtek ALC897, mic frontal) PipeWire combina "Capture" +
-// "Front Mic Boost" en una única curva cúbica cuyo 100% ronda +60dB de ganancia
-// analógica total — mucho más de lo que necesita un micro de sobremesa a
-// distancia normal, y la causa medida de la saturación al subir el slider.
-// Se remapea el 0-100% que ve el usuario a 0-MIC_SAFE_MAX de esa curva real,
-// calibrado grabando voz real y midiendo el pico en dBFS (ver GiGiOS/CLAUDE.md).
-// Así el 100% de la UI es siempre "el máximo seguro medido", nunca el máximo
-// físico del hardware.
-export const MIC_SAFE_MAX = 0.40
 function toDb(v: number) {
   if (v <= 0.0001) return "-∞"
   // PulseAudio/Pipewire use a cubic curve for perceived volume
@@ -840,18 +899,17 @@ function toDb(v: number) {
   return (60 * Math.log10(v)).toFixed(0)
 }
 
-/** Etiqueta legible y DISTINGUIBLE para un endpoint de audio.
- * Varios sinks/sources de la misma tarjeta comparten el mismo prefijo largo en
- * `description` (p.ej. "…HD Audio Speaker", "…HD Audio HDMI / DisplayPort 1
- * Output"); con ellipsize al final se recorta justo la parte única y las filas
- * se ven idénticas. Preferimos la descripción de perfil / nick del nodo, que es
- * corta y única ("Speaker", "HDMI / DisplayPort 1 Output", "HDMI 1"). */
-function endpointLabel(e: AstalWp.Endpoint): string {
-  const profile = e.get_pw_property("device.profile.description")
-  if (profile) return profile
-  const nick = e.get_pw_property("node.nick")
-  if (nick) return nick
-  return e.description || e.name || "Desconocido"
+/** Etiqueta de un endpoint, en dos líneas: aparato arriba, perfil abajo.
+ * La regla vive en `servicios/multimedia/endpointsAudio.ts` (pura y con test);
+ * aquí solo se leen las propiedades de PipeWire. */
+function endpointLabel(e: AstalWp.Endpoint): { titulo: string; subtitulo: string } {
+  const prop = (k: string) => { try { return e.get_pw_property(k) } catch { return null } }
+  return etiquetaEndpoint({
+    nick: prop("node.nick"),
+    descripcion: e.description,
+    perfil: prop("device.profile.description"),
+    nombre: e.name,
+  })
 }
 
 const getBand = (freq: number) => {
@@ -1281,7 +1339,10 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
         <QsTile
           icon={micMute ? micMute((m) => m ? "󰍭" : "󰍬") : "󰍬"}
           label="Micrófono"
-          subtitle={micVol ? micVol((v) => `${Math.round(v * 100)}`) : "—"}
+          // `porcentajeMic`, NO `v * 100`: la entrada tiene su propia escala (ver
+          // `servicios/multimedia/volumenMicrofono.ts`). Con el crudo, esta
+          // pastilla decía 40 mientras su propio submenú decía 100.
+          subtitle={micVol ? micVol((v) => `${porcentajeMic(v)}`) : "—"}
           active={micMute ? micMute((m) => !m) : true}
           onToggle={onMicClick}
           onRightClick={() => { if (mic) mic.mute = !mic.mute }}
@@ -2726,14 +2787,89 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
   quickSettingsVisible.subscribe(syncRefresh)
   qsView.subscribe(syncRefresh)
 
-  const endpoints = createBinding(wp.audio, isSpk ? "speakers" : "microphones")
-  // Local state for immediate visual update on click (don't wait for WirePlumber signal)
-  const [localDefaultId, setLocalDefaultId] = createState<number | null>(
-    (isSpk ? wp.audio.defaultSpeaker?.id : wp.audio.defaultMicrophone?.id) ?? null
-  )
-  wp.audio.connect(isSpk ? "notify::default-speaker" : "notify::default-microphone", () => {
-    setLocalDefaultId((isSpk ? wp.audio.defaultSpeaker?.id : wp.audio.defaultMicrophone?.id) ?? null)
+  const todosLosEndpoints = createBinding(wp.audio, isSpk ? "speakers" : "microphones")
+  const listaViva = () => (isSpk ? wp.audio.get_speakers() : wp.audio.get_microphones())
+
+  // ── UN SOLO id activo, y por qué antes salían DOS filas en azul ─────────────
+  // El resaltado se calculaba con `isDefault() || localDefaultId() === ep.id`, o
+  // sea dos fuentes de verdad para el mismo hecho, y `localDefaultId` solo se
+  // ponía (al pulsar) pero **no se quitaba nunca**: su corrector era
+  // `notify::default-speaker`, que esta versión de AstalWp no emite. Bastaba con
+  // que el cambio pedido no cuajara —y no cuajaba, por lo de la clave de
+  // metadata que documenta `setDefaultEndpoint`— para que el optimista se
+  // quedara clavado en el analógico mientras `isDefault` se iba al digital: las
+  // dos filas marcadas a la vez, exactamente el síntoma reportado.
+  //
+  // Ahora hay un único estado. Se siembra y se corrige leyendo `is-default` de
+  // los endpoints (esa señal SÍ llega), y al pulsar se adelanta el valor para
+  // tener respuesta inmediata; en cuanto WirePlumber confirma —o desmiente— la
+  // lectura real lo pisa. Contradecirse es imposible: solo puede haber un id.
+  const idPorDefectoReal = (): number | null => {
+    const marcado = listaViva().find((e) => e.isDefault)
+    if (marcado) return marcado.id
+    return (isSpk ? wp.audio.defaultSpeaker?.id : wp.audio.defaultMicrophone?.id) ?? null
+  }
+  const [idActivo, setIdActivo] = createState<number | null>(idPorDefectoReal())
+  const revisarDefault = () => {
+    const id = idPorDefectoReal()
+    if (id !== null) setIdActivo(id)
+  }
+
+  // Hay que reenganchar `notify::is-default` cada vez que cambia la lista: los
+  // endpoints se destruyen y se recrean (perfil de tarjeta, USB reenumerado, el
+  // nodo HDMI al reconfigurar monitores) y los handlers se irían con ellos.
+  const desconectores: Array<() => void> = []
+  const soltarHandlers = () => { while (desconectores.length) desconectores.pop()!() }
+  const engancharDefaults = () => {
+    soltarHandlers()
+    for (const ep of listaViva()) {
+      const h = ep.connect("notify::is-default", revisarDefault)
+      desconectores.push(() => { try { ep.disconnect(h) } catch { } })
+    }
+    revisarDefault()
+  }
+  engancharDefaults()
+  todosLosEndpoints.subscribe(engancharDefaults)
+  const handlerDefaultAudio = wp.audio.connect(
+    isSpk ? "notify::default-speaker" : "notify::default-microphone", revisarDefault)
+  onCleanup(() => {
+    soltarHandlers()
+    try { wp.audio.disconnect(handlerDefaultAudio) } catch { }
   })
+
+  // ── Reparto en "se ve" / "está apartado" ───────────────────────────────────
+  // Fuera lo que el hardware da por muerto (no vuelve por ningún lado) y aparte
+  // lo que el usuario ha escondido con el clic derecho. Preserva las referencias
+  // de los endpoints, así que los `<For>` de abajo —que indexan por identidad—
+  // no reconstruyen filas al recalcularse.
+  const tipoClave = isSpk ? "spk" : "mic"
+  const reparto = createComputed(() =>
+    repartirEndpoints(todosLosEndpoints(), infoEndpoint, {
+      kind: tipoClave,
+      ocultos: audioDispositivosOcultos(),
+      idActivo: idActivo(),
+    }))
+  const endpoints = reparto((r) => r.visibles)
+  const endpointsOcultos = reparto((r) => r.ocultos)
+  const hayOcultos = reparto((r) => r.ocultos.length > 0)
+  // Plegado por defecto y **por sesión**: es una lista de descarte, no algo que
+  // se venga a consultar. Se repliega sola al quedarse vacía, para no dejar una
+  // cabecera "Ocultos (0)" desplegada sobre nada.
+  const [ocultosAbiertos, setOcultosAbiertos] = createState(false)
+  hayOcultos.subscribe(() => { if (!hayOcultos.get()) setOcultosAbiertos(false) })
+
+  // ⚠️ El dispositivo EN USO no se puede apartar, y no es una restricción
+  // cosmética: `repartirEndpoints` lo mantiene visible mientras sea el activo,
+  // así que marcarlo no se nota **en ese momento** — pero deja una trampa
+  // armada. El caso real: apartas los cascos USB sin querer, luego los
+  // desenchufas, el default se va al HDMI y los cascos ya no aparecen en la
+  // lista justo cuando los vuelves a enchufar para elegirlos. Se rechaza en el
+  // origen (y el tooltip de la tarjeta lo dice) en vez de aceptar un clic que
+  // no hace nada visible hoy y muerde dentro de una semana.
+  const alternarOculto = (ep: AstalWp.Endpoint) => {
+    if (idActivo.get() === ep.id) return
+    alternarDispositivoAudioOculto(claveEndpoint(tipoClave, infoEndpoint(ep)))
+  }
 
   return (
     <box cssClasses={[isSpk ? "qs-audio-menu" : "qs-mic-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
@@ -2763,18 +2899,17 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                 {(ep: AstalWp.Endpoint) => {
                   const vol = createBinding(ep, "volume")
                   const mute = createBinding(ep, "mute")
-                  // El resaltado del dispositivo activo se deriva del propio
-                  // `is_default` del endpoint (reactivo y correcto al entrar).
-                  // `notify::default-speaker`/`notify::default-microphone` del objeto
-                  // Audio NO se dispara en esta versión de AstalWp y su id llega sin
-                  // resolver (0) al construirse el panel, por eso antes nada salía en
-                  // azul. `localDefaultId` se conserva como override optimista para
-                  // feedback instantáneo al pulsar.
-                  const isDefault = createBinding(ep, "isDefault")
-                  const activeClasses = createComputed(() =>
-                    (isDefault() || localDefaultId() === ep.id)
-                      ? ["qs-audio-item", "active"]
-                      : ["qs-audio-item"])
+                  // Una sola fuente: `idActivo` (ver el bloque de arriba). No se
+                  // vuelve a mirar `isDefault` aquí — mezclarlo con el optimista
+                  // es lo que pintaba dos filas activas a la vez.
+                  const activeClasses = idActivo((id) =>
+                    id === ep.id ? ["qs-audio-item", "active"] : ["qs-audio-item"])
+
+                  // Dos líneas: aparato y perfil. Con una sola, y esa una siendo el
+                  // perfil, dos filas distintas se leían igual ("Estéreo analógico"
+                  // para los cascos USB y para la entrada de la placa) y ninguna
+                  // decía de qué aparato hablaba. La segunda se omite si no aporta.
+                  const etiqueta = endpointLabel(ep)
 
                   // Apply device preset if new.
                   // `ep.name` viene a null en el perfil ALSA clásico (altavoces/mic
@@ -2785,10 +2920,17 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   const devTag = isSpk ? "spk" : "mic"
                   const stableId = ep.name || ep.description || `id:${ep.id}`
                   const devKey = `dev:${devTag}:${stableId}`
-                  // El micro remapea 0-100% a 0-MIC_SAFE_MAX de la curva real de PipeWire
-                  // (ver la constante). El clamp al restaurar protege contra un preset
-                  // guardado antes de este techo (p.ej. un 100% viejo, que saturaba).
+                  // El micro remapea 0-100% a 0-MIC_SAFE_MAX de la curva real de
+                  // PipeWire (`servicios/multimedia/volumenMicrofono.ts`). El clamp al
+                  // restaurar protege contra un preset guardado antes de este techo
+                  // (p.ej. un 100% viejo, que saturaba). `aPorcentaje`/`desdePorcentaje`
+                  // son la MISMA conversión que usan la pastilla y el OSD: tenerla en
+                  // un solo sitio es lo que impide que dos vistas del mismo micro
+                  // enseñen números distintos, que es justo lo que pasaba.
                   const maxVol = isSpk ? 1 : MIC_SAFE_MAX
+                  const aPorcentaje = (v: number) => isSpk ? Math.round(v * 100) : porcentajeMic(v)
+                  const desdePorcentaje = (p: number) =>
+                    isSpk ? clamp(p / 100, 0, 1) : crudoDesdePorcentajeMic(p)
                   if (!handledDevices.has(`${devTag}:${stableId}`)) {
                     const p = presets.get()[devKey]
                     if (p !== undefined) {
@@ -2811,36 +2953,59 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                     { heightRequest: 4, max: maxVol },
                   )
 
+                  // Elegir este dispositivo. El `id` de AstalWp ES el id global de
+                  // PipeWire, así que `wpctl` lo entiende tal cual: se fue de aquí el
+                  // `pactl list … | awk` que lo traducía a `node.name` (y con él la
+                  // escritura de `default.audio.sink`, la clave equivocada que
+                  // provocaba el salto a la salida digital — ver `setDefaultEndpoint`).
                   const activate = async () => {
-                    setLocalDefaultId(ep.id)
-                    const id = String(ep.id)
-                    const nodeName = await execAsync(["bash", "-c",
-                      isSpk
-                        ? `pactl list sinks | awk '/^Sink/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
-                        : `pactl list sources | awk '/^Source/{n=""} /\tName:/{n=$2} /object\\.id = "${id}"/{print n; exit}'`
-                    ]).catch(() => "")
-                    const name = nodeName.trim()
+                    setIdActivo(ep.id)          // adelanto visual; `revisarDefault` manda
+                    await setDefaultEndpoint(ep.id).catch(() => { })
+                    // Arrastrar además lo que YA está sonando: WirePlumber solo
+                    // reasigna los streams que siguen al default, y quien tenga un
+                    // destino fijado se quedaría en el dispositivo viejo.
+                    const name = nodeNameSync(ep) || (await nodeNameOf(ep))
                     if (!name) return
-                    execAsync(["pw-metadata", "-n", "default", "0", isSpk ? "default.audio.sink" : "default.audio.source",
-                      `{"name":"${name}"}`]).catch(() => {})
                     execAsync(["bash", "-c",
                       isSpk
                         ? `pactl list short sink-inputs | awk '{print $1}' | xargs -r -I{} pactl move-sink-input {} "${name}"`
                         : `pactl list short source-outputs | awk '{print $1}' | xargs -r -I{} pactl move-source-output {} "${name}"`
-                    ]).catch(() => {})
+                    ]).catch(() => { })
                   }
                   const toggleMute = () => {
                     ep.mute = !ep.mute
                   }
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={activeClasses}>
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={activeClasses}
+                      tooltipText={idActivo((id) => id === ep.id
+                        ? (isSpk ? "Salida en uso: no se puede ocultar" : "Entrada en uso: no se puede ocultar")
+                        : (isSpk ? "Clic derecho: ocultar esta salida" : "Clic derecho: ocultar esta entrada"))}>
+                      {/* Clic derecho = apartar. Va en la tarjeta ENTERA y no en un
+                          botón porque cualquier botón aquí competiría con el clic
+                          izquierdo, que ya está tomado por "elegir este dispositivo"
+                          en el nombre y en el slider. El clic derecho estaba libre en
+                          toda la tarjeta y no colisiona con el arrastre del slider,
+                          que es primario. */}
+                      <Gtk.GestureClick
+                        button={Gdk.BUTTON_SECONDARY}
+                        onPressed={() => alternarOculto(ep)}
+                      />
                       <box hexpand>
                         <Gtk.GestureClick
                           button={Gdk.BUTTON_PRIMARY}
                           onPressed={activate}
                         />
-                        <label cssClasses={["qs-audio-name"]} label={endpointLabel(ep)} ellipsize={3} halign={Gtk.Align.START} />
+                        <box orientation={Gtk.Orientation.VERTICAL} hexpand>
+                          <label cssClasses={["qs-audio-name"]} label={etiqueta.titulo} ellipsize={3} halign={Gtk.Align.START} />
+                          <label
+                            cssClasses={["qs-audio-sub"]}
+                            label={etiqueta.subtitulo}
+                            visible={etiqueta.subtitulo !== ""}
+                            ellipsize={3}
+                            halign={Gtk.Align.START}
+                          />
+                        </box>
                       </box>
                       <box spacing={5} valign={Gtk.Align.CENTER}>
                         <button cssClasses={["qs-audio-card-btn"]} onClicked={toggleMute} tooltipText={mute((m) => m ? "Activar sonido" : "Silenciar")}>
@@ -2855,10 +3020,10 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                             {scale}
                           </box>
                           <InlineEditableValue
-                            display={vol((v) => `${Math.round((v / maxVol) * 100)}`)}
-                            getValue={() => (ep.volume / maxVol) * 100}
+                            display={vol((v) => `${aPorcentaje(v)}`)}
+                            getValue={() => aPorcentaje(ep.volume)}
                             onCommit={(value) => {
-                              const v = clamp((value / 100) * maxVol, 0, maxVol)
+                              const v = desdePorcentaje(value)
                               ep.volume = v
                               const p = { ...presets.get(), [devKey]: v }
                               setPresets(p)
@@ -2875,6 +3040,62 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   )
                 }}
               </For>
+            </box>
+
+            {/* Cajón de descarte: plegado, debajo de todo y solo si hay algo que
+                devolver. Es la otra mitad del clic derecho — sin él, apartar un
+                dispositivo sería un viaje de ida y habría que ir a editar el JSON
+                a mano para recuperarlo. */}
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={hayOcultos}>
+              <button
+                cssClasses={["qs-audio-ocultos-cab"]}
+                onClicked={() => setOcultosAbiertos(!ocultosAbiertos.get())}
+                tooltipText="Dispositivos que has apartado con el clic derecho"
+              >
+                <box spacing={6}>
+                  <label cssClasses={["qs-audio-ocultos-flecha"]} label={ocultosAbiertos((a) => a ? "󰅀" : "󰅂")} />
+                  <label
+                    cssClasses={["qs-dropdown-header"]}
+                    label={endpointsOcultos((l) => `OCULTOS (${l.length})`)}
+                    halign={Gtk.Align.START}
+                    hexpand
+                  />
+                </box>
+              </button>
+              <box orientation={Gtk.Orientation.VERTICAL} spacing={3} visible={ocultosAbiertos}>
+                <For each={endpointsOcultos}>
+                  {(ep: AstalWp.Endpoint) => {
+                    // Fila compacta a propósito: sin slider ni mute. Un dispositivo
+                    // apartado no se maneja desde aquí, solo se devuelve a la lista.
+                    const etiqueta = endpointLabel(ep)
+                    const restaurar = () => alternarOculto(ep)
+                    return (
+                      <box cssClasses={["qs-audio-oculto"]} spacing={6} tooltipText="Volver a mostrarlo">
+                        {/* Los dos botones, por simetría con la tarjeta: el clic
+                            derecho es el mismo flip-flop, y el ojo lo hace
+                            descubrible para quien no sepa que existe. */}
+                        <Gtk.GestureClick button={Gdk.BUTTON_SECONDARY} onPressed={restaurar} />
+                        <box orientation={Gtk.Orientation.VERTICAL} hexpand>
+                          <label cssClasses={["qs-audio-name"]} label={etiqueta.titulo} ellipsize={3} halign={Gtk.Align.START} />
+                          <label
+                            cssClasses={["qs-audio-sub"]}
+                            label={etiqueta.subtitulo}
+                            visible={etiqueta.subtitulo !== ""}
+                            ellipsize={3}
+                            halign={Gtk.Align.START}
+                          />
+                        </box>
+                        <button
+                          cssClasses={["qs-audio-card-btn"]}
+                          onClicked={restaurar}
+                          valign={Gtk.Align.CENTER}
+                          tooltipText="Volver a mostrarlo"
+                        ><label cssClasses={["qs-audio-icon"]} label="󰈈" /></button>
+                      </box>
+                    )
+                  }}
+                </For>
+              </box>
             </box>
           </box>
 

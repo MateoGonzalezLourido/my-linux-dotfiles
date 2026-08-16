@@ -2839,6 +2839,63 @@ button.qs-user-settings-btn {
   }
 }
 
+// ── Audio: cajón de dispositivos apartados ────────────────────────────────────
+// Deliberadamente más apagado que una tarjeta: es un cajón de descarte, no una
+// sección más. Sin fondo propio en la cabecera para que no compita con las
+// tarjetas de arriba, que son lo que se viene a usar.
+.qs-audio-ocultos-cab {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 2px 2px;
+  margin-top: 2px;
+  border-radius: 6px;
+
+  &:hover { background: rgba(255, 255, 255, 0.04); }
+
+  .qs-audio-ocultos-flecha {
+    font-family: $font-icon;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
+    margin: 0;
+  }
+}
+
+.qs-audio-oculto {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 4px 7px;
+  transition: background 150ms ease;
+
+  &:hover { background: rgba(255, 255, 255, 0.05); }
+
+  .qs-audio-name { font-size: 10px; color: rgba(255, 255, 255, 0.45); margin: 0; }
+  .qs-audio-sub { font-size: 8px; color: rgba(255, 255, 255, 0.22); margin: 0; }
+
+  .qs-audio-icon {
+    font-family: $font-icon;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    min-width: 14px;
+    margin: 0;
+  }
+
+  .qs-audio-card-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+      .qs-audio-icon { color: rgba(255, 255, 255, 0.75); }
+    }
+  }
+}
+
 // ── Audio/Mic Items ───────────────────────────────────────────────────────────
 .qs-audio-item {
   background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
@@ -2861,6 +2918,8 @@ button.qs-user-settings-btn {
       font-weight: 700;
     }
 
+    .qs-audio-sub { color: rgba(137, 180, 250, 0.55); }
+
     .qs-audio-icon { color: $blue; }
 
     scale.qs-slider progress { background: $blue; }
@@ -2878,6 +2937,15 @@ button.qs-user-settings-btn {
     font-size: 10px;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.75);
+    margin: 0;
+  }
+
+  // Segunda línea: el perfil ("Estéreo analógico", "Estéreo digital (HDMI)").
+  // Va apagada para que el nombre del aparato siga siendo lo que se lee primero.
+  .qs-audio-sub {
+    font-size: 8px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.35);
     margin: 0;
   }
 

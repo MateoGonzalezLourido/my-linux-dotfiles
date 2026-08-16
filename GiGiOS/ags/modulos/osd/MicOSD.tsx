@@ -3,7 +3,7 @@ import { createState } from "ags"
 import AstalWp from "gi://AstalWp"
 import { micOsdVisible, setMicOsdVisible } from "../../estado/shell"
 import { micOsdEnabled } from "../ajustes/preferences"
-import { MIC_SAFE_MAX } from "../ajustes-rapidos/QuickSettings"
+import { fraccionMostradaMic, porcentajeMic } from "../../servicios/multimedia/volumenMicrofono"
 
 let micOsdTimeout: number | null = null
 let micOsdReady = false
@@ -50,14 +50,16 @@ export function TarjetaMicrofonoOSD({
     const audio = wp?.audio
     let microphone: AstalWp.Endpoint | null = audio?.defaultMicrophone ?? null
 
-    // El progreso/porcentaje se enseña relativo a MIC_SAFE_MAX (el mismo techo
-    // que QuickSettings), no al 0-1 crudo de PipeWire — si no, un mismo volumen
-    // real mostraría "40%" aquí y "100%" en QuickSettings.
-    const micFraction = (v: number) => Math.min(1, v / MIC_SAFE_MAX)
+    // El progreso/porcentaje se enseña relativo a MIC_SAFE_MAX, no al 0-1 crudo
+    // de PipeWire — si no, un mismo volumen real mostraría "40%" aquí y "100%" en
+    // QuickSettings. La conversión NO se reimplementa aquí: vive en
+    // `servicios/multimedia/volumenMicrofono.ts`, que es lo que garantiza que las
+    // tres vistas (pastilla, submenú y este OSD) digan el mismo número.
+    const micFraction = fraccionMostradaMic
 
     const [icon, setIcon] = createState(microphone ? getMicOsdIcon(microphone.volume, microphone.mute) : "󰍭")
     const [vol, setVol] = createState(micFraction(microphone?.volume ?? 0))
-    const [percent, setPercent] = createState(microphone ? `${Math.round(micFraction(microphone.volume) * 100)}` : "—")
+    const [percent, setPercent] = createState(microphone ? `${porcentajeMic(microphone.volume)}` : "—")
     const [muted, setMuted] = createState(microphone?.mute ?? true)
 
     const updateVars = () => {
@@ -70,7 +72,7 @@ export function TarjetaMicrofonoOSD({
         }
         setIcon(getMicOsdIcon(microphone.volume, microphone.mute))
         setVol(micFraction(microphone.volume))
-        setPercent(`${Math.round(micFraction(microphone.volume) * 100)}`)
+        setPercent(`${porcentajeMic(microphone.volume)}`)
         setMuted(microphone.mute || microphone.volume === 0)
     }
 

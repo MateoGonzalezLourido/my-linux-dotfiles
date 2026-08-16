@@ -3506,6 +3506,66 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   color: rgba(226, 226, 226, 0.5);
 }
 
+.qs-audio-ocultos-cab {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 2px 2px;
+  margin-top: 2px;
+  border-radius: 6px;
+}
+.qs-audio-ocultos-cab:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.qs-audio-ocultos-cab .qs-audio-ocultos-flecha {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.3);
+  margin: 0;
+}
+
+.qs-audio-oculto {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 4px 7px;
+  transition: background 150ms ease;
+}
+.qs-audio-oculto:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.qs-audio-oculto .qs-audio-name {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+}
+.qs-audio-oculto .qs-audio-sub {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.22);
+  margin: 0;
+}
+.qs-audio-oculto .qs-audio-icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  min-width: 14px;
+  margin: 0;
+}
+.qs-audio-oculto .qs-audio-card-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  border-radius: 4px;
+}
+.qs-audio-oculto .qs-audio-card-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.qs-audio-oculto .qs-audio-card-btn:hover .qs-audio-icon {
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .qs-audio-item {
   background: rgb(6.0431372549%, 6.0431372549%, 7.5647058824%);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -3525,6 +3585,9 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   color: #89b4fa;
   font-weight: 700;
 }
+.qs-audio-item.active .qs-audio-sub {
+  color: rgba(137, 180, 250, 0.55);
+}
 .qs-audio-item.active .qs-audio-icon {
   color: #89b4fa;
 }
@@ -3542,6 +3605,12 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   font-size: 10px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+}
+.qs-audio-item .qs-audio-sub {
+  font-size: 8px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.35);
   margin: 0;
 }
 .qs-audio-item .qs-audio-vol-pct {

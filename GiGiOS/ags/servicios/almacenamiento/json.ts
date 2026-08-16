@@ -16,6 +16,13 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 
 export function cargarJson<T>(path: string, fallback: T, label: string): T {
+  // Que el fichero no exista NO es un fallo: es el primer arranque, o un almacén que el usuario
+  // todavía no ha tocado (`notif-sistema.json` no se escribe hasta que se personaliza un aviso).
+  // `GLib.file_get_contents` lanza `GLib.FileError` ahí, y sin esta guarda cada uno de esos
+  // almacenes escupía un CRITICAL en el log de la sesión pese a estar comportándose bien —
+  // ruido que enmascara los fallos de verdad (fichero corrupto o ilegible), que sí se siguen
+  // registrando. Misma distinción que hace `cargarJsonCrudo` aquí debajo.
+  if (!GLib.file_test(path, GLib.FileTest.EXISTS)) return fallback
   try {
     const [ok, content] = GLib.file_get_contents(path)
     if (!ok) return fallback
