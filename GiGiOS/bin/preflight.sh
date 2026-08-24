@@ -36,6 +36,7 @@ required=(
   Wallpapers/sunset.jpg
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
+  hypr/scripts/reparar-kdeglobals.sh
   hypr/scripts/run-untrusted.sh hypr/scripts/desinstalar-app.sh
   hypr/scripts/wallpaper.sh hypr/scripts/wallpaper-select.py hypr/scripts/lib/seleccion_fondos.py
   system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
@@ -235,6 +236,8 @@ EOF
     || fail "kdeglobals no contiene la paleta materializada de Breeze Dark"
   grep -Fqx 'hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")' "$GIGIOS/hypr/gigios/env.lua" \
     || fail "Hyprland no activa qt6ct como tema de plataforma Qt"
+  grep -Fq 'reparar-kdeglobals.sh' "$GIGIOS/hypr/gigios/autostart.lua" \
+    || fail "el autostart no repone [UiSettings] en kdeglobals (lo borra cualquier app KDE al guardar ajustes)"
   grep -Fqx 'hl.env("QT_SCALE_FACTOR", "0.9")' "$GIGIOS/hypr/gigios/env.lua" \
     || fail "Hyprland no configura la densidad compacta de las aplicaciones Qt"
   grep -Fqx 'color_scheme_path=/usr/share/qt6ct/colors/darker.conf' "$GIGIOS/qt6ct/qt6ct.conf" \

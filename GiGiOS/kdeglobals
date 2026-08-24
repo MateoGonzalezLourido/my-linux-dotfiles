@@ -141,6 +141,7 @@ shadeSortColumn=true
 Theme=Tela-circle-grey
 
 [KDE]
+ShowDeleteCommand=false
 contrast=4
 
 [KFileDialog Settings]
@@ -159,6 +160,10 @@ Sort hidden files last=false
 Sort reversed=false
 Speedbar Width=142
 View Style=DetailTree
+
+[PreviewSettings]
+EnableRemoteFolderThumbnail=false
+MaximumRemoteSize=0
 
 [UiSettings]
 ColorScheme=BreezeDark

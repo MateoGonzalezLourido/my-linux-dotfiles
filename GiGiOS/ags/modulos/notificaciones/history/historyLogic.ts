@@ -1,7 +1,12 @@
 // modulos/notificaciones/history/historyLogic.ts
 // Pure history logic. No runtime imports.
 
-export const HISTORY_CAP = 500
+/** Tope de «Detectadas». FIFO por recencia: al llegar la 101 se cae la más antigua
+ *  (`trimByRecency` ordena por `lastSeen` y corta). Eran 500, que llenaba la pestaña de
+ *  avisos de hace semanas entre los que había que ir a buscar el de esta mañana; y como una
+ *  entrada desaparece sola en cuanto se le crea una regla, lo que sobrevive ahí es
+ *  precisamente lo que aún no se ha decidido — una cola corta es lo útil. */
+export const HISTORY_CAP = 100
 
 export interface HistoryEntry {
   dedupKey: string

@@ -54,6 +54,22 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'")
   hl.exec_cmd("gsettings set org.gnome.desktop.interface icon-theme 'Tela-circle-grey'")
 
+  -- La mitad KDE del tema oscuro. Cualquier app KDE que guarde ajustes globales
+  -- (Dolphin > Preferencias) reescribe ~/.config/kdeglobals ENTERO con KConfig y
+  -- se deja por el camino [UiSettings], que es el grupo que lee
+  -- KColorSchemeManager: a partir de ahí Dolphin se abre en CLARO aunque
+  -- [General] ColorScheme, los [Colors:*] y QT_QPA_PLATFORMTHEME=qt6ct sigan
+  -- intactos. Bajo Plasma lo repondría el escritorio; aquí no hay nadie, así que
+  -- se repone al entrar. Falla en silencio y no se nota hasta que abres el
+  -- gestor de archivos, que es justo por lo que conviene mirarlo cada sesión.
+  --
+  -- Va a t=0 y no molesta: es un `awk` sobre un fichero de 4 KB, y cuando la
+  -- clave está (lo normal) no escribe nada. Medido con inotifywait: abrir y
+  -- cerrar Dolphin NO toca el fichero, así que una comprobación por sesión basta
+  -- y no hace falta ningún watcher permanente. Lo mismo hace bin/link.sh en cada
+  -- pasada, llamando a este mismo script.
+  hl.exec_cmd("~/.config/hypr/scripts/reparar-kdeglobals.sh")
+
   -- El fondo va DELANTE del shell, y es una decisión de gusto, no de coste:
   -- preferimos ver el escritorio vestido y que la barra entre encima, antes que
   -- una barra flotando sobre el vacío. Se probó al revés y se descartó.
@@ -178,6 +194,17 @@ hl.on("hyprland.start", function()
   -- tiempo a systemd a terminar el boot: `systemd-analyze` falla si aún no ha
   -- acabado, y con él se perdía el aviso de arranque lento.
   hl.exec_cmd("sleep 30 && ~/.config/hypr/scripts/boot-healthcheck.sh")
+
+  -- Firmas de ClamAV. **Este es el ÚNICO sitio del sistema que actualiza firmas solo**, y
+  -- sustituye al periodo de `clamav-freshclam`: en vez de un servicio que despierta cada N
+  -- horas corra o no falta, se mira una vez por sesión si la base falta o pasa de 24 h y
+  -- solo entonces se descarga. Con arrancar el escritorio a diario, las firmas entran al
+  -- día y se quedan al día toda la sesión — durante ella no queda ni un reloj ni un
+  -- proceso vigilando. El script sale en ~4 ms cuando no toca (un `jq` y un `stat`) y **no
+  -- notifica nada** en modo `--auto`; si el interruptor está apagado, ni eso hace.
+  -- Va detrás del healthcheck porque freshclam baja ~200 MB cuando sí toca, y ese es el
+  -- peor compañero posible para el primer medio minuto de sesión.
+  hl.exec_cmd("sleep 40 && ~/.config/hypr/scripts/actualizar-firmas.sh --auto")
 
   -- ── t=45 · autolimpieza de disco ───────────────────────────────────────────
   -- **No es un daemon.** Lee un JSON, decide, y o limpia o se muere: en el caso

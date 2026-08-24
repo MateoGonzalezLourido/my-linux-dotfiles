@@ -106,13 +106,13 @@
   box-shadow: none;
 }
 .section-index-btn.active image {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 
 .section-index-indicator {
-  background: rgba(203, 166, 247, 0.14);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 14%, transparent);
   border-radius: 9px;
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 3px 10px rgba(203, 166, 247, 0.1);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 3px 10px color-mix(in srgb, var(--acento, #cba6f7) 10%, transparent);
 }
 
 .section-index-icon {
@@ -136,7 +136,7 @@
   box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.28);
 }
 .search-bar .search-icon {
-  color: rgba(203, 166, 247, 0.72);
+  color: color-mix(in srgb, var(--acento, #cba6f7) 72%, transparent);
   margin: 0 7px 0 3px;
 }
 .search-bar text {
@@ -178,9 +178,9 @@
   color: rgba(226, 226, 226, 0.62);
 }
 .ns.active {
-  color: #89b4fa;
-  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
-  border-color: rgba(203, 166, 247, 0.42);
+  color: var(--acento-2, #89b4fa);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 11%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 42%, transparent);
 }
 
 .section-content {
@@ -286,7 +286,7 @@
 }
 
 .sf-blue {
-  background: rgba(137, 180, 250, 0.55);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 55%, transparent);
 }
 
 .sf-pink {
@@ -318,7 +318,7 @@
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
   font-weight: 700;
   letter-spacing: 0.35px;
-  color: rgba(203, 166, 247, 0.78);
+  color: color-mix(in srgb, var(--acento, #cba6f7) 78%, transparent);
   padding: 10px 2px 4px;
 }
 
@@ -343,7 +343,7 @@
   font-size: 11px;
   font-family: "MesloLGS Nerd Font", "Fira Code", monospace;
   font-weight: 600;
-  color: rgba(137, 180, 250, 0.92);
+  color: color-mix(in srgb, var(--acento-2, #89b4fa) 92%, transparent);
   min-width: 158px;
   padding-right: 12px;
 }
@@ -375,12 +375,12 @@
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .rx-item.seleccionado {
-  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
-  border-color: rgba(203, 166, 247, 0.42);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(203, 166, 247, 0.14);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 11%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 42%, transparent);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px color-mix(in srgb, var(--acento, #cba6f7) 14%, transparent);
 }
 .rx-item:active {
-  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 11%, rgb(8, 8, 12));
 }
 
 .rx-row {
@@ -398,7 +398,7 @@
   min-width: 26px;
   min-height: 26px;
   -gtk-icon-size: 26px;
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
 }
 
 .rx-title {
@@ -496,15 +496,15 @@ popover.background {
   color: #e2e2e2;
 }
 .orion-panel .rp-action.seleccionado {
-  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
-  box-shadow: inset 0 0 0 1px rgba(203, 166, 247, 0.42), 0 5px 14px rgba(203, 166, 247, 0.14);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 11%, rgb(8, 8, 12));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento, #cba6f7) 42%, transparent), 0 5px 14px color-mix(in srgb, var(--acento, #cba6f7) 14%, transparent);
 }
 .orion-panel .rp-action.seleccionado .rp-action-ico,
 .orion-panel .rp-action.seleccionado .rp-action-label {
   color: #e2e2e2;
 }
 .orion-panel .rp-action:active {
-  background: rgba(203, 166, 247, 0.08);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 8%, transparent);
 }
 
 .rp-action-row {
@@ -579,14 +579,14 @@ popover.background {
   transition: background 100ms ease;
 }
 .apps-cat-btn.active {
-  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
-  color: #cba6f7;
+  background: color-mix(in srgb, var(--acento, #cba6f7) 12%, rgb(8, 8, 12));
+  color: var(--acento, #cba6f7);
 }
 .apps-cat-btn.active:hover {
-  background: rgba(203, 166, 247, 0.12);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 12%, transparent);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
-  border-color: rgba(203, 166, 247, 0.22);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 22%, transparent);
 }
 .apps-cat-btn:hover:not(.active) {
   background: rgba(255, 255, 255, 0.1);
@@ -646,12 +646,12 @@ popover.background {
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .apps-tile.seleccionado {
-  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
-  border-color: rgba(203, 166, 247, 0.42);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(203, 166, 247, 0.14);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 11%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 42%, transparent);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px color-mix(in srgb, var(--acento, #cba6f7) 14%, transparent);
 }
 .apps-tile:active {
-  background: rgb(10.7843137255%, 9.3333333333%, 13.9215686275%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 10%, rgb(8, 8, 12));
 }
 
 .apps-tile-inner {
@@ -689,9 +689,9 @@ popover.background {
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .apps-row.seleccionado {
-  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
-  border-color: rgba(203, 166, 247, 0.42);
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(203, 166, 247, 0.14);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 11%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 42%, transparent);
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px color-mix(in srgb, var(--acento, #cba6f7) 14%, transparent);
 }
 
 .apps-row-icon {
@@ -706,7 +706,7 @@ popover.background {
   min-width: 32px;
   min-height: 32px;
   -gtk-icon-size: 32px;
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
 }
 
 .apps-row-label {
@@ -752,12 +752,12 @@ popover.background {
   color: #e2e2e2;
 }
 .rice-random-btn:active {
-  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
-  border-color: rgba(203, 166, 247, 0.16);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 11%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 16%, transparent);
 }
 
 .rice-random-icon {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   -gtk-icon-size: 14px;
 }
 
@@ -783,7 +783,7 @@ popover.background {
   background: rgb(10.8862745098%, 10.8862745098%, 12.3294117647%);
 }
 .Orion button.qs-toggle.on .qs-toggle-track {
-  background: rgb(1.8196078431%, 41.6784313725%, 44.7294117647%);
+  background: color-mix(in srgb, var(--acento-3c, #00f2ff) 42%, rgb(8, 8, 12));
 }
 
 .rice-thumb {
@@ -806,10 +806,10 @@ popover.background {
   background: transparent;
 }
 .rice-thumb.wp-current {
-  box-shadow: 0 0 0 2px #cba6f7;
+  box-shadow: 0 0 0 2px var(--acento, #cba6f7);
 }
 .rice-thumb.wp-current:hover {
-  box-shadow: 0 0 0 2px #cba6f7, 0 6px 16px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 0 0 2px var(--acento, #cba6f7), 0 6px 16px rgba(0, 0, 0, 0.28);
 }
 
 .rice-grid flowboxchild,
@@ -853,7 +853,7 @@ popover.background {
 }
 
 .rice-thumb.es-grupo .rice-thumb-viewport {
-  box-shadow: inset 0 0 0 1px rgba(203, 166, 247, 0.55);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento, #cba6f7) 55%, transparent);
 }
 
 .rice-badge {
@@ -873,7 +873,7 @@ popover.background {
 
 .rice-franja-actual {
   padding: 0 2px 6px;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "Inter", system-ui, sans-serif;
   font-size: 10px;
   font-weight: 700;
@@ -894,8 +894,8 @@ popover.background {
 }
 
 .rice-random-btn.activo {
-  background: rgb(16.9019607843%, 14.2901960784%, 21.2941176471%);
-  border-color: rgba(203, 166, 247, 0.3);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 18%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 30%, transparent);
 }
 
 .rice-editor {
@@ -951,8 +951,8 @@ popover.background {
 }
 .rice-row.activa,
 .rice-tramo.activa {
-  border-color: rgba(203, 166, 247, 0.42);
-  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 42%, transparent);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 11%, rgb(8, 8, 12));
 }
 
 .rice-nombre,
@@ -968,7 +968,7 @@ popover.background {
 }
 .rice-nombre:focus,
 .rice-hora:focus {
-  border-color: rgba(203, 166, 247, 0.42);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 42%, transparent);
 }
 .rice-nombre.grande,
 .rice-hora.grande {
@@ -989,8 +989,8 @@ popover.background {
 .rice-chip-ahora {
   padding: 1px 6px;
   border-radius: 8px;
-  background: rgb(18.431372549%, 15.5294117647%, 23.137254902%);
-  color: #cba6f7;
+  background: color-mix(in srgb, var(--acento, #cba6f7) 20%, rgb(8, 8, 12));
+  color: var(--acento, #cba6f7);
   font-family: "Inter", system-ui, sans-serif;
   font-size: 9px;
   font-weight: 700;
@@ -1028,9 +1028,9 @@ popover.background {
   box-shadow: inset 0 -1px rgba(0, 0, 0, 0.12), 0 5px 14px rgba(0, 0, 0, 0.18);
 }
 .Orion .rice-btn.primario {
-  border-color: rgba(203, 166, 247, 0.34);
-  background: rgb(11.5490196078%, 9.9529411765%, 14.8431372549%);
-  color: #cba6f7;
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 34%, transparent);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 11%, rgb(8, 8, 12));
+  color: var(--acento, #cba6f7);
 }
 .Orion .rice-btn.sutil {
   background: transparent;
@@ -1088,7 +1088,7 @@ popover.background {
   box-shadow: none;
 }
 .Orion .rice-chip-img-btn:hover {
-  box-shadow: 0 0 0 2px rgba(203, 166, 247, 0.55);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--acento, #cba6f7) 55%, transparent);
 }
 
 .rice-chip-img {
@@ -1213,7 +1213,7 @@ window.cal-window scrolledwindow > overshoot,
   margin: 4px 4px;
   background-color: rgba(255, 255, 255, 0.03);
   font-size: 16px;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font";
   font-weight: 700;
   padding: 0 8px;
@@ -1235,7 +1235,7 @@ window.cal-window scrolledwindow > overshoot,
 .own-functions label {
   font-family: "MesloLGS Nerd Font";
   font-size: 17px;
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
   border: none;
   padding: 0;
   margin: 0 0 0 -2px;
@@ -1252,12 +1252,12 @@ window.cal-window scrolledwindow > overshoot,
   font-family: "MesloLGS Nerd Font";
 }
 .Workspaces .ws-btn.focused {
-  background: linear-gradient(135deg, #89b4fa, #cba6f7);
+  background: linear-gradient(135deg, var(--acento-2, #89b4fa), var(--acento, #cba6f7));
   color: #11111b;
-  box-shadow: 0 1px 4px rgba(137, 180, 250, 0.3);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--acento-2, #89b4fa) 30%, transparent);
 }
 .Workspaces .ws-btn.ws-hold-ready {
-  box-shadow: 0 0 0 1.5px rgba(203, 166, 247, 0.45);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--acento, #cba6f7) 45%, transparent);
   transform: scale(1.04);
 }
 .Workspaces .ws-btn.ws-renumber-pending {
@@ -1351,7 +1351,7 @@ window.ws-preview-window.background {
 }
 .ws-preview-bg {
   background: #0e0e1a;
-  border: 1px solid rgba(137, 180, 250, 0.22);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 22%, transparent);
   padding: 0;
   border-radius: 0;
   transform-origin: top center;
@@ -1369,7 +1369,7 @@ window.ws-preview-window.background {
 }
 
 .ws-ghost {
-  background: rgba(203, 166, 247, 0.18);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 18%, transparent);
   box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
   border-radius: 8px;
   padding: 4px 10px;
@@ -1380,8 +1380,8 @@ window.ws-preview-window.background {
    con el glifo de mando solo como último recurso. Se oculta entera (via `visible`)
    cuando no hay ningún juego. */
 .game-tray {
-  background: linear-gradient(135deg, rgba(203, 166, 247, 0.22), rgba(137, 180, 250, 0.18));
-  border: 1px solid rgba(203, 166, 247, 0.4);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--acento, #cba6f7) 22%, transparent), color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent));
+  border: 1px solid color-mix(in srgb, var(--acento, #cba6f7) 40%, transparent);
   border-radius: 8px;
   padding: 2px 8px;
   margin: 4px 2px;
@@ -1406,12 +1406,12 @@ window.ws-preview-window.background {
 .game-tray .game-tray-icon label.game-tray-glyph {
   font-family: "MesloLGS Nerd Font";
   font-size: 16px;
-  color: #cba6f7;
-  text-shadow: 0 0 6px rgba(203, 166, 247, 0.5);
+  color: var(--acento, #cba6f7);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--acento, #cba6f7) 50%, transparent);
   transform: translateX(-2px);
 }
 .game-tray .game-tray-icon:hover {
-  background: rgba(203, 166, 247, 0.25);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 25%, transparent);
   transform: scale(1.08);
 }
 
@@ -1436,10 +1436,10 @@ window.ws-preview-window.background {
   background-color: rgba(205, 214, 244, 0.16);
 }
 .battery .battery-seg.filled {
-  background-color: #cba6f7;
+  background-color: var(--acento, #cba6f7);
 }
 .battery .battery-seg.charging-blink {
-  background-color: #87fae9;
+  background-color: var(--acento-3, #87fae9);
   animation: battery-seg-blink 900ms ease-in-out infinite;
 }
 .battery .battery-seg.low-blink {
@@ -1458,10 +1458,10 @@ window.ws-preview-window.background {
   border-radius: 0 2px 2px 0;
 }
 .battery .battery-body.charging {
-  border-color: rgba(135, 250, 233, 0.75);
+  border-color: color-mix(in srgb, var(--acento-3, #87fae9) 75%, transparent);
 }
 .battery .battery-body.charging .battery-seg.filled {
-  background-color: #87fae9;
+  background-color: var(--acento-3, #87fae9);
 }
 .battery .battery-body.low {
   border-color: rgb(245, 50, 105);
@@ -1488,7 +1488,7 @@ window.ws-preview-window.background {
   font-weight: 500;
 }
 .cpuram .icon {
-  color: #87fae9;
+  color: var(--acento-3, #87fae9);
   font-family: "MesloLGS Nerd Font";
   font-size: 15px;
   margin: 0 1px;
@@ -1517,7 +1517,7 @@ popover.cpuram-popover > arrow {
 }
 .cpuram-popup {
   background: #0e0e1a;
-  border: 1px solid rgba(137, 180, 250, 0.18);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent);
   border-radius: 10px;
   padding: 8px 10px;
   min-width: 170px;
@@ -1545,10 +1545,10 @@ popover.cpuram-popover > arrow {
   min-width: 18px;
 }
 .cpuram-popup-ic.cpu {
-  color: #87fae9;
+  color: var(--acento-3, #87fae9);
 }
 .cpuram-popup-ic.ram {
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
 }
 
 .cpuram-popup-val {
@@ -1564,7 +1564,7 @@ popover.cpuram-popover > arrow {
 
 .fn-menu {
   background: #0e0e1a;
-  border: 1px solid rgba(137, 180, 250, 0.18);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent);
   border-radius: 8px;
   padding: 4px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
@@ -1582,13 +1582,13 @@ popover.cpuram-popover > arrow {
   outline: none;
 }
 .fn-menu-button:hover {
-  background: rgba(137, 180, 250, 0.12);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 12%, transparent);
 }
 .fn-menu-button:active {
-  background: rgba(137, 180, 250, 0.18);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent);
 }
 .fn-menu-button.active {
-  background: rgba(137, 180, 250, 0.08);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 8%, transparent);
 }
 
 .fn-menu-row {
@@ -1619,13 +1619,13 @@ popover.cpuram-popover > arrow {
   background: transparent;
 }
 .fn-menu-button.active .fn-menu-state label {
-  color: rgba(137, 180, 250, 0.7);
+  color: color-mix(in srgb, var(--acento-2, #89b4fa) 70%, transparent);
 }
 
 .fn-menu-expand {
   margin: 1px 5px 3px 9px;
   padding-left: 7px;
-  border-left: 1px solid rgba(137, 180, 250, 0.22);
+  border-left: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 22%, transparent);
 }
 
 .fn-menu-subrow {
@@ -1650,11 +1650,11 @@ popover.cpuram-popover > arrow {
   outline: none;
 }
 .fn-menu-subbutton:hover {
-  background: rgba(137, 180, 250, 0.1);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 10%, transparent);
 }
 
 .fn-menu-state.on label {
-  color: rgba(137, 180, 250, 0.7);
+  color: color-mix(in srgb, var(--acento-2, #89b4fa) 70%, transparent);
 }
 
 entry.fn-menu-minutes {
@@ -1662,7 +1662,7 @@ entry.fn-menu-minutes {
   font-size: 10px;
   color: #cdd6f4;
   background: rgba(17, 17, 27, 0.9);
-  border: 1px solid rgba(137, 180, 250, 0.22);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 22%, transparent);
   outline: none;
   box-shadow: none;
   border-radius: 5px;
@@ -1670,19 +1670,19 @@ entry.fn-menu-minutes {
   margin: 0;
   min-width: 0;
   min-height: 16px;
-  caret-color: #89b4fa;
+  caret-color: var(--acento-2, #89b4fa);
 }
 entry.fn-menu-minutes:focus, entry.fn-menu-minutes:focus-visible {
   outline: none;
   box-shadow: none;
-  border: 1px solid rgba(137, 180, 250, 0.55);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 55%, transparent);
   background: rgb(17, 17, 27);
 }
 entry.fn-menu-minutes > text > placeholder {
   color: rgba(226, 226, 226, 0.3);
 }
 entry.fn-menu-minutes selection {
-  background: rgba(137, 180, 250, 0.3);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 30%, transparent);
   color: #cdd6f4;
 }
 
@@ -1721,7 +1721,7 @@ popover.tray-popover > contents {
   min-width: 190px;
   padding: 3px;
   background: #0e0e1a;
-  border: 1px solid rgba(137, 180, 250, 0.18);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   transform-origin: top center;
@@ -1746,12 +1746,12 @@ popover.tray-popover modelbutton {
 popover.tray-popover button.model:hover, popover.tray-popover button.model:focus,
 popover.tray-popover modelbutton:hover,
 popover.tray-popover modelbutton:focus {
-  background: rgba(137, 180, 250, 0.14);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 14%, transparent);
   color: #ffffff;
 }
 popover.tray-popover button.model:active,
 popover.tray-popover modelbutton:active {
-  background: rgba(137, 180, 250, 0.22);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 22%, transparent);
 }
 popover.tray-popover button.model:disabled,
 popover.tray-popover modelbutton:disabled {
@@ -1763,7 +1763,7 @@ popover.tray-popover button.model arrow,
 popover.tray-popover modelbutton check,
 popover.tray-popover modelbutton radio,
 popover.tray-popover modelbutton arrow {
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
   min-width: 14px;
   min-height: 14px;
 }
@@ -1778,7 +1778,7 @@ popover.tray-popover label.title {
 popover.tray-popover separator {
   margin: 3px 2px;
   min-height: 1px;
-  background: rgba(137, 180, 250, 0.14);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 14%, transparent);
 }
 
 .tray-overflow {
@@ -1786,7 +1786,7 @@ popover.tray-popover separator {
 }
 .tray-overflow .tray-overflow-chevron {
   font-family: "MesloLGS Nerd Font";
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
   font-size: 14px;
   margin: 2px 3px -2px;
   transform: rotate(90deg);
@@ -1895,7 +1895,7 @@ popover.tray-overflow-popover.closing > contents {
 }
 
 .wakeup-indicator {
-  color: #94e2d5;
+  color: var(--acento-3b, #94e2d5);
   padding: 0 5px;
   margin: 4px 0;
 }
@@ -1915,7 +1915,7 @@ popover.tray-overflow-popover.closing > contents {
 }
 
 .network {
-  color: #87fae9;
+  color: var(--acento-3, #87fae9);
   font-family: "MesloLGS Nerd Font";
   font-size: 16px;
 }
@@ -1929,7 +1929,7 @@ popover.tray-overflow-popover.closing > contents {
   background-color: rgba(226, 226, 226, 0.18);
 }
 .network .network-bar.active {
-  background-color: #87fae9;
+  background-color: var(--acento-3, #87fae9);
 }
 .network .network-bar.bar-1 {
   min-height: 4px;
@@ -1985,7 +1985,7 @@ popover.tray-overflow-popover.closing > contents {
 }
 
 .bluetooth {
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
   margin: 4px 0;
 }
 
@@ -1998,7 +1998,7 @@ popover.tray-overflow-popover.closing > contents {
   color: #6c7086;
 }
 .bluetooth-ind.connected .bluetooth-icon {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 
 .bt-power {
@@ -2016,7 +2016,7 @@ popover.tray-overflow-popover.closing > contents {
   margin-right: 1px;
 }
 .bt-power:hover {
-  background: linear-gradient(135deg, #89b4fa, #cba6f7);
+  background: linear-gradient(135deg, var(--acento-2, #89b4fa), var(--acento, #cba6f7));
   color: #1a1a1a;
 }
 
@@ -2077,7 +2077,7 @@ popover.tray-overflow-popover.closing > contents {
   transition: opacity 120ms ease-out;
 }
 .power-button:hover {
-  background: linear-gradient(135deg, rgb(137, 180, 250), #cba6f7);
+  background: linear-gradient(135deg, var(--acento-2, #89b4fa), var(--acento, #cba6f7));
   color: #ffffff;
   transform: translateY(-2px) scale(1.045);
   box-shadow: none;
@@ -2172,7 +2172,7 @@ window.lagarto-window > box {
   animation: osd-enter 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .osd-container.osd-volume {
-  border-color: rgba(137, 180, 250, 0.28);
+  border-color: color-mix(in srgb, var(--acento-2, #89b4fa) 28%, transparent);
 }
 .osd-container.osd-brightness {
   border-color: rgba(250, 179, 135, 0.3);
@@ -2198,13 +2198,13 @@ window.lagarto-window > box {
   box-shadow: none;
 }
 .osd-container.osd-microphone.osd-active {
-  border-color: rgba(203, 166, 247, 0.3);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 30%, transparent);
 }
 .osd-container.osd-microphone.osd-active .osd-icon {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 .osd-container.osd-microphone.osd-active progressbar.osd-progress progress {
-  background: linear-gradient(90deg, #cba6f7, #89b4fa);
+  background: linear-gradient(90deg, var(--acento, #cba6f7), var(--acento-2, #89b4fa));
   box-shadow: none;
 }
 
@@ -2212,7 +2212,7 @@ window.lagarto-window > box {
   min-width: 20px;
   font-family: "MesloLGS Nerd Font";
   font-size: 15px;
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
 }
 
 .osd-progress-container {
@@ -2230,7 +2230,7 @@ progressbar.osd-progress trough {
 progressbar.osd-progress progress {
   min-height: 5px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #89b4fa, #cba6f7);
+  background: linear-gradient(90deg, var(--acento-2, #89b4fa), var(--acento, #cba6f7));
   box-shadow: none;
 }
 
@@ -2364,21 +2364,21 @@ window.qs-window > box,
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.008);
 }
 .qs-tile.active {
-  background: rgb(2.7607843137%, 14.1490196078%, 16.1411764706%);
-  border-color: rgba(0, 242, 255, 0.45);
-  box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.12), 0 0 12px rgba(0, 242, 255, 0.08);
+  background: color-mix(in srgb, var(--acento-3c, #00f2ff) 12%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento-3c, #00f2ff) 45%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--acento-3c, #00f2ff) 12%, transparent), 0 0 12px color-mix(in srgb, var(--acento-3c, #00f2ff) 8%, transparent);
 }
 .qs-tile.active .qs-tile-label {
   color: #ffffff;
 }
 .qs-tile.active .qs-tile-icon {
-  color: #00f2ff;
-  text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+  color: var(--acento-3c, #00f2ff);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--acento-3c, #00f2ff) 50%, transparent);
 }
 .qs-tile.active:hover {
-  background-color: rgb(2.6352941176%, 17.8196078431%, 19.9529411765%);
-  border-color: rgba(0, 242, 255, 0.58);
-  box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.16), 0 0 14px rgba(0, 242, 255, 0.11);
+  background-color: color-mix(in srgb, var(--acento-3c, #00f2ff) 16%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento-3c, #00f2ff) 58%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--acento-3c, #00f2ff) 16%, transparent), 0 0 14px color-mix(in srgb, var(--acento-3c, #00f2ff) 11%, transparent);
 }
 .qs-tile .qs-tile-icon {
   font-family: "MesloLGS Nerd Font";
@@ -2414,7 +2414,7 @@ window.qs-window > box,
   min-height: 13px;
 }
 .qs-tile.active .qs-wifi-signal-bar.active {
-  background-color: #00f2ff;
+  background-color: var(--acento-3c, #00f2ff);
 }
 .qs-tile .qs-tile-label {
   font-size: 11px;
@@ -2433,7 +2433,7 @@ window.qs-window > box,
 }
 
 .qs-media {
-  background-color: rgb(5.1607843137%, 5.8352941176%, 8.4392156863%);
+  background-color: color-mix(in srgb, var(--acento-2, #89b4fa) 4%, rgb(8, 8, 12));
   border: none;
   border-radius: 20px;
   padding: 0;
@@ -2445,7 +2445,7 @@ window.qs-window > box,
   font-size: 24px;
   min-width: 40px;
   min-height: 40px;
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
   margin: 0;
 }
 .qs-media .qs-media-title {
@@ -2605,7 +2605,7 @@ window.qs-window > box,
 }
 .qs-media .qs-media-switch:hover {
   color: #ffffff;
-  background: rgba(137, 180, 250, 0.1);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 10%, transparent);
 }
 .qs-media .qs-media-count {
   font-size: 9px;
@@ -2629,11 +2629,11 @@ window.qs-window > box,
   min-height: 22px;
 }
 .qs-section button.qs-icon-btn.active {
-  background: rgb(2.8235294118%, 12.3137254902%, 14.2352941176%);
-  border-color: rgba(0, 242, 255, 0.3);
+  background: color-mix(in srgb, var(--acento-3c, #00f2ff) 10%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento-3c, #00f2ff) 30%, transparent);
 }
 .qs-section button.qs-icon-btn.active label {
-  color: #00f2ff;
+  color: var(--acento-3c, #00f2ff);
 }
 .qs-section.qs-display-panel {
   padding: 10px;
@@ -2681,14 +2681,14 @@ entry.qs-inline-number-input:focus, entry.qs-inline-number-input:focus-visible {
 .qs-section-icon {
   font-family: "MesloLGS Nerd Font";
   font-size: 12px;
-  color: #00f2ff;
+  color: var(--acento-3c, #00f2ff);
   margin: 0;
 }
 .qs-section-icon.bright {
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
 }
 .qs-section-icon.night {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 .qs-section-icon.muted {
   color: rgba(255, 255, 255, 0.5);
@@ -2753,7 +2753,7 @@ button.qs-dropdown-header {
 }
 .qs-sink-item .qs-sink-dot {
   font-size: 8px;
-  color: #00f2ff;
+  color: var(--acento-3c, #00f2ff);
   margin: 0;
 }
 .qs-sink-item .qs-sink-name {
@@ -2794,13 +2794,13 @@ button.qs-display-monitor-pill:hover {
   background: rgb(10.8862745098%, 10.8862745098%, 12.3294117647%);
 }
 button.qs-display-monitor-pill.active {
-  background: rgb(16.9019607843%, 14.2901960784%, 21.2941176471%);
-  border-color: rgba(203, 166, 247, 0.4);
-  color: #cba6f7;
+  background: color-mix(in srgb, var(--acento, #cba6f7) 18%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 40%, transparent);
+  color: var(--acento, #cba6f7);
 }
 button.qs-display-monitor-pill .qs-display-monitor-dot {
   font-size: 7px;
-  color: #00f2ff;
+  color: var(--acento-3c, #00f2ff);
 }
 
 .qs-display-status {
@@ -2900,7 +2900,7 @@ button.qs-display-select-opt:hover {
 }
 button.qs-display-select-opt.active {
   background-color: rgb(53, 47, 68);
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 
 button.sp-step-btn {
@@ -2933,10 +2933,10 @@ entry.sp-num-input {
   min-height: 0;
   color: #dfe1f0;
   font-size: 13px;
-  caret-color: #cba6f7;
+  caret-color: var(--acento, #cba6f7);
 }
 entry.sp-num-input:focus-within {
-  border-color: rgba(203, 166, 247, 0.5);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 50%, transparent);
   background: rgba(255, 255, 255, 0.09);
 }
 
@@ -2951,21 +2951,21 @@ entry.sp-num-input:focus-within {
   padding: 6px 8px;
 }
 .sp-rule-card.active {
-  background: rgba(203, 166, 247, 0.07);
-  border-color: rgba(203, 166, 247, 0.35);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 7%, transparent);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 35%, transparent);
 }
 
 .sp-rule-active-chip {
-  background: rgba(203, 166, 247, 0.18);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 18%, transparent);
   border-radius: 6px;
   padding: 1px 7px;
   margin-left: 4px;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-size: 10px;
 }
 
 .sp-schedule-now {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-size: 11px;
   font-family: "MesloLGS Nerd Font";
 }
@@ -2996,16 +2996,16 @@ button.sp-rule-del:hover {
 }
 
 button.sp-add-rule {
-  background: rgba(203, 166, 247, 0.12);
-  border: 1px solid rgba(203, 166, 247, 0.3);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acento, #cba6f7) 30%, transparent);
   border-radius: 8px;
   padding: 5px 12px;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-size: 12px;
   transition: all 120ms ease;
 }
 button.sp-add-rule:hover {
-  background: rgba(203, 166, 247, 0.2);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 20%, transparent);
 }
 
 .qs-panel button.sp-step-btn {
@@ -3024,10 +3024,10 @@ button.sp-add-rule:hover {
   background: rgb(6.0431372549%, 6.0431372549%, 7.5647058824%);
 }
 .qs-panel .sp-rule-card.active {
-  background: rgb(8.4901960784%, 7.4745098039%, 11.1568627451%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 7%, rgb(8, 8, 12));
 }
 .qs-panel .sp-rule-active-chip {
-  background: rgb(16.9019607843%, 14.2901960784%, 21.2941176471%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 18%, rgb(8, 8, 12));
 }
 .qs-panel button.sp-rule-del {
   background: rgb(7.9803921569%, 7.9803921569%, 9.4705882353%);
@@ -3036,10 +3036,10 @@ button.sp-add-rule:hover {
   background: rgb(19.7254901961%, 12.3843137255%, 15.7176470588%);
 }
 .qs-panel button.sp-add-rule {
-  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 12%, rgb(8, 8, 12));
 }
 .qs-panel button.sp-add-rule:hover {
-  background: rgb(18.431372549%, 15.5294117647%, 23.137254902%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 20%, rgb(8, 8, 12));
 }
 
 .adnd-apps {
@@ -3069,8 +3069,8 @@ scale.qs-slider trough {
 scale.qs-slider progress {
   min-height: 4px;
   border-radius: 999px;
-  background: #00f2ff;
-  box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+  background: var(--acento-3c, #00f2ff);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--acento-3c, #00f2ff) 30%, transparent);
 }
 scale.qs-slider slider {
   min-width: 0;
@@ -3087,25 +3087,25 @@ scale.qs-slider.app progress {
   background: rgba(139, 120, 255, 0.5);
 }
 scale.qs-slider.media progress {
-  background: rgba(137, 180, 250, 0.6);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 60%, transparent);
 }
 scale.qs-slider.brightness progress {
-  background: rgba(137, 180, 250, 0.75);
-  box-shadow: 0 0 10px rgba(137, 180, 250, 0.25);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 75%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--acento-2, #89b4fa) 25%, transparent);
 }
 scale.qs-slider.brightness slider {
-  background: #89b4fa;
+  background: var(--acento-2, #89b4fa);
   margin: 0;
   padding: 0;
 }
 scale.qs-slider.temperature trough {
-  background: linear-gradient(to right, rgba(137, 180, 250, 0.45), rgba(203, 166, 247, 0.55));
+  background: linear-gradient(to right, color-mix(in srgb, var(--acento-2, #89b4fa) 45%, transparent), color-mix(in srgb, var(--acento, #cba6f7) 55%, transparent));
 }
 scale.qs-slider.temperature progress {
   background: transparent;
 }
 scale.qs-slider.temperature slider {
-  background: #cba6f7;
+  background: var(--acento, #cba6f7);
   margin: 0;
   padding: 0;
 }
@@ -3145,8 +3145,8 @@ button.qs-toggle .qs-toggle-dot.on {
   margin-left: 15px;
 }
 button.qs-toggle.on .qs-toggle-track {
-  background: rgba(0, 242, 255, 0.42);
-  border-color: rgba(0, 242, 255, 0.9);
+  background: color-mix(in srgb, var(--acento-3c, #00f2ff) 42%, transparent);
+  border-color: color-mix(in srgb, var(--acento-3c, #00f2ff) 90%, transparent);
 }
 button.qs-toggle:disabled {
   opacity: 1;
@@ -3192,7 +3192,7 @@ button.qs-toggle:disabled {
 
 tooltip {
   background-color: rgba(24, 24, 37, 0.95);
-  border: 1px solid rgba(137, 180, 250, 0.2);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 20%, transparent);
   border-radius: 8px;
   padding: 2px 4px;
 }
@@ -3226,10 +3226,10 @@ tooltip label {
   color: rgba(226, 226, 226, 0.9);
 }
 .qs-icon-btn.active {
-  background: rgb(13.8431372549%, 11.8117647059%, 17.6078431373%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 14%, rgb(8, 8, 12));
 }
 .qs-icon-btn.active label {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 .qs-icon-btn.scanning label {
   color: #a78bfa;
@@ -3292,7 +3292,7 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
 }
 .qs-wifi-header .qs-wifi-search:focus-within {
   background: rgb(6.0431372549%, 6.0431372549%, 7.5647058824%);
-  border-color: rgba(203, 166, 247, 0.11);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 11%, transparent);
 }
 .qs-wifi-header .qs-wifi-search .qs-wifi-search-icon {
   font-size: 11px;
@@ -3305,7 +3305,7 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   outline: none;
   padding: 0;
   min-height: 22px;
-  caret-color: #89b4fa;
+  caret-color: var(--acento-2, #89b4fa);
   font-size: 11px;
   color: rgba(226, 226, 226, 0.78);
 }
@@ -3339,11 +3339,11 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   background: rgb(8.9490196078%, 8.9490196078%, 10.4235294118%);
 }
 .qs-wifi-item.active {
-  background: rgb(2.7607843137%, 14.1490196078%, 16.1411764706%);
-  border-color: rgba(0, 242, 255, 0.35);
+  background: color-mix(in srgb, var(--acento-3c, #00f2ff) 12%, rgb(8, 8, 12));
+  border-color: color-mix(in srgb, var(--acento-3c, #00f2ff) 35%, transparent);
 }
 .qs-wifi-item.active .qs-wifi-signal-bar.active {
-  background-color: #00f2ff;
+  background-color: var(--acento-3c, #00f2ff);
 }
 .qs-wifi-item.portal {
   background: rgb(17.6666666667%, 9.9019607843%, 4%);
@@ -3453,7 +3453,7 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
 }
 
 .qs-tile-arrow {
-  color: rgba(203, 166, 247, 0.5);
+  color: color-mix(in srgb, var(--acento, #cba6f7) 50%, transparent);
   font-family: "MesloLGS Nerd Font";
   font-size: 14px;
   min-width: 22px;
@@ -3462,7 +3462,7 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
 }
 
 .qs-tile.active .qs-tile-arrow {
-  color: rgba(0, 242, 255, 0.62);
+  color: color-mix(in srgb, var(--acento-3c, #00f2ff) 62%, transparent);
 }
 
 .qs-bluetooth-menu {
@@ -3582,17 +3582,17 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   border-color: rgba(89, 180, 250, 0.38);
 }
 .qs-audio-item.active .qs-audio-name {
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
   font-weight: 700;
 }
 .qs-audio-item.active .qs-audio-sub {
-  color: rgba(137, 180, 250, 0.55);
+  color: color-mix(in srgb, var(--acento-2, #89b4fa) 55%, transparent);
 }
 .qs-audio-item.active .qs-audio-icon {
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
 }
 .qs-audio-item.active scale.qs-slider progress {
-  background: #89b4fa;
+  background: var(--acento-2, #89b4fa);
 }
 .qs-audio-item .qs-audio-icon {
   font-family: "MesloLGS Nerd Font";
@@ -3663,13 +3663,13 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
   margin: 0;
 }
 .bar-pill.nb-pill .nb-icon.has-notifs {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 .bar-pill.nb-pill .nb-icon.dnd {
   color: rgb(245, 50, 105);
 }
 .bar-pill.nb-pill .nb-icon.gm-icon.active {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 .bar-pill.nb-pill .nb-icon.ps-icon.active {
   color: #a6e3a1;
@@ -3688,7 +3688,7 @@ button.qs-user-settings-btn:hover, button.qs-user-settings-btn:focus, button.qs-
 .bar-pill.upd-pill .upd-icon {
   font-family: "MesloLGS Nerd Font";
   font-size: 15px;
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
 }
 .bar-pill.upd-pill.kernel .upd-icon {
   color: #fab387;
@@ -3707,7 +3707,7 @@ popover.upd-popover-container > arrow {
 
 .upd-popover {
   background: #0e0e1a;
-  border: 1px solid rgba(137, 180, 250, 0.18);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent);
   border-radius: 10px;
   padding: 10px 12px;
   min-width: 240px;
@@ -3752,12 +3752,12 @@ popover.upd-popover-container > arrow {
   font-size: 11px;
   font-weight: 600;
   color: #e2e2e2;
-  background: rgba(137, 180, 250, 0.16);
-  border: 1px solid rgba(137, 180, 250, 0.28);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 28%, transparent);
   border-radius: 8px;
 }
 .upd-update-btn:hover {
-  background: rgba(137, 180, 250, 0.26);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 26%, transparent);
 }
 
 .notif-popup-window {
@@ -3809,9 +3809,37 @@ popover.upd-popover-container > arrow {
 .notif-popup-item .notif-popup-action-hint {
   font-size: 9px;
   font-weight: 600;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font";
   margin: 2px 0 0 0;
+}
+.notif-popup-item .notif-popup-actions {
+  margin: 2px 0 0 0;
+}
+.notif-popup-item .notif-popup-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(226, 226, 226, 0.7);
+  font-family: "MesloLGS Nerd Font";
+  transition: background 100ms ease, color 100ms ease;
+}
+.notif-popup-item .notif-popup-btn label {
+  margin: 0;
+}
+.notif-popup-item .notif-popup-btn:hover {
+  background: rgba(255, 255, 255, 0.11);
+  color: #e2e2e2;
+}
+.notif-popup-item .notif-popup-btn.principal {
+  color: var(--acento, #cba6f7);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 40%, transparent);
+}
+.notif-popup-item .notif-popup-btn.principal:hover {
+  background: color-mix(in srgb, var(--acento, #cba6f7) 14%, transparent);
 }
 
 @keyframes notif-slide-in {
@@ -3860,6 +3888,25 @@ popover.upd-popover-container > arrow {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.85);
 }
+.notif-popup-item.dunst .notif-popup-btn {
+  font-family: monospace;
+  font-size: 10px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.9);
+}
+.notif-popup-item.dunst .notif-popup-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+.notif-popup-item.dunst .notif-popup-btn.principal {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+.notif-popup-item.dunst .notif-popup-btn.principal:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
 .notif-popup-item.dunst.u-low {
   background: #222222;
 }
@@ -3868,6 +3915,13 @@ popover.upd-popover-container > arrow {
 }
 .notif-popup-item.dunst.u-low .notif-popup-action-hint {
   color: #aaaaaa;
+}
+.notif-popup-item.dunst.u-low .notif-popup-btn {
+  color: #aaaaaa;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.notif-popup-item.dunst.u-low .notif-popup-btn.principal {
+  color: #dddddd;
 }
 .notif-popup-item.dunst.u-normal {
   background: #285577;
@@ -3960,7 +4014,7 @@ window.np-window.csd decoration {
 }
 
 .np-unread-badge-btn {
-  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 12%, rgb(8, 8, 12));
   border: none;
   border-radius: 999px;
   padding: 1px 7px;
@@ -3968,7 +4022,7 @@ window.np-window.csd decoration {
   transition: all 120ms ease;
 }
 .np-unread-badge-btn:hover {
-  background: rgb(19.9607843137%, 16.768627451%, 24.9803921569%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 22%, rgb(8, 8, 12));
 }
 .np-unread-badge-btn label {
   margin: 0;
@@ -3977,7 +4031,7 @@ window.np-window.csd decoration {
 .np-unread-count {
   font-size: 10px;
   font-weight: 700;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   margin: 0;
 }
 
@@ -3994,10 +4048,10 @@ window.np-window.csd decoration {
   background: rgb(9.9176470588%, 9.9176470588%, 11.3764705882%);
 }
 .np-icon-btn.active {
-  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 12%, rgb(8, 8, 12));
 }
 .np-icon-btn.active .np-btn-icon {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 .np-icon-btn.dnd-active {
   background: rgb(14.1960784314%, 9.3019607843%, 12.0470588235%);
@@ -4084,10 +4138,10 @@ window.np-window.csd decoration {
   transition: background 100ms ease;
 }
 .np-filter-chip.active {
-  background: rgb(12.3137254902%, 10.5725490196%, 15.7647058824%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 12%, rgb(8, 8, 12));
 }
 .np-filter-chip.active .np-filter-chip-label {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 .np-filter-chip:hover:not(.active) {
   background: rgb(8.9490196078%, 8.9490196078%, 10.4235294118%);
@@ -4168,7 +4222,7 @@ window.np-window.csd decoration {
 }
 
 .np-group-badge {
-  background: rgb(18.431372549%, 15.5294117647%, 23.137254902%);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 20%, rgb(8, 8, 12));
   border-radius: 999px;
   padding: 0 5px;
 }
@@ -4176,7 +4230,7 @@ window.np-window.csd decoration {
 .np-group-count {
   font-size: 9px;
   font-weight: 800;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   margin: 0;
 }
 
@@ -4239,7 +4293,7 @@ window.np-window.csd decoration {
   padding: 7px 10px;
 }
 .np-panel .notif-item-btn.expanded {
-  background: rgba(203, 166, 247, 0.025);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 2.5%, transparent);
 }
 
 .notif-app-img {
@@ -4290,13 +4344,13 @@ window.np-window.csd decoration {
   min-width: 10px;
   font-family: "MesloLGS Nerd Font";
   font-size: 10px;
-  color: rgba(203, 166, 247, 0.65);
+  color: color-mix(in srgb, var(--acento, #cba6f7) 65%, transparent);
   margin: 1px 0 0;
   transform: rotate(0deg);
   transition: color 160ms ease, transform 160ms ease;
 }
 .notif-expand-indicator.expanded {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   transform: rotate(180deg);
 }
 
@@ -4331,9 +4385,9 @@ window.np-window.csd decoration {
   color: #f38ba8;
 }
 .notif-action-btn.reply:hover {
-  background: rgba(137, 180, 250, 0.15);
-  border-color: rgba(137, 180, 250, 0.3);
-  color: #89b4fa;
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 15%, transparent);
+  border-color: color-mix(in srgb, var(--acento-2, #89b4fa) 30%, transparent);
+  color: var(--acento-2, #89b4fa);
 }
 .notif-action-btn label {
   margin: 0;
@@ -4378,8 +4432,8 @@ window.np-window.csd decoration {
 }
 
 .notif-reply-send {
-  background: rgb(8.1960784314%, 9.8823529412%, 14.0392156863%);
-  border: 1px solid rgba(137, 180, 250, 0.2);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 10%, rgb(8, 8, 12));
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 20%, transparent);
   border-radius: 6px;
   min-width: 28px;
   min-height: 28px;
@@ -4387,7 +4441,7 @@ window.np-window.csd decoration {
   transition: all 100ms ease;
 }
 .notif-reply-send:hover {
-  background: rgb(13.2549019608%, 16.6274509804%, 23.3725490196%);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 20%, rgb(8, 8, 12));
 }
 .notif-reply-send label {
   margin: 0;
@@ -4674,13 +4728,13 @@ window.cal-window.csd decoration {
   color: #e2e2e2;
 }
 .cal-panel .cal-view-tab.active {
-  background-color: rgba(203, 166, 247, 0.13);
-  border-color: rgba(203, 166, 247, 0.22);
-  box-shadow: inset 0 1px 0 rgba(203, 166, 247, 0.07);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 13%, transparent);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 22%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--acento, #cba6f7) 7%, transparent);
 }
 .cal-panel .cal-view-tab.active .cal-view-tab-icono,
 .cal-panel .cal-view-tab.active .cal-view-tab-texto {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 
 .cal-view-tab-icono {
@@ -4789,22 +4843,22 @@ window.cal-window.csd decoration {
   color: rgba(226, 226, 226, 0.32);
 }
 .cal-day-cell.today {
-  background-color: rgba(203, 166, 247, 0.07);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 7%, transparent);
 }
 .cal-day-cell.today .cal-day-num {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-weight: 700;
 }
 .cal-day-cell.selected {
-  background-color: rgba(203, 166, 247, 0.13);
-  border: 1px solid rgba(203, 166, 247, 0.28);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acento, #cba6f7) 28%, transparent);
 }
 .cal-day-cell.selected .cal-day-num {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-weight: 700;
 }
 .cal-day-cell.selected:hover {
-  background-color: rgba(203, 166, 247, 0.2);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 20%, transparent);
 }
 
 .cal-day-num {
@@ -4842,8 +4896,8 @@ window.cal-window.csd decoration {
   padding: 6px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   min-height: 0;
-  background-color: rgba(203, 166, 247, 0.025);
-  box-shadow: inset 0 1px 0 rgba(203, 166, 247, 0.025);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 2.5%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--acento, #cba6f7) 2.5%, transparent);
 }
 .cal-agenda-header > .cal-icon-btn {
   min-width: 32px;
@@ -5125,7 +5179,7 @@ window.cal-window.csd decoration {
   transition: border-color 120ms;
 }
 .cal-form-entry:focus {
-  border-color: #cba6f7;
+  border-color: var(--acento, #cba6f7);
 }
 
 .cal-dialog-evento .cal-form-entry:focus,
@@ -5133,7 +5187,7 @@ window.cal-window.csd decoration {
 .cal-dialog-alarma .cal-form-entry:focus,
 .cal-dialog-alarma .cal-spin:focus {
   border-width: 1px;
-  border-color: rgba(203, 166, 247, 0.45);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 45%, transparent);
   outline: none;
   box-shadow: none;
 }
@@ -5166,7 +5220,7 @@ window.cal-window.csd decoration {
 }
 
 .cal-form-seccion-titulo {
-  color: rgba(203, 166, 247, 0.72);
+  color: color-mix(in srgb, var(--acento, #cba6f7) 72%, transparent);
   font-family: "MesloLGS Nerd Font", monospace;
   font-size: 10px;
   font-weight: 700;
@@ -5208,8 +5262,8 @@ window.cal-window.csd decoration {
   min-height: 22px;
 }
 .cal-panel switch:checked {
-  background-color: #cba6f7;
-  border-color: #cba6f7;
+  background-color: var(--acento, #cba6f7);
+  border-color: var(--acento, #cba6f7);
 }
 .cal-panel switch slider {
   background-color: #ffffff;
@@ -5240,7 +5294,7 @@ window.cal-window.csd decoration {
 }
 .cal-color-swatch.active {
   border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 2px rgba(203, 166, 247, 0.62), 0 0 8px rgba(203, 166, 247, 0.2);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--acento, #cba6f7) 62%, transparent), 0 0 8px color-mix(in srgb, var(--acento, #cba6f7) 20%, transparent);
   opacity: 1;
 }
 .cal-color-swatch.active .cal-color-check {
@@ -5313,7 +5367,7 @@ window.cal-window.csd decoration {
   padding: 2px 4px;
 }
 .cal-spin:focus {
-  border-color: #cba6f7;
+  border-color: var(--acento, #cba6f7);
 }
 .cal-spin button {
   background-color: transparent;
@@ -5330,17 +5384,17 @@ window.cal-window.csd decoration {
 
 .cal-btn.primario,
 .cal-icon-btn.primario {
-  background-color: rgba(203, 166, 247, 0.13);
-  color: #cba6f7;
-  border-color: rgba(203, 166, 247, 0.24);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 13%, transparent);
+  color: var(--acento, #cba6f7);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 24%, transparent);
 }
 .cal-btn.primario label,
 .cal-icon-btn.primario label {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 .cal-btn.primario:hover,
 .cal-icon-btn.primario:hover {
-  background-color: rgba(203, 166, 247, 0.21);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 21%, transparent);
 }
 
 .cal-icon-btn.peligro {
@@ -5417,7 +5471,7 @@ window.cal-window.csd decoration {
 
 .reloj-tarjeta-icono {
   min-width: 15px;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font", monospace;
   font-size: 13px;
 }
@@ -5440,7 +5494,7 @@ window.cal-window.csd decoration {
 .reloj-alarmas-cabecera {
   min-height: 31px;
   padding: 6px 9px;
-  background-color: rgba(203, 166, 247, 0.035);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 3.5%, transparent);
   border-bottom: 1px solid rgba(226, 226, 226, 0.055);
 }
 
@@ -5476,8 +5530,8 @@ window.cal-window.csd decoration {
 }
 .reloj-alarma.activa {
   opacity: 1;
-  background-color: rgba(203, 166, 247, 0.045);
-  border-color: rgba(203, 166, 247, 0.13);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 4.5%, transparent);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 13%, transparent);
 }
 .reloj-alarma .cal-icon-btn {
   border-color: transparent;
@@ -5558,11 +5612,11 @@ window.cal-window.csd decoration {
   color: #e2e2e2;
 }
 .reloj-dia:checked {
-  background-color: rgba(203, 166, 247, 0.16);
-  color: #cba6f7;
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 16%, transparent);
+  color: var(--acento, #cba6f7);
 }
 .reloj-dia:checked label {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 
 .reloj-ayuda {
@@ -5582,8 +5636,8 @@ window.cal-window.csd decoration {
   font-family: "MesloLGS Nerd Font", monospace;
 }
 .reloj-preset:hover {
-  background-color: rgba(203, 166, 247, 0.09);
-  border-color: rgba(203, 166, 247, 0.2);
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 9%, transparent);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 20%, transparent);
   color: #e2e2e2;
 }
 
@@ -5607,8 +5661,8 @@ window.cal-window.csd decoration {
   color: #e2e2e2;
 }
 .st-tab.active {
-  background: rgba(203, 166, 247, 0.15);
-  color: #cba6f7;
+  background: color-mix(in srgb, var(--acento, #cba6f7) 15%, transparent);
+  color: var(--acento, #cba6f7);
 }
 
 .st-tab-hint {
@@ -5696,7 +5750,7 @@ window.cal-window.csd decoration {
 
 .re-section {
   font-size: 11px;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font";
   font-weight: 600;
   margin-top: 4px;
@@ -5730,9 +5784,9 @@ window.cal-window.csd decoration {
   color: #e2e2e2;
 }
 .re-seg.active, .re-toggle.active {
-  background: rgba(137, 180, 250, 0.18);
-  border-color: rgba(137, 180, 250, 0.4);
-  color: #89b4fa;
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent);
+  border-color: color-mix(in srgb, var(--acento-2, #89b4fa) 40%, transparent);
+  color: var(--acento-2, #89b4fa);
 }
 
 .re-toggle {
@@ -5750,14 +5804,14 @@ window.cal-window.csd decoration {
 }
 
 .re-save {
-  background: rgba(137, 180, 250, 0.15);
-  border: 1px solid rgba(137, 180, 250, 0.3);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 30%, transparent);
   padding: 6px;
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
   font-size: 12px;
 }
 .re-save:hover {
-  background: rgba(137, 180, 250, 0.25);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 25%, transparent);
 }
 
 .re-delete {
@@ -5769,6 +5823,15 @@ window.cal-window.csd decoration {
 }
 .re-delete:hover {
   background: rgba(243, 139, 168, 0.22);
+}
+.re-delete {
+  /* Segundo clic pendiente en «Borrar historial»: el botón se pinta lleno para que se vea
+     que la siguiente pulsación ya borra, no que no ha pasado nada. */
+}
+.re-delete.confirm {
+  background: rgba(243, 139, 168, 0.32);
+  border-color: rgba(243, 139, 168, 0.6);
+  color: #e2e2e2;
 }
 
 .re-hint {
@@ -5897,8 +5960,8 @@ window.cal-window.csd decoration {
   color: #e2e2e2;
 }
 .sp-nav-item.active {
-  background: rgba(203, 166, 247, 0.15);
-  color: #cba6f7;
+  background: color-mix(in srgb, var(--acento, #cba6f7) 15%, transparent);
+  color: var(--acento, #cba6f7);
 }
 .sp-nav-item .sp-nav-content {
   min-height: 24px;
@@ -5948,18 +6011,18 @@ window.cal-window.csd decoration {
 .sp-energy-summary {
   font-size: 11px;
   font-weight: 600;
-  color: rgba(203, 166, 247, 0.82);
+  color: color-mix(in srgb, var(--acento, #cba6f7) 82%, transparent);
   font-family: "MesloLGS Nerd Font";
   letter-spacing: 0.01em;
 }
 .sp-energy-summary.active {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 
 .sp-energy-mode {
   font-size: 10px;
   font-weight: 500;
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
   font-family: "MesloLGS Nerd Font";
 }
 .sp-energy-mode.active {
@@ -5984,7 +6047,7 @@ window.cal-window.csd decoration {
 .sp-field-value {
   font-size: 12px;
   font-weight: 700;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font";
 }
 
@@ -6005,7 +6068,7 @@ window.cal-window.csd decoration {
 }
 
 .sp-subsection-title {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font";
   font-size: 14px;
   font-weight: 700;
@@ -6030,12 +6093,12 @@ window.cal-window.csd decoration {
 
 .dev-card-header {
   padding: 11px 14px 9px;
-  background: rgba(203, 166, 247, 0.045);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 4.5%, transparent);
   border-bottom: 1px solid rgba(255, 255, 255, 0.055);
 }
 
 .dev-card-icon {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font";
   font-size: 15px;
 }
@@ -6123,8 +6186,8 @@ button.dl-seg-btn:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 button.dl-seg-btn.active {
-  color: #cba6f7;
-  background: rgba(203, 166, 247, 0.15);
+  color: var(--acento, #cba6f7);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 15%, transparent);
 }
 
 button.dl-city-result {
@@ -6138,8 +6201,8 @@ button.dl-city-result {
 }
 button.dl-city-result:hover {
   color: #e2e2e2;
-  background: rgba(203, 166, 247, 0.1);
-  border-color: rgba(203, 166, 247, 0.2);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 10%, transparent);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 20%, transparent);
 }
 
 .account-section {
@@ -6168,14 +6231,14 @@ button.dl-city-result:hover {
   min-width: 46px;
   min-height: 46px;
   border-radius: 999px;
-  border: 2px solid rgba(203, 166, 247, 0.45);
+  border: 2px solid color-mix(in srgb, var(--acento, #cba6f7) 45%, transparent);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
 .account-avatar.fallback {
-  background: rgba(203, 166, 247, 0.18);
-  color: #cba6f7;
+  background: color-mix(in srgb, var(--acento, #cba6f7) 18%, transparent);
+  color: var(--acento, #cba6f7);
   font-size: 15px;
   font-weight: 700;
 }
@@ -6199,7 +6262,7 @@ button.dl-city-result:hover {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .account-entry:focus {
-  border-color: rgba(203, 166, 247, 0.6);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 60%, transparent);
 }
 
 .account-secondary-btn, .account-save-btn {
@@ -6211,20 +6274,20 @@ button.dl-city-result:hover {
 }
 
 .account-secondary-btn {
-  color: #cba6f7;
-  background: rgba(203, 166, 247, 0.12);
-  border: 1px solid rgba(203, 166, 247, 0.22);
+  color: var(--acento, #cba6f7);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acento, #cba6f7) 22%, transparent);
 }
 
 .account-secondary-btn:hover, .account-secondary-btn.open {
   color: #e2e2e2;
-  background: rgba(203, 166, 247, 0.2);
-  border-color: rgba(203, 166, 247, 0.34);
+  background: color-mix(in srgb, var(--acento, #cba6f7) 20%, transparent);
+  border-color: color-mix(in srgb, var(--acento, #cba6f7) 34%, transparent);
 }
 
 .account-save-btn {
   color: #0b0910;
-  background: #cba6f7;
+  background: var(--acento, #cba6f7);
   border: none;
 }
 
@@ -6237,7 +6300,7 @@ button.dl-city-result:hover {
 }
 
 .account-notice {
-  color: #89b4fa;
+  color: var(--acento-2, #89b4fa);
   font-size: 10.5px;
   font-weight: 600;
 }
@@ -6265,7 +6328,7 @@ button.dl-city-result:hover {
 }
 
 .sys-card-icon {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font";
   font-size: 14px;
 }
@@ -6307,7 +6370,7 @@ button.dl-city-result:hover {
 
 .sys-loading spinner {
   margin-right: 9px;
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 
 /* ── Ajustes > Almacenamiento ────────────────────────────────────────────────
@@ -6319,7 +6382,7 @@ button.dl-city-result:hover {
 }
 
 .alm-icono {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font";
   font-size: 15px;
   min-width: 20px;
@@ -6334,6 +6397,51 @@ button.dl-city-result:hover {
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
+}
+
+/* Segunda línea de esa columna: lo que se LIBERARÍA, cuando no coincide con lo que
+   ocupa (el journal recortado a su retención, ~/.cache respetando las cachés de GPU,
+   Descargas sin días configurados). Deliberadamente más pequeña y en el verde de
+   "espacio recuperable", no en el color del dato principal: es una aclaración de la
+   cifra de arriba, no otra cifra que compita con ella. Mismo `min-width` para que la
+   columna siga alineada entre filas con y sin ella. */
+.alm-liberable {
+  min-width: 78px;
+  font-family: "Inter", sans-serif;
+  font-size: 10.5px;
+  /* Verde solo cuando hay algo que ganar. Un «No libera nada ahora mismo» en el
+     verde de "espacio recuperable" se lee de refilón como si SÍ liberara — es
+     justo la fila en la que el color tiene que decir lo contrario. */
+}
+.alm-liberable.algo {
+  color: #a6e3a1;
+}
+.alm-liberable.nada {
+  color: #8b8799;
+}
+
+/* Filas de «carpetas que quieras vaciar». Sin fondo propio: son una lista dentro
+   de una fila, no filas de la tarjeta, y darles el mismo relieve que a `dev-row`
+   las haría competir con los ajustes de arriba. */
+.alm-ruta {
+  padding: 2px 0;
+}
+
+.alm-ruta-texto {
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font";
+  font-size: 11.5px;
+}
+
+/* El aviso de que estas carpetas se vacían sin preguntar. Naranja y no rojo: es
+   una advertencia sobre lo que va a pasar, no el informe de un fallo — el rojo
+   está reservado a `.alm-resultado.error`. */
+.alm-aviso {
+  color: #fab387;
+}
+
+.alm-nota {
+  color: #a6e3a1;
 }
 
 .alm-disco {
@@ -6417,11 +6525,11 @@ progressbar.alm-barra.critico progress {
 }
 
 .alm-cargando spinner {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
 }
 
 .alm-totales {
-  color: #cba6f7;
+  color: var(--acento, #cba6f7);
   font-family: "MesloLGS Nerd Font";
   font-size: 11.5px;
   font-weight: 600;
@@ -6448,8 +6556,8 @@ progressbar.alm-barra.critico progress {
   background: rgba(255, 255, 255, 0.07);
 }
 .alm-etiqueta.aur {
-  color: #89b4fa;
-  background: rgba(137, 180, 250, 0.13);
+  color: var(--acento-2, #89b4fa);
+  background: color-mix(in srgb, var(--acento-2, #89b4fa) 13%, transparent);
 }
 .alm-etiqueta.explicita {
   color: #a6e3a1;
@@ -6495,13 +6603,13 @@ window.qs-window.fondo-shell-grafito .qs-tile:hover {
   background-color: rgb(12.5823529412%, 12.5823529412%, 15.6098039216%);
 }
 window.qs-window.fondo-shell-grafito .qs-tile.active {
-  background: rgb(8.2823529412%, 19.6705882353%, 23.0431372549%);
+  background: color-mix(in srgb, var(--acento-3c, #00f2ff) 12%, rgb(24, 24, 32));
 }
 window.qs-window.fondo-shell-grafito .qs-tile.active:hover {
-  background-color: rgb(7.9058823529%, 23.0901960784%, 26.5411764706%);
+  background-color: color-mix(in srgb, var(--acento-3c, #00f2ff) 16%, rgb(24, 24, 32));
 }
 window.qs-window.fondo-shell-grafito .qs-media {
-  background-color: rgb(11.1843137255%, 11.8588235294%, 15.968627451%);
+  background-color: color-mix(in srgb, var(--acento-2, #89b4fa) 4%, rgb(24, 24, 32));
 }
 window.qs-window.fondo-shell-grafito button.qs-inline-value-btn,
 window.qs-window.fondo-shell-grafito entry.qs-inline-number-input,
@@ -6527,7 +6635,7 @@ window.qs-window.fondo-shell-grafito .qs-sink-item.active {
   background: rgb(17.5294117647%, 16.1882352941%, 28.2901960784%);
 }
 window.qs-window.fondo-shell-grafito .qs-wifi-item.active {
-  background: rgb(8.2823529412%, 19.6705882353%, 23.0431372549%);
+  background: color-mix(in srgb, var(--acento-3c, #00f2ff) 12%, rgb(24, 24, 32));
 }
 window.qs-window.fondo-shell-grafito .qs-wifi-item.portal {
   background: rgb(23%, 15.2352941176%, 10.6666666667%);

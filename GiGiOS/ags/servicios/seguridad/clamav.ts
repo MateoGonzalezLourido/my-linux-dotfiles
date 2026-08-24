@@ -14,13 +14,31 @@
 // "Firmas de ClamAV" del CLAUDE.md raíz.
 //
 // LEER el estado, en cambio, NO necesita sudo y por eso no pasa por el helper: la fecha sale del
-// mtime de la base (world-readable) y el "se actualiza solo" de `systemctl is-enabled`, que
-// cualquiera puede consultar. Preguntarle al sistema es lo único que no puede mentir: el helper
-// puede estar instalado y el servicio apagado a mano.
-
+// mtime de la base (world-readable) y el estado del servicio periódico de `systemctl is-enabled`,
+// que cualquiera puede consultar. Preguntarle al sistema es lo único que no puede mentir: el
+// helper puede estar instalado y el servicio apagado a mano.
+//
+// ── EL AUTOMÁTICO YA NO ES `clamav-freshclam`, Y NO HAY NINGÚN TEMPORIZADOR ────────────────
+// Aquel interruptor encendía y apagaba el servicio, o sea que la actualización iba POR PERIODO
+// (cada N horas, hiciera falta o no) y su estado vivía en systemd. Hoy el interruptor es un
+// BOOLEANO de GiGiOS (`clamavAutoUpdate` en security.json, ver modulos/ajustes/seguridad/
+// preferencias.ts) y quien actualiza es hypr/scripts/actualizar-firmas.sh --auto **una sola vez,
+// al arrancar Hyprland**, en silencio y solo si la base falta o pasa de un día. Durante la sesión
+// no queda nada corriendo: ni reloj, ni servicio, ni reintentos.
+//
+// **Este módulo tampoco sondea nada.** `refreshClamavState()` se llama al montar la tarjeta y tras
+// una orden del helper — no hay `setInterval` ni `Gio.FileMonitor`. Si se añade uno algún día,
+// será el primer temporizador de ClamAV del sistema y hay que justificarlo aquí.
+//
+// Se conserva la lectura de `systemctl is-enabled` por una razón concreta: si el servicio se quedó
+// habilitado de la etapa anterior habría un actualizador periódico invisible. Con el booleano
+// encendido se apaga UNA vez, en silencio, vía el helper (`auto-off`, ya autorizado en la regla
+// sudoers). No se vuelve a tocar: si el usuario lo reactiva a mano por su cuenta, se le enseña el
+// estado y se le deja en paz.
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createState } from "ags"
+import { clamavAutoUpdatePref } from "../../modulos/ajustes/seguridad/preferencias"
 
 const HELPER = "/usr/local/bin/gigios-clamav-update"
 const DB_DIR = "/var/lib/clamav"
@@ -61,9 +79,11 @@ function readDbEpoch(): number | null {
 }
 
 export const [clamavDbEpoch, _setClamavDbEpoch] = createState<number | null>(readDbEpoch())
+// Estado del servicio PERIÓDICO heredado (`clamav-freshclam`). Ya no es el interruptor de nada:
+// solo sirve para detectar que sigue encendido y apagarlo (ver `apagarServicioPeriodico`).
 // `null` = todavía no se ha podido consultar (no es lo mismo que "desactivado"), igual que el
 // `boolean | null` de teclaCedidaAHyprland.
-export const [clamavAutoUpdate, _setClamavAutoUpdate] = createState<boolean | null>(null)
+export const [clamavServicioPeriodico, _setClamavServicioPeriodico] = createState<boolean | null>(null)
 export const [clamavBusy, _setClamavBusy] = createState(false)
 
 function notify(urgency: string, body: string): void {
@@ -92,9 +112,14 @@ export function refreshClamavState(): void {
     try {
       const [, stdout] = (p as Gio.Subprocess).communicate_utf8_finish(res)
       const v = (stdout ?? "").trim()
-      // "enabled", "enabled-runtime" o "static" = se actualiza solo. Cualquier otra cosa
-      // (disabled, masked, o la unidad no existe) = no.
-      _setClamavAutoUpdate(v === "enabled" || v === "enabled-runtime" || v === "static")
+      // "enabled", "enabled-runtime" o "static" = el servicio periódico sigue vivo. Cualquier
+      // otra cosa (disabled, masked, o la unidad no existe) = no.
+      const activo = v === "enabled" || v === "enabled-runtime" || v === "static"
+      _setClamavServicioPeriodico(activo)
+      // Un solo actualizador. Si el booleano de GiGiOS está encendido, el servicio periódico
+      // sobra: se apaga una vez y en silencio (el usuario no ha pedido esto, así que no se le
+      // notifica; y si falla, tampoco pasa nada grave: solo quedan dos actualizadores).
+      if (activo && clamavAutoUpdatePref.get()) apagarServicioPeriodico()
     } catch (e) {
       console.error("[clamav] no se pudo leer el estado del servicio:", e)
     }
@@ -161,13 +186,22 @@ export function updateClamavDb(): void {
     "No se pudieron actualizar las firmas de ClamAV.")
 }
 
-/** Enciende o apaga la actualización automática (`clamav-freshclam.service`). */
-export function setClamavAutoUpdate(on: boolean): void {
-  runHelper(on ? "auto-on" : "auto-off",
-    on
-      ? "Actualización automática de firmas activada."
-      : "Actualización automática de firmas desactivada. Acuérdate de actualizarlas a mano.",
-    on
-      ? "No se pudo activar la actualización automática."
-      : "No se pudo desactivar la actualización automática.")
+/**
+ * Apaga el servicio periódico heredado (`clamav-freshclam`) EN SILENCIO. No pasa por `runHelper`
+ * a propósito: aquello notifica el resultado y reconcilia el estado, y aquí no hay nada que
+ * contarle a nadie — el usuario no ha pedido esta orden, es limpieza de la etapa anterior. Ni
+ * siquiera toma `clamavBusy`: bloquear el botón "Actualizar ahora" por una tarea de fondo que el
+ * usuario no ve sería un botón muerto sin explicación.
+ */
+function apagarServicioPeriodico(): void {
+  if (!clamavHelperInstalled) return
+  try {
+    const proc = Gio.Subprocess.new(
+      ["sudo", "-n", HELPER, "auto-off"],
+      Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE,
+    )
+    proc.wait_async(null, () => { _setClamavServicioPeriodico(false) })
+  } catch (e) {
+    console.error("[clamav] no se pudo apagar el servicio periódico:", e)
+  }
 }

@@ -1155,6 +1155,49 @@ en uno. Verificado con A/B sobre seis escenarios (anidado en los dos órdenes, h
 hijo sin nombre y padre con él, suelto, y dos dispositivos a la vez): el original saca 13 avisos,
 el nuevo 9 — uno por dispositivo físico.
 
+**El nombre al desconectar sale de una caché, porque el evento no puede tenerlo.** La fusión
+arregla *cuántos* avisos salen, no *cómo se llaman*: aunque el `remove` que sobrevive sea el más
+profundo, muchas veces ninguno de los dos trae `ID_MODEL` y el aviso decía «dispositivo
+desconocido» — mientras que al **conectar** el nombre salía bien. No es un fallo de parseo: cuando
+llega el `remove`, el dispositivo **ya no está en sysfs** y no hay a quién preguntarle. La única
+forma de saberlo es haberlo guardado al enchufar, indexado por lo único que el `remove` sí trae
+siempre: el `DEVPATH`, que es el **puerto**. Eso es `$XDG_RUNTIME_DIR/gigios-usb-cache/`
+(`GIGIOS_USB_CACHE_DIR` para probar, y también para **pre-sembrar** el estado, que es la única forma
+de testear el reinicio del monitor). Cuatro decisiones que no son obvias:
+
+- **NO se borra al arrancar**, al revés que los pendientes, y **no** entra en el `trap … EXIT`. Es
+  el error más fácil de introducir aquí, por simetría. Recargar el monitor es `pkill` + relanzar (o
+  `hyprctl reload full-reset`): borrar dejaría sin nombre la desconexión de todo lo ya enchufado,
+  justo el caso que esto arregla. Un pendiente huérfano es un aviso que nadie reclamará; una entrada
+  de caché huérfana es solo un nombre que quizá no haga falta. Está en `XDG_RUNTIME_DIR` y **no** en
+  `~/.cache` porque los `DEVPATH` se reutilizan entre arranques: sobrevivir al reboot sería nombrar
+  el puerto en vez del dispositivo. Las huérfanas las quita `prune_cache()` en el arranque, por dos
+  criterios: el path ya no existe, o existe pero el `idVendor:idProduct` de sysfs **ya no coincide**
+  (otro pendrive en el mismo puerto, enchufado con el monitor parado — su `add` tampoco se vio).
+- **La búsqueda casa por prefijo en las dos direcciones** (el `remove` puede llegar por el padre o
+  por un hijo), con una salvaguarda: un **descendiente solo vale si es ÚNICO**. Con dos o más, los
+  candidatos son **hermanos** —el hub con tres pendrives— y quedarse con cualquiera le pondría a un
+  dispositivo el nombre de otro sin ningún error visible. Con ≥2 no se devuelve nada y no se pierde
+  nada: ese pendiente del padre lo descarta igualmente la fusión.
+- **Se resuelve al INGERIR el `remove`, no al vencer el temporizador.** Además de que
+  `fire_due_pendings` ya no conoce los `DEVPATH` absorbidos, esto arregla una fuga de nombre que la
+  fusión tenía sola: si el `remove` del hub llega **antes** que el del primer pendrive, el pendrive
+  entra por la rama «el entrante desciende de un pendiente» y, al venir sin nombre, **heredaba la
+  etiqueta del hub**. Con la caché llega ya con `known=1` y no se le pisa nada.
+- **Se borra la entrada EXACTA y nada más.** Borrar el subárbol es el bug: con el `remove` del hub
+  primero se llevaría por delante los nombres de sus tres pendrives. Como el kernel emite un
+  `remove` por **cada** `usb_device`, cada entrada se borra sola con el suyo.
+
+Manda el **evento** cuando trae nombre; la caché es respaldo, nunca autoridad (es una foto de un
+puerto, el evento es el dato vivo). Por lo mismo, el evento de **bloque** enriquece la entrada del
+`usb_device` del que cuelga —así se nombra el pendrive cuyo `add` llegó con las propiedades a
+medias— pero **no pisa** un nombre usb ya bueno: el `ID_MODEL` del bloque sale de un INQUIRY SCSI
+**truncado a 16 caracteres**. A quién enriquecer se sabe por el antecesor cacheado más profundo, no
+parseando el path: `${d%/*:*.*/*}` es la tentación y está mal, porque en expansión de parámetros
+`*` cruza `/` y el corte se va al puente PCI. Medido con eventos sintéticos: sin caché el hub con
+tres pendrives saca «dispositivo desconocido (×3)»; con ella, los tres nombres correctos, el mismo
+número de avisos y en cualquier orden de llegada.
+
 **Los hermanos siguen siendo tres dispositivos, pero ya no son tres popups.** La fusión resuelve
 "un dispositivo, varios eventos"; no toca —ni debe— el caso de tres dispositivos de verdad. Eso lo
 resuelve la capa de arriba: los tres vencen su espera en el **mismo instante**, así que el volcado
@@ -1184,7 +1227,16 @@ un teclado tarda 3 s en anunciarse; es un popup pasivo, y se prefiere eso a un f
 desconocido". El sysfs es atajo y no garantía porque las interfaces **no siempre existen todavía**
 cuando llega el `add` del `usb_device`.
 
-- **Expulsar** (botón en el aviso de conexión) → `usb-eject.sh <disco>`: desmonta todas las
+- **Abrir** (botón en el aviso de conexión, y **el que dispara el clic derecho** sobre el popup) →
+  `usb-open.sh <disco>`: elige la partición (la ya montada; si no, la mayor con sistema de ficheros
+  reconocido, descartando swap/LUKS/LVM/RAID, e incluyendo el disco pelado por los pendrives sin
+  tabla de particiones), la monta con `udisksctl` si hace falta y abre Dolphin ahí (`xdg-open` de
+  plan B), desacoplado con `setsid` para no colgarlo del monitor. Va **primera** en la notificación
+  a propósito: AGS trata la primera acción visible como la principal. La ruta se relee de
+  `/proc/mounts` —desescapando el octal, que `\040` en una etiqueta con espacios es lo normal— y no
+  del «Mounted … at …», cuyo texto ha cambiado entre versiones de udisks. Nada de `sudo`/`pkexec`,
+  por el mismo motivo que `usb-repair.sh`.
+- **Expulsar** (segundo botón del mismo aviso) → `usb-eject.sh <disco>`: desmonta todas las
   particiones y hace `power-off`. El unmount de udisks **hace el flush y espera**: cuando vuelve, los
   datos están físicamente en el pendrive. Si `power-off` falla (hubs que no lo soportan) **no** es
   error: ya está todo volcado, que es lo que protege los datos.
@@ -1549,6 +1601,25 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   actualiza, así que el escáner automático los seguirá dando por analizados. Verificado con A/B sobre un `clamscan` simulado (rc 0/1/2) y con 3 barridos
   seguidos para el spam.
 
+  **Coste en REPOSO del barrido, y las dos cosas que lo dominaban.** El bucle está dirigido por
+  eventos y en reposo el proceso queda bloqueado en `inotifywait`, pero la red de seguridad lo
+  despierta cada 300 s pase lo que pase, y ese barrido "vacío" costaba mucho más de lo que parece:
+  (1) **un `stat` por fichero** en la fase A.2 — con 67 ficheros en Descargas, **40 ms y 67 forks**
+  cada vez; hoy el `find` de la fase A.1 trae `mtime` y tamaño con `-printf '%T@|%s|%p'` y la fase
+  A.2 los lee del array `_stat`: **2 ms y ningún fork** (el `stat` queda solo como repliegue para un
+  fichero aparecido entre medias). `%T@` trae fracción, que se trunca sin fork para conservar el
+  formato entero `mtime|tamaño` del índice en disco, y el troceo va a mano porque **la ruta puede
+  llevar `|`**. (2) **cuatro `jq` sobre `security.json`** para leer las tres pausas y el tope, o sea
+  cuatro procesos y cuatro lecturas del mismo fichero por barrido: hoy es **un solo `jq`** con
+  `join("|")` (5 ms → 1 ms). Un barrido en reposo pasa así de ~45 ms y ~72 procesos a ~4 ms y ~3.
+  Ojo con el repliegue de `dlPauseWhileGaming` ante una salida ilegible: es `true`, porque replica
+  lo que significa "clave ausente", y no el `false` de la inicialización (que es el caso distinto de
+  "no hay ni jq ni fichero"). (3) **`_dl_paused` ya no forkea `jq`**: además de una vez por barrido,
+  se consulta **cada 2 s durante todo el `clamscan`** del lote (ver la Fase B), y cada llamada
+  forkeaba uno o dos `jq` sobre ficheros de tres líneas. Ahora se leen con `read` y una expresión
+  regular de bash — el mismo idioma que ya usa `lib/gaming-gate.sh` para ese mismo
+  `runtime-state.json`— y no cuesta ningún proceso.
+
   **Interruptible scan**: `clamscan` reloads its ~200 MB signature DB on *every* invocation (~13 s
   here), so the batch is **not** chunked — one `clamscan --file-list` over the whole batch runs in the
   background while a `_dl_paused` poll (every 2 s) `kill`s it if a gate activates mid-scan (latency
@@ -1594,6 +1665,41 @@ se vuelve a comprobar: sin reiniciar no puede dejar de ser cierto. **No calla en
 primera vez emite `sistema.reinicio-pendiente` ("🔄 Reinicio pendiente", `normal`, autocierre),
 que es a la vez la explicación del silencio y la acción que lo arregla.
 
+**Apagado limpio: matar el monitor dejaba un `inotifywait -m` vivo PARA SIEMPRE.** Los seis
+sub-monitores son hijos directos (`func &`) y comparten la línea de órdenes del padre, así que
+`pkill -f oom-monitor.sh` —la forma documentada de relanzarlo tras editarlo, y por donde pasa
+`hyprctl reload full-reset`— sí se los lleva. Sus **nietos** no: el `inotifywait -m` de
+`monitor_files` no tiene `-t`, se queda bloqueado esperando eventos, lo adopta `init` y ahí sigue,
+vigilando `/etc`, `/boot` y `~/.ssh` con sus watches y ~3,7 MB de RSS, sin nadie al otro lado de la
+tubería. Muere solo, pero solo al **primer evento** (el SIGPIPE al escribir en una tubería sin
+lector), y en `/etc` eso puede tardar días. Medido: un huérfano de 1 h 48 min de una instancia
+anterior, y uno nuevo por cada ciclo de matar/relanzar. Los `journalctl -f` de
+`monitor_kernel`/`monitor_system` tienen la misma forma.
+
+Hicieron falta **tres** piezas, y se llegó a ellas en ese orden porque cada una destapó el límite de
+la anterior:
+1. **`trap` en el padre** (`_limpiar_al_salir` → `_matar_descendientes`, matando de abajo arriba:
+   al revés el padre muere primero y al nieto ya no lo encuentra ningún `pgrep -P`).
+2. **Las tres tuberías largas van en 2º plano con `wait`.** El trap por sí solo no llegaba a
+   correr: **bash aplaza las señales mientras espera a un hijo en primer plano**, y esos hijos son
+   un `journalctl -f` y un `inotifywait -m` que no terminan nunca. Con `{ tubería; } & wait $!` la
+   espera es interrumpible y el trap se atiende al instante. Es el mismo patrón que el envoltorio
+   `blocking` de `updates-monitor.sh`, que ya lo documentaba para su `inotifywait`, y el que
+   `screencast-monitor.sh` resuelve con `coproc` + `exec -a`. `monitor_downloads` usa la misma idea
+   con `_esperar_evento`: allí el hijo sí acaba solo, pero un SIGTERM podía quedarse pendiente hasta
+   cinco minutos y durante ese rato el barrido aún podía arrancar un `clamscan` que ya no quiere
+   nadie.
+3. **Recogida de huérfanos, al arrancar y como ÚLTIMO paso de la limpieza.** Tampoco bastaba con
+   (1)+(2): `pkill -f` casa con **todos** los niveles de bash a la vez —el principal, los seis
+   sub-monitores y el subshell de cada tubería—, así que cuando el trap del padre corre, el subshell
+   intermedio ya puede estar muerto y su `inotifywait` reparentado a init, fuera del alcance de
+   `pgrep -P`. Un huérfano recién hecho sí es reconocible sin ambigüedad: mismo usuario, **ppid 1** y
+   la línea de órdenes exacta que emitimos. Los patrones son literales a propósito: un `pgrep -f
+   inotifywait` a secas se llevaría por delante el vigilante de pacman de `updates-monitor.sh`.
+
+Verificado con tres ciclos de arrancar/`pkill`/contar: **0 huérfanos** en los tres, contra uno por
+ciclo antes.
+
 **Config**: every scanned category is gated by a boolean in `~/.config/gigios/security.json`
 (written by `ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`, absent key = enabled). The bash reads it
 **once at process start** — toggling a switch in the AGS Seguridad tab only takes effect after
@@ -1623,47 +1729,77 @@ detectan la base ausente y dicen "ejecuta `sudo freshclam` (o activa clamav-fres
 pero eso llega por `notify-send` y hay que acordarse. Peor: mientras tanto el barrido **no marca
 nada** (rc 2 → no se sella; ver la sección de `monitor_downloads`), así que la función queda
 parada esperando a un gesto que no está en ninguna UI. Ajustes > Seguridad > Antivirus tiene ahora
-la tarjeta **Base de firmas**: fecha de la última actualización, si el servicio automático está
-activo, y un botón que actualiza **ahora** y de paso deja `clamav-freshclam.service` habilitado.
+la tarjeta **Base de firmas**: fecha de la última actualización, el interruptor «Mantener las firmas
+al día» y un botón que actualiza **ahora**.
 
 **Mismo esquema que TLP, y por el mismo motivo**: `/var/lib/clamav` es de `clamav`, el log de
 freshclam está en `/var/log/clamav` y `systemctl enable` es de root, así que AGS no toca nada —
 delega en `/usr/local/bin/gigios-clamav-update` (root-owned, instalado por **`install.sh` paso 9**
 desde `system/clamav/gigios-clamav-update.sh`), autorizado sin contraseña por
-`/etc/sudoers.d/gigios-clamav` **solo** para sus dos argumentos fijos. Ni el helper ni la regla se
+`/etc/sudoers.d/gigios-clamav` **solo** para dos argumentos fijos (`update` y `auto-off`: los demás verbos del helper salieron de la regla al dejar de usarse — un NOPASSWD que puede *encender* un demonio no se deja puesto por si acaso). Ni el helper ni la regla se
 symlinkean: apuntar algo que corre como root al árbol escribible por el usuario sería la escalada
 silenciosa contra la que avisan las secciones de USB, i2c-dev y TLP.
 
-**La actualización automática es un interruptor, y por eso el helper tiene DOS verbos de
-actualización.** La fila "Actualizar las firmas automáticamente" enciende y apaga
-`clamav-freshclam.service` (`auto-on`/`auto-off`, `disable --now` para que apagar no deje el
-demonio vivo hasta el próximo arranque). Con ese interruptor al lado, el botón "Actualizar ahora"
-**no puede** forzar el `enable`: reencendería en silencio algo que el usuario acaba de apagar, con
-su propio interruptor mintiendo justo encima. De ahí que `update` deje el servicio **como estaba**
-(pararlo es un detalle de implementación de esa actualización, no una decisión de nadie) y que
-`update-enable` —el que dispara el botón **"Activar y actualizar"** de las notificaciones, donde
-activar sí es lo pedido— sea un comando aparte. Los dos están en la regla sudoers por separado.
+**«Actualizar las firmas al iniciar sesión» es un BOOLEANO, y NO QUEDA NINGÚN TEMPORIZADOR DE
+ACTUALIZACIÓN DE CLAMAV EN EL SISTEMA.** Antes esa fila encendía y apagaba
+`clamav-freshclam.service`: el estado vivía en systemd (había que preguntárselo con `systemctl
+is-enabled` para pintar el interruptor) y la actualización ocurría **por periodo**, cada pocas
+horas, hiciera falta o no, con el equipo delante o parado. Hoy el interruptor es `clamavAutoUpdate`
+en `~/.config/gigios/security.json` —activado por defecto, el mismo fichero que ya leen los
+escáneres— y quien actualiza es **`hypr/scripts/actualizar-firmas.sh --auto`**, disparado desde **un
+solo sitio**: `gigios/autostart.lua`, t=40, una vez por arranque de Hyprland.
 
-**El interruptor NO se persiste en ningún JSON de GiGiOS**: el estado es de systemd y se lee de
-`systemctl is-enabled` cada vez, también después de fallar una orden — pintar lo que *creemos* que
-hizo el comando es como se llega a una UI que se contradice con el sistema. Si el estado no se pudo
-consultar (`null`) o falta el helper, la fila **no se pinta**: un interruptor que no sabe dónde
-está miente en las dos posiciones. Con el helper ausente el estado se dice en texto, que informa
-sin fingir que se puede cambiar.
+**Por qué basta con el arranque.** Una sesión de escritorio empieza casi a diario, así que las
+firmas entran al día y se quedan al día durante toda la sesión; freshclam publica varias veces al
+día, pero para reconocer lo que importa sirve de sobra una base de menos de 24 h. Lo que se gana es
+que **durante la sesión no queda nada corriendo**: ni un reloj, ni un servicio, ni un reintento por
+barrido. Un reintento a mitad de sesión sería un temporizador con otro nombre, y descargar ~200 MB
+por detrás mientras el usuario trabaja es justo el trabajo de fondo que se quiere evitar.
 
-**Dato medido, por si algún día se quiere simplificar**: en esta máquina `systemctl enable --now` y
-`disable --now` sobre esa unidad funcionan **sin root** (polkit se lo concede a la sesión activa),
-así que la mitad del interruptor podría no necesitar el helper. Se mantiene por él igualmente:
-depender de la política de polkit haría que en otra máquina el interruptor abriera un diálogo de
-contraseña —o fallara— mientras el botón de actualizar sigue yendo por sudo, dos caminos distintos
-para la misma tarjeta.
+**Ni los escáneres actualizan por su cuenta, y eso corrige una primera versión de esto mismo.** Hubo
+una en la que el barrido de descargas, al ver `rc 2`, disparaba la actualización en silencio. Se
+retiró: convertía un barrido de fondo en un disparador de 200 MB, y reintentarlo barrido tras
+barrido —aunque fuera con antirrebote— era exactamente el periodo que se acababa de quitar. Hoy los
+tres consumidores (`oom-monitor.sh`, `scan-file.sh`, `run-untrusted.sh`) solo **avisan con botón**
+(`firmas_aviso_con_boton`): a mitad de sesión actualizar es un gesto del usuario, y es de un clic.
+
+**En el arranque no se notifica NADA**, ni al empezar, ni al acabar, ni al fallar: el interruptor
+promete que se hace solo. **Tres guardas antes de descargar, todas sin red ni sudo**: (1) el
+booleano; (2) **antirrebote de una hora** desde el último intento —lo apunta la marca
+`~/.cache/gigios/firmas-auto` (`<epoch> <rc>`)—, que es lo que impide que un `hyprctl reload
+full-reset`, que vuelve a ejecutar el autostart, reintente la descarga en cada recarga cuando el
+arranque anterior falló; y (3) la **edad de la base**: `daily.{cld,cvd}` con menos de 24 h no se
+toca, así que arrancar la sesión cinco veces en un día no descarga cinco veces. Cuando no toca, el
+script sale en **~4 ms** (un `jq` y un `stat`) y no deja nada vivo.
+
+**Qué se sigue leyendo del sistema y qué no.** El interruptor es nuestro, así que su estado siempre
+se conoce y la fila se pinta salvo que **falte el helper root** — sin él ni el botón ni la
+actualización del arranque pueden funcionar, y un interruptor que no aplica nada es peor que su
+ausencia (ahí el texto dice qué instalar). Lo que se sigue preguntando al sistema es lo que solo el
+sistema sabe: la **fecha** de la base (mtime de `/var/lib/clamav/daily.*`) y si el **servicio
+periódico** heredado sigue vivo (`systemctl is-enabled`). Ese segundo dato solo se pinta cuando vale
+`true`; `null` (no se pudo consultar) no afirma nada, mismo criterio que `teclaCedidaAHyprland`.
+**Y AGS tampoco sondea**: `refreshClamavState()` se llama al montar la tarjeta y tras una orden del
+helper — no hay `setInterval` ni `Gio.FileMonitor` en `servicios/seguridad/clamav.ts`. Si algún día
+aparece uno, será el primer temporizador de ClamAV del sistema y hay que justificarlo ahí.
+
+**El helper conserva `update-enable`, `auto-on` y `auto-off` aunque el interruptor ya no los use.**
+`auto-off` sigue teniendo un consumidor: si `clamav-freshclam` se quedó habilitado de la etapa
+anterior (o lo enciende una reinstalación del paquete), `refreshClamavState` lo detecta y lo **apaga
+una vez, en silencio** — si no, volvería a haber un actualizador periódico, y encima invisible. Los
+otros dos verbos se quedan por compatibilidad con instalaciones a medio migrar y porque la regla
+sudoers ya los autoriza; el botón "Actualizar ahora" y el del popup usan los dos `update` a secas.
+`install.sh` **ya no habilita el servicio**: descarga las firmas una vez con el helper y deja el
+resto al booleano.
 
 **El helper PARA el servicio antes de actualizar, y no es un capricho.** `clamav-freshclam` mantiene
 `freshclam.log` bloqueado, así que un `freshclam` suelto con el demonio vivo aborta con *"locked by
 another process"*. La alternativa obvia —`systemctl restart clamav-freshclam`— actualiza pero es
 **asíncrona**: no deja ni código de salida ni salida que enseñarle al usuario, o sea que el botón no
 podría distinguir "actualizado" de "sigue sin firmas". Se para, se actualiza en primer plano y se
-vuelve a habilitar con `enable --now`. La ventana sin demonio son segundos.
+vuelve a dejar como estaba. La ventana sin demonio son segundos. Sigue haciendo falta aunque el
+servicio ya no sea el actualizador: puede seguir corriendo de una instalación anterior, y un
+`freshclam` suelto con él vivo aborta.
 
 **Leer el estado NO pasa por el helper ni por sudo**: la fecha sale del `mtime` de
 `/var/lib/clamav/daily.{cld,cvd}` (world-readable) y el "se actualiza solo" de `systemctl
@@ -1686,9 +1822,20 @@ familia con una cura de un solo gesto, y un popup que dice "ejecuta `sudo freshc
 minuto le pide al usuario que se acuerde de algo cuando ya esté en una terminal. Las tres
 notificaciones que lo reportan —el `rc == 2` del barrido de descargas (`oom-monitor.sh`), y el "no
 se pudo analizar" de `scan-file.sh` y `run-untrusted.sh`— llevan ahora
-`-A "update=🛡️ Activar y actualizar"` → **`hypr/scripts/actualizar-firmas.sh`**, el lado de usuario
+`-A "update=🛡️ Actualizar firmas"` → **`hypr/scripts/actualizar-firmas.sh`**, el lado de usuario
 del helper. Se pulsa con **clic derecho** sobre el popup (ver `ags/CLAUDE.md`, "Acciones D-Bus en el
-popup"), y el `-t 0` ya no es un popup eterno: con acciones, `popupLifetime()` lo acota a 60 s.
+popup"), y `calcularDuracionPopup()` lo acota a 60 s.
+
+**Ese aviso lo emite ahora `firmas_aviso_con_boton` (`lib/firmas.sh`) y lleva TECHO DE ESPERA, que es
+lo que le faltaba.** `notify-send --wait` no espera al popup: espera a que el **daemon** cierre la
+notificación, y con `-t 0` el daemon no la cierra nunca. O sea que a los 60 s el popup desaparecía
+—y con él la única forma de pulsar el botón, porque estas notificaciones no llegan al historial (ver
+el "peaje conocido" de `ags/CLAUDE.md`)— y el `notify-send` se quedaba colgado **hasta el fin de la
+sesión** esperando un clic ya imposible: un proceso zombi por arranque, invisible y para siempre.
+Ahora se manda con `-t 60000` (que el daemon y el popup caduquen a la vez) y un vigilante mata el
+`notify-send` a los 120 s. El `timeout` **no puede envolver la llamada**, porque `notificar` es una
+función de shell y no un binario: un `timeout bash -c` perdería la función y el aviso saldría sin
+identidad (sin `x-gigios-event`, o sea inconfigurable desde Ajustes).
 
 **Por qué un script y no llamar al helper desde el `-A`**: hace falta algo que **notifique el
 resultado** —el helper solo imprime por stdout, y de una acción de `notify-send` no lee nadie— y que
@@ -1836,18 +1983,55 @@ Ajustes > **Almacenamiento** (qué ocupa el disco, catálogo de apps por tamaño
 | `limpiar-almacenamiento.sh` | ejecuta una o varias acciones, emite JSON con lo liberado | mezcla, ver abajo |
 | `limpieza-arranque.sh` | comprobación de un disparo al iniciar sesión: decide si toca | ninguno propio |
 | `system/limpieza/gigios-limpieza.sh` | la parte de root, root-owned + sudoers NOPASSWD | root |
+| `hypr/scripts/lib/limpieza-rutas.sh` | **la lista única de qué borra cada acción**; la sourcean el analizador y el limpiador | (se sourcea) |
 
-**Un solo `pacman -Qi` para todo el análisis.** Se invocaba tres veces —el total instalado, los
-huérfanos y el catálogo de aplicaciones— y sobre 1632 paquetes cuesta **~290 ms cada vez**, o sea
-que casi 0,6 s del análisis se iban en volver a preguntar lo mismo. Hoy se vuelca una vez a un
-temporal y los tres consumidores lo leen; los huérfanos se filtran **dentro de awk** contra un
-conjunto en vez de con `pacman -Qi -- pkg…`, y la cuenta de paquetes sale de contar los `Name:` del
-volcado en lugar de un `pacman -Qq | wc -l`. Medido: **1,03 s → 0,72 s de CPU**, con salida
-byte-idéntica. El volcado se genera **antes** de forkear los tres sondeos paralelos del verbo
-`todo`: una variable asignada dentro de un subshell no vuelve al padre, así que con creación
+**Un solo volcado de paquetes para todo el análisis, y lo produce `expac`.** El inventario lo piden
+tres consumidores —el total instalado, los huérfanos y el catálogo de aplicaciones— y antes cada uno
+lanzaba su propio `pacman -Qi`: sobre 1632 paquetes son **~285 ms cada vez**, o sea casi 0,6 s del
+análisis gastados en volver a preguntar lo mismo. Primero se pasó a volcar `pacman -Qi` una sola vez
+a un temporal (**1,03 s → 0,72 s de CPU**); hoy ese volcado lo genera **`expac -Q '%n\t%m\t%w\t%l\t%d'`**,
+que cuesta **~18 ms** —quince veces menos— porque lee la base de datos local y emite solo los cinco
+campos pedidos, en vez de formatear veinte por paquete para que awk descarte quince.
+
+El formato del volcado es **TSV, una línea por paquete**: `nombre · bytes · explicit|dependency ·
+fecha · descripción`. Los bytes llegan **ya en bytes** (`%m`); el volcado de `pacman -Qi` los daba
+formateados (`"12,34 MiB"`) y cada consumidor tenía que deshacer la unidad —trabajo, y un redondeo a
+dos decimales sumado 1600 veces—. `pacman -Qi` **sigue como respaldo** (expac es un paquete aparte,
+no viene con pacman) y produce el mismo TSV, así que la conversión de unidades vive solo ahí y nada
+aguas abajo sabe de dónde salió el volcado. Con el TSV, los huérfanos se filtran **dentro de awk**
+contra un conjunto en vez de con `pacman -Qi -- pkg…`, la cuenta de paquetes es un `wc -l` y el
+catálogo de apps es un `print` de columnas en vez de una máquina de estados sobre bloques.
+
+Medido en este equipo (1619 paquetes, caché caliente), verbo `todo`: **0,74 s → 0,41 s de reloj y
+1,02 s → 0,67 s de CPU**, con salida equivalente —las cifras de expac son *más* exactas: 120 KB de
+diferencia sobre 21 GB, que es el redondeo que `pacman -Qi` introducía—. Lo que queda del coste ya
+no es el inventario sino `pacman -Qmq` (~245 ms, AUR), `pacman -Qtdq` (~170 ms, huérfanos) y
+`paccache` en simulación (~146 ms), que corren en paralelo entre los tres sondeos.
+
+Un aviso al tocar el respaldo: `pacman -Qi` sale traducido, y todo este parseo depende del
+`export LC_ALL=C` de la cabecera del script. Sin él el awk no casa ni un campo y el volcado sale
+**vacío** —sin error—, con `paquetes`/`huerfanos` en `null` y `apps` en lista vacía.
+
+El volcado se genera **antes** de forkear los tres sondeos paralelos del verbo `todo`: una variable asignada dentro de un subshell no vuelve al padre, así que con creación
 perezosa habrían seguido siendo tres invocaciones, solo que simultáneas — la misma CPU con mejor
 pinta en el reloj de pared. Su `trap` de borrado se **encadena** con el de los tres temporales de
 salida: un `trap` nuevo sustituye al anterior, y sin eso el volcado se quedaba en `/tmp`.
+
+**La creación perezosa dejaba ROTOS los verbos `categorias` y `apps`, y nadie lo vio porque la UI
+usa `todo`.** El volcado se creaba desde `$(_volcado_qi)`, o sea dentro de una **sustitución de
+órdenes**: el subshell creaba el temporal *y su propio `trap EXIT`*, y ese trap lo borraba al
+terminar la sustitución — justo antes de que el padre fuera a leerlo. La salida era literal:
+
+```
+$ analizar-almacenamiento.sh categorias
+grep: /tmp/gigios-qi.OjK6sR: No such file or directory
+awk: fatal: cannot open file `/tmp/gigios-qi.M5T47Z' for reading
+```
+
+con `paquetes` y `huerfanos` en `bytes: null` (la sección los pintaba «—») y `apps` devolviendo una
+lista **vacía**. El verbo `todo` se salvaba por casualidad: ya llamaba al volcado desde el padre por
+otro motivo. Hoy la creación es explícita (`_preparar_qi`, siempre desde el padre) y `_volcado_qi`
+solo imprime la ruta — una función que únicamente imprime es segura dentro de `$( )`.
 
 **El análisis se cachea en `~/.cache/gigios/almacenamiento.json` y por eso la sección se pinta llena
 en el primer frame**, igual que Ajustes > Sistema: recorrer `~/.cache`, `/var/cache/pacman` y el hogar
@@ -1889,17 +2073,288 @@ compartido contado una vez por snapshot—.
    entrar en el lote desatendido. Un diálogo de contraseña que aparece solo, de madrugada, no lo lee
    nadie — se aprende a darle a Enter sin mirar, que es peor que no tenerlo.
 
+**«Borrar lo que yo elija» (`rutasPersonalizadas`) es la única acción cuyo objetivo NO lo decide este
+repositorio**, y por eso es la única con un filtro. Acepta carpetas y ficheros, y los trata distinto
+porque lo contrario sorprende:
+
+- **Carpeta** → se borra su **contenido** y la carpeta sobrevive. Igual que en miniaturas: hay
+  aplicaciones que no recrean su directorio de trabajo y dejan de funcionar hasta el siguiente
+  login. Y deja el error reversible en el sentido que importa — lo que configuraste sigue ahí.
+- **Fichero** → se borra él mismo, que es lo que espera cualquiera que escriba la ruta de un
+  fichero.
+
+El reparto lo hace `objetivos_de_ruta` (en la lib), **compartido con el analizador**: si cada script
+expandiera la ruta por su cuenta volveríamos al problema de origen de toda esta sección — dos ideas
+distintas de qué se borra y una cifra que no describe nada. Nada de esto pasa por la papelera.
+
+El filtro es `ruta_personalizada_valida`, en `lib/limpieza-rutas.sh`, y **vive ahí y no en la UI a
+propósito**: el JSON se puede editar a mano, restaurar de un backup viejo o venir de otro equipo
+donde esa ruta significaba otra cosa. Quien borra es quien valida. Ajustes llama al **mismo** filtro
+con `limpiar-almacenamiento.sh --validar-ruta` para dar el error al momento; dos implementaciones
+—una en TypeScript para avisar y otra en bash para borrar— acabarían discrepando, y discrepar aquí
+significa borrar algo que la interfaz había dado por rechazado.
+
+Qué rechaza, y por qué cada cosa:
+
+- **No canónica** → se resuelve con `realpath -m` **antes** de comparar. Sin eso, un `~/basura` que
+  en realidad es un symlink a `/` pasa cualquier comprobación textual y `rm -rf` sigue el enlace
+  igual. Está probado con ese caso exacto.
+- **Protegidas**: `/`, `$HOME`, `~/.config`, `~/.local`(+`share`/`state`), `~/.cache`, `~/.ssh`,
+  `~/.gnupg`, `~/.dotfiles`, `~/.mozilla`, `/home`, `/root` y los directorios raíz del sistema. No
+  es una lista de «cosas de root» —como usuario no podrías borrarlas— sino de directorios cuyo
+  **contenido es la configuración o la identidad de la sesión**, donde el vaciado no se nota hasta
+  el siguiente arranque y ya no hay vuelta atrás.
+- **Ancestro de `$HOME`** por prefijo, además de la lista, para cubrir un hogar fuera de `/home`.
+- **Relativa, inexistente, o ni carpeta ni fichero regular.** Un socket, una FIFO o un nodo de
+  dispositivo bajo `$HOME` se rechazan explícitamente en vez de dejar que `rm` haga algo raro con
+  ellos: nadie los configura a mano aquí, y un error claro vale más que un borrado sorprendente.
+
+Lo rechazado **no se ignora en silencio**: viaja en el `mensaje` del resultado. Una ruta que dejó de
+existir tiene que decirlo, porque «limpieza correcta, 0 bytes» es indistinguible de «no había nada
+que borrar». Y sin ninguna ruta válida el estado es `omitida`, no `ok`: no se ha hecho nada de lo
+que se pedía.
+
+**Es automatizable**, o sea que puede correr desatendida desde `limpieza-arranque.sh` — que es el
+motivo de que el filtro exista. Su casilla nace apagada como todas, y en el catálogo va marcada
+`peligrosa`.
+
+**La otra mitad: `rutasProtegidas`, lo que NINGUNA limpieza toca.** Misma pantalla, lista aparte,
+verbo contrario. Existe porque `CACHE_PRESERVADO` la decide este repositorio y cada equipo tiene su
+carpeta que técnicamente es caché pero cuesta cara de perder (el perfil de un navegador que guarda
+la sesión bajo `~/.cache`, la caché de compilación del proyecto de esta semana). Sin ella, salvarla
+obligaba a **desmarcar la acción entera** y no limpiar nada.
+
+Tres reglas, y la tercera es la que la hace útil (`filtrar_protegidos`, en la lib):
+
+1. El objetivo **es** una ruta protegida, o está **dentro** de ella → no se toca.
+2. No tiene nada que ver → se borra como siempre.
+3. El objetivo **contiene** una ruta protegida (proteges `~/.cache/foo/perfil` y la limpieza iba a
+   llevarse `~/.cache/foo` entero) → **no se salta el objetivo: se desciende un nivel** y se vuelve
+   a filtrar. Se borra todo lo de dentro menos lo protegido. Saltarse el objetivo entero «por si
+   acaso» habría convertido proteger un fichero de 4 KB en no limpiar el gigabyte que lo rodea.
+
+Se aplica en **`_borrar_medido` y `_vaciar`**, o sea el punto por el que pasa todo lo que borra el
+propio script: cachés de usuario, miniaturas, papelera, descargas y las rutas personalizadas.
+**Lo que borra un tercero NO puede respetarla** —`paccache`, `paru -Sc`, `npm cache clean`,
+`pip cache purge`, `flatpak uninstall`, el helper root— porque esas herramientas no aceptan
+exclusiones; está dicho en la UI, porque una protección que no protege es peor que no tenerla.
+
+El filtro es mucho más flojo que el de las rutas a borrar, y a propósito: aquí el error posible es
+**proteger de más**, que como mucho deja algo sin limpiar. Solo se rechazan la ruta vacía, la
+relativa y `/` (protegerlo entero no protege nada: significaría no limpiar). **No se exige que
+exista** — proteger una carpeta que una aplicación aún no ha creado, o que está en un disco externo
+desconectado, tiene que seguir valiendo cuando aparezca. Lo que sí es obligatorio es
+**canonicalizar** (`--validar-protegida` lo hace antes de guardar): la comparación que decide si algo
+se salva es **textual**, así que `~/x/../x` no casaría con nada. Las protegidas se **podan** al
+leerlas (fuera duplicados y descendientes de otra), porque el analizador las mide con `du` para
+descontarlas y una anidada se contaría dos veces.
+
+Añadir una ruta a las dos listas a la vez no es una configuración, es un descuido, y **gana la
+protección**: `ruta_personalizada_valida` rechaza la ruta con ese motivo en vez de dejarla en la
+lista sin borrar nunca nada, y la UI la retira de la lista de borrar al protegerla.
+
+**El analizador descuenta lo protegido de `liberable`, nunca de `bytes`** (lo protegido sigue
+ocupando disco y tiene que seguir saliendo en el desglose, que es donde se ve dónde está el
+espacio). En `rutasPersonalizadas` la paridad es exacta —se aplica el mismo `filtrar_protegidos`
+sobre la misma lista— y en `cacheUsuario`, `miniaturas` y `cacheDesarrollo` se resta con `du`. En
+**papelera y descargas** el descuento puede quedarse **corto por abajo** con un filtro de días: se
+resta todo lo protegido que haya dentro aunque parte no fuera a borrarse todavía por no ser lo
+bastante antiguo. Es la dirección segura del error —prometer de menos, nunca de más— y el caso es
+raro de por sí. Verificado de punta a punta en un `$HOME` de juguete: caché de 650 KB con 200 KB
+protegidos dentro de una carpeta que sí se limpia → el analizador promete 400 KB, el limpiador
+libera 400 KB y el fichero protegido sigue ahí.
+
+**«Limpiar descargas antiguas» BORRA; mandar a la papelera es opcional y va apagado.** Antes usaba
+`gio trash` siempre, y eso hacía que la cifra mintiera: la papelera vive en el **mismo sistema de
+ficheros**, así que mover 5 GB ahí no libera un solo byte de disco —solo cambia de carpeta— mientras
+la acción informaba de «5 GB liberados». Un botón bajo el rótulo «Liberar espacio» que no liberaba
+espacio hasta que además vaciabas la papelera.
+
+El interruptor **`descargasAPapelera`** (Ajustes > Liberar espacio, justo debajo de los días)
+devuelve el comportamiento antiguo para quien quiera la red de seguridad, y entonces la contabilidad
+es honesta al revés: la acción termina en `ok` con **`liberado: 0`** y un `mensaje` que dice cuánto
+ha movido, y el analizador da **`liberable: 0`** para esa categoría. El espacio lo liberará «Vaciar
+papelera», que tiene su propia fila y su propia cifra; contarlo en las dos sería prometer el mismo
+hueco dos veces. La clave se lee con `has()` y no con `//`, porque en jq el `//` considera falsy a
+`false` y con el interruptor apagado devolvería el valor por defecto (mismo fallo que ya documenta
+`limpieza-arranque.sh` para `notificar`).
+
+Consecuencia en la UI: `textoResultado` enseña el `mensaje` cuando un `ok` lo trae. Sin esa rama, la
+fila decía «No había nada que liberar» justo después de mover 5 GB. Y `_legible` (bash) tiene que
+dar el mismo formato que `formatearBytes` (TypeScript) —`3,9 MiB`: unidades binarias con la `i`,
+espacio y coma decimal—, porque las dos cifras acaban una al lado de la otra en la misma sección.
+`--to=iec` no vale: cuenta en 1024 pero rotula `MB`.
+
+**El borrado enumera primero y mide UNA vez, en vez de recorrer el directorio dos veces.** El patrón
+original de cada acción era `antes=$(du dir); …borrar…; liberado=$((antes - $(du dir)))`. Tenía dos
+costes y un defecto:
+
+- **Dos travesías completas del directorio**, incluida la parte que nunca se toca: en `cacheUsuario`
+  eso son `~/.cache/nvidia` (1 GB) y `~/.cache/yay` (557 MB) recorridos dos veces para nada, y en
+  `descargas` la carpeta entera —que puede tener decenas de GB— para averiguar cuánto pesaban cuatro
+  ficheros viejos. Con la caché de inodos caliente son 9 ms y da igual; esto corre en el **arranque
+  de sesión**, con la caché fría, que es donde `du` cuesta segundos.
+- **Un fork por ruta dentro de `_tam`** (un `du` *y* un `awk` cada una): dieciséis procesos para
+  sumar los cuatro directorios de `cacheDesarrollo`.
+- **La resta iba sobre un blanco móvil**: entre las dos pasadas el navegador reescribe su caché, así
+  que podía salir negativa y había que recortarla a 0.
+
+Hoy `_borrar_medido` enumera lo que se va a borrar, lo mide una sola vez, lo borra y descuenta lo que
+haya sobrevivido —comprobación que normalmente no recorre nada, porque no sobrevive nada—. No puede
+salir negativa. Se sigue midiendo antes y después **solo** en las cuatro acciones donde borra un
+tercero y no hay lista que enumerar: `paru -Sc`, `npm cache clean`/`pip cache purge`, `pacman -Scc` y
+`flatpak uninstall --unused`.
+
+**El vaciado de la papelera por antigüedad forkeaba una vez por elemento.** Un `while read` con un
+`basename` **y** un `rm` dentro: con 2000 elementos, cuatro mil procesos para borrar dos mil cosas.
+Hoy un único `find -printf '%p\0…/info/%f.trashinfo\0'` emite ya el par (fichero, `.trashinfo`) sin
+`basename` —`%f` es el nombre a secas— y el borrado va por `xargs -0`, que además trocea solo y no se
+pasa de `ARG_MAX`. Medido sobre una papelera de 2000 elementos, con resultado idéntico:
+
+```
+antes   1757 ms   415 procesos externos
+ahora    112 ms    17 procesos externos
+```
+
+**De paso se arregló que `cacheUsuario` borrara el DIRECTORIO `~/.cache/thumbnails`, no su
+contenido.** Su `find … -exec rm -rf` operaba sobre las entradas de primer nivel, así que se llevaba
+la carpeta entera — exactamente el fallo contra el que avisa el comentario de `_vaciar` (sin ese
+directorio, GTK deja de generar miniaturas hasta el siguiente login). Ya no aplica porque
+`thumbnails` está en la lista de preservados, pero la enumeración por entradas hace que el caso ni
+se pueda volver a dar.
+
+**Las preferencias se leen con UN `jq`, no con uno por clave.** Eran tres procesos (~10 ms cada uno)
+pagados siempre, también al ejecutar una acción que no mira ninguna de las tres. Mismo patrón que ya
+usaban `limpieza-arranque.sh` y el analizador; los valores por defecto tienen que coincidir entre los
+tres ficheros o vuelve a haber dos verdades sobre la misma configuración.
+
 **Ninguna herramienta informa de forma fiable de cuánto liberó** (`paccache` imprime texto libre,
 `journalctl --vacuum-size` no imprime nada útil, `rm` menos), así que el espacio liberado se mide con
 `du` **antes y después**. Como `du` mide un blanco móvil —el navegador reescribe su caché entre las
 dos pasadas—, la resta puede salir negativa y se recorta a 0; el estado sigue siendo `ok`.
 
+**Cada categoría lleva DOS cifras, y confundirlas era el fallo principal de la sección.** `bytes` es
+lo que la categoría **ocupa**; `liberable` es lo que quedaría libre si pulsas su botón. Casi nunca
+coinciden, y las diferencias no son de redondeo:
+
+| Categoría | Por qué `liberable` < `bytes` |
+| --- | --- |
+| `cachePaquetes` | se conserva la última versión de cada paquete instalado (`paccache -rk1`) |
+| `registros` | el journal se recorta a `retenerJournal`; **por debajo de ese tamaño libera 0** |
+| `temporales` | mide `/tmp` + `/var/tmp`, pero `/tmp` es tmpfs (RAM) y no se toca: solo cuenta `/var/tmp`, y solo lo anterior a un día |
+| `cacheUsuario` | el borrado respeta las cachés de GPU, las de GiGiOS y todo lo que tiene botón propio |
+| `descargas` | **con 0 días no borra NADA**, aunque la carpeta ocupe 50 GB |
+| `papelera` | con N días, solo lo anterior a N |
+| `flatpak` | `liberable: null` — ver abajo |
+
+La estimación de «Liberar espacio» sumaba `bytes`. Medido en este equipo con las casillas por
+defecto del usuario: **prometía 28,2 GiB donde se liberaban 21,7 GiB**, y el desglose de al lado
+enseñaba «Registros · 100 MiB» con un botón que no habría devuelto ni un byte (la retención está en
+200M). Con «Descargas» marcada la cifra habría sido la carpeta entera. Hoy `estimarLiberable`
+(`servicios/disco/catalogo.ts`) suma `liberable`, y la fila enseña la segunda cifra debajo de la
+primera **solo cuando difieren** — repetirla en «Miniaturas», donde son iguales, sería ruido.
+
+**`liberable: null` es «no se ha podido saber», y no es lo mismo que 0.** Hoy solo lo usa Flatpak:
+la acción quita los runtimes que ya no usa ninguna app y `flatpak uninstall --unused` **no tiene
+`--dry-run`**; reconstruir su criterio a mano (cruzar `flatpak list --columns=ref` contra los
+runtimes que declara cada app, con extensiones y versiones) sería una segunda implementación que se
+desviaría de la real en la primera actualización de flatpak. Contar la instalación entera —apps
+incluidas—, que es lo que se hacía antes, era la sobrestimación más grande de la lista. Con una
+casilla así marcada la frase cambia a «se liberarían **al menos** X», en vez de presentar una
+estimación incompleta como si fuera exacta.
+
+**Deduplicar la simulación de `paccache` no es cosmético.** Las dos listas de candidatos **se
+solapan**: `-k1` propone borrar las versiones viejas de todo paquete con más de una, y `-uk0` todas
+las versiones de lo que ya no está instalado — un paquete desinstalado con dos versiones en caché
+sale en las dos. Sumar sin `sort -u` daba **24,94 GB liberables sobre un directorio de 23,23 GB**:
+la estimación prometía más espacio del que existe. Por lo mismo no vale leer los dos «disk space
+saved» que imprime paccache y sumarlos (13,08 + 10,15 GiB = 23,23 GiB, más que el directorio
+entero); además vienen redondeados a dos decimales de GiB, con un error de hasta 10 MB por
+invocación. Se suman los tamaños reales de los ficheros candidatos, y `_cat` aplica de todos modos
+un **tope duro** (`liberable` nunca puede superar a `bytes`) como red frente a las dos medidas
+tomadas en instantes distintos.
+
+**El analizador lee las preferencias, y tiene que leerlas.** `retenerJournal`, `diasPapelera` y
+`diasDescargas` no deciden solo *cómo* se limpia: deciden *cuánto*. Un solo `jq` al arrancar, con
+los mismos valores por defecto que `limpiar-almacenamiento.sh` — si los dos cayeran a defaults
+distintos volveríamos a tener dos verdades. Consecuencia en el shell: cambiar cualquiera de esos
+tres campos **invalida el análisis en caché**, que sigue siendo «reciente» dentro de su ventana de
+diez minutos. `preferencias.ts` publica un contador (`revisionLimpieza`) al que la sección se
+suscribe para reanalizar; sin él, escribías «30 días» en Descargas y la cifra no se movía.
+
+**El consumidor de ese contador AGRUPA, y hasta hace poco no lo hacía.** La documentación de
+`revisionLimpieza` decía «es un contador y no un booleano para que dos cambios seguidos emitan dos
+veces; el consumidor agrupa», pero cada emisión llamaba a `refrescar` directo: añadir tres carpetas
+personalizadas seguidas lanzaba **tres análisis completos**, cada uno midiendo un estado que ya
+había cambiado. La agrupación vive hoy en `modulos/ajustes/disco/usarAnalisis.ts`, junto con el
+resto del estado compartido, y son dos piezas que evitan trabajo *repetido*, no trabajo lento:
+
+- **`enVuelo`** deduplica el sondeo: dos vistas montando a la vez —lo normal, porque `SettingsPanel`
+  se instancia una vez por monitor— o el botón «Volver a analizar» pulsado durante un análisis se
+  enganchan al que ya corre en vez de forkear otro `analizar-almacenamiento.sh` sobre el mismo disco;
+- **`pendiente`** recuerda lo que llegó mientras tanto. Engancharse no es lo mismo que descartar:
+  dedupar a secas es correcto para dos vistas que quieren lo mismo, pero un cambio de
+  `revisionLimpieza` durante un sondeo es justamente la señal de que ese sondeo está midiendo con
+  la configuración *anterior*. Se sirve con **una** repetición al terminar —una sola, así que una
+  ráfaga colapsa en «el que corre + uno más», y ese último ya mide el estado final—, y solo si
+  queda alguna vista montada. Sin esto volvía el «escribo 30 días en Descargas y la cifra no se
+  mueve», ahora dependiendo de si acertabas a escribirlo durante el análisis o después.
+
 **Lo que `cacheUsuario` NO borra, y por qué.** Un `rm -rf ~/.cache/*` a ciegas cuesta datos reales:
-se excluyen `gigios` (mapa de fuentes del CSS, sondeo de hardware), `paru`/`yay` (tienen su propia
-acción y su propia forma correcta de limpiarse, `-Sc`; borrarlos a mano deja al helper
-reconstruyéndolo todo) y las cachés de shaders de Mesa/NVIDIA (reconstruirlas cuesta más que lo que
-liberan, en forma de tirones la primera vez que abres cada juego). `/tmp` tampoco se toca: es un
-tmpfs (RAM) y borrarlo bajo los pies de los procesos vivos rompe sockets y ficheros de bloqueo.
+se excluye `gigios` (mapa de fuentes del CSS, sondeo de hardware), que no es caché de nada porque
+nadie lo regenera. `/tmp` tampoco se toca: es un tmpfs (RAM) y borrarlo bajo los pies de los
+procesos vivos rompe sockets y ficheros de bloqueo.
+
+**Y se excluye además TODO LO QUE TIENE BOTÓN PROPIO: `paru`/`yay`, `thumbnails`, `pip`,
+`go-build` y las cachés de la GPU.** Los dos primeros ya estaban, por otra razón (el helper de AUR se limpia bien con
+`-Sc`; borrarlo a mano lo deja reconstruyéndolo todo). Los otros tres entraron al arreglar la
+estimación: `miniaturas` y `cacheDesarrollo` viven **dentro** de `~/.cache`, así que mientras
+`cacheUsuario` se los llevara por delante era imposible que la suma de tres casillas independientes
+diera el espacio real —`thumbnails` se contaba dos veces— y el botón suelto era impredecible,
+porque borraba lo que otro botón decía gestionar. **Ahora cada acción borra exactamente lo suyo y la
+suma de lo marcado ES el espacio que se libera, para cualquier combinación.** Para vaciar `~/.cache`
+entero se marcan las tres (más «Limpiar caché de sombreadores», que no es una casilla sino un botón
+— ver justo abajo). Del mismo arreglo salió que `cacheDesarrollo` mida `~/.cargo/registry/cache`
+y no `~/.cargo/registry` entero: dentro está también `src/`, el código fuente descomprimido del que
+dependen las compilaciones ya hechas, que la acción no toca y que doblaba la cifra de esa fila.
+
+**`CACHE_PRESERVADO` son PATRONES de `find -name`, no nombres literales, y eso arregló un fallo
+real**: la entrada era `radv_builtin_shaders` a secas mientras que el fichero que RADV escribe se
+llama `radv_builtin_shaders64` (el sufijo es el tamaño de puntero), así que la exclusión no casaba
+con nada y `cacheUsuario` se lo llevaba por delante. Aquí no se notó nunca porque esta máquina es
+NVIDIA. Igual con `qtshadercache-<arch>-<endianness>-<abi>`, que lleva el triplete de la máquina
+dentro del nombre. El analizador ya no concatena `$CACHE_HOME/$nombre` para descontarlos —eso solo
+acertaba con los literales, y lo que casaba por patrón se prometía como liberable sin serlo—: pide
+las rutas a `cache_preservado_rutas`, un `find` de primer nivel en la lib.
+
+### «Limpiar caché de sombreadores» (`cacheSombreadores`) — la única acción de usuario SIN casilla
+
+Lo que compilan los drivers de la GPU para no recompilarlo: Mesa (OpenGL y RADV), NVIDIA, AMDVLK, el
+caché de shaders de Qt, los kernels de CUDA de `~/.nv/ComputeCache` y el **`steamapps/shadercache`**
+de Steam. La lista es `rutas_shaders`, en la lib, y la comparten el analizador y el limpiador; se
+expande con `objetivos_de_ruta` (contenido si es carpeta, el fichero si es fichero), así que los
+directorios sobreviven vacíos — varios drivers no recrean el suyo hasta el siguiente arranque de la
+aplicación.
+
+**Solo botón: no es automatizable, y no por privilegios.** Corre entera bajo `$HOME` sin pedir nada.
+Queda fuera del lote desatendido porque su coste no se paga en disco sino en la siguiente partida:
+recompilar, con tirones mientras tanto, y en el caso de Steam **volver a descargar** lo que ya
+tenías. Eso se decide mirando la cifra. Eso obligó a un campo nuevo en el catálogo del shell,
+**`manual`**, separado de `privilegio`: `ACCIONES_AUTOMATIZABLES` filtra por los dos, y sin él la
+única forma de dejarla fuera habría sido mentir sobre sus permisos. La barrera de verdad sigue
+siendo la lista blanca `AUTOMATIZABLES` de `limpieza-arranque.sh`, que tampoco la incluye.
+
+**La entrada gorda es Steam**: 14 GB en este equipo frente a los ~1 GB de todo lo demás junto. Se
+listan sus **tres** ubicaciones posibles (nativa, el symlink histórico `~/.steam/steam` y la de
+Flatpak) y se **canonicaliza con `realpath` antes de deduplicar**: en esta máquina las dos primeras
+son literalmente el mismo directorio, y medirlo dos veces habría duplicado la cifra de la fila.
+Verificado en un `$HOME` de juguete con las dos rutas apuntando al mismo sitio: 750 KB medidos, 750
+KB liberados, no 1,15 MB.
+
+**La lista vive en `hypr/scripts/lib/limpieza-rutas.sh`, que sourcean los dos scripts.** Antes cada
+uno tenía su idea de qué entra y qué no: el limpiador con sus `! -name` escritos a mano y el
+analizador sin enterarse de ninguno. Con la lista repartida, la cifra que enseña Ajustes es una
+ficción en cuanto alguien toca una de las dos mitades — que es exactamente cómo empezó esta avería.
 
 **La autolimpieza NO es un daemon, y esto es una corrección de la primera versión.** Empezó siendo
 `limpieza-monitor.sh`: dormía 60 s, comprobaba y se quedaba en un `while :; do pasada; sleep 3600;
@@ -2077,6 +2532,41 @@ el coste de generar una miniatura bajo demanda, escribiendo ya en la ruta que es
 Borra primero la selección activa de Wayland (`wl-copy --clear`) y solo después el historial
 persistente (`cliphist wipe`) — en ese orden: si el watcher llegara a capturar el clear como una
 entrada nueva, el wipe posterior se la lleva también.
+
+### Tema oscuro de las apps KDE (`reparar-kdeglobals.sh`)
+
+Repone `[UiSettings] ColorScheme=BreezeDark` en `kdeglobals`. Lo llaman `gigios/autostart.lua`
+(t=0, junto a los dos `gsettings` del tema GTK) y `bin/link.sh` (en cada pasada). Es one-shot:
+mira y, o corrige, o se muere — no deja nada en `ps`.
+
+**El fallo silencioso.** `kdeglobals` está versionado y symlinkeado a `~/.config/kdeglobals`.
+Cualquier app KDE que guarde ajustes globales —Dolphin > Preferencias es la habitual— reescribe el
+fichero **entero** con KConfig y se deja por el camino los grupos que ningún proceso vivo vuelve a
+declarar. El que se pierde es `[UiSettings]`, que es justo el que lee `KColorSchemeManager`: a
+partir de ahí Dolphin se abre en tema **CLARO** aunque `[General] ColorScheme=BreezeDark`, los
+grupos `[Colors:*]` materializados y `QT_QPA_PLATFORMTHEME=qt6ct` sigan intactos. No hay ningún
+error por ningún lado; solo se nota al abrir el gestor de archivos. Bajo Plasma lo repondría el
+propio escritorio, pero aquí no hay nadie que lo haga.
+
+**Una comprobación por sesión basta, y está medido.** Se vigiló el fichero con `inotifywait` mientras
+se abría Dolphin, se esperaba y se cerraba con SIGTERM: **cero escrituras**, clave intacta. El uso
+normal no rompe nada — lo que lo borra es guardar desde un diálogo de preferencias, cosa de una vez
+cada muchos días. Por eso no hay watcher permanente: un `awk` sobre 4 KB al entrar, y cuando la
+clave está (lo normal) no se escribe nada.
+
+**Trampa al tocarlo: hay que resolver el symlink antes de escribir.** El script genera el resultado
+en un temporal y lo mueve encima. Si el `mv` cae sobre la ruta canónica `~/.config/kdeglobals`
+—que es un symlink— **reemplaza el symlink por un fichero regular**, y a partir de ahí el repo y lo
+que leen las apps son dos ficheros distintos. Lo peor es que todo parece ir bien (el tema sale
+oscuro) hasta que un `dotfiles checkout` deja de tener efecto. Comprobado al escribir el script; de
+ahí el `readlink -f` antes del `mv`. Por la misma razón `link.sh` le pasa la ruta **del repo** y no
+la canónica: él corre también en instalaciones donde el symlink aún no existe, y crear ahí un
+fichero real le estorbaría su propio enlazado.
+
+Solo se reescribe ese grupo: si `[UiSettings]` existe con otro valor se corrige conservando sus
+demás claves, y si no existe se crea antes de `[WM]` (el orden alfabético de KConfig). Los ajustes
+que cambies desde los diálogos de las apps se conservan. `bin/preflight.sh --installed` comprueba
+las dos mitades: que la clave esté en `kdeglobals` y que el autostart llame al script.
 
 ### Utilidades cortas de un solo uso
 

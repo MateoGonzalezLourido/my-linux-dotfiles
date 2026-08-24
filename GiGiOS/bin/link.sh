@@ -286,6 +286,33 @@ if [[ -d "$old_cfg" ]]; then
   fi
 fi
 
+# ── Reparación: [UiSettings] ColorScheme en kdeglobals ───────────────────────
+# Cualquier app KDE que guarde ajustes globales (Dolphin > Preferencias)
+# reescribe kdeglobals entero con KConfig y borra [UiSettings], el grupo que lee
+# KColorSchemeManager: sin él las apps Qt se abren en CLARO sin dar ningún error.
+# El porqué completo, y por qué basta con mirarlo de vez en cuando en vez de
+# vigilar el fichero, están en la cabecera del script. Lo llama también
+# gigios/autostart.lua una vez por sesión, que es lo que hace que se repare solo
+# sin tener que acordarse de correr link.sh.
+#
+# Se le pasa la ruta del REPO, no la canónica: en una instalación nueva link.sh
+# corre antes de que exista el symlink, y dejar ahí un fichero real le estorbaría
+# el enlazado de más abajo.
+reparador="$GIGIOS/hypr/scripts/reparar-kdeglobals.sh"
+if [[ -x "$reparador" ]]; then
+  if [[ "$mode" == check ]]; then
+    if "$reparador" --check "$GIGIOS/kdeglobals"; then
+      echo "OK    kdeglobals [UiSettings] ColorScheme=BreezeDark"
+    else
+      status=1
+    fi
+  else
+    salida="$("$reparador" "$GIGIOS/kdeglobals")"
+    if [[ -n "$salida" ]]; then echo "$salida"
+    else echo "OK    kdeglobals [UiSettings] ColorScheme=BreezeDark"; fi
+  fi
+fi
+
 # ── Git hooks: verificación de archivos antes de cada push ──────────────────
 # core.hooksPath es config local de cada clon (no viaja con el repo), así que
 # se re-aplica cada vez que se corre link.sh para que quede activo en toda

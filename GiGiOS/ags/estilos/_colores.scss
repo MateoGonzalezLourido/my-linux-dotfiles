@@ -20,6 +20,78 @@ $orange: #fab387;
 $green: #a6e3a1;
 $pink: #f38ba8;
 $teal: #94e2d5;
+// Los dos cianes del shell. Estaban repetidos a mano en style.scss (el turquesa
+// en los iconos de la barra y los menús, el cian en los controles activos de Quick
+// Settings); entran aquí porque las funciones de acento los necesitan como valor
+// de reserva y no puede haber dos verdades sobre cuál era el color de fábrica.
+$turquesa: #87fae9;
+$cian: #00f2ff;
 $white: #ffffff;
 $font-icon: "MesloLGS Nerd Font";
 $radius-pill: 999px;
+
+// ── Acentos ───────────────────────────────────────────────────────────────────
+// Los acentos del tema NO se escriben ya como color: se escriben con estas
+// funciones, que emiten una variable CSS de GTK con el color de siempre como
+// reserva. Sin nada que las defina, el resultado es idéntico al de antes; con el
+// ajuste "acento adaptativo" puesto, `servicios/fondos/acento.ts` las define en
+// caliente a partir del fondo de escritorio y el shell entero cambia de color sin
+// recompilar este archivo ni recargar AGS.
+//
+//   color: acento();            // el acento primario, pleno
+//   background: acento(.18);    // el mismo con alfa, como el viejo rgba($violet, .18)
+//
+// SON TRES ACENTOS, NO UNO, y ese es justo el arreglo del primer intento: solo se
+// hizo adaptativo `$blue`, pero **la barra nunca fue azul**. En sus ~500 líneas de
+// CSS el azul salía 2 veces y el violeta 4 más el turquesa 3, así que el fondo
+// apenas la tocaba y los dos puntos que sí cambiaban chocaban con el violeta de al
+// lado. Los papeles son:
+//
+//   acento()           primario    (era $violet)  workspaces, reloj, Orion
+//   acento-azul()      secundario  (era $blue)    controles, deslizadores
+//   acento-turquesa()  terciario   (era #87fae9)  iconos de la barra y menús
+//   acento-teal()      terciario   (era $teal)
+//   acento-cian()      terciario   (era #00f2ff)  activos de Quick Settings
+//
+// Los tres terciarios comparten `--acento-3*` porque son el mismo papel en tres
+// tonos de cian; tienen variable propia SOLO para conservar su reserva exacta, o
+// sea para que apagar el ajuste devuelva el aspecto de antes clavado.
+//
+// NO SE TOCAN los colores con significado —verde "ok", rojo/rosa de error, ámbar
+// de aviso—: un fondo no puede decidir de qué color se avisa de un fallo.
+//
+// ⚠️ Lo que devuelven es un `var()`/`color-mix()`, o sea **texto para GTK, no un
+// color de Sass**: no se les puede aplicar `color.mix()`, `color.change()` ni
+// aritmética de color, y pasárselos a una de esas funciones es un error de
+// compilación (`... is not a color`), no un fallo silencioso. Para el único caso
+// del tema que necesitaba esa aritmética —aplanar un tinte contra el fondo opaco
+// de un panel, que es lo que hacen `fondo-qs-opaco()` y compañía para que el tinte
+// tape el blur— están las variantes `*-sobre()`, que hacen la misma cuenta pero en
+// GTK en vez de en Sass.
+@function acento-var($nombre, $reserva, $alpha) {
+  @if $alpha == 1 {
+    @return var(#{$nombre}, #{$reserva});
+  }
+  // `color-mix` contra `transparent` premultiplica, así que esto es exactamente el
+  // mismo color con alfa (comprobado contra GTK 4.22: rgba($blue, .5) y este
+  // color-mix dan el mismo RGBA calculado), no una mezcla con negro.
+  @return color-mix(in srgb, var(#{$nombre}, #{$reserva}) #{$alpha * 100%}, transparent);
+}
+
+// `$fondo` tiene que ser opaco: es el color que queda debajo, y de él sale el
+// resultado final sin alfa (que es justo el motivo de estos aplanados: un tinte
+// translúcido dejaría ver el blur de la lámina a través del control).
+@function acento-var-sobre($nombre, $reserva, $fondo, $alpha) {
+  @return color-mix(in srgb, var(#{$nombre}, #{$reserva}) #{$alpha * 100%}, #{$fondo});
+}
+
+@function acento($alpha: 1)           { @return acento-var("--acento", $violet, $alpha); }
+@function acento-azul($alpha: 1)      { @return acento-var("--acento-2", $blue, $alpha); }
+@function acento-turquesa($alpha: 1)  { @return acento-var("--acento-3", $turquesa, $alpha); }
+@function acento-teal($alpha: 1)      { @return acento-var("--acento-3b", $teal, $alpha); }
+@function acento-cian($alpha: 1)      { @return acento-var("--acento-3c", $cian, $alpha); }
+
+@function acento-sobre($fondo, $alpha)           { @return acento-var-sobre("--acento", $violet, $fondo, $alpha); }
+@function acento-azul-sobre($fondo, $alpha)      { @return acento-var-sobre("--acento-2", $blue, $fondo, $alpha); }
+@function acento-turquesa-sobre($fondo, $alpha)  { @return acento-var-sobre("--acento-3", $turquesa, $fondo, $alpha); }
+@function acento-cian-sobre($fondo, $alpha)      { @return acento-var-sobre("--acento-3c", $cian, $fondo, $alpha); }

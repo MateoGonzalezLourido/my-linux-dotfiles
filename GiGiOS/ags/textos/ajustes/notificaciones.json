@@ -32,7 +32,10 @@
     "sinTitulo": "(sin título)",
     "crearRegla": "󰐕 Crear regla",
     "veces": "×{{cantidad}}",
-    "todas": "Todas"
+    "todas": "Todas",
+    "borrar": "󰩹 Borrar historial",
+    "borrarConfirmar": "Pulsa otra vez para borrar",
+    "borrarAyuda": "Vacía la lista de detectadas. No toca las reglas, ni las notificaciones del panel, ni los avisos del sistema."
   },
   "reglas": {
     "cabecera": "Reglas predefinidas y personales",
@@ -81,6 +84,7 @@
       "acciones": "Qué hacer",
       "ciclo": "Ciclo de vida",
       "expira": "Expira tras",
+      "duracionPopup": "Duración del popup",
       "color": "Color de acento",
       "estilo": "Estilo del popup",
       "duplicadas": "Considerar duplicadas por",
@@ -89,13 +93,16 @@
       "nuevoTitulo": "Nuevo título",
       "nuevoCuerpo": "Nuevo cuerpo",
       "avanzado": "Avanzado",
-      "condiciones": "Condiciones dinámicas"
+      "condiciones": "Condiciones dinámicas",
+      "desdePanel": "Editar notificación"
     },
     "ayudas": {
       "campoVacio": "(vacío = ignorar este campo)",
       "cuando": "Deben cumplirse todos los campos rellenados. Los vacíos se ignoran; si todos están vacíos, se aplica a cualquier notificación. No distingue mayúsculas.",
       "ciclo": "“—” no cambia el ciclo. Temporal caduca tras la duración indicada. Todas las notificaciones se eliminan como máximo a los 7 días.",
       "duracion": "ej: 2d 4h 5min  ·  15min  ·  3h",
+      "duracionPopup": "Cuánto se ve el popup de este aviso, entre 1s y 60s (ej: 3s). Vacío = usa la duración general de Ajustes > General. Un valor aquí manda sobre ella y sobre el tiempo que pida la app.",
+      "duracionPopupEjemplo": "ej: 3s  ·  10s  ·  1min",
       "efectos": "Descartar no guarda nada; guardar sin popup conserva el aviso en el panel. Las opciones de audio e historial aún no tienen efecto.",
       "estilo": "“—” deja decidir a otras reglas. GiGiOS y Dunst solo cambian el aspecto del popup.",
       "duplicados": "Una notificación nueva sustituye en el panel a la anterior con la misma combinación.",
@@ -162,6 +169,7 @@
     "efectos": {
       "expira": "expira en {{duracion}}",
       "expiraSinDuracion": "expira (sin duración)",
+      "popup": "popup de {{duracion}}",
       "limpiarReinicio": "se limpia al reiniciar el sistema",
       "descartar": "no se muestra ni se guarda",
       "sinPopup": "se guarda sin popup",
@@ -180,6 +188,7 @@
   },
   "validacion": {
     "duracion": "La regla es temporal: indica una duración válida (ej: 2d 4h 5min, 15min, 3h).",
+    "duracionPopup": "Duración del popup no válida: indica un tiempo positivo (ej: 3s, 10s, 1min).",
     "campos": {
       "aplicacion": "aplicación",
       "titulo": "título",

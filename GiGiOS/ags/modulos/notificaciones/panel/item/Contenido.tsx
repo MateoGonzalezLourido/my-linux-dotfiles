@@ -47,11 +47,19 @@ export default function ContenidoItemNotificacion({
           />
           <box spacing={4} valign={Gtk.Align.CENTER} hexpand>
             <IconoAppNotificacion iconoApp={notificacion.appIcon} />
+            {/* Sin tope, el nombre de app pedía su ancho natural entero y compartía a
+                medias el déficit con el título: dos etiquetas elipsables con el mismo
+                hueco enorme hacen que `gtk_distribute_natural_allocation` las trate por
+                igual, así que un remitente largo recortaba el asunto por la mitad aunque
+                la fila tuviera sitio. Acotado a 14 caracteres su hueco pasa a ser el más
+                pequeño, se satisface primero y el resto va entero al título. */}
             <label
               cssClasses={["notif-app-name"]}
               label={notificacion.appName}
+              tooltipText={notificacion.appName}
               halign={Gtk.Align.START}
               ellipsize={3}
+              maxWidthChars={14}
               visible={!!notificacion.appName}
             />
             <label

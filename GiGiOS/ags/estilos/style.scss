@@ -157,7 +157,7 @@ window.cal-window scrolledwindow > overshoot,
   margin: 4px 4px;
   background-color: rgba(255, 255, 255, 0.03);
   font-size: 16px;
-  color: $violet;
+  color: acento();
   font-family: $font-icon;
   font-weight: 700;
   padding: 0 8px;
@@ -183,7 +183,7 @@ window.cal-window scrolledwindow > overshoot,
   & label {
     font-family: $font-icon;
     font-size: 17px;
-    color: $blue;
+    color: acento-azul();
     border: none;
     padding: 0;
     margin: 0 0 0 -2px;
@@ -205,13 +205,13 @@ window.cal-window scrolledwindow > overshoot,
     font-family: $font-icon;
 
     &.focused {
-      background: linear-gradient(135deg, $blue, $violet);
+      background: linear-gradient(135deg, acento-azul(), acento());
       color: #11111b;
-      box-shadow: 0 1px 4px rgba(137, 180, 250, 0.3);
+      box-shadow: 0 1px 4px acento-azul(0.3);
     }
 
     &.ws-hold-ready {
-      box-shadow: 0 0 0 1.5px rgba(203, 166, 247, 0.45);
+      box-shadow: 0 0 0 1.5px acento(0.45);
       transform: scale(1.04);
     }
 
@@ -334,7 +334,7 @@ window.ws-preview-window.background {
 
 .ws-preview-bg {
   background: #0e0e1a;
-  border: 1px solid rgba(137, 180, 250, 0.22);
+  border: 1px solid acento-azul(0.22);
   padding: 0;
   border-radius: 0;
   transform-origin: top center;
@@ -354,7 +354,7 @@ window.ws-preview-window.background {
 
 // Ghost lives in the Overlay (outside .Workspaces), so selector must be top-level
 .ws-ghost {
-  background: rgba(203, 166, 247, 0.18);
+  background: acento(0.18);
   box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
   border-radius: 8px;
   padding: 4px 10px;
@@ -365,8 +365,8 @@ window.ws-preview-window.background {
    con el glifo de mando solo como último recurso. Se oculta entera (via `visible`)
    cuando no hay ningún juego. */
 .game-tray {
-  background: linear-gradient(135deg, rgba(203, 166, 247, 0.22), rgba(137, 180, 250, 0.18));
-  border: 1px solid rgba(203, 166, 247, 0.40);
+  background: linear-gradient(135deg, acento(0.22), acento-azul(0.18));
+  border: 1px solid acento(0.40);
   border-radius: 8px;
   padding: 2px 8px;
   margin: 4px 2px;
@@ -391,13 +391,13 @@ window.ws-preview-window.background {
     label.game-tray-glyph {
       font-family: $font-icon;
       font-size: 16px;
-      color: $violet;
-      text-shadow: 0 0 6px rgba(203, 166, 247, 0.5);
+      color: acento();
+      text-shadow: 0 0 6px acento(0.5);
       transform: translateX(-2px);
     }
 
     &:hover {
-      background: rgba(203, 166, 247, 0.25);
+      background: acento(0.25);
       transform: scale(1.08);
     }
   }
@@ -425,11 +425,11 @@ window.ws-preview-window.background {
     background-color: rgba(205, 214, 244, 0.16);
 
     &.filled {
-      background-color: $violet;
+      background-color: acento();
     }
 
     &.charging-blink {
-      background-color: #87fae9;
+      background-color: acento-turquesa();
       animation: battery-seg-blink 900ms ease-in-out infinite;
     }
 
@@ -453,10 +453,10 @@ window.ws-preview-window.background {
   }
 
   .battery-body.charging {
-    border-color: rgba(135, 250, 233, 0.75);
+    border-color: acento-turquesa(0.75);
 
     .battery-seg.filled {
-      background-color: #87fae9;
+      background-color: acento-turquesa();
     }
   }
 
@@ -492,7 +492,7 @@ window.ws-preview-window.background {
   }
 
   .icon {
-    color: #87fae9;
+    color: acento-turquesa();
     font-family: $font-icon;
     font-size: 15px;
     margin: 0 1px;
@@ -530,7 +530,7 @@ popover.cpuram-popover {
 
 .cpuram-popup {
   background: #0e0e1a;
-  border: 1px solid rgba(137, 180, 250, 0.18);
+  border: 1px solid acento-azul(0.18);
   border-radius: 10px;
   padding: 8px 10px;
   min-width: 170px;
@@ -557,8 +557,8 @@ popover.cpuram-popover {
   font-size: 14px;
   min-width: 18px;
 
-  &.cpu { color: #87fae9; }
-  &.ram { color: $blue; }
+  &.cpu { color: acento-turquesa(); }
+  &.ram { color: acento-azul(); }
 }
 
 .cpuram-popup-val {
@@ -575,7 +575,7 @@ popover.cpuram-popover {
 
 .fn-menu {
   background: #0e0e1a;
-  border: 1px solid rgba(137, 180, 250, 0.18);
+  border: 1px solid acento-azul(0.18);
   border-radius: 8px;
   padding: 4px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
@@ -593,15 +593,15 @@ popover.cpuram-popover {
   outline: none;
 
   &:hover {
-    background: rgba(137, 180, 250, 0.12);
+    background: acento-azul(0.12);
   }
 
   &:active {
-    background: rgba(137, 180, 250, 0.18);
+    background: acento-azul(0.18);
   }
 
   &.active {
-    background: rgba(137, 180, 250, 0.08);
+    background: acento-azul(0.08);
   }
 }
 
@@ -634,7 +634,7 @@ popover.cpuram-popover {
   background: transparent;
 
   label {
-    color: rgba($blue, 0.7);
+    color: acento-azul(0.7);
   }
 }
 
@@ -644,7 +644,7 @@ popover.cpuram-popover {
 .fn-menu-expand {
   margin: 1px 5px 3px 9px;
   padding-left: 7px;
-  border-left: 1px solid rgba(137, 180, 250, 0.22);
+  border-left: 1px solid acento-azul(0.22);
 }
 
 .fn-menu-subrow {
@@ -669,7 +669,7 @@ popover.cpuram-popover {
   outline: none;
 
   &:hover {
-    background: rgba(137, 180, 250, 0.1);
+    background: acento-azul(0.1);
   }
 }
 
@@ -677,7 +677,7 @@ popover.cpuram-popover {
 // normales cuelga de `.fn-menu-button.active`, y aquí el botón padre no es el que
 // está encendido.
 .fn-menu-state.on label {
-  color: rgba($blue, 0.7);
+  color: acento-azul(0.7);
 }
 
 // Campo de minutos. Vacío = sin límite, y el placeholder (∞) lo dice.
@@ -692,7 +692,7 @@ entry.fn-menu-minutes {
   font-size: 10px;
   color: #cdd6f4;
   background: rgba(17, 17, 27, 0.9);
-  border: 1px solid rgba(137, 180, 250, 0.22);
+  border: 1px solid acento-azul(0.22);
   outline: none;
   box-shadow: none;
   border-radius: 5px;
@@ -700,12 +700,12 @@ entry.fn-menu-minutes {
   margin: 0;
   min-width: 0;
   min-height: 16px;
-  caret-color: $blue;
+  caret-color: acento-azul();
 
   &:focus, &:focus-visible {
     outline: none;
     box-shadow: none;
-    border: 1px solid rgba($blue, 0.55);
+    border: 1px solid acento-azul(0.55);
     background: rgba(17, 17, 27, 1);
   }
 
@@ -715,7 +715,7 @@ entry.fn-menu-minutes {
   }
 
   selection {
-    background: rgba($blue, 0.3);
+    background: acento-azul(0.3);
     color: #cdd6f4;
   }
 }
@@ -769,7 +769,7 @@ popover.tray-popover {
     min-width: 190px;
     padding: 3px;
     background: #0e0e1a;
-    border: 1px solid rgba(137, 180, 250, 0.18);
+    border: 1px solid acento-azul(0.18);
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     transform-origin: top center;
@@ -796,12 +796,12 @@ popover.tray-popover {
 
     &:hover,
     &:focus {
-      background: rgba(137, 180, 250, 0.14);
+      background: acento-azul(0.14);
       color: $white;
     }
 
     &:active {
-      background: rgba(137, 180, 250, 0.22);
+      background: acento-azul(0.22);
     }
 
     &:disabled {
@@ -812,7 +812,7 @@ popover.tray-popover {
     check,
     radio,
     arrow {
-      color: $blue;
+      color: acento-azul();
       min-width: 14px;
       min-height: 14px;
     }
@@ -832,7 +832,7 @@ popover.tray-popover {
   separator {
     margin: 3px 2px;
     min-height: 1px;
-    background: rgba(137, 180, 250, 0.14);
+    background: acento-azul(0.14);
   }
 }
 
@@ -842,7 +842,7 @@ popover.tray-popover {
 
   .tray-overflow-chevron {
     font-family: $font-icon;
-    color: $blue;
+    color: acento-azul();
     font-size: 14px;
     margin: 2px 3px -2px;
     transform: rotate(90deg);
@@ -975,7 +975,7 @@ popover.tray-overflow-popover.closing > contents {
 // grabando ahora mismo" y merece llamar la atención; esto es un estado de fondo que
 // solo tiene que ser visible, no urgente.
 .wakeup-indicator {
-  color: $teal;
+  color: acento-teal();
   padding: 0 5px;
   margin: 4px 0;
 
@@ -998,7 +998,7 @@ popover.tray-overflow-popover.closing > contents {
 }
 
 .network {
-  color: #87fae9;
+  color: acento-turquesa();
   font-family: $font-icon;
   font-size: 16px;
 
@@ -1013,7 +1013,7 @@ popover.tray-overflow-popover.closing > contents {
     background-color: rgba($text, 0.18);
 
     &.active {
-      background-color: #87fae9;
+      background-color: acento-turquesa();
     }
 
     &.bar-1 { min-height: 4px; }
@@ -1072,7 +1072,7 @@ popover.tray-overflow-popover.closing > contents {
 }
 
 .bluetooth {
-  color: $blue;
+  color: acento-azul();
   margin: 4px 0;
 }
 
@@ -1086,7 +1086,7 @@ popover.tray-overflow-popover.closing > contents {
   }
 
   &.connected .bluetooth-icon {
-    color: $violet;              // morado: hay un dispositivo conectado
+    color: acento();              // morado: hay un dispositivo conectado
   }
 }
 
@@ -1106,7 +1106,7 @@ popover.tray-overflow-popover.closing > contents {
   }
 
   &:hover {
-    background: linear-gradient(135deg, $blue, $violet);
+    background: linear-gradient(135deg, acento-azul(), acento());
     color: #1a1a1a;
   }
 }
@@ -1175,7 +1175,7 @@ popover.tray-overflow-popover.closing > contents {
   }
 
   &:hover {
-    background: linear-gradient(135deg, rgb(137, 180, 250), $violet);
+    background: linear-gradient(135deg, acento-azul(), acento());
     color: $white;
     transform: translateY(-2px) scale(1.045);
     box-shadow: none;
@@ -1277,7 +1277,7 @@ window.lagarto-window > box {
   animation: osd-enter 180ms cubic-bezier(0.22, 1, 0.36, 1);
 
   &.osd-volume {
-    border-color: rgba($blue, 0.28);
+    border-color: acento-azul(0.28);
   }
 
   &.osd-brightness {
@@ -1309,14 +1309,14 @@ window.lagarto-window > box {
   }
 
   &.osd-microphone.osd-active {
-    border-color: rgba($violet, 0.30);
+    border-color: acento(0.30);
 
     .osd-icon {
-      color: $violet;
+      color: acento();
     }
 
     progressbar.osd-progress progress {
-      background: linear-gradient(90deg, $violet, $blue);
+      background: linear-gradient(90deg, acento(), acento-azul());
       box-shadow: none;
     }
   }
@@ -1326,7 +1326,7 @@ window.lagarto-window > box {
   min-width: 20px;
   font-family: $font-icon;
   font-size: 15px;
-  color: $blue;
+  color: acento-azul();
 }
 
 .osd-progress-container {
@@ -1345,7 +1345,7 @@ progressbar.osd-progress {
   progress {
     min-height: 5px;
     border-radius: $radius-pill;
-    background: linear-gradient(90deg, $blue, $violet);
+    background: linear-gradient(90deg, acento-azul(), acento());
     box-shadow: none;
   }
 }
@@ -1391,15 +1391,15 @@ $qs-bg-opaco: rgb(8, 8, 12);
 }
 
 $qs-bg: rgba(8, 8, 12, 0.94);
-$qs-accent: #00f2ff;
+$qs-accent: acento-cian();
 $qs-accent2: #7000ff;
 $qs-green: #00ff9d;
 $qs-yellow: #fff200;
 $qs-orange: #ff7b00;
 $qs-text: $white;
 $qs-text-dim: rgba(255, 255, 255, 0.5);
-$qs-tile-act: fondo-qs-opaco(rgba(0, 242, 255, 0.1));
-$qs-tile-brd: rgba(0, 242, 255, 0.3);
+$qs-tile-act: acento-cian-sobre($qs-bg-opaco, 0.1);
+$qs-tile-brd: acento-cian(0.3);
 
 window.qs-window,
 window.qs-window.background,
@@ -1511,21 +1511,21 @@ window.qs-window > box,
   }
 
   &.active {
-    background: fondo-qs-opaco(rgba(0, 242, 255, 0.12));
-    border-color: rgba(0, 242, 255, 0.45);
-    box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.12), 0 0 12px rgba(0, 242, 255, 0.08);
+    background: acento-cian-sobre($qs-bg-opaco, 0.12);
+    border-color: acento-cian(0.45);
+    box-shadow: inset 0 1px 0 acento-cian(0.12), 0 0 12px acento-cian(0.08);
 
     .qs-tile-label { color: $white; }
 
     .qs-tile-icon {
       color: $qs-accent;
-      text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+      text-shadow: 0 0 8px acento-cian(0.5);
     }
 
     &:hover {
-      background-color: fondo-qs-opaco(rgba(0, 242, 255, 0.16));
-      border-color: rgba(0, 242, 255, 0.58);
-      box-shadow: inset 0 1px 0 rgba(0, 242, 255, 0.16), 0 0 14px rgba(0, 242, 255, 0.11);
+      background-color: acento-cian-sobre($qs-bg-opaco, 0.16);
+      border-color: acento-cian(0.58);
+      box-shadow: inset 0 1px 0 acento-cian(0.16), 0 0 14px acento-cian(0.11);
     }
   }
 
@@ -1587,7 +1587,7 @@ window.qs-window > box,
 .qs-media {
   // background-color (NO el shorthand `background`): el shorthand incluye
   // `background-image: none` y pisaba la carátula que se pone inline con css=.
-  background-color: fondo-qs-opaco(rgba(137, 180, 250, 0.04));
+  background-color: acento-azul-sobre($qs-bg-opaco, 0.04);
   border: none;
   border-radius: 20px;
   // padding 0: la carátula (Gtk.Picture de fondo) va a sangre; el padding real lo
@@ -1602,7 +1602,7 @@ window.qs-window > box,
     font-size: 24px;
     min-width: 40px;
     min-height: 40px;
-    color: $blue;
+    color: acento-azul();
     margin: 0;
   }
 
@@ -1824,7 +1824,7 @@ window.qs-window > box,
 
     &:hover {
       color: $white;
-      background: rgba(137, 180, 250, 0.1);
+      background: acento-azul(0.1);
     }
   }
 
@@ -1914,11 +1914,11 @@ entry.qs-inline-number-input {
   margin: 0;
 
   &.bright {
-    color: $blue;
+    color: acento-azul();
   }
 
   &.night {
-    color: $violet;
+    color: acento();
   }
 
   &.muted {
@@ -2033,9 +2033,9 @@ button.qs-display-monitor-pill {
   &:hover { background: fondo-qs-opaco(rgba(255, 255, 255, 0.08)); }
 
   &.active {
-    background: fondo-qs-opaco(rgba(203, 166, 247, 0.18));
-    border-color: rgba(203, 166, 247, 0.4);
-    color: $violet;
+    background: acento-sobre($qs-bg-opaco, 0.18);
+    border-color: acento(0.4);
+    color: acento();
   }
 
   .qs-display-monitor-dot {
@@ -2151,7 +2151,7 @@ button.qs-display-select-opt {
 
   &.active {
     background-color: rgb(53, 47, 68);
-    color: $violet;
+    color: acento();
   }
 }
 
@@ -2190,10 +2190,10 @@ entry.sp-num-input {
   min-height: 0;
   color: #dfe1f0;
   font-size: 13px;
-  caret-color: $violet;
+  caret-color: acento();
 
   &:focus-within {
-    border-color: rgba(203, 166, 247, 0.5);
+    border-color: acento(0.5);
     background: rgba(255, 255, 255, 0.09);
   }
 }
@@ -2209,22 +2209,22 @@ entry.sp-num-input {
 
   // La franja que rige ahora mismo: sin esto, "por qué está encendida" no se ve en ningún sitio
   &.active {
-    background: rgba(203, 166, 247, 0.07);
-    border-color: rgba(203, 166, 247, 0.35);
+    background: acento(0.07);
+    border-color: acento(0.35);
   }
 }
 
 .sp-rule-active-chip {
-  background: rgba(203, 166, 247, 0.18);
+  background: acento(0.18);
   border-radius: 6px;
   padding: 1px 7px;
   margin-left: 4px;
-  color: $violet;
+  color: acento();
   font-size: 10px;
 }
 
 .sp-schedule-now {
-  color: $violet;
+  color: acento();
   font-size: 11px;
   font-family: $font-icon;
 }
@@ -2252,15 +2252,15 @@ button.sp-rule-del {
 
 button.sp-add-rule {
   @extend %chrome-reset;
-  background: rgba(203, 166, 247, 0.12);
-  border: 1px solid rgba(203, 166, 247, 0.30);
+  background: acento(0.12);
+  border: 1px solid acento(0.30);
   border-radius: 8px;
   padding: 5px 12px;
-  color: $violet;
+  color: acento();
   font-size: 12px;
   transition: all 120ms ease;
 
-  &:hover { background: rgba(203, 166, 247, 0.20); }
+  &:hover { background: acento(0.20); }
 }
 
 // Estos controles también se reutilizan en la vista de pantalla de Quick
@@ -2283,11 +2283,11 @@ button.sp-add-rule {
   .sp-rule-card {
     background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
 
-    &.active { background: fondo-qs-opaco(rgba(203, 166, 247, 0.07)); }
+    &.active { background: acento-sobre($qs-bg-opaco, 0.07); }
   }
 
   .sp-rule-active-chip {
-    background: fondo-qs-opaco(rgba(203, 166, 247, 0.18));
+    background: acento-sobre($qs-bg-opaco, 0.18);
   }
 
   button.sp-rule-del {
@@ -2297,9 +2297,9 @@ button.sp-add-rule {
   }
 
   button.sp-add-rule {
-    background: fondo-qs-opaco(rgba(203, 166, 247, 0.12));
+    background: acento-sobre($qs-bg-opaco, 0.12);
 
-    &:hover { background: fondo-qs-opaco(rgba(203, 166, 247, 0.20)); }
+    &:hover { background: acento-sobre($qs-bg-opaco, 0.20); }
   }
 }
 
@@ -2330,7 +2330,7 @@ scale.qs-slider {
     min-height: 4px;
     border-radius: $radius-pill;
     background: $qs-accent;
-    box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+    box-shadow: 0 0 10px acento-cian(0.3);
   }
 
   slider {
@@ -2357,18 +2357,18 @@ scale.qs-slider {
 
   &.media {
     progress {
-      background: rgba(137, 180, 250, 0.6);
+      background: acento-azul(0.6);
     }
   }
 
   &.brightness {
     progress {
-      background: rgba($blue, 0.75);
-      box-shadow: 0 0 10px rgba($blue, 0.25);
+      background: acento-azul(0.75);
+      box-shadow: 0 0 10px acento-azul(0.25);
     }
 
     slider {
-      background: $blue;
+      background: acento-azul();
       margin: 0;
       padding: 0;
     }
@@ -2376,7 +2376,7 @@ scale.qs-slider {
 
   &.temperature {
     trough {
-      background: linear-gradient(to right, rgba($blue, 0.45), rgba($violet, 0.55));
+      background: linear-gradient(to right, acento-azul(0.45), acento(0.55));
     }
 
     progress {
@@ -2384,7 +2384,7 @@ scale.qs-slider {
     }
 
     slider {
-      background: $violet;
+      background: acento();
       margin: 0;
       padding: 0;
     }
@@ -2433,8 +2433,8 @@ button.qs-toggle {
   }
 
   &.on .qs-toggle-track {
-    background: rgba(0, 242, 255, 0.42);
-    border-color: rgba(0, 242, 255, 0.9);
+    background: acento-cian(0.42);
+    border-color: acento-cian(0.9);
   }
 
   &:disabled {
@@ -2486,7 +2486,7 @@ button.qs-toggle {
 // ── Tooltip Global ────────────────────────────────────────────────────────────
 tooltip {
   background-color: rgba(24, 24, 37, 0.95);
-  border: 1px solid rgba(137, 180, 250, 0.2);
+  border: 1px solid acento-azul(0.2);
   border-radius: 8px;
   padding: 2px 4px;
 
@@ -2522,8 +2522,8 @@ tooltip {
   }
 
   &.active {
-    background: fondo-qs-opaco(rgba(203, 166, 247, 0.14));
-    label { color: $violet; }
+    background: acento-sobre($qs-bg-opaco, 0.14);
+    label { color: acento(); }
   }
 
   &.scanning label { color: #a78bfa; }
@@ -2596,7 +2596,7 @@ button.qs-user-settings-btn {
 
     &:focus-within {
       background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
-      border-color: rgba(203, 166, 247, 0.11);
+      border-color: acento(0.11);
     }
 
     .qs-wifi-search-icon {
@@ -2611,7 +2611,7 @@ button.qs-user-settings-btn {
       outline: none;
       padding: 0;
       min-height: 22px;
-      caret-color: $blue;
+      caret-color: acento-azul();
       font-size: 11px;
       color: rgba($text, 0.78);
 
@@ -2652,11 +2652,11 @@ button.qs-user-settings-btn {
   }
 
   &.active {
-    background: fondo-qs-opaco(rgba(0, 242, 255, 0.12));
-    border-color: rgba(0, 242, 255, 0.35);
+    background: acento-cian-sobre($qs-bg-opaco, 0.12);
+    border-color: acento-cian(0.35);
 
     .qs-wifi-signal-bar.active {
-      background-color: #00f2ff;
+      background-color: acento-cian();
     }
   }
 
@@ -2782,7 +2782,7 @@ button.qs-user-settings-btn {
 }
 
 .qs-tile-arrow {
-  color: rgba(203, 166, 247, 0.5);
+  color: acento(0.5);
   font-family: $font-icon;
   font-size: 14px;
   min-width: 22px;
@@ -2791,7 +2791,7 @@ button.qs-user-settings-btn {
 }
 
 .qs-tile.active .qs-tile-arrow {
-  color: rgba(0, 242, 255, 0.62);
+  color: acento-cian(0.62);
 }
 
 // ── Bluetooth Menu ────────────────────────────────────────────────────────────
@@ -2914,15 +2914,15 @@ button.qs-user-settings-btn {
     border-color: rgba(89, 180, 250, 0.38);
 
     .qs-audio-name {
-      color: $blue;
+      color: acento-azul();
       font-weight: 700;
     }
 
-    .qs-audio-sub { color: rgba(137, 180, 250, 0.55); }
+    .qs-audio-sub { color: acento-azul(0.55); }
 
-    .qs-audio-icon { color: $blue; }
+    .qs-audio-icon { color: acento-azul(); }
 
-    scale.qs-slider progress { background: $blue; }
+    scale.qs-slider progress { background: acento-azul(); }
   }
 
   .qs-audio-icon {
@@ -3003,12 +3003,12 @@ button.qs-user-settings-btn {
     color: rgba($text, 0.48);
     margin: 0;
 
-    &.has-notifs { color: $violet; }
+    &.has-notifs { color: acento(); }
     &.dnd        { color: rgb(245, 50, 105); }
 
     // Modo juego (Feral GameMode): gris apagado, violeta encendido — mismo
     // contraste que .has-notifs, que es el "encendido" del resto del encabezado.
-    &.gm-icon.active { color: $violet; }
+    &.gm-icon.active { color: acento(); }
 
     // Modo ahorro de energía: gris apagado, verde encendido.
     &.ps-icon.active { color: #a6e3a1; }
@@ -3030,7 +3030,7 @@ button.qs-user-settings-btn {
   .upd-icon {
     font-family: $font-icon;
     font-size: 15px;
-    color: $blue;
+    color: acento-azul();
   }
 
   // Iconos separados: kernel (naranja) y drivers de GPU (verde).
@@ -3052,7 +3052,7 @@ popover.upd-popover-container {
 
 .upd-popover {
   background: #0e0e1a;
-  border: 1px solid rgba(137, 180, 250, 0.18);
+  border: 1px solid acento-azul(0.18);
   border-radius: 10px;
   padding: 10px 12px;
   min-width: 240px;
@@ -3091,12 +3091,12 @@ popover.upd-popover-container {
   font-size: 11px;
   font-weight: 600;
   color: $text;
-  background: rgba(137, 180, 250, 0.16);
-  border: 1px solid rgba(137, 180, 250, 0.28);
+  background: acento-azul(0.16);
+  border: 1px solid acento-azul(0.28);
   border-radius: 8px;
 
   &:hover {
-    background: rgba(137, 180, 250, 0.26);
+    background: acento-azul(0.26);
   }
 }
 
@@ -3153,14 +3153,50 @@ popover.upd-popover-container {
     margin: 0;
   }
 
-  // Pista de la acción (notify-send -A). Solo visible cuando la notificación trae una;
-  // es lo único que delata que el clic derecho hace algo.
+  // Pista de la acción (notify-send -A). Solo visible cuando la notificación trae UNA
+  // sola; es entonces lo único que delata que el clic derecho hace algo. Con dos o más
+  // el popup pinta botones y la pista se apaga: repetiría la etiqueta del principal.
   .notif-popup-action-hint {
     font-size: 9px;
     font-weight: 600;
-    color: $violet;
+    color: acento();
     font-family: $font-icon;
     margin: 2px 0 0 0;
+  }
+
+  // Botones de acción (dos o más). Deliberadamente más apretados que los del panel
+  // (`.notif-dbus-btn`): el popup es transitorio y su fila compite por los mismos
+  // 336 px que el cuerpo, así que se prioriza no robarle alto a lo que se lee.
+  .notif-popup-actions {
+    margin: 2px 0 0 0;
+  }
+
+  .notif-popup-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 6px;
+    padding: 1px 8px;
+    font-size: 9px;
+    font-weight: 500;
+    color: rgba($text, 0.7);
+    font-family: $font-icon;
+    transition: background 100ms ease, color 100ms ease;
+
+    label { margin: 0; }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.11);
+      color: $text;
+    }
+
+    // El principal lleva el "▸" en su etiqueta y se tiñe con el acento: es la misma
+    // acción que dispara el clic derecho, y así se ve cuál sin gastar otra fila.
+    &.principal {
+      color: acento();
+      border-color: acento(0.4);
+
+      &:hover { background: acento(0.14); }
+    }
   }
 
 }
@@ -3225,11 +3261,42 @@ popover.upd-popover-container {
     color: rgba(255, 255, 255, 0.85);
   }
 
+  // Los botones heredan el mismo problema que la pista: el acento violeta del tema
+  // sobre el fondo sólido del skin no se lee. Van en blanco translúcido, sin radio y
+  // en monoespaciada, para que sigan pareciendo parte del recuadro de dunst.
+  .notif-popup-btn {
+    font-family: monospace;
+    font-size: 10px;
+    border-radius: 0;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.9);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+
+    &.principal {
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.7);
+
+      &:hover { background: rgba(255, 255, 255, 0.25); }
+    }
+  }
+
   // urgency_low
   &.u-low {
     background: #222222;
     .notif-popup-summary, .notif-popup-body { color: #888888; }
     .notif-popup-action-hint { color: #aaaaaa; }
+    // El fondo gris oscuro sí admite el blanco puro; se baja para no gritar más que
+    // el propio texto de la notificación, que aquí va en #888888.
+    .notif-popup-btn {
+      color: #aaaaaa;
+      border-color: rgba(255, 255, 255, 0.25);
+      &.principal { color: #dddddd; }
+    }
   }
 
   // urgency_normal
@@ -3343,14 +3410,14 @@ window.np-window.csd decoration {
 }
 
 .np-unread-badge-btn {
-  background: fondo-np-opaco(rgba(203, 166, 247, 0.12));
+  background: acento-sobre($np-bg-opaco, 0.12);
   border: none;
   border-radius: $radius-pill;
   padding: 1px 7px;
   min-height: 18px;
   transition: all 120ms ease;
 
-  &:hover { background: fondo-np-opaco(rgba(203, 166, 247, 0.22)); }
+  &:hover { background: acento-sobre($np-bg-opaco, 0.22); }
 
   label { margin: 0; }
 }
@@ -3358,7 +3425,7 @@ window.np-window.csd decoration {
 .np-unread-count {
   font-size: 10px;
   font-weight: 700;
-  color: $violet;
+  color: acento();
   margin: 0;
 }
 
@@ -3376,8 +3443,8 @@ window.np-window.csd decoration {
   }
 
   &.active {
-    background: fondo-np-opaco(rgba(203, 166, 247, 0.12));
-    .np-btn-icon { color: $violet; }
+    background: acento-sobre($np-bg-opaco, 0.12);
+    .np-btn-icon { color: acento(); }
   }
 
   &.dnd-active {
@@ -3469,8 +3536,8 @@ window.np-window.csd decoration {
   transition: background 100ms ease;
 
   &.active {
-    background: fondo-np-opaco(rgba(203, 166, 247, 0.12));
-    .np-filter-chip-label { color: $violet; }
+    background: acento-sobre($np-bg-opaco, 0.12);
+    .np-filter-chip-label { color: acento(); }
   }
 
   &:hover:not(.active) {
@@ -3551,7 +3618,7 @@ window.np-window.csd decoration {
 }
 
 .np-group-badge {
-  background: fondo-np-opaco(rgba(203, 166, 247, 0.2));
+  background: acento-sobre($np-bg-opaco, 0.2);
   border-radius: $radius-pill;
   padding: 0 5px;
 }
@@ -3559,7 +3626,7 @@ window.np-window.csd decoration {
 .np-group-count {
   font-size: 9px;
   font-weight: 800;
-  color: $violet;
+  color: acento();
   margin: 0;
 }
 
@@ -3627,7 +3694,7 @@ window.np-window.csd decoration {
   padding: 7px 10px;
 
   &.expanded {
-    background: rgba(203, 166, 247, 0.025);
+    background: acento(0.025);
   }
 }
 
@@ -3679,13 +3746,13 @@ window.np-window.csd decoration {
   min-width: 10px;
   font-family: $font-icon;
   font-size: 10px;
-  color: rgba($violet, 0.65);
+  color: acento(0.65);
   margin: 1px 0 0;
   transform: rotate(0deg);
   transition: color 160ms ease, transform 160ms ease;
 
   &.expanded {
-    color: $violet;
+    color: acento();
     transform: rotate(180deg);
   }
 }
@@ -3724,9 +3791,9 @@ window.np-window.csd decoration {
   }
 
   &.reply:hover {
-    background: rgba(137, 180, 250, 0.15);
-    border-color: rgba(137, 180, 250, 0.3);
-    color: $blue;
+    background: acento-azul(0.15);
+    border-color: acento-azul(0.3);
+    color: acento-azul();
   }
 
   label { margin: 0; }
@@ -3773,8 +3840,8 @@ window.np-window.csd decoration {
 }
 
 .notif-reply-send {
-  background: fondo-np-opaco(rgba(137, 180, 250, 0.1));
-  border: 1px solid rgba(137, 180, 250, 0.2);
+  background: acento-azul-sobre($np-bg-opaco, 0.1);
+  border: 1px solid acento-azul(0.2);
   border-radius: 6px;
   min-width: 28px;
   min-height: 28px;
@@ -3782,7 +3849,7 @@ window.np-window.csd decoration {
   transition: all 100ms ease;
 
   &:hover {
-    background: fondo-np-opaco(rgba(137, 180, 250, 0.2));
+    background: acento-azul-sobre($np-bg-opaco, 0.2);
   }
 
   label { margin: 0; }
@@ -3943,8 +4010,8 @@ $cal-border:      rgba(255, 255, 255, 0.07);
 $cal-text:        $text;
 $cal-text-dim:    rgba($text, 0.56);
 $cal-text-hint:   rgba($text, 0.32);
-$cal-violet:      $violet;
-$cal-accent-bg:   rgba($violet, 0.13);
+$cal-violet:      acento();
+$cal-accent-bg:   acento(0.13);
 $cal-danger:      $pink;
 $cal-danger-bg:   rgba($pink, 0.1);
 $cal-font:        $font-icon, monospace;
@@ -4085,8 +4152,8 @@ window.cal-window.csd decoration {
 
   &.active {
     background-color: $cal-accent-bg;
-    border-color: rgba($violet, 0.22);
-    box-shadow: inset 0 1px 0 rgba($violet, 0.07);
+    border-color: acento(0.22);
+    box-shadow: inset 0 1px 0 acento(0.07);
 
     .cal-view-tab-icono,
     .cal-view-tab-texto { color: $cal-violet; }
@@ -4203,7 +4270,7 @@ window.cal-window.csd decoration {
   }
 
   &.today {
-    background-color: rgba($violet, 0.07);
+    background-color: acento(0.07);
 
     .cal-day-num {
       color: $cal-violet;
@@ -4213,7 +4280,7 @@ window.cal-window.csd decoration {
 
   &.selected {
     background-color: $cal-accent-bg;
-    border: 1px solid rgba($violet, 0.28);
+    border: 1px solid acento(0.28);
 
     .cal-day-num {
       color: $cal-violet;
@@ -4221,7 +4288,7 @@ window.cal-window.csd decoration {
     }
 
     &:hover {
-      background-color: rgba($violet, 0.2);
+      background-color: acento(0.2);
     }
   }
 }
@@ -4264,8 +4331,8 @@ window.cal-window.csd decoration {
   padding: 6px 10px;
   border-bottom: 1px solid $cal-border;
   min-height: 0;
-  background-color: rgba($violet, 0.025);
-  box-shadow: inset 0 1px 0 rgba($violet, 0.025);
+  background-color: acento(0.025);
+  box-shadow: inset 0 1px 0 acento(0.025);
 
   > .cal-icon-btn {
     min-width: 32px;
@@ -4541,7 +4608,7 @@ window.cal-window.csd decoration {
 .cal-dialog-alarma .cal-form-entry:focus,
 .cal-dialog-alarma .cal-spin:focus {
   border-width: 1px;
-  border-color: rgba($violet, 0.45);
+  border-color: acento(0.45);
   outline: none;
   box-shadow: none;
 }
@@ -4574,7 +4641,7 @@ window.cal-window.csd decoration {
 }
 
 .cal-form-seccion-titulo {
-  color: rgba($violet, 0.72);
+  color: acento(0.72);
   font-family: $cal-font;
   font-size: 10px;
   font-weight: 700;
@@ -4653,7 +4720,7 @@ window.cal-window.csd decoration {
 
   &.active {
     border-color: rgba($white, 0.9);
-    box-shadow: 0 0 0 2px rgba($violet, 0.62), 0 0 8px rgba($violet, 0.2);
+    box-shadow: 0 0 0 2px acento(0.62), 0 0 8px acento(0.2);
     opacity: 1;
 
     .cal-color-check { opacity: 1; }
@@ -4751,9 +4818,9 @@ window.cal-window.csd decoration {
 .cal-icon-btn.primario {
   background-color: $cal-accent-bg;
   color: $cal-violet;
-  border-color: rgba($violet, 0.24);
+  border-color: acento(0.24);
   label { color: $cal-violet; }
-  &:hover { background-color: rgba($violet, 0.21); }
+  &:hover { background-color: acento(0.21); }
 }
 
 .cal-icon-btn.peligro {
@@ -4851,7 +4918,7 @@ window.cal-window.csd decoration {
 .reloj-alarmas-cabecera {
   min-height: 31px;
   padding: 6px 9px;
-  background-color: rgba($violet, 0.035);
+  background-color: acento(0.035);
   border-bottom: 1px solid rgba($text, 0.055);
 }
 
@@ -4887,8 +4954,8 @@ window.cal-window.csd decoration {
 
   &.activa {
     opacity: 1;
-    background-color: rgba($violet, 0.045);
-    border-color: rgba($violet, 0.13);
+    background-color: acento(0.045);
+    border-color: acento(0.13);
   }
 
   .cal-icon-btn {
@@ -4973,7 +5040,7 @@ window.cal-window.csd decoration {
   }
 
   &:checked {
-    background-color: rgba($violet, 0.16);
+    background-color: acento(0.16);
     color: $cal-violet;
     label { color: $cal-violet; }
   }
@@ -4996,8 +5063,8 @@ window.cal-window.csd decoration {
   font-family: $cal-font;
 
   &:hover {
-    background-color: rgba($violet, 0.09);
-    border-color: rgba($violet, 0.2);
+    background-color: acento(0.09);
+    border-color: acento(0.2);
     color: $cal-text;
   }
 }
@@ -5014,7 +5081,7 @@ window.cal-window.csd decoration {
   font-size: 12px;
   transition: all 120ms ease;
   &:hover { background: rgba(255, 255, 255, 0.05); color: $text; }
-  &.active { background: rgba(203, 166, 247, 0.15); color: $violet; }
+  &.active { background: acento(0.15); color: acento(); }
 }
 .st-tab-hint { font-size: 10px; color: rgba($text, 0.4); font-family: $font-icon; }
 .st-add-btn {
@@ -5053,7 +5120,7 @@ window.cal-window.csd decoration {
   &:hover { background: rgba(255, 255, 255, 0.08); color: $text; }
 }
 .re-panel { padding: 4px 2px; }
-.re-section { font-size: 11px; color: $violet; font-family: $font-icon; font-weight: 600; margin-top: 4px; }
+.re-section { font-size: 11px; color: acento(); font-family: $font-icon; font-weight: 600; margin-top: 4px; }
 .re-field { }
 .re-field-label { font-size: 10px; color: rgba($text, 0.5); font-family: $font-icon; }
 .re-entry {
@@ -5064,7 +5131,7 @@ window.cal-window.csd decoration {
   background: transparent; border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 3px 8px; font-size: 10px; color: rgba($text, 0.55);
   &:hover { background: rgba(255, 255, 255, 0.06); color: $text; }
-  &.active { background: rgba(137, 180, 250, 0.18); border-color: rgba(137, 180, 250, 0.4); color: $blue; }
+  &.active { background: acento-azul(0.18); border-color: acento-azul(0.4); color: acento-azul(); }
 }
 .re-toggle {
   min-width: 30px;
@@ -5073,14 +5140,17 @@ window.cal-window.csd decoration {
 }
 .re-advanced-toggle { background: transparent; border: none; color: rgba($text, 0.5); font-size: 11px; padding: 2px 0; }
 .re-save {
-  background: rgba(137, 180, 250, 0.15); border: 1px solid rgba(137, 180, 250, 0.3);
-  padding: 6px; color: $blue; font-size: 12px;
-  &:hover { background: rgba(137, 180, 250, 0.25); }
+  background: acento-azul(0.15); border: 1px solid acento-azul(0.3);
+  padding: 6px; color: acento-azul(); font-size: 12px;
+  &:hover { background: acento-azul(0.25); }
 }
 .re-delete {
   background: rgba($pink, 0.12); border: 1px solid rgba($pink, 0.3);
   padding: 6px 12px; color: $pink; font-size: 12px;
   &:hover { background: rgba($pink, 0.22); }
+  /* Segundo clic pendiente en «Borrar historial»: el botón se pinta lleno para que se vea
+     que la siguiente pulsación ya borra, no que no ha pasado nada. */
+  &.confirm { background: rgba($pink, 0.32); border-color: rgba($pink, 0.6); color: $text; }
 }
 .re-hint { font-size: 9px; color: rgba($text, 0.4); font-family: $font-icon; }
 
@@ -5173,7 +5243,7 @@ window.cal-window.csd decoration {
   font-size: 12px;
   transition: all 120ms ease;
   &:hover { background: rgba(255, 255, 255, 0.05); color: $text; }
-  &.active { background: rgba(203, 166, 247, 0.15); color: $violet; }
+  &.active { background: acento(0.15); color: acento(); }
   .sp-nav-content {
     min-height: 24px;
     padding: 2px 0;
@@ -5223,17 +5293,17 @@ window.cal-window.csd decoration {
 .sp-energy-summary {
   font-size: 11px;
   font-weight: 600;
-  color: rgba($violet, 0.82);
+  color: acento(0.82);
   font-family: $font-icon;
   letter-spacing: 0.01em;
 
-  &.active { color: $violet; }
+  &.active { color: acento(); }
 }
 
 .sp-energy-mode {
   font-size: 10px;
   font-weight: 500;
-  color: $blue;
+  color: acento-azul();
   font-family: $font-icon;
 
   &.active { color: #b9d5ff; }
@@ -5248,7 +5318,7 @@ window.cal-window.csd decoration {
   min-width: 560px;
 }
 .sp-field-label { font-size: 12px; color: $text; font-family: $font-icon; }
-.sp-field-value { font-size: 12px; font-weight: 700; color: $violet; font-family: $font-icon; }
+.sp-field-value { font-size: 12px; font-weight: 700; color: acento(); font-family: $font-icon; }
 .sp-field-hint { font-size: 10px; color: rgba($text, 0.4); font-family: $font-icon; }
 // Aviso de configuración: una pista que el usuario TIENE que leer (p. ej. que
 // logind se queda el botón de encendido), no una descripción más.
@@ -5260,7 +5330,7 @@ window.cal-window.csd decoration {
 }
 
 .sp-subsection-title {
-  color: $violet;
+  color: acento();
   font-family: $font-icon;
   font-size: 14px;
   font-weight: 700;
@@ -5282,10 +5352,10 @@ window.cal-window.csd decoration {
 }
 .dev-card-header {
   padding: 11px 14px 9px;
-  background: rgba($violet, 0.045);
+  background: acento(0.045);
   border-bottom: 1px solid rgba(255, 255, 255, 0.055);
 }
-.dev-card-icon { color: $violet; font-family: $font-icon; font-size: 15px; }
+.dev-card-icon { color: acento(); font-family: $font-icon; font-size: 15px; }
 .dev-row {
   min-height: 45px;
   padding: 9px 14px;
@@ -5341,7 +5411,7 @@ button.dl-seg-btn {
   border: none;
   transition: all 120ms ease;
   &:hover { color: $text; background: rgba(255, 255, 255, 0.05); }
-  &.active { color: $violet; background: rgba(203, 166, 247, 0.15); }
+  &.active { color: acento(); background: acento(0.15); }
 }
 button.dl-city-result {
   min-height: 32px;
@@ -5351,7 +5421,7 @@ button.dl-city-result {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   font-size: 11px;
-  &:hover { color: $text; background: rgba($violet, 0.1); border-color: rgba($violet, 0.2); }
+  &:hover { color: $text; background: acento(0.1); border-color: acento(0.2); }
 }
 
 // ── Cuenta ──────────────────────────────────────────────────────────────────
@@ -5366,31 +5436,31 @@ button.dl-city-result {
 .account-avatar {
   min-width: 46px; min-height: 46px;
   border-radius: 999px;
-  border: 2px solid rgba($violet, 0.45);
+  border: 2px solid acento(0.45);
   background-size: cover; background-position: center; background-repeat: no-repeat;
-  &.fallback { background: rgba($violet, 0.18); color: $violet; font-size: 15px; font-weight: 700; }
+  &.fallback { background: acento(0.18); color: acento(); font-size: 15px; font-weight: 700; }
 }
 .account-current-user { color: $text; font-size: 14px; font-weight: 700; }
 .account-controls { min-width: 0; }
 .account-entry {
   min-height: 0; padding: 0 9px; border-radius: 7px;
   color: $text; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08);
-  &:focus { border-color: rgba($violet, .6); }
+  &:focus { border-color: acento(.6); }
 }
 .account-secondary-btn, .account-save-btn {
   min-height: 0; padding: 0 12px; border-radius: 7px; font-size: 11px; font-weight: 600;
 }
-.account-secondary-btn { color: $violet; background: rgba($violet,.12); border: 1px solid rgba($violet,.22); }
+.account-secondary-btn { color: acento(); background: acento(.12); border: 1px solid acento(.22); }
 .account-secondary-btn:hover, .account-secondary-btn.open {
   color: $text;
-  background: rgba($violet, .2);
-  border-color: rgba($violet, .34);
+  background: acento(.2);
+  border-color: acento(.34);
 }
-.account-save-btn { color: #0b0910; background: $violet; border: none; }
+.account-save-btn { color: #0b0910; background: acento(); border: none; }
 .account-password-fields { border-bottom: 1px solid rgba(255, 255, 255, 0.045); }
 .account-actions { min-height: 34px; }
 .account-notice {
-  color: $blue;
+  color: acento-azul();
   font-size: 10.5px;
   font-weight: 600;
   &.ok { color: #a6e3a1; }
@@ -5409,7 +5479,7 @@ button.dl-city-result {
   background: transparent;
   border: none;
 }
-.sys-card-icon { color: $violet; font-family: $font-icon; font-size: 14px; }
+.sys-card-icon { color: acento(); font-family: $font-icon; font-size: 14px; }
 .sys-card-title {
   margin: 0;
 }
@@ -5432,7 +5502,7 @@ button.dl-city-result {
   font-weight: 500;
 }
 .sys-loading { min-height: 220px; color: #aaa7b4; font-family: 'Inter', sans-serif; font-size: 11px; }
-.sys-loading spinner { margin-right: 9px; color: $violet; }
+.sys-loading spinner { margin-right: 9px; color: acento(); }
 
 /* ── Ajustes > Almacenamiento ────────────────────────────────────────────────
    Prefijo `alm-`. Reutiliza las tarjetas y filas de `dev-*` (el mismo chasis que
@@ -5440,7 +5510,7 @@ button.dl-city-result {
    uso por disco, la columna de tamaños y las etiquetas del catálogo de apps. */
 .alm-section { padding-bottom: 12px; }
 .alm-icono {
-  color: $violet;
+  color: acento();
   font-family: $font-icon;
   font-size: 15px;
   min-width: 20px;
@@ -5455,6 +5525,38 @@ button.dl-city-result {
   font-size: 12px;
   font-weight: 600;
 }
+/* Segunda línea de esa columna: lo que se LIBERARÍA, cuando no coincide con lo que
+   ocupa (el journal recortado a su retención, ~/.cache respetando las cachés de GPU,
+   Descargas sin días configurados). Deliberadamente más pequeña y en el verde de
+   "espacio recuperable", no en el color del dato principal: es una aclaración de la
+   cifra de arriba, no otra cifra que compita con ella. Mismo `min-width` para que la
+   columna siga alineada entre filas con y sin ella. */
+.alm-liberable {
+  min-width: 78px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  /* Verde solo cuando hay algo que ganar. Un «No libera nada ahora mismo» en el
+     verde de "espacio recuperable" se lee de refilón como si SÍ liberara — es
+     justo la fila en la que el color tiene que decir lo contrario. */
+  &.algo { color: $green; }
+  &.nada { color: #8b8799; }
+}
+/* Filas de «carpetas que quieras vaciar». Sin fondo propio: son una lista dentro
+   de una fila, no filas de la tarjeta, y darles el mismo relieve que a `dev-row`
+   las haría competir con los ajustes de arriba. */
+.alm-ruta { padding: 2px 0; }
+.alm-ruta-texto {
+  color: $text;
+  font-family: $font-icon;
+  font-size: 11.5px;
+}
+/* El aviso de que estas carpetas se vacían sin preguntar. Naranja y no rojo: es
+   una advertencia sobre lo que va a pasar, no el informe de un fallo — el rojo
+   está reservado a `.alm-resultado.error`. */
+.alm-aviso { color: $orange; }
+// El aviso de la lista de rutas PROTEGIDAS no es una advertencia: ahí no se borra nada, se salva.
+// En naranja se leía como un peligro más y era justo lo contrario de lo que dice.
+.alm-nota { color: $green; }
 .alm-disco { padding-top: 12px; padding-bottom: 12px; }
 .alm-disco-punto { color: $text; font-family: $font-icon; font-size: 12.5px; font-weight: 600; }
 .alm-disco-fs { color: #8b8799; font-family: 'Inter', sans-serif; font-size: 10.5px; }
@@ -5493,8 +5595,8 @@ progressbar.alm-barra {
   &.error, &.sin-permisos { color: $red; }
 }
 .alm-cargando { min-height: 220px; color: #aaa7b4; font-family: 'Inter', sans-serif; font-size: 11px; }
-.alm-cargando spinner { color: $violet; }
-.alm-totales { color: $violet; font-family: $font-icon; font-size: 11.5px; font-weight: 600; }
+.alm-cargando spinner { color: acento(); }
+.alm-totales { color: acento(); font-family: $font-icon; font-size: 11.5px; font-weight: 600; }
 .alm-buscador { min-width: 240px; }
 .alm-app { min-height: 40px; }
 /* Distintivos del catálogo: origen (repos/AUR) y motivo de instalación. Son la
@@ -5509,7 +5611,7 @@ progressbar.alm-barra {
   color: #cdd0e0;
   background: rgba(255, 255, 255, 0.07);
 
-  &.aur { color: $blue; background: rgba($blue, 0.13); }
+  &.aur { color: acento-azul(); background: acento-azul(0.13); }
   &.explicita { color: $green; background: rgba($green, 0.13); }
   &.dependencia { color: #8b8799; }
 }
@@ -5560,12 +5662,12 @@ window.qs-window.fondo-shell-grafito {
     background: $bg-shell-grafito;
     &:hover { background-color: sobre-fondo-grafito(rgba(255, 255, 255, 0.035)); }
     &.active {
-      background: sobre-fondo-grafito(rgba(0, 242, 255, 0.12));
-      &:hover { background-color: sobre-fondo-grafito(rgba(0, 242, 255, 0.16)); }
+      background: acento-cian-sobre($bg-shell-grafito, 0.12);
+      &:hover { background-color: acento-cian-sobre($bg-shell-grafito, 0.16); }
     }
   }
 
-  .qs-media { background-color: sobre-fondo-grafito(rgba(137, 180, 250, 0.04)); }
+  .qs-media { background-color: acento-azul-sobre($bg-shell-grafito, 0.04); }
   button.qs-inline-value-btn,
   entry.qs-inline-number-input,
   button.qs-dropdown-header,
@@ -5585,7 +5687,7 @@ window.qs-window.fondo-shell-grafito {
     &:hover { background: sobre-fondo-grafito(rgba(255, 255, 255, 0.06)); }
   }
   .qs-sink-item.active { background: sobre-fondo-grafito(rgba(139, 120, 255, 0.18)); }
-  .qs-wifi-item.active { background: sobre-fondo-grafito(rgba(0, 242, 255, 0.12)); }
+  .qs-wifi-item.active { background: acento-cian-sobre($bg-shell-grafito, 0.12); }
   .qs-wifi-item.portal { background: sobre-fondo-grafito(rgba(255, 123, 0, 0.15)); }
   .qs-wifi-item.known { background: sobre-fondo-grafito(rgba(245, 50, 105, 0.03)); }
 

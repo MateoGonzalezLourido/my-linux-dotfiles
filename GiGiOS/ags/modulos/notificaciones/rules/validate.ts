@@ -20,6 +20,13 @@ export function validateRule(rule: NotifRule): string[] {
     errors.push(textos.validacion.duracion)
   }
 
+  // Una duración de popup, si se indica, tiene que ser un número positivo: el campo del
+  // editor deja `undefined` cuando no se entiende lo tecleado, así que un valor presente y
+  // no válido solo puede venir del JSON editado a mano.
+  if (e.popupMs !== undefined && !(typeof e.popupMs === "number" && e.popupMs > 0)) {
+    errors.push(textos.validacion.duracionPopup)
+  }
+
   // Regex match fields must compile.
   const fields: [string, StringMatch | undefined][] = [
     [textos.validacion.campos.aplicacion, rule.match.app],

@@ -26,16 +26,20 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     }
 fi
 
-# Actualización de firmas: el botón que se ofrece cuando el motor no puede analizar. `--wait -A`
-# bloquea hasta el clic/cierre, pero aquí el script ya ha terminado su trabajo, así que se deja en
-# primer plano (a diferencia de oom-monitor.sh, donde detendría el barrido).
+# Actualización de firmas cuando el motor no puede analizar: SIEMPRE con botón, nunca sola. Lo
+# automático ocurre una vez, al arrancar Hyprland (`gigios/autostart.lua` →
+# `actualizar-firmas.sh --auto`); a mitad de sesión descargar ~200 MB porque un análisis falló es
+# una decisión del usuario, y aquí basta con un clic derecho sobre el popup. `firmas_aviso_con_boton`
+# bloquea hasta el clic o su techo de espera, pero este script ya ha terminado su trabajo, así que
+# se deja en primer plano (a diferencia de oom-monitor.sh, donde detendría el barrido).
 UPDATE_SIGS="$HOME/.config/hypr/scripts/actualizar-firmas.sh"
+# shellcheck source=lib/firmas.sh
+if ! source "$HOME/.config/hypr/scripts/lib/firmas.sh" 2>/dev/null; then
+    firmas_aviso_con_boton() { notificar "$1" -u "$2" "$3" "$4" -t 0; }
+fi
 notify_sin_firmas() {   # $1 = título, $2 = cuerpo
     if [[ -x "$UPDATE_SIGS" ]]; then
-        local act
-        act=$(notificar analisis.sin-firmas --wait -t 0 \
-            -A "update=🛡️ Activar y actualizar" -u normal "$1" "$2")
-        [[ "$act" == "update" ]] && "$UPDATE_SIGS"
+        firmas_aviso_con_boton analisis.sin-firmas normal "$1" "$2"
     else
         notificar analisis.sin-firmas -u normal "$1" "$2 Ejecuta 'sudo freshclam'." -t 10000
     fi

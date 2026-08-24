@@ -15,18 +15,25 @@
 // `ACCIONES_AUTOMATIZABLES` sale de aquí en vez de estar escrita a mano, así que añadir una acción
 // de pkexec no puede colarla por error en el lote desatendido — donde el diálogo aparecería solo,
 // de madrugada, sin nadie que lo lea.
+//
+// `manual` es el OTRO motivo para quedarse fuera del lote, y hace falta aparte porque no tiene nada
+// que ver con los permisos: `cacheSombreadores` corre entera bajo $HOME sin pedir nada, pero su
+// coste no se paga en disco sino en la siguiente partida —recompilando, con tirones, y en el caso
+// de Steam volviendo a descargar lo que ya tenías—. Eso se decide mirando la cifra, no de
+// madrugada. Sin este campo la única forma de dejarla fuera habría sido mentir en `privilegio`.
 import textos from "../../textos/ajustes/almacenamiento.json" with { type: "json" }
 
 export type IdCategoria =
   | "paquetes" | "cachePaquetes" | "cacheAur" | "huerfanos" | "registros"
   | "temporales" | "instantaneas" | "flatpak"
-  | "cacheUsuario" | "miniaturas" | "cacheDesarrollo" | "papelera"
-  | "descargas" | "documentos" | "imagenes" | "videos" | "musica" | "escritorio"
+  | "cacheUsuario" | "miniaturas" | "cacheDesarrollo" | "cacheSombreadores" | "papelera"
+  | "descargas" | "rutasPersonalizadas"
+  | "documentos" | "imagenes" | "videos" | "musica" | "escritorio"
 
 export type IdAccion =
   | "cachePaquetes" | "cachePaquetesTotal" | "cacheAur" | "huerfanos" | "registros"
-  | "temporales" | "cacheUsuario" | "miniaturas" | "cacheDesarrollo" | "papelera"
-  | "descargas" | "flatpak"
+  | "temporales" | "cacheUsuario" | "miniaturas" | "cacheDesarrollo" | "cacheSombreadores"
+  | "papelera" | "descargas" | "flatpak" | "rutasPersonalizadas"
 
 export type Privilegio = "usuario" | "helper" | "pkexec"
 
@@ -37,6 +44,11 @@ export interface Accion {
   privilegio: Privilegio
   /** Se pide confirmación antes de ejecutarla: borra algo que no se regenera solo. */
   peligrosa?: boolean
+  /**
+   * Solo por botón: queda fuera de la autolimpieza aunque no necesite privilegios. Ver la cabecera
+   * — es para lo que se regenera solo pero caro (`cacheSombreadores`).
+   */
+  manual?: boolean
 }
 
 export interface Categoria {
@@ -62,9 +74,14 @@ export const ACCIONES: Accion[] = [
   { id: "cacheUsuario",       etiqueta: a.cacheUsuario.etiqueta,       descripcion: a.cacheUsuario.descripcion,       privilegio: "usuario" },
   { id: "miniaturas",         etiqueta: a.miniaturas.etiqueta,         descripcion: a.miniaturas.descripcion,         privilegio: "usuario" },
   { id: "cacheDesarrollo",    etiqueta: a.cacheDesarrollo.etiqueta,    descripcion: a.cacheDesarrollo.descripcion,    privilegio: "usuario" },
+  { id: "cacheSombreadores",  etiqueta: a.cacheSombreadores.etiqueta,  descripcion: a.cacheSombreadores.descripcion,  privilegio: "usuario", manual: true },
   { id: "papelera",           etiqueta: a.papelera.etiqueta,           descripcion: a.papelera.descripcion,           privilegio: "usuario" },
   { id: "descargas",          etiqueta: a.descargas.etiqueta,          descripcion: a.descargas.descripcion,          privilegio: "usuario", peligrosa: true },
   { id: "flatpak",            etiqueta: a.flatpak.etiqueta,            descripcion: a.flatpak.descripcion,            privilegio: "usuario" },
+  // `peligrosa` porque es la única cuyo objetivo lo escribe el usuario: no hay forma de que este
+  // catálogo sepa qué hay dentro. Las barreras de verdad están en `hypr/scripts/lib/limpieza-rutas.sh`
+  // —quien borra es quien valida—, no aquí.
+  { id: "rutasPersonalizadas", etiqueta: a.rutasPersonalizadas.etiqueta, descripcion: a.rutasPersonalizadas.descripcion, privilegio: "usuario", peligrosa: true },
 ]
 
 export const CATEGORIAS: Categoria[] = [
@@ -80,8 +97,10 @@ export const CATEGORIAS: Categoria[] = [
   { id: "cacheUsuario",    nombre: c.cacheUsuario.nombre,    descripcion: c.cacheUsuario.descripcion,    icono: "󰆼", grupo: "personal", accion: "cacheUsuario" },
   { id: "miniaturas",      nombre: c.miniaturas.nombre,      descripcion: c.miniaturas.descripcion,      icono: "󰋩", grupo: "personal", accion: "miniaturas" },
   { id: "cacheDesarrollo", nombre: c.cacheDesarrollo.nombre, descripcion: c.cacheDesarrollo.descripcion, icono: "󰅩", grupo: "personal", accion: "cacheDesarrollo" },
+  { id: "cacheSombreadores", nombre: c.cacheSombreadores.nombre, descripcion: c.cacheSombreadores.descripcion, icono: "󰢮", grupo: "personal", accion: "cacheSombreadores" },
   { id: "papelera",        nombre: c.papelera.nombre,        descripcion: c.papelera.descripcion,        icono: "󰩹", grupo: "personal", accion: "papelera" },
   { id: "descargas",       nombre: c.descargas.nombre,       descripcion: c.descargas.descripcion,       icono: "󰇚", grupo: "personal", accion: "descargas" },
+  { id: "rutasPersonalizadas", nombre: c.rutasPersonalizadas.nombre, descripcion: c.rutasPersonalizadas.descripcion, icono: "󰉋", grupo: "personal", accion: "rutasPersonalizadas" },
   { id: "documentos",      nombre: c.documentos.nombre,      descripcion: c.documentos.descripcion,      icono: "󰈙", grupo: "personal" },
   { id: "imagenes",        nombre: c.imagenes.nombre,        descripcion: c.imagenes.descripcion,        icono: "󰋩", grupo: "personal" },
   { id: "videos",          nombre: c.videos.nombre,          descripcion: c.videos.descripcion,          icono: "󰕧", grupo: "personal" },
@@ -102,7 +121,7 @@ export function accion(id: string): Accion | undefined {
 
 /** Lo que puede correr sin nadie delante. Debe coincidir con `AUTOMATIZABLES` del monitor bash. */
 export const ACCIONES_AUTOMATIZABLES: IdAccion[] = ACCIONES
-  .filter(acc => acc.privilegio !== "pkexec")
+  .filter(acc => acc.privilegio !== "pkexec" && !acc.manual)
   .map(acc => acc.id)
 
 /**
@@ -129,15 +148,27 @@ export function analisisCaducado(epoch: number, ahoraS: number, frescuraS = FRES
 
 export interface MedidaCategoria {
   id: string
+  /** Lo que la categoría OCUPA. `null` = no se ha podido medir. */
   bytes: number | null
   detalle: string
   limpiable: boolean
+  /**
+   * Lo que se LIBERARÍA al limpiarla, que casi nunca es `bytes`: el journal se recorta a un
+   * tamaño de retención, `~/.cache` conserva las cachés de GPU, «Descargas» sin días configurados
+   * no borra nada… Lo calcula `analizar-almacenamiento.sh` aplicando las mismas reglas que el
+   * borrado; ver el comentario de `_cat` allí.
+   *
+   * `null` = no se ha podido saber (hoy solo Flatpak, que no ofrece simulación de
+   * `uninstall --unused`). No es 0, y la estimación lo declara en vez de tragárselo.
+   */
+  liberable: number | null
 }
 
 export interface FilaCategoria {
   categoria: Categoria
   bytes: number | null
   detalle: string
+  liberable: number | null
 }
 
 /**
@@ -153,7 +184,10 @@ export function agrupar(medidas: MedidaCategoria[]): Record<"sistema" | "persona
   for (const medida of medidas) {
     const cat = POR_ID.get(medida.id as IdCategoria)
     if (!cat) continue
-    filas.push({ categoria: cat, bytes: medida.bytes, detalle: medida.detalle ?? "" })
+    filas.push({
+      categoria: cat, bytes: medida.bytes, detalle: medida.detalle ?? "",
+      liberable: medida.liberable ?? null,
+    })
   }
   const ordenar = (lista: FilaCategoria[]) =>
     [...lista].sort((x, y) => {
@@ -168,20 +202,53 @@ export function agrupar(medidas: MedidaCategoria[]): Record<"sistema" | "persona
   }
 }
 
+/** Resultado de `estimarLiberable`: la cifra y si se ha podido calcular entera. */
+export interface Estimacion {
+  /** Suma de lo liberable de las acciones marcadas que SÍ se han podido medir. */
+  bytes: number
+  /**
+   * `false` si alguna acción marcada no tiene medida (`liberable: null`, o la categoría ni
+   * siquiera aparece en el análisis). Entonces `bytes` es un suelo, no la cifra: la UI lo dice
+   * («al menos X») en vez de presentar una estimación incompleta como si fuera exacta.
+   */
+  completa: boolean
+}
+
 /**
  * Cuánto se liberaría ejecutando un conjunto de acciones, según la última medida.
  *
- * Es una ESTIMACIÓN y por eso suma solo lo que tiene medida: las categorías sin acción asociada no
- * cuentan, y las no medidas tampoco. Sumarles un 0 daría una cifra que parece exacta y se queda
- * corta justo en el caso en que el usuario más necesita saberlo.
+ * Suma `liberable`, NO `bytes`. Sumar lo que ocupa cada categoría era el fallo original: medido en
+ * un equipo real, prometía 28,2 GiB donde se liberaban 26,7 GiB, y con «Descargas» marcada y sin
+ * días configurados habría prometido la carpeta entera por una limpieza que no toca un fichero.
+ *
+ * Las categorías ya no se solapan entre sí —`cacheUsuario` respeta lo que tiene botón propio, ver
+ * `hypr/scripts/lib/limpieza-rutas.sh`—, así que la suma es exacta para cualquier combinación de
+ * casillas y no hace falta descontar nada aquí.
  */
-export function estimarLiberable(medidas: MedidaCategoria[], acciones: IdAccion[]): number {
+export function estimarLiberable(medidas: MedidaCategoria[], acciones: IdAccion[]): Estimacion {
   const activas = new Set(acciones)
-  let total = 0
+  const porAccion = new Map<IdAccion, number | null>()
   for (const medida of medidas) {
     const cat = POR_ID.get(medida.id as IdCategoria)
     if (!cat?.accion || !activas.has(cat.accion)) continue
-    if (typeof medida.bytes === "number" && medida.bytes > 0) total += medida.bytes
+    porAccion.set(cat.accion, medida.liberable)
   }
-  return total
+
+  let bytes = 0
+  let completa = true
+  for (const id of activas) {
+    const liberable = porAccion.get(id)
+    if (typeof liberable === "number" && Number.isFinite(liberable)) {
+      bytes += Math.max(0, liberable)
+    } else if (liberable === null) {
+      // Medida imposible: la categoría existe pero el script no sabe cuánto liberaría (Flatpak).
+      completa = false
+    }
+    // `undefined` —la categoría ni siquiera sale en el análisis— es un caso DISTINTO y cuenta como
+    // 0 sin ensuciar la estimación: el analizador solo omite una categoría cuando su herramienta no
+    // está (sin flatpak, sin paru/yay, sin carpeta de Descargas), y entonces la acción devuelve
+    // `omitida` y no libera nada. Tratarlo como "no se sabe" dejaba la frase en «al menos X» para
+    // siempre en cualquier equipo sin Flatpak, con una casilla marcada que no hace nada.
+  }
+  return { bytes, completa }
 }

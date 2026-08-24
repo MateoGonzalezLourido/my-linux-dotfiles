@@ -8,26 +8,12 @@ import { createState, For, With } from "ags"
 import type { NotifRule } from "../rules/types.ts"
 import { catalogoPorCategoria, type EventoSistema } from "../rules/catalogoSistema.ts"
 import {
-  archivoSistema, efectosEvento, eventoPersonalizado, alternarSilencio, PRIORIDAD_SISTEMA,
+  archivoSistema, efectosEvento, eventoPersonalizado, alternarSilencio, reglaDeEvento,
 } from "../rules/sistemaStore.ts"
 import RuleEditor from "./RuleEditor.tsx"
 import EmptyState from "../../../componentes/EmptyState.tsx"
 import textos from "../../../textos/ajustes/notificaciones-sistema.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear.ts"
-
-/** El aviso, envuelto como la regla que el catálogo genera para él. `RuleEditor` sabe
- *  reconocerla por `source: "system"` y guarda solo los efectos, en su propio fichero. */
-function reglaDeEvento(e: EventoSistema): NotifRule {
-  return {
-    id: `sistema.${e.id}`,
-    name: e.nombre,
-    enabled: true,
-    priority: PRIORIDAD_SISTEMA,
-    source: "system",
-    match: { event: { op: "equals", value: e.id } },
-    effects: efectosEvento(e.id),
-  }
-}
 
 function FilaEvento({ evento, onEdit }: { evento: EventoSistema; onEdit: () => void }) {
   // Se recalcula con cada cambio del fichero: silenciar desde la lista tiene que repintar la
@@ -118,7 +104,7 @@ export default function SistemaTab() {
                                 buscador no reconstruye las filas que siguen visibles. */}
                             <For each={busqueda((q) => g.eventos.filter(e => casa(e, q.trim().toLowerCase())))}>
                               {(evento: EventoSistema) => (
-                                <FilaEvento evento={evento} onEdit={() => setEditing(reglaDeEvento(evento))} />
+                                <FilaEvento evento={evento} onEdit={() => setEditing(reglaDeEvento(evento.id) ?? null)} />
                               )}
                             </For>
                           </box>

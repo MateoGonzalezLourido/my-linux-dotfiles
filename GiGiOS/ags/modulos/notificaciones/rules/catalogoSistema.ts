@@ -60,26 +60,37 @@ const ev = (
   efectos?: EffectSpec,
 ): EventoSistema => ({ id, nombre: t[id] ?? id, categoria, origen, ...(efectos ? { efectos } : {}) })
 
+/** Duración de popup de los avisos de PURA CONFIRMACIÓN: los que dicen que algo que el
+ *  usuario acaba de hacer salió bien, o que un problema del que ya se avisó se resolvió solo
+ *  ("USB conectado", "Wi-Fi reconectado", "Temperatura normal", "Grabación guardada"). No
+ *  hay nada que leer entero ni nada que decidir, así que los 10 s que le corresponden por
+ *  defecto a un aviso del sistema se hacen largos y tapan la pantalla sin motivo. Tres
+ *  segundos bastan para verlos de reojo; el aviso sigue en el panel igualmente.
+ *
+ *  Es solo el valor DE FÁBRICA: cada aviso se puede cambiar en Ajustes > Notificaciones >
+ *  Sistema, y los avisos que sí piden atención (errores, malware, disco lleno) no lo llevan. */
+const BREVE_MS = 3000
+
 export const CATALOGO_SISTEMA: EventoSistema[] = [
   // ── Energía ────────────────────────────────────────────────────────────────────────────
   // `bateria.baja` llega con `lifetime: flash` + condición: es el mismo trato que le daba la
   // builtin `builtin.low-battery` casando por el título "batería", que además pillaba de
   // rebote cualquier notificación de otra app que dijera esa palabra.
   ev("bateria.baja", "energia", "battery-monitor.sh", { lifetime: "flash", conditions: ["battery-resolved"] }),
-  ev("bateria.cargando", "energia", "battery-monitor.sh", { clearOnBoot: true }),
-  ev("bateria.descargando", "energia", "battery-monitor.sh", { clearOnBoot: true }),
-  ev("bateria.completa", "energia", "battery-monitor.sh", { clearOnBoot: true }),
-  ev("bateria.modo-ahorro", "energia", "battery-monitor.sh", { clearOnBoot: true }),
-  ev("energia.perfil-tlp", "energia", "servicios/energia/tlp.ts", { clearOnBoot: true }),
-  ev("juegos.modo-juego", "energia", "servicios/energia/gamemode.ts", { clearOnBoot: true }),
+  ev("bateria.cargando", "energia", "battery-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("bateria.descargando", "energia", "battery-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("bateria.completa", "energia", "battery-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("bateria.modo-ahorro", "energia", "battery-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("energia.perfil-tlp", "energia", "servicios/energia/tlp.ts", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("juegos.modo-juego", "energia", "servicios/energia/gamemode.ts", { clearOnBoot: true, popupMs: BREVE_MS }),
 
   // ── Hardware ───────────────────────────────────────────────────────────────────────────
   ev("temperatura.cpu-alta", "hardware", "temp-monitor.sh"),
-  ev("temperatura.cpu-normal", "hardware", "temp-monitor.sh", { clearOnBoot: true }),
+  ev("temperatura.cpu-normal", "hardware", "temp-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("temperatura.gpu-alta", "hardware", "temp-monitor.sh"),
-  ev("temperatura.gpu-normal", "hardware", "temp-monitor.sh", { clearOnBoot: true }),
+  ev("temperatura.gpu-normal", "hardware", "temp-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("ram.baja", "hardware", "ram-monitor.sh"),
-  ev("ram.normalizada", "hardware", "ram-monitor.sh", { clearOnBoot: true }),
+  ev("ram.normalizada", "hardware", "ram-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("cpu.throttling", "hardware", "oom-monitor.sh"),
   ev("gpu.error", "hardware", "oom-monitor.sh"),
   ev("hardware.error", "hardware", "oom-monitor.sh"),
@@ -92,21 +103,26 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("disco.casi-lleno", "almacenamiento", "disk-monitor.sh"),
   // `clearOnBoot`: informa de algo que ya pasó y no requiere ninguna acción; arrastrarlo al
   // siguiente arranque solo ensucia el panel.
-  ev("limpieza.completada", "almacenamiento", "limpiar-almacenamiento.sh", { clearOnBoot: true }),
+  ev("limpieza.completada", "almacenamiento", "limpiar-almacenamiento.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("disco.error-es", "almacenamiento", "oom-monitor.sh"),
   ev("disco.smart-fallo", "almacenamiento", "oom-monitor.sh"),
   ev("disco.smart-sin-permisos", "almacenamiento", "oom-monitor.sh"),
-  ev("usb.conectado", "almacenamiento", "usb-monitor.sh", { clearOnBoot: true }),
-  ev("usb.desconectado", "almacenamiento", "usb-monitor.sh", { clearOnBoot: true }),
-  ev("usb.almacenamiento", "almacenamiento", "usb-monitor.sh", { clearOnBoot: true }),
+  ev("usb.conectado", "almacenamiento", "usb-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("usb.desconectado", "almacenamiento", "usb-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("usb.almacenamiento", "almacenamiento", "usb-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("usb.volumen-con-errores", "almacenamiento", "usb-monitor.sh"),
   ev("usb.extraccion-insegura", "almacenamiento", "oom-monitor.sh"),
-  ev("usb.expulsado", "almacenamiento", "usb-eject.sh", { clearOnBoot: true }),
-  ev("usb.desmontado", "almacenamiento", "usb-eject.sh", { clearOnBoot: true }),
+  ev("usb.expulsado", "almacenamiento", "usb-eject.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("usb.desmontado", "almacenamiento", "usb-eject.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("usb.expulsar-fallo", "almacenamiento", "usb-eject.sh"),
   ev("usb.expulsar-falta-udisks", "almacenamiento", "usb-eject.sh"),
   ev("usb.expulsar-sin-dispositivo", "almacenamiento", "usb-eject.sh"),
-  ev("usb.reparando", "almacenamiento", "usb-repair.sh", { clearOnBoot: true }),
+  ev("usb.abrir-sin-dispositivo", "almacenamiento", "usb-open.sh"),
+  ev("usb.abrir-sin-volumen", "almacenamiento", "usb-open.sh"),
+  ev("usb.abrir-falta-udisks", "almacenamiento", "usb-open.sh"),
+  ev("usb.abrir-fallo-montaje", "almacenamiento", "usb-open.sh"),
+  ev("usb.abrir-sin-gestor", "almacenamiento", "usb-open.sh"),
+  ev("usb.reparando", "almacenamiento", "usb-repair.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("usb.reparado", "almacenamiento", "usb-repair.sh", { clearOnBoot: true }),
   ev("usb.reparacion-incompleta", "almacenamiento", "usb-repair.sh"),
   ev("usb.reparar-en-uso", "almacenamiento", "usb-repair.sh"),
@@ -115,10 +131,10 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
 
   // ── Red ────────────────────────────────────────────────────────────────────────────────
   ev("wifi.desconectado", "red", "wifi-monitor.sh", { clearOnBoot: true }),
-  ev("wifi.reconectado", "red", "wifi-monitor.sh", { clearOnBoot: true }),
+  ev("wifi.reconectado", "red", "wifi-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("wifi.portal-cautivo", "red", "wifi-monitor.sh", { clearOnBoot: true }),
   ev("wifi.sin-interfaz", "red", "wifi-monitor.sh", { clearOnBoot: true }),
-  ev("bluetooth.conectado", "red", "bt-monitor.sh", { clearOnBoot: true }),
+  ev("bluetooth.conectado", "red", "bt-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("bluetooth.perdido", "red", "bt-monitor.sh", { clearOnBoot: true }),
 
   // ── Seguridad ──────────────────────────────────────────────────────────────────────────
@@ -138,20 +154,20 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("descargas.ejecutable-nuevo", "antivirus", "oom-monitor.sh"),
   ev("descargas.archivo-grande", "antivirus", "oom-monitor.sh"),
   ev("antivirus.sin-firmas", "antivirus", "oom-monitor.sh"),
-  ev("antivirus.actualizando", "antivirus", "actualizar-firmas.sh", { clearOnBoot: true }),
+  ev("antivirus.actualizando", "antivirus", "actualizar-firmas.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("antivirus.actualizacion-en-curso", "antivirus", "actualizar-firmas.sh", { clearOnBoot: true }),
-  ev("antivirus.firmas-actualizadas", "antivirus", "actualizar-firmas.sh", { clearOnBoot: true }),
+  ev("antivirus.firmas-actualizadas", "antivirus", "actualizar-firmas.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("antivirus.fallo-actualizacion", "antivirus", "actualizar-firmas.sh"),
   ev("antivirus.falta-ayudante", "antivirus", "actualizar-firmas.sh"),
   ev("antivirus.estado", "antivirus", "servicios/seguridad/clamav.ts", { clearOnBoot: true }),
-  ev("analisis.analizando", "antivirus", "scan-file.sh", { clearOnBoot: true }),
-  ev("analisis.limpio", "antivirus", "scan-file.sh", { clearOnBoot: true }),
+  ev("analisis.analizando", "antivirus", "scan-file.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("analisis.limpio", "antivirus", "scan-file.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("analisis.malware", "antivirus", "scan-file.sh"),
   ev("analisis.sin-firmas", "antivirus", "scan-file.sh"),
   ev("analisis.sin-clamav", "antivirus", "scan-file.sh"),
   ev("analisis.sin-archivo", "antivirus", "scan-file.sh", { clearOnBoot: true }),
   ev("analisis.sin-carpeta", "antivirus", "scan-downloads.sh", { clearOnBoot: true }),
-  ev("aislado.lanzando", "antivirus", "run-untrusted.sh", { clearOnBoot: true }),
+  ev("aislado.lanzando", "antivirus", "run-untrusted.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("aislado.malware", "antivirus", "run-untrusted.sh"),
   ev("aislado.no-analizado", "antivirus", "run-untrusted.sh"),
   ev("aislado.sin-antivirus", "antivirus", "run-untrusted.sh"),
@@ -193,12 +209,12 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("arranque.errores-usb", "arranque", "boot-healthcheck.sh", { clearOnBoot: true }),
 
   // ── Escritorio ─────────────────────────────────────────────────────────────────────────
-  ev("desinstalar.ok", "escritorio", "desinstalar-app.sh", { clearOnBoot: true }),
+  ev("desinstalar.ok", "escritorio", "desinstalar-app.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("desinstalar.fallo", "escritorio", "desinstalar-app.sh", { clearOnBoot: true }),
   ev("desinstalar.steam", "escritorio", "desinstalar-app.sh", { clearOnBoot: true }),
   ev("desinstalar.no-soportado", "escritorio", "desinstalar-app.sh", { clearOnBoot: true }),
   ev("desinstalar.falta-script", "escritorio", "modulos/orion/data/uninstall.ts", { clearOnBoot: true }),
-  ev("grabacion.guardada", "escritorio", "grabar-pantalla.sh", { clearOnBoot: true }),
+  ev("grabacion.guardada", "escritorio", "grabar-pantalla.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("grabacion.error", "escritorio", "grabar-pantalla.sh", { clearOnBoot: true }),
   ev("emojis.no-disponible", "escritorio", "emoji-picker.sh", { clearOnBoot: true }),
 ]

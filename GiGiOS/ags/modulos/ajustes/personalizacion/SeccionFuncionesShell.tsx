@@ -3,6 +3,7 @@ import { AjusteInterruptor, TarjetaAjustes, TituloSeccion } from "../componentes
 import LimpiezaPortapapeles from "./LimpiezaPortapapeles"
 import SelectorFondoShell from "./SelectorFondoShell"
 import {
+  acentoAdaptativoEnabled, setAcentoAdaptativoEnabled,
   startupVolumeMuted, setStartupVolumeMuted,
   startupMicMuted, setStartupMicMuted,
   volumeOsdEnabled, setVolumeOsdEnabled,
@@ -28,6 +29,7 @@ export default function SeccionFuncionesShell({ vista }: { vista: VistaFunciones
 
       {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.apariencia} icono="󰏘">
         <SelectorFondoShell />
+        <AjusteInterruptor titulo={textos.apariencia.acento.titulo} informacion={textos.apariencia.acento.descripcion} activo={acentoAdaptativoEnabled} alAlternar={() => setAcentoAdaptativoEnabled(!acentoAdaptativoEnabled.get())} />
       </TarjetaAjustes>}
 
       {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.sonidoInicio} icono="󰍃">

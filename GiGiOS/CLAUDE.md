@@ -62,7 +62,16 @@ copy, read by both AGS and hyprlock, set from Ajustes > Cuenta and never version
 It lives in `XDG_DATA_HOME`, **not** the cache, because nothing regenerates it: there is no master
 in the repo, so a cache cleaner would delete it for good. It also
 migrates leftover AGS JSON from the old `~/.config/ags/config/` into `~/.config/gigios/`;
-and re-applies `core.hooksPath`. `install.sh` is the fresh-machine path: it clones the bare
+re-applies `core.hooksPath`; y **repone `[UiSettings] ColorScheme=BreezeDark` en `kdeglobals`**
+llamando a `hypr/scripts/reparar-kdeglobals.sh` — el mismo script que `gigios/autostart.lua`
+ejecuta a t=0, que es lo que hace que el tema oscuro de las apps KDE se repare solo sin tener
+que acordarse de correr `link.sh`. Cualquier app KDE que guarde ajustes globales (Dolphin >
+Preferencias) reescribe el fichero entero con KConfig y borra ese grupo, que es el que lee
+`KColorSchemeManager`: sin él Dolphin se abre en CLARO aunque `[General] ColorScheme`, la
+paleta materializada y `QT_QPA_PLATFORMTHEME=qt6ct` sigan bien, y sin un solo error. Fuera de
+Plasma nadie lo repone. **Antes de tocar ese script lee su sección en
+[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md)**: escribir sobre la ruta canónica en vez
+de sobre el symlink resuelto se carga el enlace y el fallo es invisible. `install.sh` is the fresh-machine path: it clones the bare
 dotfiles repo, checks out into `$HOME` (backing up conflicts), then runs `link.sh --force`.
 
 ## Per-machine application profiles

@@ -10,10 +10,11 @@ import {
   SECURITY_ITEMS, securityEnabled, setSecurityEnabled, type SecurityKey,
   DL_PAUSE_ITEMS, dlPauseEnabled, setDlPauseEnabled,
   dlMaxScanGB, setDlMaxScanGB,
+  clamavAutoUpdatePref, setClamavAutoUpdatePref,
 } from "./preferencias"
 import {
-  clamavPresent, clamavHelperInstalled, clamavDbEpoch, clamavAutoUpdate, clamavBusy,
-  refreshClamavState, updateClamavDb, setClamavAutoUpdate,
+  clamavPresent, clamavHelperInstalled, clamavDbEpoch, clamavServicioPeriodico, clamavBusy,
+  refreshClamavState, updateClamavDb,
 } from "../../../servicios/seguridad/clamav"
 import textos from "../../../textos/ajustes/seguridad.json" with { type: "json" }
 
@@ -163,27 +164,31 @@ function Firmas() {
     : textos.firmas.ultima.replace("{fecha}", GLib.DateTime.new_from_unix_local(t).format("%d/%m/%Y %H:%M") ?? ""))
   return (
     <TarjetaAjustes titulo={textos.tarjetas.firmas} icono="󰒃">
-      {/* El interruptor gobierna clamav-freshclam.service, o sea estado del SISTEMA y no una
-          preferencia del shell: no se persiste en ningún JSON nuestro, se lee de systemd. Por eso
-          la fila se oculta si el helper no está (no habría forma de aplicar el cambio) o si no se
-          pudo consultar el estado — un interruptor que no sabe dónde está miente en las dos
-          posiciones. */}
+      {/* Un BOOLEANO nuestro (`clamavAutoUpdate` en security.json), no el estado de un servicio:
+          gobierna si `actualizar-firmas.sh --auto` descarga al ARRANCAR la sesión, que es lo único
+          automático que queda — no hay temporizador ni servicio corriendo durante la sesión. La
+          fila se oculta SOLO si falta el helper root, porque entonces nada de esto puede funcionar
+          y un interruptor que no aplica nada es peor que su ausencia — ahí el texto de
+          `sinAyudante` dice qué instalar. Ya no depende de poder consultar systemd: el estado es
+          del usuario y siempre se conoce. */}
       <AjusteInterruptor
         titulo={textos.firmas.automatica.titulo}
         informacion={textos.firmas.automatica.descripcion}
-        visible={clamavAutoUpdate((v) => v !== null && clamavHelperInstalled)}
-        activo={clamavAutoUpdate((v) => v === true)}
-        alAlternar={() => setClamavAutoUpdate(!(clamavAutoUpdate.get() === true))}
+        visible={clamavHelperInstalled}
+        activo={clamavAutoUpdatePref}
+        alAlternar={() => setClamavAutoUpdatePref(!clamavAutoUpdatePref.get())}
       />
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]}>
         <TituloSubseccion label={textos.firmas.titulo} halign={Gtk.Align.START} />
         <TextoInformativo label={textos.firmas.descripcion} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
         <TextoInformativo label={fecha} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
-        {/* Sin helper no hay interruptor que enseñar, pero el estado sigue importando: se dice en
-            texto en vez de callarlo. */}
+        {/* El actualizador periódico heredado. Con el interruptor encendido, `refreshClamavState`
+            ya lo apaga solo, así que esta línea solo aparece si el usuario lo tiene apagado y el
+            servicio sigue vivo — o sea, cuando de verdad hay dos actualizadores. `null` (no se
+            pudo consultar) no pinta nada: afirmar aquí sería inventarse el estado del sistema. */}
         <TextoInformativo
-          label={clamavAutoUpdate((v) => v ? textos.firmas.automaticaActiva : textos.firmas.automaticaInactiva)}
-          visible={clamavAutoUpdate((v) => v !== null && !clamavHelperInstalled)}
+          label={textos.firmas.servicioPeriodico}
+          visible={clamavServicioPeriodico((v) => v === true)}
           halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
         <button cssClasses={["sp-add-rule"]} onClicked={updateClamavDb} halign={Gtk.Align.START}
           visible={clamavHelperInstalled} sensitive={clamavBusy((b) => !b)}>

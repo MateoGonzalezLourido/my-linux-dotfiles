@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
-# gigios-clamav-update — actualiza la base de firmas de ClamAV y deja el servicio de
-# actualización automática (clamav-freshclam) encendido y habilitado.
+# gigios-clamav-update — actualiza la base de firmas de ClamAV (y, con verbos aparte, gobierna el
+# servicio periódico heredado `clamav-freshclam`).
+#
+# OJO AL LEER LO DE ABAJO: desde el cambio a un interruptor booleano, "mantener las firmas al día"
+# ya NO es este servicio. Lo hace `hypr/scripts/actualizar-firmas.sh --auto` cuando hace falta (al
+# iniciar sesión, o cuando un análisis se encuentra la base ausente o vieja), leyendo
+# `clamavAutoUpdate` de ~/.config/gigios/security.json. De los cinco verbos de aquí abajo, la regla
+# sudoers solo autoriza DOS: `update` (los dos botones y el arranque) y `auto-off` (AGS apaga el
+# servicio si lo encuentra vivo, para no dejar un actualizador periódico invisible). `update-enable`
+# y `auto-on` siguen existiendo pero ya no los llama nadie y **no se pueden ejecutar sin
+# contraseña**; `status` no necesita root. Ver la sección "Firmas de ClamAV desde la UI" de
+# docs/hyprland-modulos.md.
 #
 # ESTE FICHERO SE INSTALA ROOT-OWNED en /usr/local/bin/gigios-clamav-update (install.sh paso 9).
 # NO se symlinkea desde ~/GiGiOS: corre como root vía /etc/sudoers.d/gigios-clamav, y apuntar a un
@@ -46,11 +56,10 @@ case "${1:-}" in
     db_date
     exit 0
     ;;
-  # `update` RESPETA la elección del usuario y `update-enable` la cambia, y esa separación no es
-  # cosmética: el botón "Actualizar ahora" de Ajustes convive con un interruptor de actualización
-  # automática, así que forzar el enable ahí volvería a encender en silencio algo que el usuario
-  # acababa de apagar — con su propio interruptor mintiendo al lado. `update-enable` es lo que
-  # dispara el botón "Activar y actualizar" de las notificaciones, donde activar SÍ es lo pedido.
+  # `update` RESPETA el estado del servicio y `update-enable` lo enciende. Hoy TODOS los botones
+  # usan `update`: encender el servicio periódico desde ellos añadiría un segundo actualizador
+  # detrás del interruptor booleano, que es justo lo que se quitó. `update-enable` se conserva
+  # para instalaciones a medio migrar y porque la regla sudoers ya lo autoriza.
   update) ;;
   update-enable) enable_after=yes ;;
   # Solo el interruptor: encender/apagar la actualización automática sin descargar nada.

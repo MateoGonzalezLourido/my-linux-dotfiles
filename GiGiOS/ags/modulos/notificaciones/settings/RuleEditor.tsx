@@ -210,6 +210,26 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
             />
           </CampoEditor>
 
+          {/* duración del popup — independiente del ciclo de vida: uno es lo que se ve en
+              pantalla y el otro lo que se guarda en el panel. Visible también en los avisos
+              del sistema, que es donde más se usa ("este me sobra con 3 s"). */}
+          <CampoEditor titulo={textos.editor.titulos.duracionPopup}>
+            <Gtk.Entry
+              cssClasses={["re-entry"]}
+              text={rule.effects.popupMs ? formatDuration(rule.effects.popupMs) : ""}
+              placeholderText={textos.editor.ayudas.duracionPopupEjemplo}
+              onChanged={(self) => patchEffects({
+                popupMs: self.text.trim() ? (parseDuration(self.text) ?? undefined) : undefined,
+              })}
+            />
+            <label
+              cssClasses={["re-hint"]}
+              label={textos.editor.ayudas.duracionPopup}
+              halign={Gtk.Align.START}
+              wrap={true}
+            />
+          </CampoEditor>
+
           {/* effect toggles */}
           <box spacing={4} cssClasses={["re-field"]}>
             <AlternadorEditor label={textos.editor.acciones.descartar} estado={draft} activo={() => !!draft.get().effects.suppress} onChange={(v) => patchEffects({ suppress: v })} />

@@ -72,6 +72,7 @@ export function evaluate(input: NotifInput, index: RuleIndex, now: number): Eval
   // Fold effects: iterate high→low, only set a field if not already set (higher priority wins).
   let lifetime: NotifMeta["lifetime"] | undefined
   let ttlMs: number | undefined
+  let popupMs: number | undefined
   let clearOnBoot: boolean | undefined
   let noHistory: boolean | undefined
   let muteAudio: boolean | undefined
@@ -92,6 +93,7 @@ export function evaluate(input: NotifInput, index: RuleIndex, now: number): Eval
     const e = r.effects
     lifetime    = setOnce(lifetime, e.lifetime)
     ttlMs       = setOnce(ttlMs, e.ttlMs)
+    popupMs     = setOnce(popupMs, e.popupMs)
     clearOnBoot = setOnce(clearOnBoot, e.clearOnBoot)
     noHistory   = setOnce(noHistory, e.noHistory)
     muteAudio   = setOnce(muteAudio, e.muteAudio)
@@ -120,6 +122,7 @@ export function evaluate(input: NotifInput, index: RuleIndex, now: number): Eval
   }
   if (color !== undefined) meta.color = color
   if (style !== undefined) meta.style = style
+  if (popupMs !== undefined) meta.popupMs = popupMs
   if (finalLifetime === "timed" && ttlMs !== undefined) {
     meta.expiresAt = now + ttlMs
   }

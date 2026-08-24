@@ -47,6 +47,7 @@
 # disco.
 
 EJECT="$HOME/.config/hypr/scripts/usb-eject.sh"
+OPEN="$HOME/.config/hypr/scripts/usb-open.sh"
 REPAIR="$HOME/.config/hypr/scripts/usb-repair.sh"
 
 NOTIF_APP="USB"
@@ -89,6 +90,29 @@ rm -rf "$PENDING_DIR"
 mkdir -p -m 700 "$PENDING_DIR" || exit 1
 trap 'rm -rf "$PENDING_DIR"' EXIT
 
+# ── Caché de identidad: quién era el que se acaba de ir ──────────────────────
+# El `remove` de un usb_device NO trae ID_MODEL de forma fiable (el del nodo padre
+# casi nunca), y udev tampoco puede consultarlo: el dispositivo ya no está en
+# sysfs. De ahí el «dispositivo desconocido» que solo aparecía al DESCONECTAR,
+# mientras que al conectar el nombre salía bien. La única forma de saberlo es
+# haberlo guardado al ENCHUFAR, indexado por lo único que el remove sí trae
+# siempre: el DEVPATH (o sea, el puerto).
+#
+# A DIFERENCIA de los pendientes, este directorio NO se borra al arrancar ni en el
+# trap de salida, y es deliberado: recargar el monitor es `pkill` + relanzar (o
+# `hyprctl reload full-reset`), y borrar aquí dejaría sin nombre la futura
+# desconexión de todo lo que ya estuviera enchufado — justo el caso que esto
+# existe para arreglar. Un pendiente huérfano es un aviso que nadie reclamará
+# (basura activa); una entrada de caché huérfana es solo un nombre que quizá no
+# haga falta (basura pasiva). De las huérfanas se encarga prune_cache(), no un
+# `rm -rf`. Vive en XDG_RUNTIME_DIR y no en ~/.cache a propósito: los DEVPATH se
+# reutilizan entre arranques, así que sobrevivir al reboot sería nombrar el
+# puerto en vez del dispositivo.
+CACHE_DIR="${GIGIOS_USB_CACHE_DIR:-${XDG_RUNTIME_DIR:-/tmp}/gigios-usb-cache}"
+# Sin caché se sigue: esto es mejor texto, no un requisito de funcionamiento — de
+# ahí que aquí no haya el `|| exit 1` que sí lleva PENDING_DIR.
+mkdir -p -m 700 "$CACHE_DIR" 2>/dev/null || CACHE_DIR=""
+
 # Vencimiento de cada pendiente, en epoch y EN MEMORIA del proceso principal.
 #
 # Antes cada pendiente llevaba su propio `( sleep DEFER_SECS; … ) &`: el reloj vivía
@@ -108,6 +132,7 @@ declare -a pending_orden=()
 subsystem=""; action=""; devtype=""; devname=""; devpath=""
 vendor=""; model=""; ifaces=""; bus=""; fstype=""; fslabel=""
 pending_n=0
+cache_n=0
 
 reset_event() {
     subsystem=""; action=""; devtype=""; devname=""; devpath=""
@@ -147,6 +172,113 @@ event_label() {
         ev_label="dispositivo desconocido"; ev_known=0
     fi
 }
+
+# ── Caché: fichero, alta, búsqueda, baja y poda ───────────────────────────────
+# Formato del fichero (una línea por campo, como los pendientes, para leerlo con
+# `read` builtin y sin forks):
+#   1 DEVPATH  2 etiqueta  3 known(0|1)  4 idVendor:idProduct  5 disco (sdb)
+# El nombre del fichero es el DEVPATH codificado ('%'→%25, '/'→%2F): así el mismo
+# dispositivo siempre pisa su propia entrada y el acierto EXACTO no necesita
+# barrer el directorio. Los temporales llevan '.' delante, fuera del glob '*' —
+# el mismo truco que `.fired.*` en los pendientes; si no, se leerían como
+# entradas a medias.
+cache_file() { local d=${1//%/%25}; printf '%s' "$CACHE_DIR/${d//\//%2F}"; }
+
+# Alta (o mejora) de la identidad de un usb_device. Fusiona con lo que hubiera:
+# un nombre bueno ya guardado NUNCA se degrada a relleno.
+cache_put() {   # $1 devpath  $2 etiqueta  $3 known  [$4 disco]
+    local dev=$1 label=$2 known=${3:-0} disk=${4-} f tmp
+    local odev olabel oknown ovid odisk vid="" v="" p=""
+    [[ -n "$CACHE_DIR" && -n "$dev" ]] || return 0
+    f=$(cache_file "$dev")
+    if [[ -f "$f" ]]; then
+        { read -r odev; read -r olabel; read -r oknown; read -r ovid; read -r odisk; } < "$f"
+        [[ "$oknown" == 1 && "$known" != 1 ]] && { label=$olabel; known=1; }
+        vid=$ovid; [[ -n "$disk" ]] || disk=$odisk
+    fi
+    if [[ -z "$vid" ]]; then
+        # Sirve para detectar en el arranque que OTRO dispositivo ocupa este puerto
+        # (ver prune_cache). Solo existe en nodos usb_device; si no se puede leer,
+        # se degrada a comprobar únicamente que el path siga vivo.
+        [[ -r "/sys$dev/idVendor"  ]] && read -r v < "/sys$dev/idVendor"
+        [[ -r "/sys$dev/idProduct" ]] && read -r p < "/sys$dev/idProduct"
+        [[ -n "$v$p" ]] && vid="$v:$p"
+    fi
+    tmp="$CACHE_DIR/.tmp.$$.$((++cache_n))"
+    printf '%s\n%s\n%s\n%s\n%s\n' "$dev" "$label" "$known" "$vid" "$disk" > "$tmp" \
+        && mv "$tmp" "$f"
+}
+
+# Mejor identidad cacheada para un DEVPATH. Devuelve por globales; 0 = hubo
+# acierto. `cache_hit` es el DEVPATH de la entrada que acertó (lo usa el evento de
+# bloque para saber A QUIÉN enriquecer).
+#
+# El remove puede llegar por el nodo PADRE o por un HIJO, así que se casa por
+# prefijo en AMBAS direcciones, con esta precedencia:
+#   1. EXACTA.
+#   2. ANTECESOR más profundo — el evento llega por un nodo que nunca cacheamos.
+#      Sin ambigüedad: los antecesores de un path forman una cadena.
+#   3. DESCENDIENTE, y SOLO SI ES ÚNICO — el evento llega por el padre. Con dos o
+#      más, los candidatos son HERMANOS (hub con tres pendrives) y quedarse con
+#      uno sería ponerle a un dispositivo el nombre de otro, sin ningún error
+#      visible. Con ≥2 no se devuelve nada, y no se pierde nada: ese pendiente del
+#      padre lo descarta igualmente la fusión de defer_usb_removal.
+cache_label=""; cache_known=0; cache_hit=""
+cache_lookup() {
+    local dev=$1 f sdev slabel sknown
+    local best="" blabel="" bknown=0 desc=0 ddev="" dlabel="" dknown=0
+    cache_label=""; cache_known=0; cache_hit=""
+    [[ -n "$CACHE_DIR" && -n "$dev" ]] || return 1
+    for f in "$CACHE_DIR"/*; do
+        [[ -f "$f" ]] || continue
+        { read -r sdev; read -r slabel; read -r sknown; } < "$f" || continue
+        [[ -n "$sdev" ]] || continue
+        if [[ "$dev" == "$sdev" ]]; then
+            cache_label=$slabel; cache_known=$sknown; cache_hit=$sdev; return 0
+        elif [[ "$dev" == "$sdev"/* ]]; then
+            (( ${#sdev} > ${#best} )) && { best=$sdev; blabel=$slabel; bknown=$sknown; }
+        elif [[ "$sdev" == "$dev"/* ]]; then
+            (( ++desc )); ddev=$sdev; dlabel=$slabel; dknown=$sknown
+        fi
+    done
+    if [[ -n "$best" ]]; then
+        cache_label=$blabel; cache_known=$bknown; cache_hit=$best; return 0
+    fi
+    (( desc == 1 )) && { cache_label=$dlabel; cache_known=$dknown; cache_hit=$ddev; return 0; }
+    return 1
+}
+
+# Baja de ESTE devpath y de NADA MÁS. Borrar el subárbol sería el bug: si el
+# `remove` del hub llega antes que el de sus pendrives (el orden no está
+# garantizado), se llevaría por delante los nombres de los tres. Como el kernel
+# emite un remove por CADA usb_device, cada entrada se borra sola con el suyo.
+cache_drop() {
+    local dev=$1
+    [[ -n "$CACHE_DIR" && -n "$dev" ]] || return 0
+    rm -f "$(cache_file "$dev")"
+}
+
+# Poda, UNA sola vez al arrancar. Lo único que puede dejar huérfanas es un monitor
+# parado mientras se desenchufaba algo, y el directorio tiene tantas entradas como
+# dispositivos USB haya (decenas como mucho). Dos criterios: el path ya no existe,
+# o existe pero lo ocupa OTRO dispositivo — mismo puerto, pendrive distinto,
+# enchufado con el monitor parado; su `add` tampoco se vio, así que sin este
+# chequeo se anunciaría el nombre del anterior.
+prune_cache() {
+    local f dev vid v p
+    [[ -n "$CACHE_DIR" ]] || return 0
+    for f in "$CACHE_DIR"/*; do
+        [[ -f "$f" ]] || continue
+        { read -r dev; read -r _; read -r _; read -r vid; } < "$f" || { rm -f "$f"; continue; }
+        [[ -n "$dev" && -d "/sys$dev" ]] || { rm -f "$f"; continue; }
+        [[ -n "$vid" ]] || continue          # sin vid:pid no hay con qué comparar
+        v=""; p=""
+        [[ -r "/sys$dev/idVendor"  ]] && read -r v < "/sys$dev/idVendor"
+        [[ -r "/sys$dev/idProduct" ]] && read -r p < "/sys$dev/idProduct"
+        [[ "$vid" == "$v:$p" ]] || rm -f "$f"
+    done
+}
+prune_cache
 
 # Los pendientes se claman con un `mv` a `.fired.*`, un nombre que NO casa con
 # los globs `c.*`/`r.*`: así un aviso ya reclamado no puede volver a aparecer
@@ -291,11 +423,19 @@ next_deadline_wait() {
 # idiom que download_alert() en oom-monitor.sh.
 notify_storage() {
     local disk=$1 name=$2
+    # "Abrir" va PRIMERA a propósito: el shell trata la primera acción visible como
+    # la principal, que es la que se ejecuta al hacer clic derecho sobre el popup —
+    # y abrir el USB es lo que se quiere hacer nada más enchufarlo; expulsar viene
+    # después. notify-send --wait imprime en stdout el id de la acción pulsada, de
+    # ahí el `case` (con dos acciones un `[[ == ]]` ya no vale).
     ( act=$(notificar usb.almacenamiento --wait -t 20000 \
-              -u normal -A "eject=⏏️ Expulsar" \
-              "💾 Almacenamiento USB conectado" \
-              "$name — expúlsalo antes de retirarlo para no perder datos.")
-      [[ "$act" == "eject" ]] && [[ -x "$EJECT" ]] && "$EJECT" "$disk" ) &
+              -u normal -A "open=Abrir" -A "eject=Expulsar" \
+              "Almacenamiento USB conectado" \
+              "$name")
+      case "$act" in
+          open)  [[ -x "$OPEN"  ]] && "$OPEN"  "$disk" ;;
+          eject) [[ -x "$EJECT" ]] && "$EJECT" "$disk" ;;
+      esac ) &
 }
 
 # ¿Viene el volumen sucio (se retiró sin expulsar, aquí o en otra máquina)?
@@ -342,7 +482,7 @@ check_volume() {
 
       act=$(notificar usb.volumen-con-errores --wait -t 30000 \
               -u critical -A "repair=🔧 Reparar" \
-              "⚠️ Volumen con errores" \
+              "Volumen con errores" \
               "«$name» ($fs) no está limpio y ya está montado — repáralo cuando dejes de usarlo.")
       [[ "$act" == "repair" ]] && [[ -x "$REPAIR" ]] && "$REPAIR" "/dev/$part" ) &
 }
@@ -394,10 +534,32 @@ while :; do
                 event_label
                 case "$action" in
                     add)
+                        # Se cachea SIEMPRE, sea o no almacenamiento y aunque el
+                        # aviso se calle: esto no alimenta el popup de conexión,
+                        # alimenta el de DESCONEXIÓN, que es el que no tiene de
+                        # dónde sacar el nombre.
+                        cache_put "$devpath" "$ev_label" "$ev_known"
                         [[ "$is_storage" == false ]] && \
                             defer_usb_notice "$devpath" "$ev_label"
                         ;;
                     remove)
+                        # El nombre se recupera ANTES de encolar el pendiente, no
+                        # al vencer: así la fusión ve un `known=1` de entrada y no
+                        # le cuela al primer pendrive la etiqueta del HUB cuando el
+                        # remove del hub llega primero (rama «el entrante desciende
+                        # de un pendiente» de defer_usb_removal, que rellena el
+                        # nombre del entrante con el del pendiente si venía sin él).
+                        # Al vencer tampoco se podría: fire_due_pendings ya no
+                        # conoce los DEVPATH de los eventos absorbidos.
+                        #
+                        # El EVENTO manda si trae nombre: la caché es una foto de un
+                        # PUERTO y el evento es el dato vivo. Y una entrada con
+                        # known=0 no se usa: sería cambiar relleno por relleno.
+                        if [[ "$ev_known" != 1 ]] && cache_lookup "$devpath" \
+                           && [[ "$cache_known" == 1 ]]; then
+                            ev_label=$cache_label; ev_known=1
+                        fi
+                        cache_drop "$devpath"
                         cancel_usb_notice "$devpath"
                         defer_usb_removal "$devpath" "$ev_label" "$ev_known"
                         ;;
@@ -411,8 +573,27 @@ while :; do
                     disk)
                         # Un disco siempre aparece, aunque no tenga particiones ni fs
                         # legible — por eso el aviso cuelga de aquí y no de la partición.
-                        notify_storage "$(basename "$devname")" \
-                            "${vendor:+$vendor }${model:-Disco USB}"
+                        blabel="${vendor:+$vendor }${model:-Disco USB}"
+                        # Se enriquece la caché del usb_device del que cuelga este
+                        # bloque: es el antecesor cacheado MÁS PROFUNDO, y por
+                        # construcción hay uno solo — no hace falta parsear el path
+                        # (`${d%/*:*.*/*}` es la tentación y está MAL: en expansión
+                        # de parámetros `*` cruza `/`, así que `pci0000:00/...`
+                        # también casa y el corte se va al puente PCI). Cubre el
+                        # caso que ya documenta la cabecera: el `add` del usb_device
+                        # puede llegar con las propiedades a medias y sin ID_MODEL,
+                        # y el del bloque sí trae modelo.
+                        if cache_lookup "$devpath" && [[ -n "$cache_hit" ]]; then
+                            if [[ "$cache_known" == 1 ]]; then
+                                cache_put "$cache_hit" "$cache_label" 1 "${devname##*/}"
+                            elif [[ -n "$model" ]]; then
+                                # Con el usb_device ya nombrado NO se pisa: el
+                                # ID_MODEL del bloque sale de un INQUIRY SCSI
+                                # truncado a 16 caracteres y es peor nombre.
+                                cache_put "$cache_hit" "$blabel" 1 "${devname##*/}"
+                            fi
+                        fi
+                        notify_storage "$(basename "$devname")" "$blabel"
                         ;;
                     partition)
                         [[ -n "$fstype" ]] && \

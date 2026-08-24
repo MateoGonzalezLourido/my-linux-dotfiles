@@ -42,6 +42,13 @@ export type DedupKeySpec =
 export interface EffectSpec {
   lifetime?: Lifetime
   ttlMs?: number
+  /** Cuánto dura EL POPUP en pantalla, en ms. No confundir con `ttlMs`, que es lo que la
+   *  notificación vive en el PANEL: son dos relojes distintos y ninguno implica al otro.
+   *  Ausente = decide `popup/logica.ts` con los valores por defecto de Ajustes > General.
+   *  Un valor aquí GANA a esos defaults y al `expire_timeout` del emisor —es la forma de
+   *  decir «este aviso concreto, 3 s»—, y solo se acota a [1 s, 60 s] para que un 0 o un
+   *  valor absurdo del JSON no deje el popup clavado ni lo haga invisible. */
+  popupMs?: number
   clearOnBoot?: boolean
   noHistory?: boolean
   suppress?: boolean
@@ -98,6 +105,10 @@ export interface NotifMeta {
   matchedRules: string[]
   color?: string // accent color from the highest-priority matched rule, baked at ingest
   style?: PopupStyle // popup skin from the highest-priority matched rule, baked at ingest
+  /** Duración del popup en ms fijada por la regla ganadora (ver `EffectSpec.popupMs`).
+   *  Se hornea en la meta al ingerir para que la pila de popups no tenga que volver a
+   *  evaluar reglas —ni dependa de que sigan existiendo— al programar el descarte. */
+  popupMs?: number
 }
 
 export interface EvalResult {

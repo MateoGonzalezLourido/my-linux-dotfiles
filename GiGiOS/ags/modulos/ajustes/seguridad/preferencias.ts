@@ -90,6 +90,25 @@ const DL_PAUSE_DEFAULTS: Record<DlPauseKey, boolean> = {
 const dlPauseStates = {} as Record<DlPauseKey, ReturnType<typeof createState<boolean>>>
 for (const k of DL_PAUSE_KEYS) dlPauseStates[k] = createState(DL_PAUSE_DEFAULTS[k])
 
+// ── Firmas de ClamAV: actualizar al iniciar sesión ──────────────────────────
+// UN BOOLEANO, y **ningún temporizador**. Antes esta fila encendía y apagaba
+// `clamav-freshclam.service`: el estado vivía en systemd y la actualización ocurría POR
+// PERIODO, corriera o no falta, también con el equipo sin hacer nada. Ahora el estado es
+// del usuario y vive aquí, y quien actualiza es `hypr/scripts/actualizar-firmas.sh --auto`
+// **una sola vez, al arrancar Hyprland** (`gigios/autostart.lua`), y solo si la base falta
+// o pasa de un día. Durante la sesión no hay reloj, ni servicio, ni reintentos por barrido:
+// si un análisis se queda sin motor, los escáneres ofrecen un botón y decide el usuario.
+// En el arranque no se notifica nada — el interruptor promete que se hace solo.
+//
+// Lo lee desde bash `lib/firmas.sh` con jq, comprobando `has()` en vez de `//` — ver el
+// comentario de `dlPauseWhileGaming`, mismo tropiezo. Por defecto ACTIVADO: sin base de
+// firmas el escáner de descargas no da NADA por analizado, así que el fallo seguro es
+// actualizar.
+const CLAMAV_AUTO_DEFAULT = true
+const [clamavAutoUpdateState, _setClamavAutoUpdatePref] = createState(CLAMAV_AUTO_DEFAULT)
+/** Estado reactivo de "actualizar las firmas de ClamAV al iniciar sesión" (para binds en JSX). */
+export const clamavAutoUpdatePref = clamavAutoUpdateState
+
 const DL_MAX_GB_DEFAULT = 1
 const [dlMaxScanGBState, _setDlMaxScanGB] = createState(DL_MAX_GB_DEFAULT)
 /** Estado reactivo del tope de tamaño en GB (para binds en JSX). */
@@ -108,6 +127,7 @@ function load() {
       if (typeof saved[k] === "boolean") dlPauseStates[k][1](saved[k])
     }
     if (typeof saved.dlMaxScanGB === "number" && saved.dlMaxScanGB > 0) _setDlMaxScanGB(saved.dlMaxScanGB)
+    if (typeof saved.clamavAutoUpdate === "boolean") _setClamavAutoUpdatePref(saved.clamavAutoUpdate)
   } catch (_) { /* ausente o corrupto → nos quedamos con los defaults (todo ON) */ }
 }
 
@@ -120,6 +140,7 @@ function save() {
     for (const k of KEYS) config[k] = states[k][0].get()
     for (const k of DL_PAUSE_KEYS) config[k] = dlPauseStates[k][0].get()
     config.dlMaxScanGB = dlMaxScanGBState.get()
+    config.clamavAutoUpdate = clamavAutoUpdateState.get()
     GLib.file_set_contents(SEC_PATH, JSON.stringify(config, null, 2))
   } catch (_) { /* un fallo de escritura no debe romper la UI */ }
 }
@@ -145,6 +166,17 @@ export function setDlPauseEnabled(k: DlPauseKey, on: boolean) {
   dlPauseStates[k][1](on)
   save()
 }
+/**
+ * Enciende o apaga "actualizar las firmas al iniciar sesión" y persiste. Solo escribe el
+ * booleano: lo lee el script del autostart en el PRÓXIMO arranque, así que aquí no se lanza nada
+ * ni se programa nada. Quien quiera actualizar AHORA usa el botón de la tarjeta (servicios/
+ * seguridad/clamav.ts → `updateClamavDb`).
+ */
+export function setClamavAutoUpdatePref(on: boolean) {
+  _setClamavAutoUpdatePref(on)
+  save()
+}
+
 /** Fija el tope de tamaño en GB (>0) y persiste; ignora valores inválidos. */
 export function setDlMaxScanGB(v: number) {
   const n = Number.isFinite(v) && v > 0 ? v : DL_MAX_GB_DEFAULT

@@ -5,6 +5,9 @@ import ElementoPopup from "./ElementoPopup.tsx"
 import { calcularDuracionPopup } from "./logica.ts"
 import { canFitPopup } from "./disposicion.ts"
 import { notifPanelVisible, type StoredNotification } from "../store"
+import {
+  popupDuracionNormalMs, popupDuracionSistemaMs, popupDuracionAccionesMs,
+} from "../../ajustes/preferences.ts"
 
 const MAXIMO_POPUPS = 5
 const ANCHO_POPUP = 360
@@ -58,9 +61,17 @@ function iniciarDescarte(id: number): void {
 }
 
 function programarDescarte(notificacion: StoredNotification): void {
+  // Las duraciones se leen AQUÍ, al programar el descarte, y no se suscriben: cambiarlas en
+  // Ajustes afecta a los popups siguientes, no al que ya está en pantalla con su temporizador
+  // en marcha. Reprogramar los vivos sería más ruido que valor —el popup se descarta solo en
+  // segundos— y obligaría a guardar el instante de inicio de cada uno.
   const temporizador = GLib.timeout_add(
     GLib.PRIORITY_DEFAULT,
-    calcularDuracionPopup(notificacion),
+    calcularDuracionPopup(notificacion, {
+      normal: popupDuracionNormalMs.get(),
+      sistema: popupDuracionSistemaMs.get(),
+      conAcciones: popupDuracionAccionesMs.get(),
+    }),
     () => {
       iniciarDescarte(notificacion.id)
       return GLib.SOURCE_REMOVE

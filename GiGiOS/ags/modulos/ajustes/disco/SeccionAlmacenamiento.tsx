@@ -22,19 +22,20 @@ import {
 } from "../componentes"
 import {
   ACCIONES, ACCIONES_AUTOMATIZABLES, agrupar, accion as buscarAccion,
-  analisisCaducado, estimarLiberable, type FilaCategoria, type IdAccion,
+  estimarLiberable, type Estimacion, type FilaCategoria, type IdAccion,
 } from "../../../servicios/disco/catalogo"
-import {
-  ANALISIS_VACIO, analizar, leerCache, type Analisis, type App, type Disco,
-} from "../../../servicios/disco/analisis"
-import { ejecutarLimpieza, type ResultadoLimpieza } from "../../../servicios/disco/limpieza"
+import type { Analisis, App, Disco } from "../../../servicios/disco/analisis"
+import type { ResultadoLimpieza } from "../../../servicios/disco/limpieza"
 import { formatearBytes, formatearFecha, fraccionUso, severidadUso } from "../../../servicios/disco/formato"
 import {
-  accionAutomatica, autoLimpieza, diasDescargas, diasPapelera, intervaloHoras,
-  limpiarAhora, notificarLimpieza, retenerJournal, setAccionAutomatica, setAutoLimpieza,
-  setDiasDescargas, setDiasPapelera, setIntervaloHoras, setNotificarLimpieza,
-  setRetenerJournal, setUmbralUso, umbralUso,
+  accionAutomatica, autoLimpieza, descargasAPapelera, diasDescargas, diasPapelera,
+  intervaloHoras, notificarLimpieza, retenerJournal,
+  setAccionAutomatica, setAutoLimpieza, setDescargasAPapelera, setDiasDescargas, setDiasPapelera,
+  setIntervaloHoras, setNotificarLimpieza, setRetenerJournal, setUmbralUso, umbralUso,
 } from "../../../servicios/disco/preferencias"
+import { usarAnalisis } from "./usarAnalisis"
+import { autolimpiezaEnCurso, ejecutarAutolimpieza, usarLimpiezas, type Limpiezas } from "./usarLimpiezas"
+import RutasPersonalizadas, { RutasProtegidas } from "./RutasPersonalizadas"
 import CampoNumerico from "../pantalla/CampoNumerico"
 import textos from "../../../textos/ajustes/almacenamiento.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
@@ -44,37 +45,13 @@ type VistaAlmacenamiento = "uso" | "limpieza"
 /** Cuántas aplicaciones se enseñan antes de "Ver más". */
 const APPS_VISIBLES = 12
 
-// ── Análisis compartido por las dos vistas ───────────────────────────────────
+// ── Análisis compartido ──────────────────────────────────────────────────────
 //
-// Cada visita a la sección lanza su propio análisis y lo tira al salir: no hay estado a nivel de
-// módulo. Es lo que hace que cerrar Ajustes no deje nada corriendo, y el coste de reanalizar ya
-// está cubierto por la caché de disco.
-function usarAnalisis(): [Accessor<Analisis>, Accessor<boolean>, () => void] {
-  const cacheado = leerCache()
-  const [analisis, setAnalisis] = createState<Analisis>(cacheado ?? ANALISIS_VACIO)
-  const [analizando, setAnalizando] = createState(false)
-
-  // El análisis de fondo puede terminar con la sección ya desmontada: sin la guarda, el `set`
-  // reconstruiría widgets que ya no existen. Mismo apaño que `SeccionSistema`.
-  let vivo = true
-  onCleanup(() => { vivo = false })
-
-  const refrescar = () => {
-    setAnalizando(true)
-    analizar()
-      .then(nuevo => { if (vivo) setAnalisis(nuevo) })
-      .catch(() => { /* el análisis anterior sigue siendo lo mejor que tenemos */ })
-      .finally(() => { if (vivo) setAnalizando(false) })
-  }
-
-  // Al montar NO se reanaliza si la medida es reciente. Antes se lanzaba siempre, así que abrir
-  // Ajustes y pasar de «Almacenamiento» a «Liberar espacio» costaba dos análisis completos
-  // (~0,6 s de reloj y ~0,7 s de CPU cada uno) para volver a medir lo mismo. `refrescar` sigue
-  // disponible sin condiciones para el botón y para el «después de limpiar».
-  if (analisisCaducado(analisis.get().epoch, Math.floor(Date.now() / 1000))) refrescar()
-
-  return [analisis, analizando, refrescar]
-}
+// Vive en `usarAnalisis.ts`, a nivel de módulo y con contador de referencias, porque `SettingsPanel`
+// se instancia una vez por MONITOR: con el estado aquí dentro, dos pantallas lanzaban dos análisis
+// completos del sistema de ficheros para medir lo mismo. Cerrar Ajustes sigue sin dejar nada vivo
+// —al soltar la última referencia se descarta el resultado y se da de baja la suscripción—, y el
+// coste de reconstruir está cubierto por la caché de disco. El porqué completo, allí.
 
 // ── Piezas ───────────────────────────────────────────────────────────────────
 
@@ -114,30 +91,16 @@ function BarraDisco({ disco }: { disco: Disco }) {
  * El resultado se pinta EN LA PROPIA FILA y no en un aviso global: con doce botones, un mensaje
  * arriba del todo no dice cuál de ellos acaba de terminar. Y el botón se deshabilita mientras
  * corre porque varias limpiezas tardan segundos sin dar señal de vida.
+ *
+ * El estado (ocupado / resultado) NO vive aquí sino en `usarLimpiezas`, por encima del `<With>`
+ * que reconstruye estas filas cuando entra un análisis nuevo. Ver la cabecera de ese módulo.
  */
-function FilaCategoriaVista({ fila, tras }: { fila: FilaCategoria; tras: () => void }) {
-  const meta = fila.categoria.accion ? buscarAccion(fila.categoria.accion) : undefined
-  const [ocupado, setOcupado] = createState(false)
-  const [resultado, setResultado] = createState<ResultadoLimpieza | null>(null)
-
-  let vivo = true
-  onCleanup(() => { vivo = false })
-
-  const limpiar = () => {
-    if (!fila.categoria.accion || ocupado.get()) return
-    setOcupado(true)
-    setResultado(null)
-    ejecutarLimpieza(fila.categoria.accion).then(r => {
-      if (!vivo) return
-      setOcupado(false)
-      setResultado(r)
-      // Un reanálisis tras cada limpieza, y no una resta local sobre la cifra que había: el
-      // espacio liberado que devuelve el script es el de ESA categoría, pero varias se solapan
-      // (miniaturas y desarrollo viven dentro de ~/.cache), así que restar dejaría al desglose
-      // contradiciéndose consigo mismo.
-      if (r.estado === "ok") tras()
-    })
-  }
+function FilaCategoriaVista({ fila, limpiezas }: { fila: FilaCategoria; limpiezas: Limpiezas }) {
+  const id = fila.categoria.accion
+  const meta = id ? buscarAccion(id) : undefined
+  const ocupado = limpiezas.ocupadas((set: ReadonlySet<IdAccion>) => id ? set.has(id) : false)
+  const resultado = limpiezas.resultados((mapa: ReadonlyMap<IdAccion, ResultadoLimpieza>) =>
+    id ? mapa.get(id) ?? null : null)
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["dev-row", "alm-fila"]} spacing={4}>
@@ -147,10 +110,25 @@ function FilaCategoriaVista({ fila, tras }: { fila: FilaCategoria; tras: () => v
           <label cssClasses={["sp-field-label"]} label={fila.categoria.nombre} halign={Gtk.Align.START} />
           <TextoInformativo label={fila.categoria.descripcion} wrap xalign={0} maxWidthChars={56} />
         </box>
-        <label cssClasses={["alm-tamano"]} label={formatearBytes(fila.bytes)} valign={Gtk.Align.START} />
-        {meta ? (
+        {/* Dos cifras, y la de abajo es la que importa al decidir: lo que OCUPA y lo que se
+            LIBERARÍA. Solo se enseña la segunda cuando difiere de la primera, que es cuando dice
+            algo — en «Miniaturas» las dos son iguales y repetirlas sería ruido. Sin esto, ver
+            «Registros · 100 MiB» con un botón al lado hace pensar que pulsarlo devuelve 100 MiB,
+            cuando la retención configurada deja el journal justo como está. */}
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={1} valign={Gtk.Align.START}>
+          <label cssClasses={["alm-tamano"]} label={formatearBytes(fila.bytes)} halign={Gtk.Align.END} />
+          {meta ? (
+            <label
+              cssClasses={["alm-liberable", fila.liberable ? "algo" : "nada"]}
+              halign={Gtk.Align.END}
+              visible={fila.liberable !== fila.bytes}
+              label={textoLiberable(fila.liberable)}
+            />
+          ) : <box />}
+        </box>
+        {meta && id ? (
           <BotonAjustes
-            onClicked={limpiar}
+            onClicked={() => limpiezas.ejecutar(id)}
             sensitive={ocupado((esta: boolean) => !esta)}
             tooltipText={meta.descripcion}
           >
@@ -169,9 +147,37 @@ function FilaCategoriaVista({ fila, tras }: { fila: FilaCategoria; tras: () => v
   )
 }
 
+/**
+ * La frase de la estimación. Tres casos y no uno, porque los tres significan cosas distintas:
+ * una cifra exacta, un suelo (hay marcada alguna limpieza que no se puede medir de antemano —hoy
+ * solo Flatpak—) y "nada que liberar". Redondear los tres a «se liberarían unos 0 B» es lo que
+ * hace que la gente deje de creerse el panel.
+ */
+function textoEstimacion(estimacion: Estimacion): string {
+  if (estimacion.bytes <= 0) {
+    return estimacion.completa
+      ? textos.auto.estimacionNada
+      : formatearTexto(textos.auto.estimacionParcial, { tamano: formatearBytes(0) })
+  }
+  const plantilla = estimacion.completa ? textos.auto.estimacion : textos.auto.estimacionParcial
+  return formatearTexto(plantilla, { tamano: formatearBytes(estimacion.bytes) })
+}
+
+/** «Libera 3,4 GB» / «No libera nada ahora mismo» / «No se puede calcular…». */
+function textoLiberable(liberable: number | null): string {
+  if (liberable === null) return textos.seccion.liberariaDesconocido
+  if (liberable <= 0) return textos.seccion.liberariaNada
+  return formatearTexto(textos.seccion.liberaria, { tamano: formatearBytes(liberable) })
+}
+
 function textoResultado(r: ResultadoLimpieza): string {
   switch (r.estado) {
     case "ok":
+      // Un `ok` CON mensaje lo enseña tal cual. Lo usa hoy «mandar las descargas a la papelera»,
+      // que termina bien pero con `liberado: 0` —mover no libera disco—: sin esta rama la fila
+      // habría dicho «No había nada que liberar» justo después de mover 5 GB, que es lo contrario
+      // de lo que ha pasado.
+      if (r.mensaje) return r.mensaje
       return r.liberado > 0
         ? formatearTexto(textos.estados.liberado, { tamano: formatearBytes(r.liberado) })
         : textos.estados.nada
@@ -291,6 +297,7 @@ function CatalogoApps({ apps }: { apps: Accessor<App[]> }) {
 
 function VistaUso() {
   const [analisis, analizando, refrescar] = usarAnalisis()
+  const limpiezas = usarLimpiezas()
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section", "alm-section"]} hexpand>
@@ -328,10 +335,10 @@ function VistaUso() {
                 {a.discos.map(disco => <BarraDisco disco={disco} />)}
               </TarjetaAjustes>
               <TarjetaAjustes titulo={textos.grupos.sistema} icono="󰒓">
-                {grupos.sistema.map(fila => <FilaCategoriaVista fila={fila} tras={refrescar} />)}
+                {grupos.sistema.map(fila => <FilaCategoriaVista fila={fila} limpiezas={limpiezas} />)}
               </TarjetaAjustes>
               <TarjetaAjustes titulo={textos.grupos.personal} icono="󰋜">
-                {grupos.personal.map(fila => <FilaCategoriaVista fila={fila} tras={refrescar} />)}
+                {grupos.personal.map(fila => <FilaCategoriaVista fila={fila} limpiezas={limpiezas} />)}
               </TarjetaAjustes>
               <CatalogoApps apps={analisis((x: Analisis) => x.apps)} />
             </box>
@@ -342,25 +349,10 @@ function VistaUso() {
   )
 }
 
-function AccionManual({ id, tras }: { id: IdAccion; tras: () => void }) {
+function AccionManual({ id, limpiezas }: { id: IdAccion; limpiezas: Limpiezas }) {
   const meta = buscarAccion(id)!
-  const [ocupado, setOcupado] = createState(false)
-  const [resultado, setResultado] = createState<ResultadoLimpieza | null>(null)
-
-  let vivo = true
-  onCleanup(() => { vivo = false })
-
-  const ejecutar = () => {
-    if (ocupado.get()) return
-    setOcupado(true)
-    setResultado(null)
-    ejecutarLimpieza(id).then(r => {
-      if (!vivo) return
-      setOcupado(false)
-      setResultado(r)
-      if (r.estado === "ok") tras()
-    })
-  }
+  const ocupado = limpiezas.ocupadas((set: ReadonlySet<IdAccion>) => set.has(id))
+  const resultado = limpiezas.resultados((mapa: ReadonlyMap<IdAccion, ResultadoLimpieza>) => mapa.get(id) ?? null)
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["dev-row"]}>
@@ -371,7 +363,7 @@ function AccionManual({ id, tras }: { id: IdAccion; tras: () => void }) {
         </box>
         <BotonAjustes
           variante={meta.peligrosa ? "secundario" : "principal"}
-          onClicked={ejecutar}
+          onClicked={() => limpiezas.ejecutar(id)}
           sensitive={ocupado((esta: boolean) => !esta)}
         >
           <label label={ocupado((esta: boolean) => esta ? textos.estados.limpiando : meta.etiqueta)} />
@@ -387,12 +379,9 @@ function AccionManual({ id, tras }: { id: IdAccion; tras: () => void }) {
 }
 
 function VistaLimpieza() {
-  const [analisis, , refrescar] = usarAnalisis()
+  const [analisis] = usarAnalisis()
   const [marcadas, setMarcadas] = createState(ACCIONES_AUTOMATIZABLES.filter(id => accionAutomatica(id).get()))
-  const [ejecutando, setEjecutando] = createState(false)
-
-  let vivo = true
-  onCleanup(() => { vivo = false })
+  const limpiezas = usarLimpiezas()
 
   const alternar = (id: IdAccion) => {
     const nuevo = !accionAutomatica(id).get()
@@ -400,18 +389,6 @@ function VistaLimpieza() {
     // La estimación se recalcula desde la lista de marcadas, no suscribiéndose a los doce
     // accessors: un solo state que se reemite una vez por clic en vez de doce recomputaciones.
     setMarcadas(ACCIONES_AUTOMATIZABLES.filter(otro => accionAutomatica(otro).get()))
-  }
-
-  const ejecutarAhora = () => {
-    if (ejecutando.get()) return
-    setEjecutando(true)
-    limpiarAhora()
-      .catch(() => {})
-      .finally(() => {
-        if (!vivo) return
-        setEjecutando(false)
-        refrescar()
-      })
   }
 
   return (
@@ -457,6 +434,14 @@ function VistaLimpieza() {
         <FilaAjuste titulo={textos.auto.diasDescargas.titulo} informacion={textos.auto.diasDescargas.descripcion}>
           <CampoNumerico valor={diasDescargas} minimo={0} maximo={3650} caracteres={4} relleno={1} alConfirmar={setDiasDescargas} />
         </FilaAjuste>
+        {/* Va pegado a los días de Descargas porque solo matiza a esa acción, no a las once
+            restantes: es la única que toca ficheros que pusiste tú a mano. */}
+        <AjusteInterruptor
+          titulo={textos.auto.descargasAPapelera.titulo}
+          informacion={textos.auto.descargasAPapelera.descripcion}
+          activo={descargasAPapelera}
+          alAlternar={() => setDescargasAPapelera(!descargasAPapelera.get())}
+        />
         <AjusteInterruptor
           titulo={textos.auto.notificar.titulo}
           informacion={textos.auto.notificar.descripcion}
@@ -491,27 +476,35 @@ function VistaLimpieza() {
               al desglose de la vista de al lado hasta que tocaras una casilla. */}
           <TextoInformativo
             label={createComputed([analisis, marcadas], (a: Analisis, activas: IdAccion[]) =>
-              formatearTexto(textos.auto.estimacion, {
-                tamano: formatearBytes(estimarLiberable(a.categorias, activas)),
-              }))}
+              textoEstimacion(estimarLiberable(a.categorias, activas)))}
             wrap
             xalign={0}
             maxWidthChars={62}
           />
           <BotonAjustes
             variante="principal"
-            onClicked={ejecutarAhora}
-            sensitive={ejecutando((esta: boolean) => !esta)}
+            onClicked={ejecutarAutolimpieza}
+            sensitive={autolimpiezaEnCurso((esta: boolean) => !esta)}
             halign={Gtk.Align.START}
           >
-            <label label={ejecutando((esta: boolean) => esta ? textos.estados.limpiando : textos.auto.ejecutar)} />
+            <label label={autolimpiezaEnCurso((esta: boolean) => esta ? textos.estados.limpiando : textos.auto.ejecutar)} />
           </BotonAjustes>
         </box>
       </TarjetaAjustes>
 
+      <TarjetaAjustes titulo={textos.auto.rutas.titulo} icono="󰉋">
+        <RutasPersonalizadas />
+      </TarjetaAjustes>
+
+      {/* Va DESPUÉS de la lista de borrar, y no al principio de la vista, porque solo se entiende
+          cuando ya sabes qué se limpia: es la excepción a todo lo de arriba, no un ajuste más. */}
+      <TarjetaAjustes titulo={textos.auto.protegidas.titulo} icono="󰦝">
+        <RutasProtegidas />
+      </TarjetaAjustes>
+
       {/* Manual: TODAS las acciones, también las que piden contraseña y por eso no salen arriba. */}
       <TarjetaAjustes titulo={textos.vistas.limpieza} icono="󰩹">
-        {ACCIONES.map(meta => <AccionManual id={meta.id} tras={refrescar} />)}
+        {ACCIONES.map(meta => <AccionManual id={meta.id} limpiezas={limpiezas} />)}
       </TarjetaAjustes>
     </box>
   )

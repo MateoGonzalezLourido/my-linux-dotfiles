@@ -9,7 +9,10 @@
     "ultimoAnalisis": "Último análisis: {{fecha}}",
     "sinAnalisis": "Todavía no se ha analizado este equipo.",
     "libreDe": "{{libre}} libres de {{total}}",
-    "usadoPorcentaje": "{{porcentaje}} % usado"
+    "usadoPorcentaje": "{{porcentaje}} % usado",
+    "liberaria": "Libera {{tamano}}",
+    "liberariaNada": "No libera nada ahora mismo",
+    "liberariaDesconocido": "No se puede calcular lo que liberaría"
   },
   "grupos": {
     "discos": "Discos",
@@ -52,7 +55,7 @@
     },
     "cacheUsuario": {
       "nombre": "Caché de aplicaciones",
-      "descripcion": "~/.cache. Se respetan las cachés de shaders de la GPU y las de GiGiOS: reconstruirlas cuesta más de lo que liberan."
+      "descripcion": "~/.cache. Se respetan las de GiGiOS y todo lo que tiene su propio botón: AUR, miniaturas, desarrollo y sombreadores."
     },
     "miniaturas": {
       "nombre": "Miniaturas",
@@ -62,19 +65,42 @@
       "nombre": "Cachés de desarrollo",
       "descripcion": "npm, pip, Go y Cargo. Se rellenan desde la red y nunca contienen nada que hayas escrito."
     },
+    "cacheSombreadores": {
+      "nombre": "Caché de sombreadores",
+      "descripcion": "Shaders ya compilados por los drivers de la GPU y el shadercache de Steam. Borrarlos no pierde nada, pero se recompilan —y se redescargan— la próxima vez."
+    },
     "papelera": {
       "nombre": "Papelera",
       "descripcion": "Lo que has borrado y todavía se puede recuperar."
     },
     "descargas": {
       "nombre": "Descargas",
-      "descripcion": "Tu carpeta de descargas. La limpieza solo actúa si le fijas una antigüedad, y manda los archivos a la papelera."
+      "descripcion": "Tu carpeta de descargas. La limpieza solo actúa si le fijas una antigüedad, y borra los archivos salvo que actives mandarlos a la papelera."
     },
-    "documentos": { "nombre": "Documentos", "descripcion": "Informativo: no se limpia desde aquí." },
-    "imagenes": { "nombre": "Imágenes", "descripcion": "Informativo: no se limpia desde aquí." },
-    "videos": { "nombre": "Vídeos", "descripcion": "Informativo: no se limpia desde aquí." },
-    "musica": { "nombre": "Música", "descripcion": "Informativo: no se limpia desde aquí." },
-    "escritorio": { "nombre": "Escritorio", "descripcion": "Informativo: no se limpia desde aquí." }
+    "documentos": {
+      "nombre": "Documentos",
+      "descripcion": "Informativo: no se limpia desde aquí."
+    },
+    "imagenes": {
+      "nombre": "Imágenes",
+      "descripcion": "Informativo: no se limpia desde aquí."
+    },
+    "videos": {
+      "nombre": "Vídeos",
+      "descripcion": "Informativo: no se limpia desde aquí."
+    },
+    "musica": {
+      "nombre": "Música",
+      "descripcion": "Informativo: no se limpia desde aquí."
+    },
+    "escritorio": {
+      "nombre": "Escritorio",
+      "descripcion": "Informativo: no se limpia desde aquí."
+    },
+    "rutasPersonalizadas": {
+      "nombre": "Lo que tú elijas",
+      "descripcion": "Las rutas que añadas abajo. De una carpeta se borra todo lo que hay dentro; un archivo se borra él mismo. Sin filtro de antigüedad ni excepciones."
+    }
   },
   "acciones": {
     "cachePaquetes": {
@@ -113,17 +139,25 @@
       "etiqueta": "Limpiar cachés de desarrollo",
       "descripcion": "npm, pip, Go y Cargo."
     },
+    "cacheSombreadores": {
+      "etiqueta": "Limpiar caché de sombreadores",
+      "descripcion": "Lo que compilan los drivers de la GPU para no recompilarlo: OpenGL, Vulkan, CUDA y el shadercache de Steam. Se regenera solo, pero la próxima vez que abras cada juego habrá tirones mientras se rehace, y lo de Steam se vuelve a descargar. Solo manual: no entra en la limpieza automática."
+    },
     "papelera": {
       "etiqueta": "Vaciar papelera",
       "descripcion": "Con una antigüedad configurada, solo lo que lleve ahí ese tiempo."
     },
     "descargas": {
       "etiqueta": "Limpiar descargas antiguas",
-      "descripcion": "Manda a la papelera lo que lleve más de los días configurados sin tocarse."
+      "descripcion": "Borra lo que lleve más de los días configurados sin tocarse. Con «mandar a la papelera» activado, lo mueve ahí en vez de borrarlo."
     },
     "flatpak": {
       "etiqueta": "Quitar runtimes sin usar",
       "descripcion": "Desinstala los runtimes de Flatpak que ya no necesita ninguna app."
+    },
+    "rutasPersonalizadas": {
+      "etiqueta": "Borrar lo que yo elija",
+      "descripcion": "Vacía las carpetas que hayas añadido y borra los archivos. Las carpetas se conservan; nada pasa por la papelera."
     }
   },
   "estados": {
@@ -192,6 +226,32 @@
     "ejecutar": "Ejecutar ahora",
     "guardar": "Guardar",
     "soloManual": "Solo manual: pide contraseña, así que no puede ejecutarse desatendida.",
-    "avisoReinicio": "Los cambios se guardan al momento; la comprobación automática los lee en el siguiente inicio de sesión."
+    "avisoReinicio": "Los cambios se guardan al momento; la comprobación automática los lee en el siguiente inicio de sesión.",
+    "estimacionParcial": "Se liberarían al menos {{tamano}}: hay marcada alguna limpieza cuyo tamaño no se puede calcular de antemano.",
+    "estimacionNada": "Con lo marcado no se liberaría nada ahora mismo.",
+    "descargasAPapelera": {
+      "titulo": "Mandar las descargas a la papelera",
+      "descripcion": "En vez de borrarlas. Ojo: la papelera está en el mismo disco, así que mover algo ahí no libera espacio hasta que la vacíes — por eso esta limpieza informará de 0 liberado."
+    },
+    "rutas": {
+      "titulo": "Carpetas y archivos que quieras borrar",
+      "descripcion": "De una carpeta se borra su contenido y la carpeta se conserva; un archivo se borra entero. Sin filtro de antigüedad y sin pasar por la papelera.",
+      "placeholder": "/ruta/a/la/carpeta/o/archivo",
+      "anadir": "Añadir",
+      "quitar": "Quitar",
+      "vacia": "No has añadido nada.",
+      "invalida": "No se puede usar esa ruta: {{motivo}}",
+      "aviso": "Esto se borra sin preguntar, también en la limpieza automática al iniciar sesión. Comprueba bien lo que pones."
+    },
+    "protegidas": {
+      "titulo": "Carpetas y archivos que NO se deben borrar",
+      "descripcion": "Ninguna limpieza tocará lo que pongas aquí, ni siquiera la automática. Si proteges algo dentro de una carpeta que sí se limpia, se borra el resto y eso se queda.",
+      "placeholder": "/ruta/que/quieres/conservar",
+      "anadir": "Proteger",
+      "quitar": "Quitar",
+      "vacia": "No has protegido nada.",
+      "invalida": "No se puede proteger esa ruta: {{motivo}}",
+      "aviso": "No llega a todo: lo que borran pacman, paru, npm, pip o Flatpak lo deciden ellos y no aceptan exclusiones. Sí protege las cachés, la papelera, las descargas y tus rutas."
+    }
   }
 }

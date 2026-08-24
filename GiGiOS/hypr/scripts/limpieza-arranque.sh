@@ -31,10 +31,12 @@ ESTADO="${XDG_CACHE_HOME:-$HOME/.cache}/gigios/limpieza.json"
 LIMPIAR="$HOME/.config/hypr/scripts/limpiar-almacenamiento.sh"
 
 # Debe coincidir con `ACCIONES_AUTOMATIZABLES` de ags/servicios/disco/catalogo.ts, que a su vez se
-# deriva de excluir las acciones de pkexec. La lista se repite aquí —y no se lee del JSON tal cual—
-# porque es la última barrera: un `acciones` manipulado a mano no puede colar en el lote desatendido
-# algo que abra un diálogo de contraseña sin nadie delante.
-AUTOMATIZABLES=" cachePaquetes cacheAur huerfanos registros temporales cacheUsuario miniaturas cacheDesarrollo papelera descargas flatpak "
+# deriva de excluir las acciones de pkexec **y las marcadas `manual`**. La lista se repite aquí —y
+# no se lee del JSON tal cual— porque es la última barrera: un `acciones` manipulado a mano no puede
+# colar en el lote desatendido algo que abra un diálogo de contraseña sin nadie delante, ni
+# `cacheSombreadores`, que no pide permisos pero se cobra en la siguiente partida (recompilar, y
+# volver a descargar el shadercache de Steam) lo que ahorra en disco.
+AUTOMATIZABLES=" cachePaquetes cacheAur huerfanos registros temporales cacheUsuario miniaturas cacheDesarrollo papelera descargas flatpak rutasPersonalizadas "
 
 command -v jq >/dev/null 2>&1 || exit 0
 

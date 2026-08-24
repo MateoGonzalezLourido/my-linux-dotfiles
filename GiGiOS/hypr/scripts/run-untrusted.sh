@@ -69,15 +69,20 @@ if (( ${#clam[@]} )); then
     elif (( rc != 0 )); then
         # rc=0 limpio · rc=1 virus (ya cazado arriba) · rc≥2 no se pudo analizar
         # (daemon parado o sin base de firmas). Contenemos igual, pero avisando — con botón para
-        # arreglar las firmas. El `--wait -A` va en SUBSHELL de fondo a propósito: aquí el usuario
-        # ha pedido lanzar algo, y esperar a que mire el popup retrasaría el lanzamiento. El
-        # análisis de ESTA ejecución ya no se repite; la actualización sirve para las siguientes.
+        # arreglar las firmas de un gesto. **No se actualiza nada solo**: lo automático ocurre una
+        # vez al arrancar Hyprland, y ponerse a descargar ~200 MB porque alguien acaba de lanzar un
+        # ejecutable sería justo el trabajo de fondo que no se quiere. El aviso va en SUBSHELL de
+        # fondo a propósito: el usuario ha pedido **lanzar** algo, y esperar a que mire el popup
+        # retrasaría el lanzamiento. El análisis de ESTA ejecución ya no se repite; la
+        # actualización sirve para las siguientes.
         UPDATE_SIGS="$HOME/.config/hypr/scripts/actualizar-firmas.sh"
+        # shellcheck source=lib/firmas.sh
+        if ! source "$HOME/.config/hypr/scripts/lib/firmas.sh" 2>/dev/null; then
+            firmas_aviso_con_boton() { notificar "$1" -u "$2" "$3" "$4" -t 0; }
+        fi
         if [[ -x "$UPDATE_SIGS" ]]; then
-            ( act=$(notificar aislado.no-analizado --wait -t 0 \
-                -A "update=🛡️ Activar y actualizar" -u normal "🛡️ No se pudo analizar" \
-                "ClamAV no operativo (sin base de firmas o daemon parado). Se lanzará contenido pero SIN analizar.")
-              [[ "$act" == "update" ]] && "$UPDATE_SIGS" ) &
+            ( firmas_aviso_con_boton aislado.no-analizado normal "🛡️ No se pudo analizar" \
+                "ClamAV no operativo (sin base de firmas o daemon parado). Se lanzará contenido pero SIN analizar." ) &
         else
             notificar aislado.no-analizado -u normal "🛡️ No se pudo analizar" \
                 "ClamAV no operativo (¿falta ejecutar 'sudo freshclam'?). Se lanzará contenido pero SIN analizar." -t 10000

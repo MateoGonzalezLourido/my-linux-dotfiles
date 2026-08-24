@@ -71,8 +71,12 @@ lives in this one repository and is deployed to your `$HOME` via symlinks, dotfi
 - **Downloads scanner** — event-driven (inotify, not polling), content-hash deduplicated, flags new
   executables with a **"launch sandboxed"** action (Firejail + ClamAV pre-scan), and ClamAV-scans
   every new file, with battery/power-save/gaming-aware pausing.
-- **ClamAV signature management** from the Settings UI — see freshness, toggle auto-update, update
-  on demand, all via a tightly-scoped root helper (no interactive `sudo`, no shell escalation).
+- **ClamAV signature management** from the Settings UI — see freshness, update on demand, and a
+  single "refresh signatures at login" toggle. **No periodic service and no timer of any kind**:
+  signatures are checked once when the session starts and downloaded silently only if they are
+  missing or over a day old, all via a tightly-scoped root helper (no interactive `sudo`, no shell
+  escalation). Mid-session, a scanner that finds no engine offers a one-click fix instead of pulling
+  200 MB behind your back.
 - **USB safety** — a udev rule fixes the real root cause of "my USB copy said done but wasn't"
   (`vm.dirty_ratio` letting writeback lag behind the progress bar) for removable storage only, plus
   smart connect/disconnect notifications that de-duplicate composite/hub devices, and safe
@@ -150,6 +154,12 @@ bin/link.sh          # create/repair symlinks, never overwrites a real dir/file
 bin/link.sh --check  # report-only, exit 0 if everything's fine
 bin/link.sh --force  # back up whatever's in the way, then link
 ```
+
+Both `link.sh` and the session autostart run `hypr/scripts/reparar-kdeglobals.sh`, which repairs
+`[UiSettings] ColorScheme=BreezeDark` in `kdeglobals`: any KDE app that saves global settings
+(Dolphin's preferences dialog) rewrites that file through KConfig and drops the group, which
+silently sends Qt apps back to the **light** theme. It is fixed at the next login on its own;
+run `bin/link.sh` if you don't want to wait.
 
 ### Reloading / restarting Hyprland
 

@@ -74,6 +74,9 @@ export function summarizeRule(rule: NotifRule): string {
   } else if (lt) {
     e.push(LIFE_TXT[lt] ?? lt)
   }
+  if (rule.effects.popupMs) {
+    e.push(formatearTexto(textos.resumen.efectos.popup, { duracion: formatDuration(rule.effects.popupMs) }))
+  }
   if (rule.effects.clearOnBoot) e.push(textos.resumen.efectos.limpiarReinicio)
   if (rule.effects.suppress) e.push(textos.resumen.efectos.descartar)
   if (rule.effects.dontShow) e.push(textos.resumen.efectos.sinPopup)

@@ -9,6 +9,16 @@
 // Los tokens de color/texto que coinciden con la paleta global de style.scss
 // se derivan de _colores.scss para que no puedan divergir; $j-accent-pink no
 // tiene equivalente ahí (es un tono propio de Orion) y se queda literal.
+//
+// Los acentos NO son uno de ellos y por eso no aparecen abajo: se escriben
+// `c.acento-azul()` / `c.acento-azul()` en el sitio de uso, igual que en style.scss,
+// porque cambian EN CALIENTE con el fondo de escritorio (ver la nota de `acento()`
+// en _colores.scss). Un `c.acento(): c.$violet` aquí los habría congelado al
+// valor de compilación y Orion se habría quedado morado mientras el resto del
+// shell cambia de color, que es exactamente el desparejado que esto viene a
+// evitar. `$j-accent-teal` sí sigue abajo y sigue fijo: en Orion es el verde de
+// "ok" (estados correctos, confirmaciones), o sea un color con SIGNIFICADO, y de
+// qué color se dice que algo está bien no lo decide un fondo de escritorio.
 $j-bg-shell-opaco: c.$bg-bar;
 
 // Compone los tintes de los controles sobre una base sólida. El color conserva
@@ -25,12 +35,10 @@ $j-bg-shell-opaco: c.$bg-bar;
 $j-bg-shell:       rgba(c.$bg-bar, 0.94);
 $j-bg-item:        fondo-control-opaco(rgba(255, 255, 255, 0.035));
 $j-bg-item-hover:  fondo-control-opaco(rgba(255, 255, 255, 0.075));
-$j-bg-item-active: fondo-control-opaco(rgba(c.$violet, 0.11));
+$j-bg-item-active: c.acento-sobre($j-bg-shell-opaco, 0.11);
 
-$j-accent:         c.$blue;
 $j-accent-teal:    c.$teal;
 $j-accent-pink:    #f5c2e7;
-$j-accent-purple:  c.$violet;
 $j-accent-amber:   c.$orange;
 $j-accent-red:     c.$pink;
 
@@ -40,7 +48,7 @@ $j-text-muted:     rgba(226, 226, 226, 0.32);
 
 $j-border-subtle:  rgba(255, 255, 255, 0.055);
 $j-border-normal:  rgba(255, 255, 255, 0.105);
-$j-border-active:  rgba(c.$violet, 0.42);
+$j-border-active:  c.acento(0.42);
 
 $j-radius:    24px;
 $j-radius-md: 14px;
@@ -155,16 +163,16 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
     border-color: transparent;
     border-radius: 9px;
     box-shadow: none;
-    image { color: $j-accent-purple; }
+    image { color: c.acento(); }
   }
 }
 
 .section-index-indicator {
-  background: rgba($j-accent-purple, 0.14);
+  background: c.acento(0.14);
   border-radius: 9px;
   box-shadow:
     inset 0 -1px rgba(0, 0, 0, 0.12),
-    0 3px 10px rgba($j-accent-purple, 0.1);
+    0 3px 10px c.acento(0.1);
 }
 
 .section-index-icon { margin: 0 2px 0 1px; }
@@ -183,7 +191,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.28);
 
   .search-icon {
-    color: rgba($j-accent-purple, 0.72);
+    color: c.acento(0.72);
     margin: 0 7px 0 3px;
   }
   text {
@@ -213,7 +221,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   color: $j-text-muted;
   border: 1px solid transparent;
   &:hover { @include hover-con-profundidad; color: $j-text-secondary; }
-  &.active { color: $j-accent; background: $j-bg-item-active; border-color: $j-border-active; }
+  &.active { color: c.acento-azul(); background: $j-bg-item-active; border-color: $j-border-active; }
 }
 .section-content {
   min-height: 10px;
@@ -288,7 +296,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 .sys-val   { font-size: 10px; font-weight: 600; color: $j-text-secondary; font-family: $j-font-mono; padding: 0 0 2px; }
 .sys-bar   { min-width: 0; min-height: 2px; border-radius: 99px; background: rgba(255, 255, 255, 0.045); }
 .sys-fill  { min-width: 0; min-height: 2px; border-radius: 99px; }
-.sf-blue   { background: rgba($j-accent, 0.55); }
+.sf-blue   { background: c.acento-azul(0.55); }
 .sf-pink   { background: rgba($j-accent-red, 0.55); }
 .sf-teal   { background: rgba($j-accent-teal, 0.55); }
 .sf-amber  { background: rgba($j-accent-amber, 0.55); }
@@ -309,7 +317,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   font-family: $j-font-mono;
   font-weight: 700;
   letter-spacing: 0.35px;
-  color: rgba($j-accent-purple, 0.78);
+  color: c.acento(0.78);
   padding: 10px 2px 4px;
 }
 .kb-group-title:first-child { padding-top: 4px; }
@@ -328,7 +336,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   font-size: 11px;
   font-family: $j-font-mono;
   font-weight: 600;
-  color: rgba($j-accent, 0.92);
+  color: c.acento-azul(0.92);
   min-width: 158px;
   padding-right: 12px;
 }
@@ -360,7 +368,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
     border-color: $j-border-active;
     box-shadow:
       inset 0 -1px rgba(0, 0, 0, 0.12),
-      0 5px 14px rgba($j-accent-purple, 0.14);
+      0 5px 14px c.acento(0.14);
   }
   &:active {
     background: $j-bg-item-active;
@@ -380,7 +388,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
     min-width: 26px;
     min-height: 26px;
     -gtk-icon-size: 26px;
-    color: $j-accent;
+    color: c.acento-azul();
   }
 }
 .rx-title {
@@ -476,7 +484,7 @@ popover.background {
     background: $j-bg-item-active;
     box-shadow:
       inset 0 0 0 1px $j-border-active,
-      0 5px 14px rgba($j-accent-purple, 0.14);
+      0 5px 14px c.acento(0.14);
 
     .rp-action-ico,
     .rp-action-label {
@@ -485,7 +493,7 @@ popover.background {
   }
 
   &:active {
-    background: rgba($j-accent-purple, 0.08);
+    background: c.acento(0.08);
   }
 
 }
@@ -571,13 +579,13 @@ popover.background {
   transition: background 100ms ease;
 
   &.active {
-    background: fondo-control-opaco(rgba($j-accent-purple, 0.12));
-    color: $j-accent-purple;
+    background: c.acento-sobre($j-bg-shell-opaco, 0.12);
+    color: c.acento();
   }
 
   &.active:hover {
-    @include hover-con-profundidad(rgba($j-accent-purple, 0.12));
-    border-color: rgba($j-accent-purple, 0.22);
+    @include hover-con-profundidad(c.acento(0.12));
+    border-color: c.acento(0.22);
   }
 
   &:hover:not(.active) {
@@ -630,10 +638,10 @@ popover.background {
     border-color: $j-border-active;
     box-shadow:
       inset 0 -1px rgba(0, 0, 0, 0.12),
-      0 5px 14px rgba($j-accent-purple, 0.14);
+      0 5px 14px c.acento(0.14);
   }
 
-  &:active { background: fondo-control-opaco(rgba($j-accent-purple, 0.1)); }
+  &:active { background: c.acento-sobre($j-bg-shell-opaco, 0.1); }
 }
 
 .apps-tile-inner {
@@ -673,7 +681,7 @@ popover.background {
     border-color: $j-border-active;
     box-shadow:
       inset 0 -1px rgba(0, 0, 0, 0.12),
-      0 5px 14px rgba($j-accent-purple, 0.14);
+      0 5px 14px c.acento(0.14);
   }
 }
 
@@ -688,7 +696,7 @@ popover.background {
     min-width: 32px;
     min-height: 32px;
     -gtk-icon-size: 32px;
-    color: $j-accent;
+    color: c.acento-azul();
   }
 }
 
@@ -736,13 +744,13 @@ popover.background {
   }
 
   &:active {
-    background: fondo-control-opaco(rgba($j-accent-purple, 0.11));
-    border-color: rgba($j-accent-purple, 0.16);
+    background: c.acento-sobre($j-bg-shell-opaco, 0.11);
+    border-color: c.acento(0.16);
   }
 }
 
 .rice-random-icon {
-  color: $j-accent-purple;
+  color: c.acento();
   -gtk-icon-size: 14px;
 }
 
@@ -770,7 +778,7 @@ popover.background {
   }
 
   &.on .qs-toggle-track {
-    background: fondo-control-opaco(rgba(0, 242, 255, 0.42));
+    background: c.acento-cian-sobre($j-bg-shell-opaco, 0.42);
   }
 }
 
@@ -797,12 +805,12 @@ popover.background {
   }
 
   &.wp-current {
-    box-shadow: 0 0 0 2px $j-accent-purple;
+    box-shadow: 0 0 0 2px c.acento();
   }
 
   &.wp-current:hover {
     box-shadow:
-      0 0 0 2px $j-accent-purple,
+      0 0 0 2px c.acento(),
       0 6px 16px rgba(0, 0, 0, 0.28);
   }
 }
@@ -858,7 +866,7 @@ popover.background {
 }
 
 .rice-thumb.es-grupo .rice-thumb-viewport {
-  box-shadow: inset 0 0 0 1px rgba($j-accent-purple, 0.55);
+  box-shadow: inset 0 0 0 1px c.acento(0.55);
 }
 
 .rice-badge {
@@ -879,7 +887,7 @@ popover.background {
 
 .rice-franja-actual {
   padding: 0 2px 6px;
-  color: $j-accent-purple;
+  color: c.acento();
   font-family: $j-font-sans;
   font-size: 10px;
   font-weight: 700;
@@ -896,8 +904,8 @@ popover.background {
 }
 
 .rice-random-btn.activo {
-  background: fondo-control-opaco(rgba($j-accent-purple, 0.18));
-  border-color: rgba($j-accent-purple, 0.3);
+  background: c.acento-sobre($j-bg-shell-opaco, 0.18);
+  border-color: c.acento(0.3);
 }
 
 // ── Editores ────────────────────────────────────────────────
@@ -948,7 +956,7 @@ popover.background {
   background: $j-bg-item;
 
   &.activa {
-    border-color: rgba($j-accent-purple, 0.42);
+    border-color: c.acento(0.42);
     background: $j-bg-item-active;
   }
 }
@@ -979,8 +987,8 @@ popover.background {
 .rice-chip-ahora {
   padding: 1px 6px;
   border-radius: $j-radius-xs;
-  background: fondo-control-opaco(rgba($j-accent-purple, 0.2));
-  color: $j-accent-purple;
+  background: c.acento-sobre($j-bg-shell-opaco, 0.2);
+  color: c.acento();
   font-family: $j-font-sans;
   font-size: 9px;
   font-weight: 700;
@@ -1011,9 +1019,9 @@ popover.background {
   &:hover { @include hover-con-profundidad; }
 
   &.primario {
-    border-color: rgba($j-accent-purple, 0.34);
+    border-color: c.acento(0.34);
     background: $j-bg-item-active;
-    color: $j-accent-purple;
+    color: c.acento();
   }
 
   &.sutil {
@@ -1064,7 +1072,7 @@ popover.background {
   background: transparent;
   box-shadow: none;
 
-  &:hover { box-shadow: 0 0 0 2px rgba($j-accent-purple, 0.55); }
+  &:hover { box-shadow: 0 0 0 2px c.acento(0.55); }
 }
 
 .rice-chip-img { border-radius: $j-radius-xs; }

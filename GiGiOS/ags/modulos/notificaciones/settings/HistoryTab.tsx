@@ -2,7 +2,7 @@
 import { Gtk } from "ags/gtk4"
 import { createState, For, With } from "ags"
 import type { NotifRule } from "../rules/types.ts"
-import { cleanHistory, historyEntries } from "../history/historyStore.ts"
+import { cleanHistory, clearHistory, historyEntries } from "../history/historyStore.ts"
 import type { HistoryEntry } from "../history/historyLogic.ts"
 import { getRelativeTime } from "../store.ts"
 import { ruleFromHistoryEntry } from "./ruleFactory.ts"
@@ -22,6 +22,10 @@ export default function HistoryTab() {
   cleanHistory()
 
   const [editing, setEditing] = createState<NotifRule | null>(null)
+  // Borrado en dos pulsaciones: la lista se rehace sola con lo que vaya llegando, pero un
+  // clic accidental se lleva por delante la cola de "esto aún no lo he decidido", que es
+  // justo lo que se viene a mirar aquí. Sin diálogo modal: el segundo clic ES la confirmación.
+  const [confirmandoBorrado, setConfirmandoBorrado] = createState(false)
   const empty = historyEntries((e) => (e?.length ?? 0) === 0)
   const [filter, setFilter] = createState<string>("all")
   const apps = historyEntries((es) => Array.from(new Set((es ?? []).map(e => e.app))).sort((a, b) => a.localeCompare(b)))
@@ -30,13 +34,30 @@ export default function HistoryTab() {
   // pertenece a «Detectadas».
   const cerrarEditor = () => { setEditing(null); cleanHistory() }
 
+  const pulsarBorrar = () => {
+    if (!confirmandoBorrado.get()) { setConfirmandoBorrado(true); return }
+    clearHistory()
+    setConfirmandoBorrado(false)
+  }
+
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={0} hexpand vexpand>
       <With value={editing}>
         {(e: NotifRule | null) => e
           ? <RuleEditor rule={e} onClose={cerrarEditor} />
           : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
-              <label cssClasses={["st-tab-hint"]} label={textos.sinReglas.cabecera} halign={Gtk.Align.START} />
+              <box spacing={8} valign={Gtk.Align.CENTER} hexpand>
+                <label cssClasses={["st-tab-hint"]} label={textos.sinReglas.cabecera} halign={Gtk.Align.START} hexpand wrap={true} />
+                <button
+                  cssClasses={confirmandoBorrado((c) => c ? ["re-delete", "confirm"] : ["re-delete"])}
+                  tooltipText={textos.sinReglas.borrarAyuda}
+                  valign={Gtk.Align.CENTER}
+                  visible={empty((isEmpty: boolean) => !isEmpty)}
+                  onClicked={pulsarBorrar}
+                >
+                  <label label={confirmandoBorrado((c) => c ? textos.sinReglas.borrarConfirmar : textos.sinReglas.borrar)} />
+                </button>
+              </box>
 
               <With value={empty}>
                 {(isEmpty: boolean) => isEmpty

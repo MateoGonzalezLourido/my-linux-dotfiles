@@ -67,6 +67,16 @@ export function cleanHistory(): void {
   scheduleSave()
 }
 
+/** Vacía «Detectadas» entera. Solo toca ESTE fichero (`notif-history.json`): ni las
+ *  notificaciones del panel (`notifications.json`), ni las reglas, ni la configuración de los
+ *  avisos del sistema (`notif-sistema.json`) — que además nunca están aquí, porque el catálogo
+ *  les genera una regla a todos y el historial solo indexa lo que NO casa con ninguna. */
+export function clearHistory(): void {
+  if (historyEntries.get().length === 0) return
+  setHistoryEntries([])
+  scheduleSave()
+}
+
 // Re-clean whenever the settings panel opens.
 //
 // OJO: esto cubre SOLO la ventana propia (el engranaje de la cabecera del panel de

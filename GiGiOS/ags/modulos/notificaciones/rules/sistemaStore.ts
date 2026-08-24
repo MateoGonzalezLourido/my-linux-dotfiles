@@ -80,20 +80,30 @@ export function eventoPersonalizado(id: string, archivo = archivoSistema.get()):
   return Object.prototype.hasOwnProperty.call(archivo.eventos, id)
 }
 
+/** UN aviso del catálogo envuelto como la regla que se genera para él. Es lo que come
+ *  `RuleEditor`: reconoce el `source: "system"`, esconde el bloque «Cuándo aplica» —su `match`
+ *  lo fija el catálogo— y al guardar manda solo los efectos a `notif-sistema.json`.
+ *  `undefined` si el id no está en el catálogo (un aviso que aún no se ha dado de alta). */
+export function reglaDeEvento(id: string, archivo = archivoSistema.get()): NotifRule | undefined {
+  const e = eventoSistema(id)
+  if (!e) return undefined
+  return {
+    id: `sistema.${e.id}`,
+    name: e.nombre,
+    enabled: true,
+    priority: PRIORIDAD_SISTEMA,
+    source: "system",
+    match: { event: { op: "equals", value: e.id } },
+    effects: efectosEvento(e.id, archivo),
+  }
+}
+
 /** El catálogo como reglas, listas para `compileRules`. Se generan siempre las ~100: una
  *  entrada del catálogo sin efectos también tiene que estar, porque es la que hace que el
  *  aviso NO caiga en "Detectadas" — el historial solo indexa lo que no casa con ninguna
  *  regla, y un aviso del sistema ya se gestiona desde su propia pestaña. */
 export function reglasSistema(archivo = archivoSistema.get()): NotifRule[] {
-  return CATALOGO_SISTEMA.map(e => ({
-    id: `sistema.${e.id}`,
-    name: e.nombre,
-    enabled: true,
-    priority: PRIORIDAD_SISTEMA,
-    source: "system" as const,
-    match: { event: { op: "equals" as const, value: e.id } },
-    effects: efectosEvento(e.id, archivo),
-  }))
+  return CATALOGO_SISTEMA.map(e => reglaDeEvento(e.id, archivo)!)
 }
 
 function guardar(archivo: ArchivoSistema): void {

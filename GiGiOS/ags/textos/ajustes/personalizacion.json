@@ -38,6 +38,10 @@
         "negro": "Negro actual",
         "grafito": "Grafito"
       }
+    },
+    "acento": {
+      "titulo": "Colores del fondo de escritorio",
+      "descripcion": "Saca del fondo de escritorio los tres colores de acento del shell (workspaces, reloj, controles, iconos y resaltados) y los cambia con él.\nLos avisos conservan su color: verde correcto, ámbar aviso, rojo error.\nSi el fondo no tiene color del que sacarlos, se conserva la paleta del tema."
     }
   },
   "actualizaciones": {
@@ -202,5 +206,25 @@
       "anadirVentana": "Añade una ventana en pantalla completa; si no hay ninguna, usa la enfocada",
       "quitar": "Quitar de la lista"
     }
+  },
+  "duracionPopups": {
+    "titulo": "Duración de los avisos en pantalla",
+    "descripcion": "Cuánto tiempo permanece visible cada popup antes de irse solo.\nEl aviso sigue guardado en el panel aunque el popup desaparezca.",
+    "subtitulo": "Tiempo en pantalla por tipo de aviso",
+    "ayuda": "En segundos, entre 1 y 60. Son valores mínimos: una app puede pedir más tiempo, y una regla o un aviso del sistema pueden fijar el suyo exacto en las pestañas Reglas y Sistema.",
+    "normal": {
+      "titulo": "Notificaciones de apps",
+      "placeholder": "5,5"
+    },
+    "sistema": {
+      "titulo": "Avisos del sistema",
+      "placeholder": "10"
+    },
+    "acciones": {
+      "titulo": "Avisos con botones",
+      "placeholder": "20"
+    },
+    "guardar": "Guardar",
+    "unidad": "s"
   }
 }

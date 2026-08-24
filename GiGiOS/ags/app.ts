@@ -27,6 +27,7 @@ import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespie
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
 import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
 import { initPlanificadorFondos } from "./servicios/fondos/planificador"
+import { initAcentoAdaptativo } from "./servicios/fondos/acento"
 import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
 
 app.start({
@@ -181,6 +182,11 @@ app.start({
       // autostart de Hyprland, y este solo vigila el próximo cambio de franja
       // contra el reloj de pared — cuatro segundos no pueden perderle ninguno.
       initPlanificadorFondos()
+      // Mismo apartado y mismo criterio: el shell ya está pintado con el azul de
+      // reserva del tema —un tema completo, no un estado a medias— y esto solo lo
+      // tiñe cuando el extractor conteste. Además lanza un `python3`, que es justo
+      // lo que no debe competir con la construcción de las ventanas.
+      initAcentoAdaptativo()
       // Las tres medidas de ahorro que actúan sobre el SISTEMA (brillo del panel, perfil
       // de TLP y tiempos de hypridle). Van aquí por el mismo criterio: siembran del
       // ESTADO —`powerSaveActive` ya está resuelto y sus apuntes están en disco—, no de

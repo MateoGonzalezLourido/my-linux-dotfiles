@@ -43,7 +43,11 @@ export interface Analisis {
   apps: App[]
 }
 
-const VERSION_CACHE = 1
+// 2: cada categoría lleva además `liberable` (lo que se liberaría al limpiarla, no lo que ocupa).
+// Subirlo INVALIDA la caché en disco: `normalizar` devuelve `null` ante otra versión, así que un
+// análisis de la versión 1 —sin esa columna— se descarta y se vuelve a medir, en vez de alimentar
+// la estimación con `liberable: null` en todo y dejarla en "no se ha podido calcular" para siempre.
+const VERSION_CACHE = 2
 const CACHE = GLib.build_filenamev([GLib.get_user_cache_dir(), "gigios", "almacenamiento.json"])
 const SCRIPT = `${GLib.get_user_config_dir()}/hypr/scripts/analizar-almacenamiento.sh`
 
@@ -86,6 +90,9 @@ function normalizar(crudo: unknown): Analisis | null {
       bytes: typeof m.bytes === "number" && Number.isFinite(m.bytes) ? m.bytes : null,
       detalle: txt(m.detalle),
       limpiable: m.limpiable === true,
+      // Igual que `bytes`: `null` sobrevive porque significa "no se ha podido saber cuánto
+      // liberaría", que la estimación trata distinto de un 0.
+      liberable: typeof m.liberable === "number" && Number.isFinite(m.liberable) ? m.liberable : null,
     } : null),
     apps: lista<App>(o.apps, p => txt(p.nombre) ? {
       nombre: txt(p.nombre), bytes: num(p.bytes),

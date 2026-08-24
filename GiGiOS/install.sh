@@ -54,10 +54,17 @@ esac
 install_packages() {
   local official=(
     git curl python xdg-utils shared-mime-info base-devel util-linux polkit
-    less man-db wget tar expac hwinfo openbsd-netcat neovim
+    less man-db wget tar hwinfo openbsd-netcat neovim
+    # expac: el inventario de paquetes de Ajustes > Almacenamiento (nombre, tamaño en bytes,
+    # razón de instalación, fecha y descripción de una pasada). `pacman -Qi` hace lo mismo en
+    # ~285 ms contra los ~18 ms de expac; el analizador cae a `pacman -Qi` si falta, así que su
+    # ausencia solo se nota en el reloj.
+    expac
     # pacman-contrib: da `checkupdates` a updates-monitor.sh (sincroniza su propia BD
     # temporal en vez de leer la del sistema). Sin él el monitor sigue funcionando
     # cayendo a `pacman -Qu`, pero eso exige una BD ya sincronizada por el usuario.
+    # Da además `paccache`, que es quien limpia la caché de paquetes desde Ajustes >
+    # Liberar espacio y quien simula (`-d`) cuánto liberaría antes de tocar nada.
     pacman-contrib
     # Mantén esta pila en paquetes estables. qt6ct + Breeze proporcionan el
     # tema Qt; hyprqt6engine-git no es necesario y fuerza bibliotecas -git.
@@ -383,9 +390,18 @@ if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
       warn "La regla sudoers de ClamAV no validó; no la instalo. Actualizar firmas pedirá contraseña."
     fi
     rm -f "$clamav_sudoers_tmp"
-    # Sin firmas, el escáner de descargas no puede analizar nada; dejarlo automático desde ya.
-    sudo systemctl enable --now clamav-freshclam.service >/dev/null 2>&1 \
-      || info "No pude habilitar clamav-freshclam.service (¿otro nombre en esta distro?)."
+    # Sin firmas el escáner de descargas no puede analizar NADA, así que se descargan aquí, una
+    # vez, de forma síncrona (tarda unos minutos y baja ~200 MB).
+    #
+    # Y NO se habilita `clamav-freshclam.service`, que es lo que hacía antes: mantenerlas al día
+    # es hoy un booleano de GiGiOS (`clamavAutoUpdate` en security.json, activado por defecto) que
+    # dispara `hypr/scripts/actualizar-firmas.sh --auto` UNA vez al iniciar sesión, y solo si la
+    # base falta o pasa de un día. Durante la sesión no queda ningún temporizador de ClamAV. Dejar
+    # el servicio encendido reintroduciría justo eso, y encima sin interruptor a la vista (el shell
+    # lo apaga solo si se lo encuentra vivo; ver servicios/seguridad/clamav.ts).
+    info "Descargando la base de firmas de ClamAV (puede tardar unos minutos)…"
+    sudo /usr/local/bin/gigios-clamav-update update >/dev/null 2>&1 \
+      || warn "No pude descargar las firmas de ClamAV; se reintentará solo al iniciar sesión."
   else
     info "ClamAV no está instalado; omito el helper de firmas (se activará al instalar 'clamav')."
   fi
@@ -459,9 +475,11 @@ cat <<'EOF'
   • Puntero:  elegí el tema en Ajustes > Dispositivos > Puntero. Sin elegirlo, el
               compositor usa el puntero de XCursor; para añadir soporte hyprcursor
               a otro tema, ~/GiGiOS/bin/generar-hyprcursor.sh --list.
-  • Antivirus: las firmas de ClamAV las descarga clamav-freshclam, que quedó habilitado;
-              tarda unos minutos la primera vez. Ajustes > Seguridad > Antivirus enseña la
-              fecha, permite actualizarlas al momento y apagar la actualización automática.
+  • Antivirus: las firmas de ClamAV ya se descargaron. A partir de ahora se comprueban al
+              INICIAR SESIÓN y se actualizan solas y en silencio si tienen más de un día; no
+              queda ningún servicio ni temporizador actualizando durante la sesión. Ajustes >
+              Seguridad > Antivirus enseña la fecha, permite actualizarlas al momento y apagar
+              ese automatismo.
   • Disco:    Ajustes > Almacenamiento analiza qué ocupa el equipo y cataloga las apps por
               tamaño; "Liberar espacio" limpia y, si lo activás, lo hace solo. La autolimpieza
               nace APAGADA y con todas las casillas sin marcar: nada se borra sin pedirlo.

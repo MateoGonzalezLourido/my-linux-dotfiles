@@ -2920,10 +2920,10 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   const devTag = isSpk ? "spk" : "mic"
                   const stableId = ep.name || ep.description || `id:${ep.id}`
                   const devKey = `dev:${devTag}:${stableId}`
-                  // El micro remapea 0-100% a 0-MIC_SAFE_MAX de la curva real de
-                  // PipeWire (`servicios/multimedia/volumenMicrofono.ts`). El clamp al
-                  // restaurar protege contra un preset guardado antes de este techo
-                  // (p.ej. un 100% viejo, que saturaba). `aPorcentaje`/`desdePorcentaje`
+                  // El micro tiene su propia escala 0-100% → 0-MIC_SAFE_MAX
+                  // (`servicios/multimedia/volumenMicrofono.ts`; hoy el techo es 1.00,
+                  // o sea el máximo real). El clamp al restaurar protege contra un
+                  // preset guardado con otro techo. `aPorcentaje`/`desdePorcentaje`
                   // son la MISMA conversión que usan la pastilla y el OSD: tenerla en
                   // un solo sitio es lo que impide que dos vistas del mismo micro
                   // enseñen números distintos, que es justo lo que pasaba.
@@ -3596,19 +3596,67 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
       .some((v) => v && String(v).toLowerCase().includes(query))
   }
 
+  // ── Cambios de PROPIEDAD de cada dispositivo ────────────────────────────────
+  // `notify::devices` y `device-added`/`device-removed` solo hablan de ALTAS y
+  // BAJAS en la lista: si un dispositivo YA descubierto cambia de nombre o de
+  // estado, no salta ninguna señal del objeto raíz — el mismo agujero que ya
+  // documenta el tile más arriba ("`notify::devices` no salta y el tile se
+  // quedaba en Desconectado con los cascos puestos").
+  //
+  // Durante el discovery ese caso es la NORMA, no la excepción: BlueZ publica el
+  // dispositivo en cuanto lo oye, con solo la MAC, y resuelve el nombre unos
+  // segundos más tarde. Antes eso se tapaba con un `setInterval(update, 1000)`
+  // que vivía lo que durase el escaneo. Escuchar a cada dispositivo cuesta lo
+  // mismo de escribir, no despierta a nadie cuando no pasa nada, y de paso cubre
+  // lo que el intervalo NO cubría: fuera de un escaneo no había refresco
+  // ninguno, así que conectar unos cascos desde el propio aparato no se veía en
+  // la lista hasta el siguiente escaneo.
+  //
+  // Las suscripciones se rehacen en cada `update()` (altas nuevas) y se sueltan
+  // las de los dispositivos que ya no están: sin eso, un escaneo largo en una
+  // zona concurrida deja cientos de handlers colgando de objetos muertos.
+  const devSignals = new Map<any, number[]>()
+  const DEV_PROPS = [
+    "notify::alias", "notify::name", "notify::icon",
+    "notify::connected", "notify::paired", "notify::trusted",
+  ]
+  const wireDevices = (lista: any[]) => {
+    const vivos = new Set(lista)
+    for (const [dev, ids] of devSignals) {
+      if (vivos.has(dev)) continue
+      for (const id of ids) { try { dev.disconnect(id) } catch {} }
+      devSignals.delete(dev)
+    }
+    for (const dev of lista) {
+      if (devSignals.has(dev)) continue
+      const ids: number[] = []
+      // El guard de `inBtView` va DENTRO del handler, no alrededor del connect:
+      // el mismo criterio que el resto de señales de esta vista — se sigue
+      // suscrito, pero con el QS cerrado o en otra pestaña no se reconstruye
+      // nada. Evaluarlo aquí lo congelaría al valor del momento del alta.
+      for (const sig of DEV_PROPS) {
+        try { ids.push(dev.connect(sig, () => { if (inBtView()) update() })) } catch {}
+      }
+      devSignals.set(dev, ids)
+    }
+  }
+
   const update = () => {
     if (buffering.get()) return
-    setDevices(bt.get_devices())
+    const lista = bt.get_devices()
+    wireDevices(lista)
+    setDevices(lista)
   }
 
   // Timers del escaneo, a nivel de componente para poder cancelarlos al cerrar.
+  // Los dos que quedan acotan el discovery en el tiempo (cuándo empieza a
+  // mostrarse, cuándo se corta la radio); el refresco de la lista ya no es un
+  // temporizador, lo llevan las señales de wireDevices().
   let scanStartTimer: number | null = null
-  let scanInterval: number | null = null
   let scanStopTimer: number | null = null
 
   const stopScan = () => {
     if (scanStartTimer !== null) { clearTimeout(scanStartTimer); scanStartTimer = null }
-    if (scanInterval !== null) { clearInterval(scanInterval); scanInterval = null }
     if (scanStopTimer !== null) { clearTimeout(scanStopTimer); scanStopTimer = null }
     if (scanning.get()) {
       try { bt.adapter?.stop_discovery() } catch {}
@@ -3638,13 +3686,10 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
       setBuffering(false)
       update()
 
-      scanInterval = setInterval(update, 1000)
-
       const remaining = Math.max(0, duration - 2000)
       scanStopTimer = setTimeout(() => {
         scanStopTimer = null
         try { adapter.stop_discovery() } catch {}
-        if (scanInterval !== null) { clearInterval(scanInterval); scanInterval = null }
         setScanning(false)
         update()
       }, remaining)

@@ -61,7 +61,7 @@ Solo quedan estas decisiones personales:
    para una NVIDIA como GPU principal. Consulta la §9.
 2. **Spotify:** ejecuta `~/.config/ags/scripts/spotify-auth.sh` si quieres integrar tu
    cuenta. Es opcional y las credenciales nunca se incluyen en Git.
-3. **Seguridad:** ejecuta una vez `sudo freshclam` para descargar las firmas de ClamAV.
+3. **Seguridad:** `install.sh` ya descarga las firmas de ClamAV; si te saltaste ese paso, `sudo freshclam` una vez. A partir de ahí se comprueban al iniciar sesión y se actualizan solas si están viejas (interruptor «Actualizar las firmas al iniciar sesión» en Ajustes > Seguridad > Antivirus); durante la sesión no corre ningún `clamav-freshclam` ni temporizador equivalente.
 4. **Sensores:** ejecuta `sudo sensors-detect` solamente si quieres monitorización de
    temperatura y el equipo la necesita.
 
@@ -478,7 +478,10 @@ Instala sus dependencias:
 
 ```sh
 sudo pacman -S --needed clamav firejail bubblewrap xxhash xdg-user-dirs file
-sudo systemctl enable --now clamav-freshclam
+# NO hace falta `systemctl enable --now clamav-freshclam`: GiGiOS comprueba las firmas al iniciar
+# sesión y las actualiza si están viejas (ver «Actualizar las firmas al iniciar sesión» en Ajustes >
+# Seguridad > Antivirus). Durante la sesión no queda ningún temporizador.
+sudo freshclam
 ```
 
 - `clamav` proporciona `clamscan`. Sin una base de firmas descargada, el programa existe

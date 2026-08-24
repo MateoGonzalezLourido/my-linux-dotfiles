@@ -5,14 +5,14 @@
  * ── Por qué el micrófono tiene su propia escala ──────────────────────────────
  *
  * En este equipo (Realtek ALC897, mic frontal) PipeWire combina "Capture" +
- * "Front Mic Boost" en una única curva cúbica cuyo 100% ronda +60 dB de
- * ganancia analógica total — mucho más de lo que necesita un micro de sobremesa
- * a distancia normal, y la causa medida de la saturación al subir el slider. Por
- * eso el 0-100 % que ve el usuario se remapea a `0..MIC_SAFE_MAX` de la curva
- * real, calibrado grabando voz y midiendo el pico en dBFS: el 100 % de la UI es
- * "el máximo seguro medido", nunca el máximo físico. (El comentario original
- * remitía a `GiGiOS/CLAUDE.md` para esta calibración y **allí nunca estuvo**;
- * este fichero es hoy el sitio donde vive.)
+ * "Front Mic Boost" en una única curva cúbica. Durante un tiempo el 0-100 % de
+ * la UI se remapeó a `0..0.40` de esa curva ("máximo seguro" medido contra la
+ * saturación al hablar de cerca), pero **el techo era demasiado bajo en uso
+ * real**: el 100 % del slider dejaba el micro en el 40 % del hardware y se oía
+ * muy flojo, sin manera de subir más desde la UI. Hoy `MIC_SAFE_MAX` es 1.00 —
+ * el 100 % de la barra es el 100 % real de PipeWire— y la conversión queda como
+ * identidad. Si alguna máquina volviera a necesitar un techo, se cambia SOLO
+ * esta constante: todos los consumidores ya pasan por las funciones de abajo.
  *
  * ── Y por qué la conversión vive AQUÍ y no en cada sitio ─────────────────────
  *
@@ -30,8 +30,10 @@
  * Todo lo que enseñe o acepte un porcentaje de entrada pasa por aquí.
  */
 
-/** Techo del volumen de entrada, en fracción cruda de PipeWire (0-1). */
-export const MIC_SAFE_MAX = 0.40
+/** Techo del volumen de entrada, en fracción cruda de PipeWire (0-1).
+ *
+ * 1.00 = el 100 % de la UI es el 100 % del hardware (ver cabecera). */
+export const MIC_SAFE_MAX = 1.00
 
 /** Fracción cruda de PipeWire → fracción que ve el usuario (0..1).
  *

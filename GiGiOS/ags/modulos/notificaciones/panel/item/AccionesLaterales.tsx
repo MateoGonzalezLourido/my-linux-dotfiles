@@ -6,6 +6,7 @@ import {
   updateAppSettings,
   type StoredNotification,
 } from "../../store"
+import { abrirEdicionNotificacion } from "../../settings/edicionDirecta.ts"
 
 interface PropiedadesAccionesLaterales {
   notificacion: StoredNotification
@@ -60,6 +61,18 @@ export default function AccionesLateralesItemNotificacion({
           })}
         >
           <label label={silenciada((estaSilenciada) => estaSilenciada ? "󰂛" : "󰂚")} />
+        </button>
+
+        {/* Editar: abre los ajustes de notificaciones ya dentro del editor de ESTA
+            notificación (su aviso del sistema, la regla que la gestiona, o una nueva
+            prerrellenada). Es el atajo para "esta que dure menos / que no suene / que no
+            salga" sin tener que ir a buscarla por las pestañas. */}
+        <button
+          cssClasses={["notif-action-btn"]}
+          tooltipText="Editar en ajustes"
+          onClicked={() => abrirEdicionNotificacion(notificacion)}
+        >
+          <label label="󰏫" />
         </button>
 
         {!notificacion.read && (

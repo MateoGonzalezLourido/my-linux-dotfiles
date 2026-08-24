@@ -154,6 +154,14 @@ export function clasesFondoShell(...clasesBase: string[]) {
   return fondoShell((fondo) => [...clasesBase, `fondo-shell-${fondo}`])
 }
 
+// Acento adaptativo: el color de acento del shell se saca del fondo de escritorio
+// en vez de ser el azul fijo del tema. Se aplica en caliente y por una variable
+// CSS, no por una clase (ver servicios/fondos/acento.ts): apagarlo devuelve el
+// azul al instante sin recompilar ni recargar. Default: DESACTIVADO, porque
+// cambia el aspecto de todo el shell y eso tiene que elegirlo el usuario.
+const [acentoAdaptativoEnabled, _setAcentoAdaptativoEnabled] = createState(false)
+export { acentoAdaptativoEnabled }
+
 // Margen superior efectivo de una superficie anclada arriba (paneles, popups, OSD).
 // Con auto-ocultado el bar vive en exclusivity NORMAL: no reserva nada, así que cada
 // panel tiene que separarse él mismo los ~38px del bar. Sin auto-ocultado el bar es
@@ -277,6 +285,20 @@ export { autoDndEnabled }
 const [autoDndFullscreenApps, _setAutoDndFullscreenApps] = createState<string[]>([])
 export { autoDndFullscreenApps }
 
+// Duración de los popups de notificación, en milisegundos. Tres familias, porque no
+// necesitan el mismo tiempo en pantalla: una notificación corriente se lee de un vistazo,
+// un aviso del sistema (reparar un USB, un análisis) informa del resultado de algo que se
+// pidió, y uno con botones hay que poder accionarlo. Son SUELOS, no valores fijos: un
+// emisor puede pedir más con su `expire_timeout` y una regla puede fijar el tiempo exacto
+// (`popupMs`, Ajustes > Notificaciones > Reglas/Sistema), que gana a todo esto.
+// Los defaults son los que tenía cableados popup/logica.ts.
+const [popupDuracionNormalMs, _setPopupDuracionNormalMs] = createState(5500)
+export { popupDuracionNormalMs }
+const [popupDuracionSistemaMs, _setPopupDuracionSistemaMs] = createState(10000)
+export { popupDuracionSistemaMs }
+const [popupDuracionAccionesMs, _setPopupDuracionAccionesMs] = createState(20000)
+export { popupDuracionAccionesMs }
+
 // Formato del reloj de la barra: "24h" (por defecto, p. ej. 14:30) o "12h"
 // (02:30 PM). Lo lee modulos/barra/indicadores/tiempo/Reloj.tsx de forma reactiva, así que el cambio
 // se ve al instante sin reiniciar. Vive en "Región, fecha y hora".
@@ -358,6 +380,9 @@ function load() {
     }
     if (typeof saved.barAutoHide === "boolean") _setBarAutoHideEnabled(saved.barAutoHide)
     _setFondoShell(normalizarFondoShell(saved.fondoShell))
+    if (typeof saved.acentoAdaptativo === "boolean") {
+      _setAcentoAdaptativoEnabled(saved.acentoAdaptativo)
+    }
     if (typeof saved.batteryMonitor === "boolean") _setBatteryMonitorEnabled(saved.batteryMonitor)
     if (typeof saved.tempMonitor === "boolean") _setTempMonitorEnabled(saved.tempMonitor)
     if (typeof saved.clipboardHistory === "boolean") _setClipboardHistoryEnabled(saved.clipboardHistory)
@@ -388,6 +413,14 @@ function load() {
     if (Array.isArray(saved.autoDndFullscreenApps)) {
       _setAutoDndFullscreenApps(sanitizeApps(saved.autoDndFullscreenApps))
     }
+    // Duraciones de popup: se ignoran los valores fuera de [1 s, 60 s] igual que hace
+    // popup/logica.ts al acotar, para que un preferences.json tocado a mano no deje popups
+    // eternos ni invisibles.
+    const duracionValida = (v: unknown): v is number =>
+      typeof v === "number" && v >= 1000 && v <= 60000
+    if (duracionValida(saved.popupDuracionNormalMs)) _setPopupDuracionNormalMs(saved.popupDuracionNormalMs)
+    if (duracionValida(saved.popupDuracionSistemaMs)) _setPopupDuracionSistemaMs(saved.popupDuracionSistemaMs)
+    if (duracionValida(saved.popupDuracionAccionesMs)) _setPopupDuracionAccionesMs(saved.popupDuracionAccionesMs)
     if (saved.timeFormat === "12h" || saved.timeFormat === "24h") _setTimeFormat(saved.timeFormat)
     _setModoDaltonismo(normalizarModoDaltonismo(saved.modoDaltonismo))
     // Sin guarda de `typeof`: normalizar ya devuelve el valor de fábrica ante
@@ -423,6 +456,7 @@ function save() {
       workspaceVisibleLimit: workspaceVisibleLimit.get(),
       barAutoHide: barAutoHideEnabled.get(),
       fondoShell: fondoShell.get(),
+      acentoAdaptativo: acentoAdaptativoEnabled.get(),
       batteryMonitor: batteryMonitorEnabled.get(),
       tempMonitor: tempMonitorEnabled.get(),
       clipboardHistory: clipboardHistoryEnabled.get(),
@@ -439,6 +473,9 @@ function save() {
       gamingFreeze: gamingFreezeEnabled.get(),
       autoDnd: autoDndEnabled.get(),
       autoDndFullscreenApps: autoDndFullscreenApps.get(),
+      popupDuracionNormalMs: popupDuracionNormalMs.get(),
+      popupDuracionSistemaMs: popupDuracionSistemaMs.get(),
+      popupDuracionAccionesMs: popupDuracionAccionesMs.get(),
       timeFormat: timeFormat.get(),
       modoDaltonismo: modoDaltonismo.get(),
       botonApagado: botonApagado.get(),
@@ -554,6 +591,14 @@ export function setFondoShell(fondo: FondoShell) {
   _setFondoShell(siguiente)
   save()
 }
+// Sin efecto secundario: quien escucha es `servicios/fondos/acento.ts`, suscrito a
+// este estado. Que el setter no llame al extractor es lo que permite que encender
+// el ajuste y cambiar de fondo pasen por el mismo camino y no puedan discrepar.
+export function setAcentoAdaptativoEnabled(on: boolean) {
+  if (acentoAdaptativoEnabled.get() === on) return
+  _setAcentoAdaptativoEnabled(on)
+  save()
+}
 export function setBatteryMonitorEnabled(on: boolean) {
   _setBatteryMonitorEnabled(on)
   save()
@@ -662,6 +707,22 @@ export function setAutoDndEnabled(on: boolean) {
 // de la caché del gate) sin reiniciar ningún monitor.
 export function setGamingFreezeEnabled(on: boolean) {
   _setGamingFreezeEnabled(on)
+  save()
+}
+/** Acota a [1 s, 60 s]: los mismos límites que aplica popup/logica.ts al pintar. */
+function acotarDuracion(ms: number): number {
+  return Math.min(Math.max(Math.round(ms), 1000), 60000)
+}
+export function setPopupDuracionNormalMs(ms: number) {
+  _setPopupDuracionNormalMs(acotarDuracion(ms))
+  save()
+}
+export function setPopupDuracionSistemaMs(ms: number) {
+  _setPopupDuracionSistemaMs(acotarDuracion(ms))
+  save()
+}
+export function setPopupDuracionAccionesMs(ms: number) {
+  _setPopupDuracionAccionesMs(acotarDuracion(ms))
   save()
 }
 /** Añade una clase a la lista de apps fullscreen. Normaliza y evita duplicados. */
