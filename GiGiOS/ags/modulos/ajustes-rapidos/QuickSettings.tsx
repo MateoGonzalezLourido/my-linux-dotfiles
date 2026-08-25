@@ -24,9 +24,9 @@ import {
   audioPresets,
   setAudioPresets,
   guardarAudioPresets as saveAudioPresets,
-  obtenerStreams,
   clavePreset,
-  nombreStream,
+  nombreDeProps,
+  propsDeStream,
   type TipoMezcla,
 } from "../../servicios/multimedia/presetsApps"
 import { claveApp, esClienteDeSistema } from "../../servicios/multimedia/identidadApps"
@@ -302,109 +302,130 @@ try {
 // que solo corre con el submenú abierto, así que una app lanzada con Quick Settings
 // cerrado se quedaba con su propio volumen. Ver la cabecera de ese módulo.
 
-// ── Shared audio-apps polling ───────────────────────────────────────────────────
-// Presets y sondeo de "mezcla de aplicaciones" viven a nivel de módulo, no por
-// instancia. Antes cada QsAudioMenu/QsMicMenu (uno por monitor) tenía su propio
-// intervalo y su propio setStreams: con 2+ monitores se lanzaban N sondeos pactl y
-// se aplicaban los presets N veces (doble set-*-volume). Ahora un único poller con
-// refcount alimenta a todas las instancias, y una guardia por firma evita reconstruir
-// la lista cuando nada cambió (antes <For> recreaba TODAS las filas cada 2 s porque
-// pactl devuelve objetos nuevos y la clave por defecto es identidad por referencia).
-// Las apps "en silencio" salen de la lista de CLIENTES de PulseAudio, y ahí está todo el
-// que abre el servidor de sonido, no solo lo que el usuario ha lanzado. La lista negra
-// literal que había aquí solo tapaba los nombres que alguien se acordó de escribir —
-// `pw-mon` no estaba, y salía como una app más. Hoy son dos filtros en
-// `identidadApps.ts`/`presentacionApps.ts`: fuera la infraestructura de audio, y fuera lo
-// que no case con ningún `.desktop` instalado (un proceso sin entrada de escritorio no es
-// una app que el usuario reconozca en una lista de volúmenes).
+// ── Mezcla de aplicaciones: de dónde salen las filas ────────────────────────────
+//
+// **Antes esto era un sondeo `pactl` cada 2 s** (dos subprocesos por vuelta, ~6 ms) que
+// reconstruía la lista entera mientras el submenú estuviera abierto. Se ha ido casi todo:
+// AstalWp ya publica los streams nativamente —`audio.streams` son los `Stream/Output/Audio`
+// (los sink-inputs de Pulse) y `audio.recorders` los de entrada—, con lista reactiva y
+// `notify::volume` por stream. De paso se llevó por delante tres apaños que existían SOLO
+// para sostener el sondeo:
+//   - el `<For>` deliberadamente **sin `id`**, que reconstruía todas las filas cada 2 s
+//     porque era la reconstrucción lo que re-sembraba el volumen mostrado;
+//   - el **congelado de 2,5 s** tras tocar el deslizador, para que la siguiente vuelta del
+//     sondeo no pisara lo que el usuario estaba arrastrando;
+//   - la **firma** `streamsSignature`, que comparaba la lista consigo misma para no
+//     republicar objetos nuevos idénticos.
+// Hoy cada fila se engancha al volumen de SU stream, así que un cambio hecho desde fuera
+// (pavucontrol, `wpctl`, la propia app) se ve al instante en vez de hasta 2 s después.
+//
+// **Lo que NO puede ser nativo: las apps "en silencio".** Esas filas salen de la lista de
+// CLIENTES de PulseAudio, y un cliente de Pulse es un concepto del servidor Pulse que
+// WirePlumber no modela — AstalWp no lo expone por ningún lado. Así que ahí sigue un
+// `pactl -f json list clients`, pero **sin temporizador**: se pide al abrir el submenú y se
+// refresca por eventos (cambia la lista de streams, o Hyprland abre una ventana nueva). Una
+// app que empieza o deja de sonar cambia los streams; una app recién lanzada abre una
+// ventana. Sin ningún reloj de por medio.
+/** Una fila de la mezcla. `stream` a null = app abierta que ahora mismo no suena. */
+type FilaApp = { clave: string; props: Record<string, any>; stream: any | null }
 
-// Firma estable: nombre|índice|volumen por stream. Si no cambia, no tocamos el state
-// y <For> no reconstruye nada.
-function streamsSignature(arr: any[]): string {
-  return arr.map(si => {
-    const p = si.properties || {}
-    const name = p["application.name"] || p["node.name"] || p["media.name"] || "App"
-    const volObj = si.volume || {}
-    const ch = Object.keys(volObj)
-    const vp = ch.length ? volObj[ch[0]].value_percent : (si.isSilent ? "silent" : "-")
-    return `${name}|${si.index}|${vp}`
-  }).join(";")
-}
+const audioWp = (() => {
+  try { return AstalWp.get_default()?.audio ?? null } catch { return null }
+})()
 
-// ── Speaker apps poller ──
-const [spkAppStreams, setSpkAppStreams] = createState<any[]>([])
-let spkLastInteraction = 0
-let spkSig = ""
-let spkPollId: number | null = null
-let spkRefs = 0
+// ── Apps en silencio (solo altavoces) ──
+// El submenú de micrófono nunca las ha tenido: un cliente de Pulse no implica captura, y
+// listarlos ahí metía Spotify o el navegador como si estuvieran grabando.
+const [clientesSilenciosos, setClientesSilenciosos] = createState<any[]>([])
+let mezclaRefs = 0
+let refrescoPendiente: number | null = null
 
-function loadSpkStreams() {
-  if (Date.now() - spkLastInteraction < 2500) return
-  obtenerStreams("speaker").then(({ streams, clientes }) => {
-    // Aquí NO se aplica ningún preset: de eso se encarga el vigilante de
-    // `presetsApps.ts`, que está siempre activo y engancha a `stream-added`. Este sondeo
-    // solo alimenta la lista.
-    // Deduplicación por IDENTIDAD, no por el nombre visible: el cliente de captura de
-    // Brave se anuncia como "Brave input" y el stream como "Brave", así que comparando
-    // cadenas salían dos filas de la misma app.
-    const identidadesActivas = new Set<string>()
-    streams.forEach(si => identidadesActivas.add(claveApp(si.properties)))
-
-    const silentApps: any[] = []
-    clientes.forEach(c => {
-      const props = c.properties
-      const clave = claveApp(props)
-      if (!clave || identidadesActivas.has(clave)) return
-      if (esClienteDeSistema(props)) return
-      if (!tieneEntradaEscritorio(props)) return
-      identidadesActivas.add(clave)
-      silentApps.push({ index: -1, client: c.index, properties: props, volume: null, isSilent: true })
+function refrescarClientes() {
+  if (mezclaRefs === 0) return
+  execAsync(["bash", "-c", "pactl -f json list clients 2>/dev/null"])
+    .then(salida => {
+      const crudo = JSON.parse(salida)
+      setClientesSilenciosos(Array.isArray(crudo) ? crudo : (crudo ? [crudo] : []))
     })
-
-    const next = [...streams, ...silentApps]
-    const sig = streamsSignature(next)
-    if (sig !== spkSig) { spkSig = sig; setSpkAppStreams(next) }
-  }).catch(() => { if (spkSig !== "") { spkSig = ""; setSpkAppStreams([]) } })
+    .catch(() => setClientesSilenciosos([]))
 }
 
-function startSpkPoll() {
-  spkRefs++
-  if (spkPollId !== null) return
-  loadSpkStreams()
-  spkPollId = setInterval(loadSpkStreams, 2000)
-}
-function stopSpkPoll() {
-  spkRefs = Math.max(0, spkRefs - 1)
-  if (spkRefs === 0 && spkPollId !== null) { clearInterval(spkPollId); spkPollId = null }
-}
-
-// ── Microphone apps poller ──
-// Solo apps que REALMENTE capturan (source-outputs activos). Un "client" de Pulse no
-// implica captura, así que aquí no añadimos apps "silenciosas" (antes metía Spotify,
-// navegadores, etc. como si grabaran).
-const [micAppStreams, setMicAppStreams] = createState<any[]>([])
-let micLastInteraction = 0
-let micSig = ""
-let micPollId: number | null = null
-let micRefs = 0
-
-function loadMicStreams() {
-  if (Date.now() - micLastInteraction < 2500) return
-  obtenerStreams("mic").then(({ streams }) => {
-    const sig = streamsSignature(streams)
-    if (sig !== micSig) { micSig = sig; setMicAppStreams(streams) }
-  }).catch(() => { if (micSig !== "") { micSig = ""; setMicAppStreams([]) } })
+/** Coalesce: abrir una app dispara varios eventos seguidos (ventana + cliente + stream). */
+function pedirRefresco() {
+  if (refrescoPendiente !== null || mezclaRefs === 0) return
+  refrescoPendiente = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+    refrescoPendiente = null
+    refrescarClientes()
+    return GLib.SOURCE_REMOVE
+  })
 }
 
-function startMicPoll() {
-  micRefs++
-  if (micPollId !== null) return
-  loadMicStreams()
-  micPollId = setInterval(loadMicStreams, 2000)
+let idVentanaNueva: number | null = null
+const idsAudio: number[] = []
+
+/**
+ * El submenú declara que quiere la lista; el refcount la sostiene para todas las
+ * instancias (una por monitor). Sin temporizadores: solo la petición inicial y los
+ * enganches a eventos, que se sueltan al cerrar.
+ */
+function activarMezclaApps() {
+  mezclaRefs++
+  if (mezclaRefs > 1) return
+  refrescarClientes()
+  // Una app que empieza o deja de sonar cambia de lado (fila viva ↔ fila en silencio), y
+  // eso solo lo sabe la lista de clientes. Se engancha a las señales de AstalWp y NO a la
+  // lista ya compuesta: refrescar clientes recompone las filas, así que escuchar la
+  // composición sería un bucle de 400 ms perpetuo.
+  if (audioWp && idsAudio.length === 0) {
+    for (const senal of ["stream-added", "stream-removed"]) {
+      idsAudio.push(audioWp.connect(senal, () => pedirRefresco()))
+    }
+  }
+  if (idVentanaNueva === null) {
+    const hypr = AstalHyprland.get_default()
+    // Una app recién lanzada abre su cliente de Pulse sin crear ningún stream (un
+    // navegador, Spotify antes de darle a play): sin esta señal no aparecería hasta que
+    // algo más moviera la lista. Abrir ventana es el evento que sí ocurre siempre.
+    idVentanaNueva = hypr.connect("client-added", () => pedirRefresco())
+  }
 }
-function stopMicPoll() {
-  micRefs = Math.max(0, micRefs - 1)
-  if (micRefs === 0 && micPollId !== null) { clearInterval(micPollId); micPollId = null }
+
+function desactivarMezclaApps() {
+  mezclaRefs = Math.max(0, mezclaRefs - 1)
+  if (mezclaRefs > 0) return
+  if (refrescoPendiente !== null) { GLib.source_remove(refrescoPendiente); refrescoPendiente = null }
+  if (idVentanaNueva !== null) {
+    try { AstalHyprland.get_default().disconnect(idVentanaNueva) } catch { }
+    idVentanaNueva = null
+  }
+  while (idsAudio.length) {
+    try { audioWp?.disconnect(idsAudio.pop()!) } catch { }
+  }
+}
+
+/** Filas de un submenú: los streams vivos y, para altavoces, las apps en silencio. */
+function filasMezcla(tipo: QsAudioKind, streams: any[], clientes: any[]): FilaApp[] {
+  const filas: FilaApp[] = []
+  // Deduplicación por IDENTIDAD, no por el nombre visible: el cliente de captura de Brave
+  // se anuncia como "Brave input" y su stream como "Brave", así que comparando cadenas
+  // salían dos filas de la misma app.
+  const identidades = new Set<string>()
+  for (const stream of streams) {
+    const props = propsDeStream(stream)
+    identidades.add(claveApp(props))
+    filas.push({ clave: `s${stream.id}`, props, stream })
+  }
+  if (tipo !== "speaker") return filas
+  for (const cliente of clientes) {
+    const props = cliente.properties
+    const clave = claveApp(props)
+    if (!clave || identidades.has(clave)) continue
+    if (esClienteDeSistema(props)) continue
+    if (!tieneEntradaEscritorio(props)) continue
+    identidades.add(clave)
+    filas.push({ clave: `c${clave}`, props, stream: null })
+  }
+  return filas
 }
 
 // Throttle de escritura durante el arrastre: change-value se dispara en cada píxel, así
@@ -2749,10 +2770,13 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
   const isSpk = kind === "speaker"
   const wp = AstalWp.get_default()
   const [audioMode, setAudioMode] = createState<"devices" | "apps">("devices")
-  // Estado de apps y presets compartidos a nivel de módulo (ver bloque "Shared
-  // audio-apps polling"). `presets`/`setPresets` se mantienen como alias para no tocar
-  // el resto de la función.
-  const streams = isSpk ? spkAppStreams : micAppStreams
+  // Las filas de la mezcla son REACTIVAS (ver el bloque "Mezcla de aplicaciones"): la
+  // lista de streams la publica AstalWp y solo las apps en silencio pasan por `pactl`.
+  // `presets`/`setPresets` son alias para no tocar el resto de la función.
+  const streams = createComputed(
+    [createBinding(audioWp!, isSpk ? "streams" : "recorders"), clientesSilenciosos],
+    (vivos: any[], clientes: any[]) => filasMezcla(kind, vivos, clientes),
+  )
   const presets = audioPresets
   const setPresets = setAudioPresets
   const handledDevices = new Set<string>()
@@ -2769,9 +2793,11 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
     return mute ? "󰍭" : "󰍬"
   }
 
-  // Esta instancia solo declara si "quiere" el sondeo (panel abierto ∧ vista propia ∧
-  // modo apps); el poller compartido con refcount lo arranca/detiene según haya ≥1
-  // instancia activa. `wanting` evita contar mal el refcount al re-disparar syncRefresh.
+  // Esta instancia solo declara si "quiere" la lista (panel abierto ∧ vista propia ∧
+  // modo apps); el refcount compartido la sostiene mientras haya ≥1 instancia activa —
+  // hay una por monitor. `wanting` evita contar mal al re-disparar syncRefresh. Los
+  // streams vivos no dependen de esto (son una lista reactiva, gratis); lo que se
+  // enciende y se apaga es la consulta de clientes de Pulse y su enganche a eventos.
   let wanting = false
   const shouldRefresh = () =>
     quickSettingsVisible.get() && qsView.get() === (isSpk ? "audio" : "mic") && audioMode.get() === "apps"
@@ -2779,7 +2805,10 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
     const want = shouldRefresh()
     if (want === wanting) return
     wanting = want
-    if (want) (isSpk ? startSpkPoll : startMicPoll)(); else (isSpk ? stopSpkPoll : stopMicPoll)()
+    // Solo el submenú de altavoces tiene filas de apps en silencio; el de micrófono es
+    // enteramente reactivo y no necesita sostener nada.
+    if (!isSpk) return
+    if (want) activarMezclaApps(); else desactivarMezclaApps()
   }
   audioMode.subscribe(syncRefresh)
   quickSettingsVisible.subscribe(syncRefresh)
@@ -3110,14 +3139,16 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={audioMode((m) => m === "apps")}>
             <label cssClasses={["qs-dropdown-header"]} label={isSpk ? "MEZCLA DE APLICACIONES" : "MEZCLA DE ENTRADAS"} halign={Gtk.Align.START} />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-              <For each={streams}>
-                {(si: any) => {
-                  const props = si.properties || {}
+              <For each={streams} id={(f: FilaApp) => f.clave}>
+                {(fila: FilaApp) => {
+                  const props = fila.props
+                  const stream = fila.stream
+                  const enSilencio = stream === null
                   // La CLAVE del preset sale de `presetsApps.ts`, la MISMA que usa el
                   // vigilante para aplicar. Estaba duplicada a mano aquí y ya costó un
                   // fallo silencioso (la fila de mic guardaba con `mic:` y el poller
                   // aplicaba con `app:mic:`, así que el preset no se releía nunca).
-                  const nombreCrudo = nombreStream(si)
+                  const nombreCrudo = nombreDeProps(props)
                   const key = clavePreset(kind, nombreCrudo)
                   // Lo que se ENSEÑA es otra cosa: `application.name` lo pone la app y
                   // llega como binario en minúscula ("spotify") o con sufijo de rol
@@ -3127,42 +3158,59 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   // vigilante no puede depender de GTK.
                   const { nombre: name, icono: icon } = presentacionApp(props, kind)
 
-                  const volObj = si.volume || {}
-                  const channels = Object.keys(volObj)
                   const presetVal = presets.get()[key]
-                  const initialVol = channels.length > 0
-                    ? parseFloat((volObj[channels[0]].value_percent || "100%").replace("%", "")) / 100
-                    : (presetVal !== undefined ? presetVal : 1.0)
+                  const [currentVol, setCurrentVol] = createState(
+                    stream ? stream.volume : (presetVal !== undefined ? presetVal : 1.0),
+                  )
 
-                  const [currentVol, setCurrentVol] = createState(initialVol)
+                  // El volumen del stream se ESCUCHA. Antes se re-sembraba reconstruyendo
+                  // la fila en cada vuelta del sondeo, de ahí que el `<For>` fuera sin
+                  // `id` a propósito y que hubiera un congelado de 2,5 s tras tocar el
+                  // deslizador para que la vuelta siguiente no lo pisara. Con la señal no
+                  // hace falta ninguna de las dos cosas, y un cambio hecho desde fuera
+                  // (pavucontrol, `wpctl`, la propia app) se ve al momento.
+                  //
+                  // La guarda de 300 ms es contra nuestro PROPIO eco: el tramo amplificado
+                  // se escribe con `wpctl` (ver `escrituraVolumen.ts`), que tarda, y sin
+                  // ella un valor en vuelo volvería como notificación y daría un tirón al
+                  // deslizador que el usuario está arrastrando.
+                  let ultimaEscritura = 0
+                  const avisarCambio: Array<() => void> = []
+                  if (stream) {
+                    const manejador = stream.connect("notify::volume", () => {
+                      if (Date.now() - ultimaEscritura < 300) return
+                      setCurrentVol(stream.volume)
+                      for (const avisar of avisarCambio) avisar()
+                    })
+                    onCleanup(() => { try { stream.disconnect(manejador) } catch { } })
+                  }
 
-                  const applyVol = makeVolThrottle((v) => {
-                    if (si.index !== -1) execAsync([
-                      "pactl", isSpk ? "set-sink-input-volume" : "set-source-output-volume",
-                      `${si.index}`, `${Math.round(v * 100)}%`,
-                    ]).catch(() => { })
-                  })
+                  const applyVol = (v: number) => {
+                    if (!stream) return
+                    ultimaEscritura = Date.now()
+                    fijarVolumenEndpoint(stream, v)
+                  }
                   // El modo "media" (slider ancho tipo Spotify) solo existe para
                   // altavoces; las entradas de micrófono siempre usan el slider "mic".
-                  const isMedia = isSpk && (nombreCrudo.toLowerCase().includes("spotify") || si.properties?.["media.name"])
+                  const isMedia = isSpk && (nombreCrudo.toLowerCase().includes("spotify") || props["media.name"])
                   const streamScale = makeScale(
                     isMedia ? ["qs-slider", "media"] : ["qs-slider", isSpk ? "app" : "mic"],
                     () => currentVol.get(),
                     (v) => {
                       setCurrentVol(v)
-                      if (isSpk) spkLastInteraction = Date.now(); else micLastInteraction = Date.now()
-                      // Update preset
                       const p = { ...presets.get() }
                       p[key] = v
                       setPresets(p)
                       saveAudioPresets(p)
-                      // Apply to stream if active (throttled)
                       applyVol(v)
                     },
-                    undefined,
-                    // Las apps ya se escribían con `pactl`, que nunca tuvo el tope
-                    // de AstalWp: aquí el 200 % es solo subirle el techo al
-                    // deslizador (el mismo boost por app que ofrece pavucontrol).
+                    // Re-lee el valor cuando el volumen lo cambia OTRO (la propia app,
+                    // pavucontrol): sin esto el deslizador se quedaría donde lo dejó el
+                    // usuario mientras el número de al lado ya dice otra cosa.
+                    (cb) => avisarCambio.push(cb),
+                    // El tope de AstalWp es 1.5 y los presets llegan al 200 %; de ese
+                    // tramo se encarga `fijarVolumenEndpoint`. Aquí el 200 % solo sube el
+                    // techo del deslizador (el mismo boost por app que da pavucontrol).
                     {
                       heightRequest: 4, max: VOLUMEN_MAX, marcarAmplificado: true,
                       ajustar: (v) => ajustarVolumen(v),
@@ -3190,14 +3238,14 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                             applyVol(v)
                           }}
                           min={0} max={VOLUMEN_MAX * 100}
-                          labelClass={si.isSilent ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
+                          labelClass={enSilencio ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
                           tooltip="Editar volumen · hasta 200 % (amplificado)"
                           widthRequest={26}
                         />
                       </box>
                       <box spacing={6}>
                         {streamScale}
-                        {si.isSilent && <label label={isSpk ? "󰝟" : "󰍭"} cssClasses={["qs-audio-silent-icon"]} tooltipText="Aplicación en silencio/espera" />}
+                        {enSilencio && <label label={isSpk ? "󰝟" : "󰍭"} cssClasses={["qs-audio-silent-icon"]} tooltipText="Aplicación en silencio/espera" />}
                       </box>
                     </box>
                   )

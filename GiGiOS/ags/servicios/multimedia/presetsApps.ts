@@ -42,7 +42,6 @@
 import GLib from "gi://GLib"
 import AstalWp from "gi://AstalWp"
 import { createState } from "ags"
-import { execAsync } from "ags/process"
 import { fijarVolumenEndpoint } from "./escrituraVolumen"
 
 export type TipoMezcla = "speaker" | "mic"
@@ -77,13 +76,34 @@ export function guardarAudioPresets(p: Record<string, number>) {
 }
 
 /**
- * Nombre visible de un stream, ya fusionado con las propiedades de su cliente. La cadena
- * de respaldo es la MISMA que usa la fila de la UI: si divergieran, la fila guardaría el
- * preset bajo una clave que el vigilante nunca buscaría —fallo silencioso, el preset
- * simplemente no se aplicaría— y eso ya pasó una vez entre `mic:` y `app:mic:`.
+ * Propiedades de PipeWire que identifican a una app. Las lee tanto el vigilante (de un
+ * `AstalWp.Stream`) como la fila de Quick Settings, y de ahí salen la clave del preset y
+ * —vía `identidadApps.ts`— el nombre y el icono que se enseñan.
  */
-export function nombreStream(si: any): string {
-  const p = si?.properties || {}
+export const CLAVES_PW = [
+  "application.id", "application.process.binary", "application.name",
+  "node.name", "media.name", "application.icon_name", "window.icon_name",
+]
+
+/** Las props de un stream de AstalWp, en el formato plano que espera todo lo demás. */
+export function propsDeStream(stream: any): Record<string, any> {
+  const props: Record<string, any> = {}
+  for (const clave of CLAVES_PW) {
+    let valor: any = null
+    try { valor = stream.get_pw_property(clave) } catch { valor = null }
+    if (valor) props[clave] = valor
+  }
+  return props
+}
+
+/**
+ * Nombre crudo de la app: la CLAVE del preset. **Una sola implementación a propósito.** La
+ * fila de la UI y el vigilante tienen que llegar a la misma cadena; si divergen, la fila
+ * guarda el preset bajo una clave que el vigilante nunca busca y el ajuste deja de
+ * aplicarse sin un solo error — ya pasó una vez entre `mic:` y `app:mic:`.
+ */
+export function nombreDeProps(props: Record<string, any> | null | undefined): string {
+  const p = props || {}
   return p["application.name"] || p["node.name"] || p["media.name"]
     || p["application.process.binary"] || "App"
 }
@@ -91,31 +111,6 @@ export function nombreStream(si: any): string {
 /** Clave del preset. La comparte la UI: cambiarla aquí invalidaría los JSON existentes. */
 export function clavePreset(tipo: TipoMezcla, nombre: string): string {
   return `app:${tipo === "speaker" ? "spk" : "mic"}:${nombre.toLowerCase()}`
-}
-
-const listado = (tipo: TipoMezcla) => (tipo === "speaker" ? "sink-inputs" : "source-outputs")
-/**
- * Streams vivos con las propiedades de su cliente fusionadas (`application.name` suele
- * venir del cliente, no del stream). Devuelve también la lista de clientes porque la UI
- * la necesita para las apps "en silencio" y sería un `pactl` de más pedirla dos veces.
- */
-export function obtenerStreams(tipo: TipoMezcla): Promise<{ streams: any[]; clientes: any[] }> {
-  return Promise.all([
-    execAsync(["bash", "-c", `pactl -f json list ${listado(tipo)} 2>/dev/null`]).catch(() => "[]"),
-    execAsync(["bash", "-c", "pactl -f json list clients 2>/dev/null"]).catch(() => "[]"),
-  ]).then(([streamsStr, clientesStr]) => {
-    const crudos = JSON.parse(streamsStr)
-    const clientesCrudos = JSON.parse(clientesStr)
-    const streams = Array.isArray(crudos) ? crudos : (crudos ? [crudos] : [])
-    const clientes = Array.isArray(clientesCrudos) ? clientesCrudos : (clientesCrudos ? [clientesCrudos] : [])
-    const porIndice = new Map<string, any>()
-    clientes.forEach(c => porIndice.set(String(c.index), c))
-    streams.forEach(si => {
-      const cliente = porIndice.get(String(si.client))
-      if (cliente) si.properties = { ...cliente.properties, ...si.properties }
-    })
-    return { streams, clientes }
-  })
 }
 
 // Ids de stream ya atendidos, por tipo. Son ids globales de PipeWire (los de AstalWp), no
@@ -134,16 +129,6 @@ function audio(): AstalWp.Audio | null {
 const listaViva = (tipo: TipoMezcla, a: AstalWp.Audio) =>
   tipo === "speaker" ? a.get_streams() : a.get_recorders()
 
-/** Nombre de la app tal y como lo anuncia el cliente. Es la clave del preset. */
-export function nombreDeStream(stream: any): string {
-  const propiedad = (clave: string) => {
-    try { return stream.get_pw_property(clave) } catch { return null }
-  }
-  return propiedad("application.name") || propiedad("node.name")
-    || propiedad("media.name") || propiedad("application.process.binary")
-    || stream.description || "App"
-}
-
 /**
  * Aplica el preset a un stream recién aparecido y vigila `GRACIA_MS` por si el cliente
  * pisa el valor justo después (Spotify lo hace). **Corrige durante TODA la ventana, no una
@@ -159,7 +144,7 @@ function atender(tipo: TipoMezcla, stream: any) {
   if (vistos.has(stream.id)) return
   vistos.add(stream.id)
 
-  const preset = audioPresets.get()[clavePreset(tipo, nombreDeStream(stream))]
+  const preset = audioPresets.get()[clavePreset(tipo, nombreDeProps(propsDeStream(stream)))]
   if (preset === undefined) return
 
   fijarVolumenEndpoint(stream, preset)
