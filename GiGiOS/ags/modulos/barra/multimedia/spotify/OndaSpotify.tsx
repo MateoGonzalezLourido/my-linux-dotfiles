@@ -84,15 +84,15 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
     cr.setLineWidth(TRAZO)
     cr.setLineCap(cairo.LineCap.ROUND)
 
-    bandas.forEach((banda, indice) => {
-      const nivel = banda.nivel * energia
+    for (let indice = 0; indice < bandas.length; indice++) {
+      const nivel = bandas[indice].nivel * energia
       const altura = MINIMO + (recorrido - MINIMO) * nivel
       const x = separacion * (indice + 1)
       cr.setSourceRGBA(0.88, 0.88, 0.86, 0.5 + 0.45 * nivel)
       cr.moveTo(x, (alto - altura) / 2)
       cr.lineTo(x, (alto + altura) / 2)
       cr.stroke()
-    })
+    }
   })
 
   const reposar = () => {
@@ -114,31 +114,41 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
 
     const objetivo = reproduciendo ? 1 : 0
     energia += (objetivo - energia) * (1 - Math.exp(-delta / (reproduciendo ? 0.20 : 0.28)))
-    const pulso = (tiempo / (60 / BPM)) % 4
-    const bombo = Math.exp(-(pulso % 1) * 7) * (pulso < 1 ? 1 : 0.55)
-
     // El espectro real solo manda si cava está entregando audio de verdad. Con la
     // reproducción en el móvil el sink local está mudo, así que aquí vuelve el algoritmo.
     const objetivoMezcla = liberarEspectro !== null && espectroConSenal.get() ? 1 : 0
     mezcla += (objetivoMezcla - mezcla) * (1 - Math.exp(-delta / CRUCE))
     const niveles = mezcla > 0.001 ? nivelesEspectro.get() : null
+    // Con el cruce ya cerrado el algoritmo procedimental no aporta ni una milésima al
+    // resultado (`sintetico * (1 - mezcla)`), así que no se calcula: son tres senos por
+    // banda que se tiraban enteros mientras cava alimenta la onda, que es el caso normal.
+    const soloReal = mezcla > 0.999
+    const pulso = (tiempo / (60 / BPM)) % 4
+    const bombo = soloReal ? 0 : Math.exp(-(pulso % 1) * 7) * (pulso < 1 ? 1 : 0.55)
+    // Los dos factores de suavizado dependen solo de `delta`, igual para todas las
+    // bandas: se calculan una vez por frame en vez de un `Math.exp` por banda.
+    const factorAtaque = 1 - Math.exp(-delta / ATAQUE)
+    const factorCaida = 1 - Math.exp(-delta / CAIDA)
 
-    bandas.forEach((banda, indice) => {
-      const oscilacion = (
-        0.55 * Math.sin(tiempo * banda.velocidad + banda.fases[0])
-        + 0.30 * Math.sin(tiempo * banda.velocidad * 1.73 + banda.fases[1])
-        + 0.15 * Math.sin(tiempo * banda.velocidad * 2.61 + banda.fases[2])
-      ) / 0.72
-      const normalizado = Math.min(1, Math.max(0, 0.5 + 0.5 * oscilacion))
-      const perfil = normalizado * normalizado * (3 - 2 * normalizado)
-      const sintetico = Math.min(1, banda.ganancia * (0.06 + 0.94 * perfil) + 0.5 * bombo * banda.grave)
+    for (let indice = 0; indice < bandas.length; indice++) {
+      const banda = bandas[indice]
+      let sintetico = 0
+      if (!soloReal) {
+        const oscilacion = (
+          0.55 * Math.sin(tiempo * banda.velocidad + banda.fases[0])
+          + 0.30 * Math.sin(tiempo * banda.velocidad * 1.73 + banda.fases[1])
+          + 0.15 * Math.sin(tiempo * banda.velocidad * 2.61 + banda.fases[2])
+        ) / 0.72
+        const normalizado = Math.min(1, Math.max(0, 0.5 + 0.5 * oscilacion))
+        const perfil = normalizado * normalizado * (3 - 2 * normalizado)
+        sintetico = Math.min(1, banda.ganancia * (0.06 + 0.94 * perfil) + 0.5 * bombo * banda.grave)
+      }
       // El valor de cava ya viene normalizado por su autosens: no se le aplica `ganancia`,
       // que existe para dar forma a un espectro inventado, no para corregir uno medido.
       const real = niveles ? (niveles[indice] ?? 0) : 0
-      const pico = sintetico + (real - sintetico) * mezcla
-      const constante = pico > banda.nivel ? ATAQUE : CAIDA
-      banda.nivel += (pico - banda.nivel) * (1 - Math.exp(-delta / constante))
-    })
+      const pico = soloReal ? real : sintetico + (real - sintetico) * mezcla
+      banda.nivel += (pico - banda.nivel) * (pico > banda.nivel ? factorAtaque : factorCaida)
+    }
 
     onda.queue_draw()
     if (!reproduciendo && energia < 0.004) {

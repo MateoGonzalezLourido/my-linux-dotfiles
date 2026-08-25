@@ -36,15 +36,25 @@ pick_random_plano() {
     ls "$WALLPAPER_DIR"/*.{jpg,jpeg,png,webp} 2>/dev/null | shuf -n 1
 }
 
+# ⚠️ UN ESTADO VACÍO O CORRUPTO SE REESCRIBE ENTERO, no se parchea. `jq` con un
+# fichero de 0 bytes NO falla: no lee ningún valor, no emite nada y SALE 0, así
+# que la rama de parcheo daba por bueno un `$tmp` vacío y lo movía encima — el
+# fichero se quedaba a 0 bytes para siempre y cada aplicación posterior lo
+# reconfirmaba. Visto en vivo: el fondo se aplicaba bien (awww lo mostraba) pero
+# `current` no se guardaba nunca, y AGS —que lee este fichero— se quedaba sin
+# saber qué fondo hay puesto, con lo que el acento adaptativo dejaba de teñir el
+# shell sin un solo error por ningún lado. De ahí que se compruebe que el
+# original parsea Y que la salida no viene vacía antes de mover.
 save_current() {
     local wp="$1" grupo="$2"
     command -v jq >/dev/null 2>&1 || return 0
     mkdir -p "$(dirname "$CONFIG")"
-    if [[ -f "$CONFIG" ]]; then
+    if [[ -s "$CONFIG" ]] && jq -e 'type == "object"' "$CONFIG" >/dev/null 2>&1; then
         local tmp
         tmp="$(mktemp)"
         if jq --arg c "$wp" --arg g "$grupo" \
-              '.current = $c | .currentGroup = $g' "$CONFIG" > "$tmp" 2>/dev/null; then
+              '.current = $c | .currentGroup = $g' "$CONFIG" > "$tmp" 2>/dev/null \
+           && [[ -s "$tmp" ]]; then
             mv "$tmp" "$CONFIG"
         else
             rm -f "$tmp"

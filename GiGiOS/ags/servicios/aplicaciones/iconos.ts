@@ -81,6 +81,83 @@ function clasesCliente(cliente: ClienteAplicacionLike | null | undefined): strin
   return [...new Set([...exactas, ...exactas.map(nombreBaseAplicacion)].filter(Boolean))]
 }
 
+// ── Iconos de juegos de Steam en temas que NO son el activo ───────────────────
+//
+// Steam solo deja un `steam_icon_<appid>.png` en `hicolor` cuando se crea un acceso
+// directo de escritorio, así que la mayoría de los juegos **no tienen icono ahí** (medido:
+// de la biblioteca de esta máquina solo hay tres). Quien sí los trae a miles es un pack de
+// iconos instalado (`Gruvbox-Plus-Dark` aquí), y ese pack normalmente NO es el tema activo
+// (`Tela-circle-grey`), así que ni `has_icon()` ni la búsqueda por `hicolor` lo encuentran
+// y el juego se quedaba con el glifo genérico. Se busca **solo para `steam_icon_*`**: es
+// el caso en el que un icono de otro tema es exactamente el arte que se quiere, y acota
+// el rebusque a una familia de nombres en vez de aplicarlo a toda app.
+//
+// **No se hace con `Gtk.IconTheme.set_theme_name()` en bucle**: cada cambio de tema parsea
+// su `index.theme` y recorrer los ~15 instalados costaba ~2 s (medido) en el hilo del
+// bucle principal. Se miran rutas directas, que son unos cientos de `stat` (~ms), con las
+// dos disposiciones que usan los temas reales (`48/apps` de hicolor y `apps/48` de los
+// packs de Gruvbox).
+
+const TAMANOS_TEMA = [
+  "scalable", "512x512", "512", "256x256", "256", "192x192", "192", "128x128", "128",
+  "96x96", "96", "64x64", "64", "48x48", "48", "32x32", "32", "24x24", "24", "22x22", "22",
+  "16x16", "16",
+]
+
+let raicesTemasCacheadas: string[] | null = null
+
+function raicesTemas(): string[] {
+  if (raicesTemasCacheadas) return raicesTemasCacheadas
+  const raices: string[] = []
+  const contenedores = [
+    GLib.build_filenamev([GLib.get_home_dir(), ".icons"]),
+    ...[GLib.get_user_data_dir(), ...GLib.get_system_data_dirs()]
+      .map((dir) => GLib.build_filenamev([dir, "icons"])),
+  ]
+  for (const contenedor of [...new Set(contenedores)]) {
+    let directorio: GLib.Dir | null = null
+    try { directorio = GLib.Dir.open(contenedor, 0) } catch (_) { continue }
+    let nombre: string | null
+    while ((nombre = directorio.read_name())) {
+      // `hicolor` ya lo cubre `iconoOriginalNombrado`; repetirlo solo duplicaría stats.
+      if (nombre === "hicolor") continue
+      const ruta = GLib.build_filenamev([contenedor, nombre])
+      if (GLib.file_test(ruta, GLib.FileTest.IS_DIR)) raices.push(ruta)
+    }
+  }
+  // El tema activo primero: si el arte está en varios packs, gana el que el usuario ve.
+  const activo = obtenerTema()?.get_theme_name() ?? ""
+  raices.sort((a, b) =>
+    Number(GLib.path_get_basename(b) === activo) - Number(GLib.path_get_basename(a) === activo))
+  raicesTemasCacheadas = raices
+  return raices
+}
+
+const cacheIconosSteam = new Map<string, Gio.Icon | null>()
+
+/** El `steam_icon_<appid>` de cualquier tema instalado, no solo del activo ni de hicolor. */
+function iconoSteamEnTemasInstalados(appid: string): Gio.Icon | null {
+  const nombre = `steam_icon_${appid}`
+  if (cacheIconosSteam.has(nombre)) return cacheIconosSteam.get(nombre) ?? null
+
+  for (const raiz of raicesTemas()) {
+    for (const tamano of TAMANOS_TEMA) {
+      for (const relativa of [`${tamano}/apps`, `apps/${tamano}`]) {
+        for (const extension of ["svg", "png"]) {
+          const ruta = GLib.build_filenamev([raiz, relativa, `${nombre}.${extension}`])
+          if (!GLib.file_test(ruta, GLib.FileTest.EXISTS)) continue
+          const icono = Gio.FileIcon.new(Gio.File.new_for_path(ruta))
+          cacheIconosSteam.set(nombre, icono)
+          return icono
+        }
+      }
+    }
+  }
+
+  cacheIconosSteam.set(nombre, null)
+  return null
+}
+
 export function obtenerIconoOriginalAplicacion(
   cliente: ClienteAplicacionLike | null | undefined,
 ): Gio.Icon | null {
@@ -105,7 +182,9 @@ export function obtenerIconoOriginalAplicacion(
     const icono = iconoOriginalNombrado(nombre)
     if (icono) return icono
   }
-  return null
+  // Último recurso y solo para juegos de Steam: el arte suele estar en un pack de iconos
+  // instalado que no es el tema activo (ver el bloque de arriba).
+  return steam ? iconoSteamEnTemasInstalados(steam[1]) : null
 }
 
 export function esIconoUtilizable(icono: Gio.Icon | null): boolean {

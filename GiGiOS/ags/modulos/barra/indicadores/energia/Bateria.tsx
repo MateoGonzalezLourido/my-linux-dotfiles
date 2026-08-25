@@ -48,11 +48,16 @@ export default function Bateria({ visibilidad }: { visibilidad: EstadoVisibilida
   )
   const [tooltip, establecerTooltip] = createState(crearTooltip())
 
+  // El texto del tooltip solo se recalcula mientras el puntero esta encima: fuera
+  // de ese momento nadie lo lee y su unico dato caro (la potencia instantanea) ni
+  // siquiera se esta sondeando.
+  let punteroDentro = false
+
   const sincronizar = () => {
     establecerPresente(!!bateria?.isPresent)
     establecerClasesCuerpo(["battery-body", claseEstadoBateria(porcentaje(), !!bateria?.charging)])
     establecerClasesSegmentos(clasesSegmentosBateria(porcentaje(), !!bateria?.charging, estaCompleta()))
-    establecerTooltip(crearTooltip())
+    if (punteroDentro) establecerTooltip(crearTooltip())
   }
 
   let cancelarPotencia: (() => void) | null = null
@@ -61,7 +66,7 @@ export default function Bateria({ visibilidad }: { visibilidad: EstadoVisibilida
     cancelarPotencia = null
   }
   const empezarAConsumirPotencia = () => {
-    if (cancelarPotencia || !bateria?.isPresent || !visibilidad.refrescar.get()) return
+    if (cancelarPotencia || !punteroDentro || !bateria?.isPresent || !visibilidad.refrescar.get()) return
     cancelarPotencia = suscribirPotenciaBateria((vatios) => {
       potenciaInstantanea = vatios
       establecerTooltip(crearTooltip())
@@ -93,7 +98,16 @@ export default function Bateria({ visibilidad }: { visibilidad: EstadoVisibilida
       dejarDeConsumirPotencia()
     }
   })
-  if (visibilidad.refrescar.get()) empezarAConsumirPotencia()
+
+  const alEntrar = () => {
+    punteroDentro = true
+    establecerTooltip(crearTooltip())
+    empezarAConsumirPotencia()
+  }
+  const alSalir = () => {
+    punteroDentro = false
+    dejarDeConsumirPotencia()
+  }
 
   return (
     <box
@@ -105,6 +119,7 @@ export default function Bateria({ visibilidad }: { visibilidad: EstadoVisibilida
       valign={Gtk.Align.CENTER}
       tooltipText={tooltip}
     >
+      <Gtk.EventControllerMotion onEnter={alEntrar} onLeave={alSalir} />
       <box
         cssClasses={clasesCuerpo}
         orientation={Gtk.Orientation.HORIZONTAL}

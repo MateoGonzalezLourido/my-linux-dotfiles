@@ -114,3 +114,46 @@ export function esClienteDeSistema(props: PropsAudio): boolean {
     ),
   )
 }
+
+/**
+ * PID del proceso dueño del stream, si PipeWire lo publica. Es lo que casa un stream con
+ * SU ventana de Hyprland sin comparar nombres — imprescindible para los juegos, cuyo
+ * `application.name` no se parece a la clase de su ventana (`steam_app_2050650`).
+ */
+export function pidDeProps(props: PropsAudio): number | null {
+  const crudo = (props || {})["application.process.id"]
+  const pid = typeof crudo === "number" ? crudo : parseInt(String(crudo ?? ""), 10)
+  return Number.isFinite(pid) && pid > 0 ? pid : null
+}
+
+/** Solo letras y dígitos en minúscula: `Rocket League` y `RocketLeague` son lo mismo. */
+export function normalizarNombreJuego(valor: string | null | undefined): string {
+  return String(valor ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "")
+}
+
+/** Longitud mínima del nombre para arriesgarse a casar por texto. */
+const MINIMO_NOMBRE_JUEGO = 4
+
+/**
+ * ¿El nombre con el que se anuncia este stream designa a la ventana de juego que tiene
+ * estas señas (su título, el nombre de su `.desktop`)? Es el último recurso cuando el PID
+ * no casa, y hace falta: un juego de Steam se anuncia como **`Rocket League`** mientras su
+ * ventana tiene la clase `steam_app_252950` y el título `Rocket League (64-bit, DX11,
+ * Cooked)` — no hay un solo identificador compartido, solo el nombre dentro del título.
+ *
+ * Se compara por prefijo en los dos sentidos (el título añade decoración; el nombre del
+ * stream puede venir recortado) y con un mínimo de caracteres, porque aquí un falso
+ * positivo es ponerle a un stream cualquiera el icono de un juego que no es.
+ */
+export function nombreCasaConJuego(
+  nombre: string | null | undefined,
+  senas: Array<string | null | undefined>,
+): boolean {
+  const n = normalizarNombreJuego(nombre)
+  if (n.length < MINIMO_NOMBRE_JUEGO) return false
+  return senas.some((sena) => {
+    const s = normalizarNombreJuego(sena)
+    if (s.length < MINIMO_NOMBRE_JUEGO) return false
+    return s.startsWith(n) || n.startsWith(s)
+  })
+}

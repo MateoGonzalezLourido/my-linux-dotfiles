@@ -33,7 +33,14 @@ export function obtenerIconosClientesEscritorio(
       const comunes = {
         direccion: cliente.address,
         claseAplicacion,
-        descripcion: construirDescripcion(cliente),
+        // Función, no cadena: el tooltip es el único dato de la lista que nadie ve
+        // hasta que el puntero se para encima, y el más caro de armar (regex sobre
+        // el título, entrada .desktop y, si no la hay, detección de juego, que lee
+        // /proc). Aplazarlo lo saca del camino de `actualizar()`, que corre ante
+        // cualquier señal de Hyprland —incluido cruzar el ratón entre ventanas con
+        // `follow_mouse`— y para TODOS los clientes del monitor. Al leer el cliente
+        // vivo, además, el título que sale es el del momento del hover.
+        descripcion: () => construirDescripcion(cliente),
       }
       const glifo = obtenerGlifoAplicacion(
         claseAplicacion,

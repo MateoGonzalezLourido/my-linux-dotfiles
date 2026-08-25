@@ -27,7 +27,8 @@ export interface IconoClienteEscritorio {
   direccion: string
   claseAplicacion: string
   esGlifo: boolean
-  descripcion: string
+  /** Tooltip de la ventana, construido bajo demanda (ver `iconos.ts`). */
+  descripcion: () => string
 }
 
 export interface EscritorioVisible {
@@ -74,7 +75,11 @@ const firmasMemorizadas = new WeakMap<readonly EscritorioVisible[], string>()
  * siquiera llegue a los widgets.
  *
  * Incluye todo lo que `BotonEscritorio` pinta y nada más: orden, id y nombre de
- * cada escritorio y, por cliente, dirección, icono y descripción. `enfocar` queda
+ * cada escritorio y, por cliente, dirección e icono. La **descripción queda fuera**:
+ * se calcula al abrir el tooltip, no se pinta, y derivarla del título metía en la
+ * firma un dato que cambia con cada pestaña del navegador o cada `cd` en la terminal
+ * — reconstruyendo todos los botones de todas las barras por un texto que nadie
+ * estaba mirando (y también con los títulos desactivados en Ajustes). `enfocar` queda
  * fuera a propósito — es una clausura nueva en cada pasada, pero solo depende del
  * id y del nombre, que sí están en la firma (el nombre entró con los especiales:
  * abrirlos va por `toggle_special <nombre>`, no por el id). */
@@ -94,7 +99,6 @@ export function firmarEscritorios(
       cliente.icono,
       cliente.esGlifo ? "glifo" : "imagen",
       cliente.iconoGio ? "gio" : "-",
-      cliente.descripcion,
     ].join(SEPARADOR_CAMPO)),
   ].join(SEPARADOR_CLIENTE)).join(SEPARADOR_ESCRITORIO)
 

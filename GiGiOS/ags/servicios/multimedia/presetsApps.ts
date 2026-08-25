@@ -83,6 +83,10 @@ export function guardarAudioPresets(p: Record<string, number>) {
 export const CLAVES_PW = [
   "application.id", "application.process.binary", "application.name",
   "node.name", "media.name", "application.icon_name", "window.icon_name",
+  // El PID es lo único que casa un stream con SU ventana de Hyprland sin comparar
+  // nombres: es lo que permite darle a un juego el icono que ya sabe resolver el
+  // registro de juegos (ver `presentacionApps.ts`).
+  "application.process.id",
 ]
 
 /** Las props de un stream de AstalWp, en el formato plano que espera todo lo demás. */

@@ -1,0 +1,33 @@
+{
+  "seccion": {
+    "titulo": "Apps al inicio"
+  },
+  "grupos": {
+    "anadir": "Añadir una app",
+    "lista": "Se abren al iniciar sesión"
+  },
+  "buscador": {
+    "marcador": "Buscar entre las apps instaladas…",
+    "sinResultados": "Ninguna app instalada coincide con la búsqueda.",
+    "anadir": "Añadir al inicio",
+    "yaEsta": "Ya está en la lista de inicio"
+  },
+  "manual": {
+    "titulo": "Comando manual",
+    "descripcion": "Para lo que no tenga un lanzador instalado: un script propio, el daemon de unos controladores, un binario suelto. Se ejecuta tal cual, como una línea de terminal.",
+    "marcadorNombre": "Nombre",
+    "marcadorComando": "Comando",
+    "anadir": "Añadir"
+  },
+  "lista": {
+    "vacio": "Todavía no se abre ninguna app al iniciar sesión.",
+    "activo": "Abrirla al iniciar sesión",
+    "probar": "Abrirla ahora, con estas mismas reglas",
+    "quitar": "Quitarla de la lista de inicio",
+    "escritorio": "Escritorio",
+    "escritorioActivo": "Donde estés",
+    "escritorioNumero": "Escritorio {{numero}}",
+    "silencioso": "Sin llevarte a él",
+    "aviso": "Las apps se abren unos segundos después de entrar al escritorio, una detrás de otra: media docena arrancando a la vez retrasa el resto de la sesión. «Sin llevarte a él» necesita un escritorio fijado, porque es una regla que Hyprland solo aplica al enviar la ventana a otro sitio."
+  }
+}

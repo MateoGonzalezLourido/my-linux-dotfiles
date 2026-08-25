@@ -12,10 +12,19 @@ XDG paths via **symlinks**, not copies. The three big components are:
   own detailed `ags/CLAUDE.md` — read that before touching shell code.** Symlinked to `~/.config/ags`.
 - `hypr/` — Hyprland config, hyprlock/hypridle, GPU profiles, and background monitor
   scripts. Symlinked to `~/.config/hypr`.
-- `inicializador/` — `init.sh`, run once at Hyprland startup to restore saved
-  hardware state (brightness, night light, wifi, bluetooth, volume). Symlinked to `~/.config/inicializador`.
+- `inicializador/` — lo que se restaura o se abre al empezar la sesión, llamado desde el autostart
+  de Hyprland. `init.sh` repone el estado del hardware guardado (brillo, luz nocturna, wifi,
+  bluetooth, volumen); `apps-inicio.sh` abre las apps que el usuario haya puesto en la lista de
+  inicio (`~/.config/gigios/apps-inicio.json`, escrita desde Ajustes > Apps al inicio). Ninguno de
+  los dos corre "antes de Hyprland" pese al nombre del directorio: los dos salen de un `exec-once`,
+  porque hasta que el compositor no está en pie no hay `WAYLAND_DISPLAY`. Symlinked to
+  `~/.config/inicializador`.
 
 Supporting dirs: `Wallpapers/` (used directly by `wallpaper.sh`, no symlink),
+`audio/` (los sonidos de alarmas y notificaciones, también sin symlink: se leen de
+`~/GiGiOS/audio` — un `sound-name` se resuelve **primero** contra esta carpeta y solo si falta se
+delega en el tema de sonidos del sistema, que sin `sound-theme-freedesktop` instalado deja la
+alarma muda sin dar ningún error; ver `audio/README.md`),
 `bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
 `system/` (ficheros que van a `/etc` y `/usr/local/bin`, **no** se symlinkean: se instalan con `sudo` —
 la regla udev de escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP, el helper de
@@ -90,7 +99,8 @@ unless the application's limitations are documented there.
 User/runtime state is **not** versioned. It lives in `~/.config/gigios/` (`display.json`,
 `system_state.json`, `notifications.json`, `preferences.json`, `almacenamiento.json` —la
 autolimpieza de disco, que además leen `hypr/scripts/limpiar-almacenamiento.sh` y
-`limpieza-arranque.sh` con `jq`—, …), plus `~/.config/jarvis/`
+`limpieza-arranque.sh` con `jq`—, `apps-inicio.json` —las apps que se abren al iniciar sesión, que
+lee `inicializador/apps-inicio.sh`—, …), plus `~/.config/jarvis/`
 and `~/.local/share/jarvis/` for the Orion launcher, `~/.config/power-save/config.json`
 (umbral y filtros de modo ahorro) and `~/.local/share/orion/favorites.json` (favoritos del
 launcher — ver "What this is" para por qué estos dos últimos dejaron de vivir dentro del repo).
@@ -151,8 +161,8 @@ Para el directorio, el orden de carga de módulos y qué script se dispara desde
 [`docs/hypr-estructura.md`](docs/hypr-estructura.md). Para el detalle y el porqué de cada módulo
 individual (GPU/pantalla/idioma por máquina, Wake up, congelar tareas al jugar, USB, brillo DDC,
 puntero/hyprcursor, TLP, security monitor, ClamAV, desinstalar apps, almacenamiento y autolimpieza,
-boot-healthcheck, grabar pantalla, portapapeles, franjas horarias de fondos, monitores de
-batería/temperatura/RAM/disco/BT, y una decena más), ver
+boot-healthcheck, apps al inicio, grabar pantalla, portapapeles, franjas horarias de fondos,
+monitores de batería/temperatura/RAM/disco/BT, y una decena más), ver
 **[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) — léelo antes de
 tocar el script o módulo que nombra su título**, porque casi todos documentan un fallo silencioso
 ya medido (efecto sin error visible) que se repite si no se conoce.

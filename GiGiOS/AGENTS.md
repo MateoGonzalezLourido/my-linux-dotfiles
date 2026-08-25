@@ -2,7 +2,7 @@
 
 ## Estructura del proyecto y módulos
 
-GiGiOS es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos reales viven aquí y se instalan en ubicaciones XDG mediante enlaces simbólicos. `ags/` contiene el shell AGS v2/Astal en TypeScript/TSX; lee `ags/AGENTS.md` antes de cambiar código del shell. Su código se separa en `modulos/` de interfaz y funcionalidad, `componentes/` compartidos, `estado/`, `servicios/` y `utilidades/`. `hypr/` contiene Hyprland, hyprlock, hypridle, perfiles de GPU y scripts de monitores. `inicializador/` contiene la restauración del estado de arranque. `Wallpapers/` se usa directamente desde los scripts de fondos. `docs/` guarda especificaciones y planes.
+GiGiOS es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos reales viven aquí y se instalan en ubicaciones XDG mediante enlaces simbólicos. `ags/` contiene el shell AGS v2/Astal en TypeScript/TSX; lee `ags/AGENTS.md` antes de cambiar código del shell. Su código se separa en `modulos/` de interfaz y funcionalidad, `componentes/` compartidos, `estado/`, `servicios/` y `utilidades/`. `hypr/` contiene Hyprland, hyprlock, hypridle, perfiles de GPU y scripts de monitores. `inicializador/` contiene la restauración del estado de arranque. `Wallpapers/` se usa directamente desde los scripts de fondos, y `audio/` (sin symlink también) guarda los sonidos de alarmas y notificaciones — ver `audio/README.md`. `docs/` guarda especificaciones y planes.
 
 ## Comandos de compilación, prueba y desarrollo
 

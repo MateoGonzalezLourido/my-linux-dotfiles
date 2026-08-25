@@ -8,10 +8,32 @@
 
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
-import { comandoReproduccion, decidirSonido, expandirRuta } from "./decision.ts"
-import type { EntradaSonido } from "./decision.ts"
+import { candidatosTema, comandoReproduccion, decidirSonido, expandirRuta } from "./decision.ts"
+import type { DecisionSonido, EntradaSonido } from "./decision.ts"
+
+/**
+ * Los audios que van dentro del repo (`~/GiGiOS/audio`). Se usa la ruta directa, sin symlink,
+ * igual que `Wallpapers/`: es contenido del repositorio, no configuración XDG.
+ */
+export const DIR_AUDIO = `${GLib.get_home_dir()}/GiGiOS/audio`
 
 const cacheProgramas = new Map<string, boolean>()
+
+/**
+ * Convierte un nombre de tema en la ruta de la biblioteca propia, si la carpeta lo lleva.
+ *
+ * No se cachea: la carpeta es del usuario y puede ganar o perder ficheros con la sesión abierta,
+ * y un `file_test` por sonido reproducido no se nota al lado de arrancar un proceso de audio.
+ */
+function resolverTema(decision: DecisionSonido): DecisionSonido {
+  if (!decision.reproducir || decision.tipo !== "tema") return decision
+  for (const ruta of candidatosTema(decision.recurso, DIR_AUDIO)) {
+    if (GLib.file_test(ruta, GLib.FileTest.EXISTS)) {
+      return { reproducir: true, tipo: "archivo", recurso: ruta }
+    }
+  }
+  return decision
+}
 
 function disponible(programa: string): boolean {
   const memo = cacheProgramas.get(programa)
@@ -39,11 +61,15 @@ export function reproducirSonidoNotificacion(entrada: EntradaSonido): void {
   })
   if (!decision.reproducir) return
 
-  const comando = comandoReproduccion(decision, disponible)
+  // La biblioteca propia gana al tema instalado: es la que se versiona con el sistema, así que es
+  // la que suena igual en cualquier máquina — y la que hace que las alarmas suenen sin depender de
+  // que `sound-theme-freedesktop` esté instalado.
+  const efectiva = resolverTema(decision)
+  const comando = comandoReproduccion(efectiva, disponible)
   if (comando === null) {
     console.warn(
-      `[notif sonido] no hay reproductor para ${decision.tipo} «${decision.recurso}»` +
-        (decision.tipo === "tema" ? " (requiere canberra-gtk-play, paquete libcanberra)" : ""),
+      `[notif sonido] no hay reproductor para ${efectiva.tipo} «${efectiva.recurso}»` +
+        (efectiva.tipo === "tema" ? " (requiere canberra-gtk-play, paquete libcanberra)" : ""),
     )
     return
   }

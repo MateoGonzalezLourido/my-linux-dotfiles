@@ -1990,6 +1990,12 @@ entry.qs-inline-number-input {
   min-width: 18px;
 }
 
+// Juego sin icono instalado: el mismo glifo que la pastilla de juegos de la barra, en el
+// hueco de la imagen. Ver `servicios/multimedia/presentacionApps.ts`.
+.qs-stream-glifo {
+  color: $violet;
+}
+
 .qs-audio-silent-icon {
   opacity: 0.3;
   font-size: 0.75em;

@@ -27,7 +27,7 @@ import { notifPanelVisible } from "../notificaciones/store"
 import { lagartoBarraEnabled } from "../ajustes/preferences"
 import { mascotaSuspended } from "../../servicios/energia/powerState"
 import { suscribirActividadMascota } from "./estado/monitorActividad"
-import { avanzarPaso, estadoAleatorio, PARAMETROS_PREDETERMINADOS, type EstadoMovimiento } from "./estado/movimiento"
+import { avanzarPasoEnSitio, estadoAleatorio, PARAMETROS_PREDETERMINADOS, type EstadoMovimiento } from "./estado/movimiento"
 import {
   ANCHO_CALENDARIO, ANCHO_NOTIFICACIONES,
   empujeDesdeDerecha, empujeDesdeIzquierda, franjaQuickSettings,
@@ -61,29 +61,64 @@ const ESPERA_CLIC_MS = 300
 const UMBRAL_ARRASTRE_PX = 4
 const TUMBADO_MIN_MS = 4000
 const TUMBADO_MAX_MS = 9000
+// Holgura (px) que se le permite al recorte de la región de entrada antes de
+// volver a calcularlo mientras el lagarto camina. Ver `pintar()`.
+const HOLGURA_RECORTE_PX = 4
 
 const ASSETS_DIR = `${GLib.get_user_config_dir()}/ags/modulos/mascotas/assets`
 
-function cargarTextura(nombre: string): Gdk.Texture | null {
+type Pose = "caminando" | "colgado" | "tumbado"
+
+/** Una imagen concreta del lagarto con su tamaño ya resuelto. Las instancias
+ * se crean una sola vez (ver `obtenerSprites`) y `pintar()` compara por
+ * IDENTIDAD contra la del fotograma anterior: un solo `===` decide si hay algo
+ * que tocar en el widget, sin componer ningún objeto por tick. */
+interface Sprite {
+  textura: Gdk.Texture | null
+  ancho: number
+  alto: number
+}
+
+function cargarSprite(nombre: string, ancho: number, alto: number): Sprite {
+  let textura: Gdk.Texture | null = null
   try {
-    return Gdk.Texture.new_from_filename(`${ASSETS_DIR}/${nombre}`)
+    textura = Gdk.Texture.new_from_filename(`${ASSETS_DIR}/${nombre}`)
   } catch (error) {
     console.error("[mascotas] no se pudo cargar el sprite del lagarto:", nombre, error)
-    return null
   }
+  return { textura, ancho, alto }
 }
 
-// Una sola carga de las texturas, compartida por todos los monitores.
-const TEXTURAS = {
-  derecha: [cargarTextura("lagarto-a-derecha.png"), cargarTextura("lagarto-b-derecha.png")],
-  izquierda: [cargarTextura("lagarto-a-izquierda.png"), cargarTextura("lagarto-b-izquierda.png")],
-  colgadoDerecha: cargarTextura("lagarto-colgado-derecha.png"),
-  colgadoIzquierda: cargarTextura("lagarto-colgado-izquierda.png"),
-  tumbadoDerecha: cargarTextura("lagarto-tumbado-derecha.png"),
-  tumbadoIzquierda: cargarTextura("lagarto-tumbado-izquierda.png"),
+interface Sprites {
+  /** [fotograma][sentido], sentido 0 = izquierda, 1 = derecha. */
+  caminando: [[Sprite, Sprite], [Sprite, Sprite]]
+  colgado: [Sprite, Sprite]
+  tumbado: [Sprite, Sprite]
 }
 
-type Pose = "caminando" | "colgado" | "tumbado"
+let sprites: Sprites | null = null
+
+/** Una sola carga de las texturas, compartida por todos los monitores y
+ * DIFERIDA hasta el primer fotograma que se pinta de verdad. `new_from_filename`
+ * lee del disco y sube la imagen a la GPU de forma síncrona; hacerlo al importar
+ * el módulo lo metía en la construcción de las ventanas del arranque incluso
+ * cuando la mascota está apagada en Ajustes, que es el caso por defecto. */
+function obtenerSprites(): Sprites {
+  if (sprites) return sprites
+  sprites = {
+    caminando: [
+      [cargarSprite("lagarto-a-izquierda.png", ANCHO_CAMINANDO, ALTO_CAMINANDO),
+        cargarSprite("lagarto-a-derecha.png", ANCHO_CAMINANDO, ALTO_CAMINANDO)],
+      [cargarSprite("lagarto-b-izquierda.png", ANCHO_CAMINANDO, ALTO_CAMINANDO),
+        cargarSprite("lagarto-b-derecha.png", ANCHO_CAMINANDO, ALTO_CAMINANDO)],
+    ],
+    colgado: [cargarSprite("lagarto-colgado-izquierda.png", ANCHO_COLGADO, ALTO_COLGADO),
+      cargarSprite("lagarto-colgado-derecha.png", ANCHO_COLGADO, ALTO_COLGADO)],
+    tumbado: [cargarSprite("lagarto-tumbado-izquierda.png", ANCHO_TUMBADO, ALTO_TUMBADO),
+      cargarSprite("lagarto-tumbado-derecha.png", ANCHO_TUMBADO, ALTO_TUMBADO)],
+  }
+  return sprites
+}
 
 // Qué franja horizontal puede recorrer el lagarto ahora mismo y por qué.
 // "evitando" cubre Notificaciones y Calendario (huye del panel, no puede
@@ -139,9 +174,23 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   // Franja horizontal vigente y por qué (ver tipo Modo). Empieza en "normal";
   // las suscripciones a los paneles más abajo la actualizan.
   let modo: Modo = { tipo: "normal" }
-  // Se resiembra en cada aparición (ver bajaVisibilidad más abajo): así no
-  // sale siempre del mismo punto ni mirando siempre hacia el mismo lado.
-  let m: EstadoMovimiento = estadoAleatorio(limitesActuales().max, Math.random, limitesActuales().min)
+  // Ancho de la salida cacheado: `get_geometry()` es una llamada a GI que
+  // devuelve un rectángulo nuevo, y esto se consultaba en CADA tick de la
+  // marcha para un dato que solo cambia al reconfigurar la pantalla (se
+  // refresca abajo con `notify::geometry`).
+  let anchoMonitor = gdkmonitor.get_geometry().width
+  // Franja recorrible ya resuelta a dos números. Se recalcula solo al cambiar
+  // de modo o de ancho de pantalla, no once veces por segundo.
+  let limiteMin = 0
+  let limiteMax = Math.max(0, anchoMonitor - ANCHO_CAMINANDO)
+  // Espejo simple de `visible`: `pintar()` lo consulta en cada tick y leer un
+  // booleano local es más barato que resolver el estado reactivo compuesto.
+  let esVisible = false
+  // Celda ÚNICA del modelo de movimiento durante toda una aparición: el bucle
+  // la muta en sitio (ver `avanzarPasoEnSitio`). Se resiembra en cada aparición
+  // (ver bajaVisibilidad más abajo): así no sale siempre del mismo punto ni
+  // mirando siempre hacia el mismo lado.
+  let m: EstadoMovimiento = estadoAleatorio(limiteMax, Math.random, limiteMin)
   let pose: Pose = "caminando"
   let timerId: number | null = null
   let poseTimerId: number | null = null
@@ -161,10 +210,21 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   // hasta el borde inferior del panel y de vuelta.
   const [margenSuperior, setMargenSuperior] = createState(MARGEN_SUPERIOR)
 
-  function limitesActuales(): { min: number, max: number } {
-    const anchoTotal = gdkmonitor.get_geometry().width
-    if (modo.tipo === "normal") return { min: 0, max: Math.max(0, anchoTotal - ANCHO_CAMINANDO) }
-    return { min: modo.limiteIzq, max: modo.limiteDer }
+  /** Único punto que toca `modo`: deja la franja recorrible ya resuelta en
+   * `limiteMin`/`limiteMax` para que el bucle no tenga que deducirla. */
+  function establecerModo(nuevo: Modo) {
+    modo = nuevo
+    recalcularLimites()
+  }
+
+  function recalcularLimites() {
+    if (modo.tipo === "normal") {
+      limiteMin = 0
+      limiteMax = Math.max(0, anchoMonitor - ANCHO_CAMINANDO)
+      return
+    }
+    limiteMin = modo.limiteIzq
+    limiteMax = Math.max(modo.limiteIzq, modo.limiteDer)
   }
 
   /** Borde inferior real de Quick Settings, leído de su propia ventana para
@@ -213,31 +273,19 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
     })
   }
 
-  function texturaYTamanoActual(): { textura: Gdk.Texture | null, ancho: number, alto: number } {
-    if (pose === "colgado") {
-      return {
-        textura: m.direccion === 1 ? TEXTURAS.colgadoDerecha : TEXTURAS.colgadoIzquierda,
-        ancho: ANCHO_COLGADO,
-        alto: ALTO_COLGADO,
-      }
-    }
-    if (pose === "tumbado") {
-      return {
-        textura: m.direccion === 1 ? TEXTURAS.tumbadoDerecha : TEXTURAS.tumbadoIzquierda,
-        ancho: ANCHO_TUMBADO,
-        alto: ALTO_TUMBADO,
-      }
-    }
-    return {
-      textura: m.direccion === 1 ? TEXTURAS.derecha[m.fotograma] : TEXTURAS.izquierda[m.fotograma],
-      ancho: ANCHO_CAMINANDO,
-      alto: ALTO_CAMINANDO,
-    }
+  /** El sprite que toca ahora mismo: una de las ocho instancias fijas de la
+   * tabla, elegida con dos índices y sin construir nada. */
+  function spriteActual(): Sprite {
+    const tabla = obtenerSprites()
+    const sentido = m.direccion === 1 ? 1 : 0
+    if (pose === "colgado") return tabla.colgado[sentido]
+    if (pose === "tumbado") return tabla.tumbado[sentido]
+    return tabla.caminando[m.fotograma][sentido]
   }
 
-  // Última imagen realmente escrita en el widget. `pintar()` se llama en CADA
-  // tick de la marcha (~11 veces por segundo) y casi siempre con parte de esos
-  // valores sin cambiar, así que se comparan antes de tocar nada.
+  // Último fotograma realmente escrito en el widget. `pintar()` se llama en
+  // CADA tick de la marcha (~11 veces por segundo) y casi siempre con parte de
+  // esos valores sin cambiar, así que se comparan antes de tocar nada.
   //
   // Lo caro no son los setters —GTK ya ignora una asignación idéntica— sino el
   // `reclip()`: mide con `compute_bounds()`, construye una `cairo.Region` y la
@@ -250,31 +298,57 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   // colgado y tumbado no se mueven en absoluto. Con la guarda, esos ratos no
   // cuestan ni una medición ni un frame. Es el mismo principio que ya aplica el
   // temporizador al esconderse la ventana, un escalón más adentro.
-  let ultimaTextura: Gdk.Texture | null = null
-  let ultimoAncho = -1
-  let ultimoAlto = -1
+  let ultimoSprite: Sprite | null = null
   let ultimoMargen = Number.NaN
+  // Margen con el que se calculó la región de entrada vigente, que ya no tiene
+  // por qué ser el del último fotograma pintado (ver abajo).
+  let margenRecortado = Number.NaN
 
   function pintar() {
-    if (!picture) return
-    const { textura, ancho, alto } = texturaYTamanoActual()
+    // Oculta no hay nada que pintar: la ventana está desmapeada y al volver a
+    // mapearse el helper de recorte remide sola. Los `ultimo*` se conservan,
+    // así que reaparecer en la misma pose tampoco cuesta ni un setter.
+    if (!picture || !esVisible) return
+    const sprite = spriteActual()
     // `m.x` es la posición de referencia del "carril" de la marcha (ancho
     // ANCHO_CAMINANDO). Colgado es mucho más estrecho: centrarlo dentro de
     // ese mismo carril evita que salte hacia la izquierda al cambiar de pose.
-    const margen = Math.round(m.x + (ANCHO_CAMINANDO - ancho) / 2)
-    // La región de entrada es la silueta del sprite DENTRO de la ventana, así
-    // que la mueve tanto el tamaño de la pose como la posición horizontal.
-    const cambiaGeometria = ancho !== ultimoAncho || alto !== ultimoAlto || margen !== ultimoMargen
+    // Se redondea aquí y solo aquí: de la marcha para adentro todo son floats
+    // pequeños (décimas de píxel por tick), y a la pantalla solo llega el
+    // entero — de ahí que un tick "parado" no llegue a tocar el widget.
+    const margen = Math.round(m.x + (ANCHO_CAMINANDO - sprite.ancho) / 2)
+    const anterior = ultimoSprite
+    if (sprite === anterior && margen === ultimoMargen) return
 
-    if (textura !== ultimaTextura) {
-      picture.set_paintable(textura ?? null)
-      ultimaTextura = textura
+    const cambiaTamano = anterior === null
+      || sprite.ancho !== anterior.ancho
+      || sprite.alto !== anterior.alto
+
+    if (anterior === null || sprite.textura !== anterior.textura) picture.set_paintable(sprite.textura)
+    if (cambiaTamano) {
+      picture.widthRequest = sprite.ancho
+      picture.heightRequest = sprite.alto
     }
-    if (ancho !== ultimoAncho) { picture.widthRequest = ancho; ultimoAncho = ancho }
-    if (alto !== ultimoAlto) { picture.heightRequest = alto; ultimoAlto = alto }
-    if (margen !== ultimoMargen) { picture.marginStart = margen; ultimoMargen = margen }
+    if (margen !== ultimoMargen) picture.marginStart = margen
+    ultimoSprite = sprite
+    ultimoMargen = margen
 
-    if (cambiaGeometria) reclip?.()
+    // La región de entrada es la silueta del sprite DENTRO de la ventana, así
+    // que la mueve tanto el tamaño de la pose como la posición horizontal. El
+    // tamaño obliga a rehacerla en el acto; la posición NO tiene por qué
+    // seguirse al píxel: a velocidad de crucero (0,9 px por tick) el margen
+    // cambia casi en cada fotograma, y con eso volvía el reclip a ser
+    // constante durante todo el paseo. Se le da HOLGURA_RECORTE_PX de
+    // desfase —imperceptible al pulsar un bicho de 38 px de ancho, y baja las
+    // mediciones de ~11 a ~2,5 por segundo— y se salda la deuda en cuanto se
+    // queda quieto, que es cuando el recorte tiene que ser exacto porque es
+    // cuando lo van a pulsar.
+    const desvio = Math.abs(margen - margenRecortado)
+    const quieto = !arrastrando && (pose !== "caminando" || Math.abs(m.vx) < 0.05)
+    if (cambiaTamano || desvio >= HOLGURA_RECORTE_PX || (quieto && desvio > 0)) {
+      margenRecortado = margen
+      reclip?.()
+    }
   }
 
   function cancelarTemporizadorPose() {
@@ -286,12 +360,19 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   function volverACaminar() {
     cancelarTemporizadorPose()
     pose = "caminando"
-    m = { ...m, vx: 0, estado: "caminando" }
+    m.vx = 0
+    m.estado = "caminando"
     pintar()
+    arrancarBucle()
   }
 
   function tumbarseUnRato() {
     cancelarTemporizadorPose()
+    // Tumbado y colgado no se mueven: el bucle de la marcha solo serviría para
+    // despertar el bucle principal once veces por segundo y salir por la
+    // guarda de `avanzar()`. Colgado además puede durar lo que el usuario
+    // quiera. Se para aquí y lo repone `volverACaminar()`.
+    detenerTimer()
     pose = "tumbado"
     pintar()
     poseTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, enteroAleatorio(TUMBADO_MIN_MS, TUMBADO_MAX_MS), () => {
@@ -304,7 +385,7 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   function alternarColgado() {
     cancelarTemporizadorPose()
     if (pose === "colgado") volverACaminar()
-    else { pose = "colgado"; pintar() }
+    else { detenerTimer(); pose = "colgado"; pintar() }
   }
 
   function cancelarClicPendiente() {
@@ -314,11 +395,11 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   }
 
   function avanzar() {
-    // La física de la marcha se congela mientras hay una pose fija (colgado,
-    // tumbado) o mientras el usuario está arrastrando al lagarto a mano.
+    // La física de la marcha se congela mientras el usuario está arrastrando al
+    // lagarto a mano. Con una pose fija el bucle ya está parado; la guarda se
+    // mantiene por si un tick en vuelo llega justo después de cambiar de pose.
     if (arrastrando || pose !== "caminando") return
-    const { min, max } = limitesActuales()
-    m = avanzarPaso(m, max, PARAMETROS_PREDETERMINADOS, Math.random, min)
+    avanzarPasoEnSitio(m, limiteMax, PARAMETROS_PREDETERMINADOS, Math.random, limiteMin)
     pintar()
   }
 
@@ -328,35 +409,80 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
     timerId = null
   }
 
-  function iniciarTimer() {
-    if (timerId !== null) return
-    // Punto de partida nuevo en cada aparición, no solo la primera vez. Si ya
-    // hay un panel abierto (modo distinto de "normal"), respeta su franja
-    // desde el primer fotograma.
-    const { min, max } = limitesActuales()
-    m = estadoAleatorio(max, Math.random, min)
-    pose = "caminando"
-    // Salto directo sin animar: si ya tocaba estar subido a Quick Settings
-    // (reaparece con el panel ya abierto), no había nada visible que animar.
-    setMargenSuperior(modo.tipo === "quicksettings" ? margenBajoQuickSettings() : MARGEN_SUPERIOR)
-    pintar()
+  function arrancarBucle() {
+    if (timerId !== null || !esVisible) return
     timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, INTERVALO_MS, () => {
       avanzar()
       return GLib.SOURCE_CONTINUE
     })
   }
 
+  function aparecer() {
+    // Punto de partida nuevo en cada aparición, no solo la primera vez. Si ya
+    // hay un panel abierto (modo distinto de "normal"), respeta su franja
+    // desde el primer fotograma.
+    m = estadoAleatorio(limiteMax, Math.random, limiteMin)
+    pose = "caminando"
+    // Salto directo sin animar: si ya tocaba estar subido a Quick Settings
+    // (reaparece con el panel ya abierto), no había nada visible que animar.
+    setMargenSuperior(modo.tipo === "quicksettings" ? margenBajoQuickSettings() : MARGEN_SUPERIOR)
+    pintar()
+    arrancarBucle()
+  }
+
   // El temporizador solo corre mientras la ventana está visible: oculto no
   // cuesta ni un timeout, mismo principio que la onda de Spotify.
   const bajaVisibilidad = visible.subscribe(() => {
-    if (visible.get()) iniciarTimer()
+    esVisible = visible.get()
+    if (esVisible) aparecer()
     else {
       detenerTimer()
       cancelarTemporizadorPose()
       cancelarClicPendiente()
     }
   })
-  const bajaActividad = suscribirActividadMascota(gdkmonitor, setMostrarPorActividad)
+
+  // La escucha del escritorio solo se mantiene mientras la mascota pueda
+  // llegar a salir. Con la preferencia apagada -el caso por defecto- o en modo
+  // ahorro, esto no cuesta ni una consulta a Hyprland: `suscribirActividadMascota`
+  // se ejecuta ante CUALQUIER evento de ventana (abrir, cerrar, mover, cambiar
+  // el foco, que con `follow_mouse` salta al cruzar el puntero de una ventana a
+  // otra), y hacerlo para alimentar un widget que nadie va a ver es trabajo
+  // puro por monitor. Al volver a suscribirse el valor llega de nuevo en el
+  // acto, así que no hace falta sembrar nada a mano.
+  let bajaActividad: (() => void) | null = null
+  function sincronizarEscuchaActividad() {
+    const debeEscuchar = lagartoBarraEnabled.get() && !mascotaSuspended.get()
+    if (debeEscuchar === (bajaActividad !== null)) return
+    if (debeEscuchar) {
+      bajaActividad = suscribirActividadMascota(gdkmonitor, setMostrarPorActividad)
+      return
+    }
+    const baja = bajaActividad
+    bajaActividad = null
+    baja?.()
+  }
+  const bajaPreferencia = lagartoBarraEnabled.subscribe(sincronizarEscuchaActividad)
+  const bajaAhorro = mascotaSuspended.subscribe(sincronizarEscuchaActividad)
+  sincronizarEscuchaActividad()
+
+  // El ancho de la salida solo cambia al reconfigurar la pantalla. Se recoge
+  // por señal en vez de releerlo en cada tick; si encoge, se reencaja al
+  // lagarto dentro de la franja nueva.
+  let idGeometria: number | null = null
+  try {
+    idGeometria = gdkmonitor.connect("notify::geometry", () => {
+      anchoMonitor = gdkmonitor.get_geometry().width
+      recalcularLimites()
+      const x = clamp(m.x, limiteMin, limiteMax)
+      if (x === m.x) return
+      m.x = x
+      pintar()
+    })
+  } catch (_) {
+    // Sin la señal se conserva el ancho del arranque: el paseo sigue acotado a
+    // una franja válida, solo que no sigue un cambio de resolución en caliente.
+  }
 
   // Notificaciones y Calendario: si el lagarto está donde va a aparecer el
   // panel, lo empuja fuera de ese hueco y no lo deja volver mientras siga
@@ -365,15 +491,19 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
     origen: "notificaciones" | "calendario",
     calcular: (x: number, anchoTotal: number) => { empuje: { x: number, direccion: 1 | -1 } | null, limiteIzq: number, limiteDer: number },
   ) {
-    const anchoTotal = gdkmonitor.get_geometry().width
-    const { empuje, limiteIzq, limiteDer } = calcular(m.x, anchoTotal)
-    modo = { tipo: "evitando", origen, limiteIzq, limiteDer }
-    if (empuje) m = { ...m, x: empuje.x, direccion: empuje.direccion, vx: 0, estado: "caminando" }
+    const { empuje, limiteIzq, limiteDer } = calcular(m.x, anchoMonitor)
+    establecerModo({ tipo: "evitando", origen, limiteIzq, limiteDer })
+    if (empuje) {
+      m.x = empuje.x
+      m.direccion = empuje.direccion
+      m.vx = 0
+      m.estado = "caminando"
+    }
     pintar()
   }
 
   function alCerrarseEvitando(origen: "notificaciones" | "calendario") {
-    if (modo.tipo === "evitando" && modo.origen === origen) modo = { tipo: "normal" }
+    if (modo.tipo === "evitando" && modo.origen === origen) establecerModo({ tipo: "normal" })
   }
 
   const bajaNotif = notifPanelVisible.subscribe(() => {
@@ -401,14 +531,15 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   // inferior y sigue paseándose por su ancho hasta que se cierra.
   const bajaQuickSettings = quickSettingsVisible.subscribe(() => {
     if (quickSettingsVisible.get()) {
-      const anchoTotal = gdkmonitor.get_geometry().width
-      const { minX, maxX } = franjaQuickSettings(ANCHO_CAMINANDO, anchoTotal)
-      modo = { tipo: "quicksettings", limiteIzq: minX, limiteDer: maxX }
-      m = { ...m, x: clamp(m.x, minX, maxX), vx: 0, estado: "caminando" }
+      const { minX, maxX } = franjaQuickSettings(ANCHO_CAMINANDO, anchoMonitor)
+      establecerModo({ tipo: "quicksettings", limiteIzq: minX, limiteDer: maxX })
+      m.x = clamp(m.x, minX, maxX)
+      m.vx = 0
+      m.estado = "caminando"
       asegurarTimerMargen()
       pintar()
     } else if (modo.tipo === "quicksettings") {
-      modo = { tipo: "normal" }
+      establecerModo({ tipo: "normal" })
       asegurarTimerMargen()
     }
   })
@@ -418,8 +549,13 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
     cancelarTemporizadorPose()
     cancelarClicPendiente()
     detenerTimerMargen()
+    if (idGeometria !== null) {
+      try { gdkmonitor.disconnect(idGeometria) } catch (_) {}
+    }
     bajaVisibilidad()
-    bajaActividad()
+    bajaPreferencia()
+    bajaAhorro()
+    bajaActividad?.()
     bajaNotif()
     bajaCalendario()
     bajaQuickSettings()
@@ -497,8 +633,7 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
                 huboArrastre = true
                 cancelarClicPendiente()
               }
-              const { min, max } = limitesActuales()
-              m = { ...m, x: clamp(xLagartoAlAgarrar + offsetX, min, max) }
+              m.x = clamp(xLagartoAlAgarrar + offsetX, limiteMin, limiteMax)
               pintar()
             }}
             onDragEnd={() => {
@@ -506,7 +641,10 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
               arrastrando = false
               // Solo retoma la física de la marcha si no quedó colgado ni
               // tumbado: arrastrar en esas poses solo lo reubica.
-              if (pose === "caminando") m = { ...m, vx: 0, estado: "caminando" }
+              if (pose === "caminando") {
+                m.vx = 0
+                m.estado = "caminando"
+              }
               pintar()
             }}
           />
@@ -519,6 +657,15 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   // recalcula en cada pintar()): el resto de la franja bajo la barra sigue
   // siendo transparente a los clics.
   reclip = clipWindowInputToContent(win, [picture], { vaciarAlMapear: true })
+
+  // `subscribe` no emite al suscribirse: si al construir la ventana ya se dan
+  // las cuatro condiciones (el shell se recarga con el escritorio vacío y la
+  // mascota encendida), nadie llamaría a `aparecer()` y el lagarto saldría
+  // quieto y sin sprite hasta el primer cambio de estado.
+  if (visible.get()) {
+    esVisible = true
+    aparecer()
+  }
 
   return win
 }

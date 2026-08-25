@@ -171,6 +171,25 @@ hl.on("hyprland.start", function()
   -- `pw-dump` vea algo.
   hl.exec_cmd("sleep 6 && ~/.config/hypr/scripts/screencast-monitor.sh")
 
+  -- Apps de inicio del usuario (Ajustes > Apps al inicio). La LISTA es dato en
+  -- ~/.config/gigios/apps-inicio.json; aquí solo vive el momento en que se
+  -- abre, que es lo que le toca decidir a este calendario. Sin lista, el script
+  -- sale en un `test -r`.
+  --
+  -- A t=7 y no antes: son apps de escritorio completas —lo más caro que puede
+  -- entrar en esta lista— y compiten por la GPU con el arranque de AGS, que es
+  -- el medio segundo que decide cuándo se ve la barra (ver la nota del fondo, a
+  -- t=0). Y no mucho más tarde tampoco: quien pone Spotify en el inicio lo
+  -- quiere ahí al llegar al escritorio, no medio minuto después. El script
+  -- escalona además las apps entre sí.
+  --
+  -- Cae DENTRO de la ventana de 30 s de gigios/escaner-apps.lua a propósito:
+  -- son justo las ventanas que ese escáner existe para encontrar. Ojo si
+  -- combinas las dos cosas — con `escanerAppsInicio` activado, el escáner te
+  -- lleva al escritorio de estas apps al terminar su ventana, lo que deshace en
+  -- la práctica el "sin traerme a él" de una entrada silenciosa.
+  hl.exec_cmd("sleep 7 && ~/.config/inicializador/apps-inicio.sh")
+
   -- ── t=8..15 · sondeos de estado del PC ─────────────────────────────────────
   -- Ninguno es urgente al arrancar: la RAM está libre, la CPU fría y el disco
   -- tan lleno como hace un minuto. Se apartan del pico de carga.

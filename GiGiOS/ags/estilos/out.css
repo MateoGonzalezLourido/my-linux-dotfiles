@@ -2737,6 +2737,10 @@ entry.qs-inline-number-input:focus, entry.qs-inline-number-input:focus-visible {
   min-width: 18px;
 }
 
+.qs-stream-glifo {
+  color: #cba6f7;
+}
+
 .qs-audio-silent-icon {
   opacity: 0.3;
   font-size: 0.75em;

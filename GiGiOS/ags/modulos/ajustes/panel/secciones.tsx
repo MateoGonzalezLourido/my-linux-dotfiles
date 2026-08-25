@@ -4,6 +4,7 @@ import SeccionAtajos from "../atajos/SeccionAtajos"
 import SeccionBarraEscritorios from "../barra/SeccionBarraEscritorios"
 import SeccionCuenta from "../cuenta/SeccionCuenta"
 import SeccionAlmacenamiento from "../disco/SeccionAlmacenamiento"
+import SeccionAppsInicio from "../inicio/SeccionAppsInicio"
 import SeccionDispositivos from "../dispositivos/SeccionDispositivos"
 import SeccionEnergia from "../energia/SeccionEnergia"
 import SeccionFechaIdioma from "../fecha-idioma/SeccionFechaIdioma"
@@ -19,6 +20,7 @@ export type IdSeccion =
   | "display" | "accessibility" | "personalization"
   | "mouse" | "touchpad" | "keyboard" | "printers"
   | "energy" | "games" | "bar" | "workspaces" | "orion" | "clipboard"
+  | "startup"
   | "storage" | "cleanup"
   | "notifications" | "monitoring" | "scans" | "supervision" | "system"
   | "shortcuts"
@@ -47,6 +49,7 @@ export const SECCIONES_NAVEGACION: SeccionNavegacion[] = [
   { id: "workspaces", label: textos.secciones.workspaces, icon: "󰆾" },
   { id: "orion", label: textos.secciones.orion, icon: "󰆍" },
   { id: "clipboard", label: textos.secciones.portapapeles, icon: "󰅇" },
+  { id: "startup", label: textos.secciones.appsInicio, icon: "󰐊" },
   { id: "storage", label: textos.secciones.almacenamiento, icon: "󰋊" },
   { id: "cleanup", label: textos.secciones.liberarEspacio, icon: "󰃢" },
   { id: "notifications", label: textos.secciones.notificaciones, icon: "󰂚" },
@@ -75,6 +78,7 @@ const FABRICAS_SECCION: Record<IdSeccion, () => unknown> = {
   workspaces: () => <SeccionBarraEscritorios vista="workspaces" />,
   orion: () => <SeccionFuncionesShell vista="orion" />,
   clipboard: () => <SeccionFuncionesShell vista="portapapeles" />,
+  startup: () => <SeccionAppsInicio />,
   storage: () => <SeccionAlmacenamiento vista="uso" />,
   cleanup: () => <SeccionAlmacenamiento vista="limpieza" />,
   notifications: () => <SettingsTabs />,

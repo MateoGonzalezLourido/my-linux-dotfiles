@@ -774,6 +774,7 @@ migrar y qué se regenera solo.
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `servicios/energia/powerState.ts`) |
 | `~/.local/share/gigios/face.png` | foto privada opcional, fuera del repo; se pone desde Ajustes > Cuenta (§13) |
 | `~/GiGiOS/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
+| `~/GiGiOS/audio/*.oga` | sonidos de alarmas y notificaciones; sustituir un fichero por otro del mismo nombre cambia el sonido de todo el sistema (ver `audio/README.md`) |
 | `~/.config/gigios/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
 
 ### 14.2 Config/código del dotfiles — genérico, viaja igual para cualquiera que use este setup

@@ -1335,6 +1335,8 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
 
 const ACENTO_MEDIA_PREDETERMINADO = "#89b4fa"
 
+type RGB = [number, number, number]
+
 function hexToRgb(hex: string): [number, number, number] {
   const raw = hex.replace("#", "")
   return [
@@ -1432,6 +1434,30 @@ function cssRgbToTuple(rgb: string): [number, number, number] {
   const values = rgb.match(/\d+/g)?.map(Number)
   if (!values || values.length < 3) return hexToRgb(ACENTO_MEDIA_PREDETERMINADO)
   return [values[0], values[1], values[2]]
+}
+
+// Los tres tonos derivados de la semilla se calculan MEMORIZADOS por cadena de
+// acento. No es una micro-optimización gratuita: `progressArea` los pedía en cada
+// frame de las ondas (30 fps), y cada llamada hace un `match` con regex, dos
+// conversiones RGB→HSL→RGB y varias asignaciones de array. El acento solo cambia
+// cuando cambia la carátula, así que todo eso era trabajo repetido y basura para el
+// GC en el único sitio del shell que dibuja continuamente.
+type TonosAcento = { fondo: RGB; acento: RGB; companero: RGB }
+let tonosMemo: { clave: string; tonos: TonosAcento } | null = null
+
+function tonosDeAcento(css: string): TonosAcento {
+  if (tonosMemo === null || tonosMemo.clave !== css) {
+    const semilla = cssRgbToTuple(css)
+    tonosMemo = {
+      clave: css,
+      tonos: {
+        fondo: oneUiBgTone(semilla),
+        acento: oneUiFgTone(semilla),
+        companero: oneUiOndaTone(semilla),
+      },
+    }
+  }
+  return tonosMemo.tonos
 }
 
 function formatMediaTime(value: number): string {
@@ -2002,7 +2028,7 @@ function QsMedia() {
   colorFilter.add_css_class("qs-media-bleed")
   colorFilter.set_draw_func((_area, cr, _width, _height) => {
     if (!cover.get()) return
-    const [r, g, b] = oneUiBgTone(cssRgbToTuple(coverAccent.get()))
+    const [r, g, b] = tonosDeAcento(coverAccent.get()).fondo
     // Alpha medio: unifica el color pero DEJA VER la carátula por debajo, como
     // hace One UI (no un bloque opaco).
     cr.setSourceRGBA(r / 255, g / 255, b / 255, 0.45)
@@ -2236,9 +2262,28 @@ function QsMedia() {
   // sobre el alfa del trazo (ver el degradado longitudinal más abajo).
   const ONDA_ENTRADA = 30
   const ONDA_SALIDA = 38
+  // Paso de muestreo de la curva, en px. La ruta se traza con BÉZIERS (ver `trazar`), no
+  // con segmentos rectos, así que este número ya no decide lo redonda que se ve la onda:
+  // decide solo cuánto se parece al perfil real. Con 2 px la desviación máxima frente a
+  // la campana exacta es de 0,014 px (medida sobre 30 s de animación) — un tercio de lo
+  // que daban los segmentos rectos con paso 1, y con la mitad de puntos.
   const ONDA_PASO = 2
   const ONDA_FPS = 30
   const ONDA_FPS_AHORRO = 20
+
+  // Más allá de 4,5 sigmas la campana de un pulso vale 4·10⁻⁵ de su altura: sobre la
+  // cresta más alta (13 px) es medio milésimo de píxel, o sea nada que el antialiasing
+  // pueda pintar. Se guarda al cuadrado porque así se compara, sin raíces. El límite es
+  // holgado a propósito —con 3,5 ya era invisible (7 píxeles distintos de 133.000 al
+  // rasterizar a 4 aumentos)— porque lo que ahorra es el `Math.exp` del vecino lejano y
+  // eso ya lo consigue de sobra; apurarlo solo acercaría el corte a la zona visible.
+  const ONDA_CORTE_SIGMAS2 = 4.5 * 4.5
+  // Buffers de la polilínea, REUTILIZADOS entre frames y entre las dos ondas. Antes
+  // cada onda construía un `Array<[number, number]>` nuevo por frame: a 30 fps son
+  // ~300 arrays pequeños por segundo creados solo para tirarlos, y esto es lo único
+  // del shell que dibuja de forma continua.
+  let puntosX = new Float64Array(0)
+  let puntosY = new Float64Array(0)
 
   let tiempoOndas = 0
   // 0 = ondas planas, 1 = amplitud completa. Se cruza en vez de conmutarse para que
@@ -2281,8 +2326,7 @@ function QsMedia() {
 
     // Los dos tonos salen de la MISMA semilla (el acento de la carátula) por reglas
     // distintas; ver `oneUiOndaTone`. La barra usa siempre el de acento.
-    const semilla = cssRgbToTuple(coverAccent.get())
-    const tonos = { acento: oneUiFgTone(semilla), companero: oneUiOndaTone(semilla) }
+    const tonos = tonosDeAcento(coverAccent.get())
     const [r, g, b] = tonos.acento
 
     // El tirador se pinta SIEMPRE al final, encima de las ondas, y por eso vive en
@@ -2329,12 +2373,32 @@ function QsMedia() {
       // avanza el tiempo, que es el sentido de marcha pedido.
       const desfase = tiempoOndas * onda.velocidad
       const espaciado = ONDA_ANCHO_VISIBLE * onda.ancho + onda.hueco
+
+      // **La identidad de cada pulso se tabula UNA vez por onda y frame.**
+      // `alturaPulso` y `anchoPulso` dependen SOLO del índice del pulso (y del tiempo,
+      // que es el mismo para todo el frame), pero el bucle de abajo las pedía en cada
+      // x y para los tres vecinos: cada pulso se recalculaba del orden de cien veces
+      // por frame, y cada `alturaPulso` son cinco `Math.sin` del hash. En la barra
+      // caben media docena de pulsos, así que se calculan esos y el bucle solo lee.
+      const primerPulso = Math.floor(-desfase / espaciado) - 1
+      const ultimoPulso = Math.floor((fillW - desfase) / espaciado) + 1
+      const alturas: number[] = []
+      const sigmas: number[] = []
+      for (let indice = primerPulso; indice <= ultimoPulso; indice++) {
+        alturas.push(alturaPulso(indice + onda.semilla, tiempoOndas))
+        sigmas.push(onda.ancho * anchoPulso(indice + onda.semilla))
+      }
+
       // Los puntos se calculan UNA vez y se recorren dos: `fill` consume la ruta, así
       // que el trazo tendría que rehacerla — y con dos bucles independientes el
       // relleno y su contorno podrían separarse un píxel.
-      const puntos: Array<[number, number]> = []
-      for (let x = 0; x <= fillW; x += ONDA_PASO) {
-        const sobre = Math.min(x, fillW)
+      const total = Math.floor(fillW / ONDA_PASO) + 1
+      if (puntosX.length < total) {
+        puntosX = new Float64Array(total + 64)
+        puntosY = new Float64Array(total + 64)
+      }
+      for (let punto = 0; punto < total; punto++) {
+        const sobre = Math.min(punto * ONDA_PASO, fillW)
         const envolvente = suave(sobre / ONDA_ENTRADA) * suave((fillW - sobre) / ONDA_SALIDA)
         // Posición en ciclos: la parte entera identifica al pulso, que es lo que fija
         // su ancho y el ritmo de su latido. Se miran también los vecinos porque en la frontera
@@ -2346,20 +2410,56 @@ function QsMedia() {
         let forma = 0
         for (let indice = actual - 1; indice <= actual + 1; indice++) {
           const distancia = (ciclo - (indice + 0.5)) * espaciado
-          const sigma = onda.ancho * anchoPulso(indice + onda.semilla)
-          forma += alturaPulso(indice + onda.semilla, tiempoOndas)
-            * Math.exp(-(distancia * distancia) / (2 * sigma * sigma))
+          const sigma = sigmas[indice - primerPulso]
+          const distancia2 = distancia * distancia
+          // Fuera del alcance visible del vecino no se evalúa la campana: con el
+          // espaciado actual (66-78 px entre pulsos, sigma ~9-13) eso descarta uno o
+          // dos de los tres en casi todo el recorrido, y con ellos su `Math.exp`.
+          if (distancia2 > ONDA_CORTE_SIGMAS2 * sigma * sigma) continue
+          forma += alturas[indice - primerPulso] * Math.exp(-distancia2 / (2 * sigma * sigma))
         }
-        puntos.push([sobre, base - amplitud * envolvente * Math.min(1, forma)])
+        puntosX[punto] = sobre
+        puntosY[punto] = base - amplitud * envolvente * Math.min(1, forma)
       }
-      if (puntos.length < 2) continue
+      if (total < 2) continue
 
+      // **La ruta va con BÉZIERS y no con `lineTo`, y eso es lo que quita el borde de
+      // sierra.** Una polilínea deja un quiebro de pendiente en CADA muestra, y un
+      // quiebro del eje se convierte en una esquina visible en el borde exterior del
+      // trazo, amplificada por su medio grosor: las crestas —donde más curva hay— salían
+      // con un techo plano de dos o tres facetas. Bajar el paso lo disimula pero no lo
+      // quita, porque el defecto no es de resolución sino de continuidad: por fino que se
+      // muestree, la pendiente sigue saltando en cada punto.
+      //
+      // **Y es peor cuanto mayor sea la escala de la pantalla.** El paso está en píxeles
+      // LÓGICOS, así que en este equipo (2K a escala 1,25) cada faceta mide 1,25 píxeles
+      // de pantalla, no uno; a escala 2 medirían dos. Una Bézier no tiene ese problema:
+      // cairo la subdivide con su tolerancia de planitud medida en píxeles de DISPOSITIVO,
+      // o sea que se mantiene suave sea cual sea la escala, sin muestrear más aquí.
+      //
+      // La conversión es la Catmull-Rom uniforme a Bézier cúbica: la tangente en cada
+      // punto es la de sus vecinos, (p2 − p0) / 2, y los tiradores caen a un tercio del
+      // tramo. Pasa exactamente por todas las muestras (no las suaviza ni las redondea, que
+      // aplanaría los picos) y empalma con pendiente continua, que es justo lo que faltaba.
+      // En los extremos el vecino que falta se sustituye por el propio punto: media
+      // tangente en el primer y el último tramo, donde la envolvente ya tiene la onda plana.
       const trazar = () => {
         cr.newPath()
-        puntos.forEach(([px, py], indice) => {
-          if (indice === 0) cr.moveTo(px, py)
-          else cr.lineTo(px, py)
-        })
+        cr.moveTo(puntosX[0], puntosY[0])
+        for (let punto = 0; punto < total - 1; punto++) {
+          const anteriorY = puntosY[punto > 0 ? punto - 1 : 0]
+          const desdeY = puntosY[punto]
+          const hastaY = puntosY[punto + 1]
+          const siguienteY = puntosY[punto + 2 < total ? punto + 2 : total - 1]
+          const desdeX = puntosX[punto]
+          const hastaX = puntosX[punto + 1]
+          const tercio = (hastaX - desdeX) / 3
+          cr.curveTo(
+            desdeX + tercio, desdeY + (hastaY - anteriorY) / 6,
+            hastaX - tercio, hastaY - (siguienteY - desdeY) / 6,
+            hastaX, hastaY,
+          )
+        }
       }
 
       // **Relleno y trazo se pintan en un GRUPO y se enmascaran juntos.** Aplanar la
@@ -2376,8 +2476,8 @@ function QsMedia() {
       // Relleno: la misma curva cerrada contra la barra. El degradado se desvanece
       // hacia arriba para que el área no tape la carátula.
       trazar()
-      cr.lineTo(puntos[puntos.length - 1][0], base)
-      cr.lineTo(puntos[0][0], base)
+      cr.lineTo(puntosX[total - 1], base)
+      cr.lineTo(puntosX[0], base)
       cr.closePath()
       const alfaRelleno = ONDA_RELLENO * energiaOndas
       try {
@@ -3124,7 +3224,16 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   // contra el `.desktop` instalado; ver `identidadApps.ts`. La clave no
                   // puede seguirle: cambiarla invalidaría `audioPresets.json` y el
                   // vigilante no puede depender de GTK.
-                  const { nombre: name, icono: icon } = presentacionApp(props, kind)
+                  // Un JUEGO no tiene `.desktop`, así que aquí puede llegar un icono de
+                  // recurso (el PNG de `steam_icon_<appid>`) o, sin ninguno, el glifo de
+                  // juego de la barra en vez del icono genérico de audio — ver
+                  // `presentacionApps.ts`. Las tres formas son excluyentes.
+                  const { nombre: name, icono: icon, gicono, glifo } = presentacionApp(props, kind)
+                  const iconoFila = glifo
+                    ? <label cssClasses={["qs-stream-icon", "qs-stream-glifo"]} label={glifo} />
+                    : gicono
+                      ? <Gtk.Image gicon={gicono} cssClasses={["qs-stream-icon"]} />
+                      : <Gtk.Image iconName={icon} cssClasses={["qs-stream-icon"]} />
 
                   const presetVal = presets.get()[key]
                   const [currentVol, setCurrentVol] = createState(
@@ -3189,7 +3298,7 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                     <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item", "qs-audio-app-item"]}>
                       <box spacing={6} valign={Gtk.Align.CENTER}>
                         <QsRowLabel
-                          icon={<Gtk.Image iconName={icon} cssClasses={["qs-stream-icon"]} />}
+                          icon={iconoFila}
                           title={name}
                           titleClass="qs-section-label"
                           spacing={6}

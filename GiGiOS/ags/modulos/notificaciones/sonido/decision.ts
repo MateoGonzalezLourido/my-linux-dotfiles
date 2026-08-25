@@ -129,3 +129,37 @@ export function comandoReproduccion(
   }
   return null
 }
+
+// ── Biblioteca de audio propia (`~/GiGiOS/audio`) ────────────────────────────────────────────
+//
+// Un `sound-name` solo lo sabe resolver `canberra-gtk-play` contra el **tema de sonidos
+// instalado**, así que sin `sound-theme-freedesktop` en el sistema las alarmas y el temporizador
+// —que piden `alarm-clock-elapsed` y `complete`— se quedaban mudos **sin un solo error**: canberra
+// no encuentra la entrada, sale 0 y no suena nada. La carpeta `audio/` del repo lleva esos audios
+// dentro, y aquí se resuelve un nombre de tema contra ella ANTES de delegar en canberra. Sigue
+// habiendo delegación: lo que no esté en la carpeta (un `sound-name` de una app cualquiera) va al
+// tema como siempre.
+
+/** Extensiones que se prueban para un nombre de tema, en orden de preferencia. */
+export const EXTENSIONES_AUDIO = ["oga", "ogg", "wav", "mp3"] as const
+
+/**
+ * ¿Es un nombre de tema que se puede convertir en nombre de fichero sin peligro?
+ *
+ * **Esto es una guarda de seguridad, no una validación cosmética.** El `sound-name` llega por
+ * D-Bus desde cualquier proceso de la sesión, y se va a concatenar a un directorio: sin filtrar,
+ * un `../../.ssh/id_ed25519` se convertiría en una ruta fuera de la carpeta que el reproductor
+ * pasaría a `paplay`. Se admite solo el alfabeto de los nombres del spec (letras, dígitos, `-`,
+ * `_`, `.`), y ningún punto inicial —que además descarta `..` de un plumazo.
+ */
+export function nombreTemaSeguro(nombre: string): boolean {
+  return /^[A-Za-z0-9_][A-Za-z0-9._-]*$/.test(nombre)
+}
+
+/** Rutas candidatas para un nombre de tema dentro de `dir`, en orden. Vacío si el nombre no es
+ *  seguro: no se inventa una ruta a partir de algo que no se puede usar como nombre de fichero. */
+export function candidatosTema(nombre: string, dir: string): string[] {
+  const limpio = nombre.trim()
+  if (!nombreTemaSeguro(limpio)) return []
+  return EXTENSIONES_AUDIO.map((ext) => `${dir}/${limpio}.${ext}`)
+}

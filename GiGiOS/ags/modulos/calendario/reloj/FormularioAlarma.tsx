@@ -47,7 +47,7 @@ export function FormularioAlarma({
   // Sonido propio. Vacío = el sonido de alarma del tema, que es lo que sonaba siempre hasta ahora.
   const campoSonido = crearCampoRutaAudio({
     valor: alarma?.sonido,
-    marcador: "~/Música/alarma.ogg  ·  vacío = sonido por defecto",
+    marcador: "~/GiGiOS/audio/alarm-clock-elapsed.oga  ·  vacío = sonido por defecto",
     etiquetaProbar: "Probar",
     ayudaProbar: "Reproducir este audio ahora",
     avisoNoExiste: "Ese fichero no existe ahora mismo. Se guarda igual, pero no sonará hasta que esté.",

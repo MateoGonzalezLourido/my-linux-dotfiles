@@ -90,9 +90,27 @@ export default function BotonEscritorio({
       ])}
       widthRequest={clientes((iconos) => iconos[indice]?.esGlifo ? 16 : 24)}
       visible={clientes((iconos) => indice < iconos.length)}
-      tooltipText={createComputed(() =>
-        titulosAppsWorkspaceActivos() ? (clientes()[indice]?.descripcion ?? null) : null
-      )}
+      // `query-tooltip` en vez de `tooltipText`: GTK lo emite justo cuando va a
+      // enseñar el tooltip, así que el texto —lo único que hay que construir para
+      // el icono— se arma en ese instante y no en cada señal de Hyprland. Devolver
+      // `false` deja el tooltip sin abrir (títulos desactivados o icono ya sin
+      // cliente), que es el mismo efecto que tenía el `null` de antes.
+      $={(self: Gtk.Widget) => {
+        self.set_has_tooltip(true)
+        self.connect("query-tooltip", (
+          _widget: Gtk.Widget,
+          _x: number,
+          _y: number,
+          _porTeclado: boolean,
+          ayuda: Gtk.Tooltip,
+        ) => {
+          if (!titulosAppsWorkspaceActivos.get()) return false
+          const texto = clientes()[indice]?.descripcion()
+          if (!texto) return false
+          ayuda.set_text(texto)
+          return true
+        })
+      }}
     >
       <Gtk.GestureClick
         button={Gdk.BUTTON_SECONDARY}
