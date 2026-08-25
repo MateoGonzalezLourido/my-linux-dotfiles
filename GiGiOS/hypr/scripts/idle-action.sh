@@ -67,8 +67,25 @@ blocked() {
   esac
 }
 
-# Apagar la pantalla en la forma Lua de Hyprland 0.56 (`hl.dsp.dpms('off')`,
-# verificada en instancia anidada).
+# Encender/apagar la pantalla, en la forma Lua de Hyprland 0.56.
+#
+# ⚠️ LA TABLA NO ES DECORATIVA: `hl.dsp.dpms('off')` ES UN TOGGLE. El argumento
+# tiene que ser una TABLA. Con un string, `Internal::tableToggleAction()` sale por
+# su primera línea (`if (!lua_istable(...)) return TOGGLE_ACTION_TOGGLE`) y el
+# 'on'/'off' se descarta entero: el dispatcher invierte el estado actual y
+# responde `ok` igual, así que no hay error, ni rc distinto de 0, ni nada que
+# mirar. `parseToggleStr` sí acepta "on"/"off"/"enable"/"disable", pero solo se
+# llega a él con una tabla.
+#
+# Lo que costó: el `on-resume` de hypridle mandaba `dpms('on')` al volver de la
+# suspensión con la pantalla YA encendida (la enciende antes el propio restore de
+# sesión de Hyprland, o el after_sleep_cmd) — y el toggle la APAGABA. Quedaba
+# negra con Hyprland convencido de que estaba encendida, y entonces ni una tecla
+# la despertaba: `Actions::dpms(ENABLE)` había dejado `m_dpmsStateOn = true`, que
+# es justo la condición que mira InputManager para encenderla al teclear
+# (`!m_dpmsStateOn`), y `CMonitor::setDPMS()` sale por `if (m_dpmsStatus == on)`.
+# Solo volvía forzando un commit nuevo (cambiar de workspace). Intermitente
+# porque dependía de en qué orden cayeran los dos toggles del despertar.
 #
 # Aquí hubo un fallback a la sintaxis legacy (`hyprctl dispatch dpms off`),
 # porque durante la migración la sesión viva podía seguir en config hyprlang
@@ -77,7 +94,18 @@ blocked() {
 # mantener: se decidía por el stdout ("ok") y no por el código de salida, porque
 # hyprctl bajo config legacy responde "Invalid dispatcher" con rc=0.
 dpms_off() {
-  hyprctl dispatch "hl.dsp.dpms('off')" >/dev/null 2>&1
+  hyprctl dispatch "hl.dsp.dpms({ action = 'off' })" >/dev/null 2>&1
+}
+
+# Encender la pantalla NO pasa por blocked(): el Wake up nunca veta encenderla,
+# igual que el on-resume del listener de dpms nunca se vetaba. Existe como acción
+# del script —y no como comando suelto en hypridle.conf— porque la tabla lleva
+# `}` y el parser de Ajustes > Pantalla trocea los listeners con
+# `listener\s*\{[^}]*\}`: una llave dentro del bloque lo cortaría antes de
+# tiempo y el listener dejaría de ser editable desde la UI EN SILENCIO (ver la
+# cabecera de hypridle.conf). Metida aquí, el .conf se queda sin llaves.
+dpms_on() {
+  hyprctl dispatch "hl.dsp.dpms({ action = 'on' })" >/dev/null 2>&1
 }
 
 # hyprlock no tiene guarda de instancia única (0.9.6: ni una cadena "already
@@ -91,10 +119,11 @@ lock_screen() {
 
 case ${1:-} in
   dpms-off) blocked dpms-off || dpms_off ;;
+  dpms-on)  dpms_on ;;
   lock)     blocked lock     || lock_screen ;;
   suspend)  blocked suspend  || systemctl suspend ;;
   *)
-    echo "uso: ${0##*/} {dpms-off|lock|suspend}" >&2
+    echo "uso: ${0##*/} {dpms-off|dpms-on|lock|suspend}" >&2
     exit 2
     ;;
 esac

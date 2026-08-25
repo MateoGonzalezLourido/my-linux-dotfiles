@@ -128,6 +128,13 @@ imprescindible para no romper la sesión:
 - **`hyprctl dispatch` con sintaxis legacy tampoco funciona** → `hyprctl dispatch
   "hl.dsp.exec_cmd('cmd')"`. Ojo: ninguna de las dos formas falla por código de salida en la sesión
   equivocada — hay que mirar el stdout, no el rc. Los scripts migrados llevan fallback inline.
+- **Un dispatcher conmutable con argumento de CADENA es un TOGGLE SILENCIOSO.**
+  `hl.dsp.dpms('on')` NO enciende: `tableToggleAction()` sale por
+  `if (!lua_istable(...)) return TOGGLE_ACTION_TOGGLE` y tira el `'on'`, respondiendo `ok`.
+  La forma correcta es la TABLA: `hl.dsp.dpms({ action = 'on' })`. Vale para todo
+  `eTogglableAction` (dpms, fullscreen, float, pin, lockgroups…). Costó el bug de la pantalla
+  negra al salir de suspensión — ver la sección de suspensión en
+  [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md).
 - `hyprctl binds -j` sigue roto en 0.56; usa la salida de texto.
 - Los callbacks (`hl.on`, binds con función) tienen **timeout de 100 ms**: nada bloqueante dentro.
 - **Todo atajo nuevo debe pasar por el envoltorio `bind()`** de `gigios/keybinds.lua`, no por

@@ -183,6 +183,50 @@ gobierna el último interruptor de la tarjeta (`writeBloqueoAlSuspender` en
 conservar el comando escrito. Ojo al tocar ese regex: `after_sleep_cmd` comparte sufijo con
 `before_sleep_cmd` y es lo único que vuelve a encender la pantalla al despertar.
 
+### Salir de suspensión: la pantalla en negro y el toggle disfrazado de `on`
+
+**Síntoma medido** (25-08-2026): al volver de suspensión la pantalla se encendía y, entre 0,1 s y
+16 s después, **se ponía negra otra vez**. Ni el ratón ni las teclas la recuperaban; solo volvía al
+**cambiar de workspace**. A veces era solo un **parpadeo de ~200 ms**, y a veces no pasaba nada:
+intermitente y por eso difícil de creer. No lo causaba la suspensión, ni un fallo de modeset, ni el
+orden en que logind reactiva el asiento.
+
+**La causa: `hl.dsp.dpms('on')` es un TOGGLE.** El argumento tiene que ser una TABLA; con un string,
+`Internal::tableToggleAction()` (Hyprland `src/config/lua/bindings/LuaBindingsInternal.cpp:444`)
+sale por su primera línea —`if (!lua_istable(L, idx)) return CA::TOGGLE_ACTION_TOGGLE`— y el
+`'on'` **ni se lee**. `hyprctl` responde `ok`. Así que el `on-resume` y el `after_sleep_cmd`, cuyo
+único trabajo era ENCENDER la pantalla, la apagaban siempre que ya estuviera encendida — y al
+despertar suele estarlo, porque la enciende antes el propio restore de sesión de Hyprland.
+
+**Por qué quedaba pegada en negro, y no solo un instante.** Dos pestillos se quedan mintiendo:
+
+- `Actions::dpms(ENABLE)` deja `g_pCompositor->m_dpmsStateOn = true`, y `InputManager` solo
+  enciende la pantalla al teclear `if (… && !g_pCompositor->m_dpmsStateOn)`. Con el pestillo en
+  `true`, **el teclado deja de despertarla** (y el ratón nunca pudo: `mouse_move_enables_dpms =
+  false`).
+- `CMonitor::setDPMS()` empieza por `if (m_dpmsStatus == on) return;`, así que un `dpms on`
+  posterior tampoco vuelve a hacer commit del output.
+
+Con los dos flags diciendo "encendida", solo forzar un commit nuevo la recuperaba — de ahí que
+funcionara **cambiar de workspace** y nada más. La intermitencia era el número de toggles que
+llegaban a caer en cada despertar: par → encendida, impar → negra.
+
+**El arreglo, y por qué la tabla NO va en `hypridle.conf`.** Meter `{ action = 'on' }` en un
+listener rompería el parser de Ajustes (`listener\s*\{[^}]*\}` se corta en la primera `}`), que es
+exactamente el motivo por el que alguien escribió el string en su día: **el workaround del parser
+introdujo el bug**. Por eso el comando con llaves vive en `idle-action.sh`, y el `.conf` solo nombra
+acciones del script:
+
+- `after_sleep_cmd` y el `on-resume` del listener de dpms → `idle-action.sh dpms-on`.
+- `dpms-on` es la única acción del script que **no** consulta al Wake up: encender la pantalla no se
+  veta nunca (misma regla fail-open que el resto del script).
+- De paso desapareció el `| grep -q "^ok" || hyprctl dispatch dpms on`: el repliegue no podía
+  dispararse jamás, porque el toggle devolvía `ok` incluso haciendo lo contrario de lo pedido.
+
+**Lo que hay que llevarse de aquí:** la regla de la migración a Lua era "mira el stdout (`ok`), no
+el rc". **Este fallo la burla**: rc 0, stdout `ok`, y la acción invertida. Si un dispatcher
+conmutable no hace lo que dice, comprueba antes que nada que le estés pasando una tabla.
+
 ### Diálogo de contraseña de root: hyprpolkitagent, y por qué sigue siendo feo
 
 El agente de polkit —la ventanita que pide la contraseña al necesitar root— **ya es

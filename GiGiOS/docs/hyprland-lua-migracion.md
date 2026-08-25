@@ -33,6 +33,18 @@ llega a commitearse.
   legacy la forma Lua responde `Invalid dispatcher` **con rc=0**, y en sesión Lua la legacy también
   falla sin rc útil — **hay que mirar el stdout (`ok`), nunca el código de salida**. Los scripts
   migrados (`idle-action.sh`, `anclaje.py`, `lanzar-anclado.py`) llevan por eso fallback inline.
+- **UN DISPATCHER CONMUTABLE CON ARGUMENTO DE CADENA ES UN TOGGLE, Y RESPONDE `ok`.** El caso
+  medido: `hl.dsp.dpms('on')`. `Internal::tableToggleAction()` (`LuaBindingsInternal.cpp:444`)
+  empieza por `if (!lua_istable(L, idx)) return CA::TOGGLE_ACTION_TOGGLE` — un string no es una
+  tabla, así que el `'on'` **no se llega ni a leer**. `parseToggleStr()` sí entiende
+  `on/off/enable/disable`, pero solo se le llama desde la rama de tabla. La forma correcta es
+  `hl.dsp.dpms({ action = 'on' })`, la que ya usaba `gigios/boton-apagado.lua`.
+  Afecta a todos los `eTogglableAction`, no solo a dpms.
+  **Por qué es tan caro de encontrar**: no hay error, el rc es 0 y el stdout es `ok`, así que la
+  regla de "mira el stdout, no el rc" —la del punto anterior— tampoco lo detecta; un `|| repliegue`
+  guardado por `grep -q "^ok"` nunca dispara. El único síntoma es que el estado sale invertido, y
+  solo cuando el estado de partida no era el que suponías. Ver la sección de suspensión en
+  [`hyprland-modulos.md`](hyprland-modulos.md).
 - **`hyprctl binds -j` sigue roto** en 0.56 (JSON inválido); usa la salida de texto.
 - **Los callbacks (`hl.on`, binds con función) tienen timeout de 100 ms**: nada bloqueante dentro.
   Los `*-monitor.sh` siguen en bash por eso, lanzados igual desde `gigios/autostart.lua`.
