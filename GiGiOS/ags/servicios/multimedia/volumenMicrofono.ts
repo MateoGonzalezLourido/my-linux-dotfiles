@@ -28,22 +28,36 @@
  *
  * **Regla: ningún sitio nuevo puede escribir `volume * 100` para un micrófono.**
  * Todo lo que enseñe o acepte un porcentaje de entrada pasa por aquí.
+ *
+ * ── El techo de la UI ya no es el 100 % ──────────────────────────────────────
+ *
+ * Desde que los deslizadores llegan al 200 % (`volumenAmplificado.ts`), estas
+ * funciones aceptan y devuelven hasta ese tope. `MIC_SAFE_MAX` sigue siendo la
+ * referencia del 100 % —el punto donde el imán del deslizador clava el valor—,
+ * no el máximo escribible.
  */
+
+import { VOLUMEN_MAX } from "./volumenAmplificado.ts"
 
 /** Techo del volumen de entrada, en fracción cruda de PipeWire (0-1).
  *
- * 1.00 = el 100 % de la UI es el 100 % del hardware (ver cabecera). */
+ * 1.00 = el 100 % de la UI es el 100 % del hardware (ver cabecera).
+ *
+ * OJO: es la referencia del **100 %**, no el máximo que se puede escribir. El
+ * deslizador llega al 200 % (`VOLUMEN_MAX`, amplificación por software); lo que
+ * `MIC_SAFE_MAX` fija es dónde cae la marca del 100 %. */
 export const MIC_SAFE_MAX = 1.00
 
-/** Fracción cruda de PipeWire → fracción que ve el usuario (0..1).
+/** Fracción cruda de PipeWire → fracción que ve el usuario (0..VOLUMEN_MAX).
  *
- * Se recorta a 1 porque el valor crudo puede venir por encima del techo: lo
- * pone cualquier otra herramienta (pavucontrol, `wpctl set-volume`) o un preset
- * guardado antes de que existiera el techo. Enseñar "250 %" sería peor que
- * enseñar "100 %" — el slider ya no puede subir más de ahí. */
+ * Se recorta a `VOLUMEN_MAX` porque el valor crudo puede venir por encima de lo
+ * que el deslizador puede pintar: lo pone cualquier otra herramienta
+ * (pavucontrol, `wpctl set-volume`) o un preset guardado con otro tope. Enseñar
+ * "400 %" sería peor que enseñar "200 %" — el deslizador ya no sube más de ahí.
+ * El recorte es SOLO de presentación: no se escribe nada en el hardware. */
 export function fraccionMostradaMic(crudo: number): number {
   if (!Number.isFinite(crudo) || crudo <= 0) return 0
-  return Math.min(1, crudo / MIC_SAFE_MAX)
+  return Math.min(VOLUMEN_MAX, crudo / MIC_SAFE_MAX)
 }
 
 /** Fracción cruda de PipeWire → el entero 0..100 que se pinta. */
@@ -51,9 +65,9 @@ export function porcentajeMic(crudo: number): number {
   return Math.round(fraccionMostradaMic(crudo) * 100)
 }
 
-/** El 0..100 que toca el usuario → fracción cruda que se le escribe al endpoint. */
+/** El 0..200 que toca el usuario → fracción cruda que se le escribe al endpoint. */
 export function crudoDesdePorcentajeMic(porcentaje: number): number {
   if (!Number.isFinite(porcentaje)) return 0
-  const p = Math.max(0, Math.min(100, porcentaje))
+  const p = Math.max(0, Math.min(VOLUMEN_MAX * 100, porcentaje))
   return (p / 100) * MIC_SAFE_MAX
 }

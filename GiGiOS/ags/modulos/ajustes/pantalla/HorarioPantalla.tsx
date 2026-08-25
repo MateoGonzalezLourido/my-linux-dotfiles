@@ -55,6 +55,19 @@ const MODOS_BRILLO = [
   { label: textos.reglas.modos.noCambiar, value: "keep" },
   { label: textos.reglas.modos.fijarEn, value: "set" },
 ]
+// Franja con final vs. "solo la hora a la que empieza" (`end: null`). El segundo existe
+// porque obligar a poner un final para decir "a las 22:00 ponla cálida" era justo la queja:
+// no siempre se sabe —ni importa— cuándo acaba, y encadenar reglas es más natural.
+const MODOS_HORA = [
+  { label: textos.reglas.horario.hasta, value: "range" },
+  { label: textos.reglas.horario.enAdelante, value: "open" },
+]
+// Final que se propone al convertir una regla abierta en franja: 8 h después, que es lo
+// que dura una noche. Nunca `start` (franja vacía: no regiría nunca).
+const FIN_PREDETERMINADO = (inicio: string) => {
+  const [h, m] = inicio.split(":")
+  return `${String((Number(h) + 8) % 24).padStart(2, "0")}:${m}`
+}
 
 const CLAVE_REGLA = Symbol("clave-regla")
 let siguienteClaveRegla = 1
@@ -85,7 +98,7 @@ export default function FilaReglaHorario({
   const establecerParteHora = (campo: "start" | "end", parte: 0 | 1, valor: number) => {
     const reglaActual = nightRules.get()[indice.get()]
     if (!reglaActual) return
-    const partes = reglaActual[campo].split(":")
+    const partes = (reglaActual[campo] ?? FIN_PREDETERMINADO(reglaActual.start)).split(":")
     partes[parte] = String(valor).padStart(2, "0")
     actualizar({ [campo]: `${partes[0]}:${partes[1]}` } as Partial<NightRule>)
   }
@@ -97,8 +110,10 @@ export default function FilaReglaHorario({
     createMemo(() => obtener(actual()))
   const horaInicio = memorizar((valor) => Number(valor.start.split(":")[0]))
   const minutoInicio = memorizar((valor) => Number(valor.start.split(":")[1]))
-  const horaFin = memorizar((valor) => Number(valor.end.split(":")[0]))
-  const minutoFin = memorizar((valor) => Number(valor.end.split(":")[1]))
+  const finEditable = memorizar((valor) => valor.end ?? FIN_PREDETERMINADO(valor.start))
+  const horaFin = createMemo(() => Number(finEditable().split(":")[0]))
+  const minutoFin = createMemo(() => Number(finEditable().split(":")[1]))
+  const modoHora = memorizar((valor) => valor.end == null ? "open" : "range")
   const modoLuz = memorizar((valor) => valor.temp == null ? "keep" : valor.temp > 0 ? "on" : "off")
   const modoBrillo = memorizar((valor) => valor.brightness == null ? "keep" : "set")
   const temperatura = memorizar((valor) =>
@@ -156,10 +171,13 @@ export default function FilaReglaHorario({
         <CampoNumerico valor={horaInicio} minimo={0} maximo={23} alConfirmar={(valor) => establecerParteHora("start", 0, valor)} />
         <TextoInformativo label=":" />
         <CampoNumerico valor={minutoInicio} minimo={0} maximo={59} alConfirmar={(valor) => establecerParteHora("start", 1, valor)} />
-        <TextoInformativo label={textos.reglas.horario.hasta} />
-        <CampoNumerico valor={horaFin} minimo={0} maximo={23} alConfirmar={(valor) => establecerParteHora("end", 0, valor)} />
-        <TextoInformativo label=":" />
-        <CampoNumerico valor={minutoFin} minimo={0} maximo={59} alConfirmar={(valor) => establecerParteHora("end", 1, valor)} />
+        {selectorModo(MODOS_HORA, modoHora, (modo) =>
+          actualizar({ end: modo === "open" ? null : finEditable.get() }))}
+        <box spacing={5} valign={Gtk.Align.CENTER} visible={modoHora((modo) => modo === "range")}>
+          <CampoNumerico valor={horaFin} minimo={0} maximo={23} alConfirmar={(valor) => establecerParteHora("end", 0, valor)} />
+          <TextoInformativo label=":" />
+          <CampoNumerico valor={minutoFin} minimo={0} maximo={59} alConfirmar={(valor) => establecerParteHora("end", 1, valor)} />
+        </box>
         <label
           cssClasses={["sp-rule-active-chip"]}
           label={textos.reglas.horario.vigente}

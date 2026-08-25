@@ -25,9 +25,11 @@ import { initTlpAuto } from "./servicios/energia/tlpAuto"
 import { initInactividadAhorro } from "./servicios/pantalla/inactividadAhorro"
 import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
+import { iniciarCierreAjustesAlCambiarEscritorio } from "./servicios/escritorios/cierreAlCambiarEscritorio"
 import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
 import { initPlanificadorFondos } from "./servicios/fondos/planificador"
 import { initAcentoAdaptativo } from "./servicios/fondos/acento"
+import { initPresetsApps } from "./servicios/multimedia/presetsApps"
 import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
 
 app.start({
@@ -136,6 +138,10 @@ app.start({
     }
     try { app.get_monitors().map(PanelCalendario) } catch(e) { console.error("[app] PanelCalendario failed:", e) }
     app.get_monitors().map(SettingsPanel)
+    // Las dos ventanas de ajustes tapan la pantalla entera y no viven en ningún
+    // escritorio: se cierran al cambiar de workspace. Va a t=0 (una conexión de
+    // señal, coste nulo) para que no queden abiertas si el cambio ocurre pronto.
+    iniciarCierreAjustesAlCambiarEscritorio()
     // Deja el Wake up apagado: es por sesión, y un wakeup.json heredado seguiría
     // vetando la suspensión sin que ninguna UI lo enseñe. NO se aparta con los
     // demás (abajo): su único trabajo es limpiar estado heredado peligroso, y es
@@ -196,6 +202,13 @@ app.start({
       initBrilloAhorro()
       initTlpAuto()
       initInactividadAhorro()
+      // Vigilante del volumen por aplicación. Aplica los presets de `audioPresets.json`
+      // a los streams que aparecen, que hasta ahora SOLO ocurría con el submenú
+      // "Aplicaciones" de Quick Settings abierto: una app lanzada con el panel cerrado
+      // sonaba al volumen que ella quisiera. Mismo criterio de apartado que el resto —
+      // su barrido inicial atiende a lo que ya estuviera sonando, así que cuatro
+      // segundos no le pierden ningún stream, solo lo atienden un poco más tarde.
+      initPresetsApps()
     }, 4000)
   },
 })

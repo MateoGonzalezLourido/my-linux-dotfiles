@@ -27,41 +27,67 @@ export function isWithinSchedule(now: { h: number; m: number }, s: NightSchedule
   return s.enabled && isWithinWindow(now, s.start, s.end)
 }
 
-// Una regla es una FRANJA [start, end) y lo que hace en ella con DOS canales
-// independientes. Fuera de su franja no existe: no arrastra su valor ni "hasta que otra
-// regla lo cambie" (ese era el modelo anterior, de puntos de cambio encadenados, y hacía
-// que una sola regla de las 22:00 rigiera también a las 19:00 — envolvía a la de ayer).
+// Una regla programa DOS canales independientes y puede escribirse de dos formas:
 //
-//   temp:       null = no toca la luz nocturna · 0 = la APAGA · >0 = K mientras dure la franja
-//   brightness: null = no toca el brillo       · 1..100 = % al entrar en la franja
+//   • FRANJA  (`end` con hora): rige en [start, end) y fuera de ella no existe — no
+//     arrastra su valor. Es lo indicado para "de 10 a 11" o "de 22:00 a 07:00".
+//   • DESDE   (`end: null`): rige DESDE su hora hasta que otra regla del mismo canal la
+//     releve (la más recientemente empezada gana, ver `activeRuleFor`). Es el "pon una
+//     hora y listo": una sola regla «desde las 22:00 a 3500 K» rige a partir de las 22:00
+//     y sigue rigiendo mientras nadie más hable de ese canal — también al día siguiente,
+//     porque no tiene final. Para acotarla se añade otra regla («desde las 07:00, apagar»,
+//     o «desde las 07:00, no cambiar»… que NO releva: «no cambiar» significa que la regla
+//     no habla del canal, así que para cortar hace falta «Apagar» o una franja).
 //
-// Fuera de toda franja, cada canal vuelve a su dueño natural: la luz nocturna, al
-// interruptor manual; el brillo, al valor que tenía antes de entrar (lo restaura el
-// servicio, ver `service.ts`).
+//   temp:       null = no toca la luz nocturna · 0 = la APAGA · >0 = K mientras rija
+//   brightness: null = no toca el brillo       · 1..100 = % al empezar a regir
+//
+// Mientras ninguna regla rija, cada canal vuelve a su dueño natural: la luz nocturna, al
+// interruptor manual; el brillo, al valor que tenía antes (lo restaura el servicio, ver
+// `service.ts`).
 //
 // `temp: 0` (apagar) NO es lo mismo que `temp: null` (no cambiar): null deja mandar al
-// interruptor manual, 0 lo pisa mientras dure la franja. Sin él no había forma de decir
+// interruptor manual, 0 lo pisa mientras la regla rija. Sin él no había forma de decir
 // "de 9 a 18 la quiero apagada aunque la deje encendida a mano" — solo de no tocarla.
 export type Channel = "temp" | "brightness"
-export interface NightRule { start: string; end: string; temp: number | null; brightness?: number | null }
+export interface NightRule {
+  start: string
+  end: string | null          // null = sin final: rige hasta que otra regla releve al canal
+  temp: number | null
+  brightness?: number | null
+}
 
-// Regla que rige un canal AHORA: de las que están dentro de su franja y hablan de ese
-// canal, la que arrancó más recientemente (contando la vuelta de medianoche); a igualdad,
-// la última de la lista. Así, si dos franjas se solapan, gana la que acaba de empezar.
+// ¿La regla rige AHORA? Una franja, solo dentro de su ventana; una regla sin final, siempre
+// (empezó a su hora y nadie la ha terminado: quién manda de las que rigen lo decide el
+// desempate por antigüedad de `activeRuleFor`).
+export function isRuleActive(now: { h: number; m: number }, r: NightRule): boolean {
+  return r.end == null ? true : isWithinWindow(now, r.start, r.end)
+}
+
+/** Identidad estable de una regla, para detectar el cambio de una a otra. */
+export function ruleKey(r: NightRule): string {
+  return `${r.start}-${r.end ?? "∞"}`
+}
+
+// Regla que rige un canal AHORA: de las que rigen (dentro de su franja, o sin final) y
+// hablan de ese canal, la que arrancó más recientemente (contando la vuelta de medianoche);
+// a igualdad, la última de la lista. Así, si dos se solapan gana la que acaba de empezar —
+// que es también lo que encadena las reglas sin final: a las 23:00, «desde 22:00» (1 h) le
+// gana a «desde 07:00» (16 h), y al llegar las 07:00 se cambian los papeles.
 export function activeRuleFor(now: { h: number; m: number }, rules: NightRule[], channel: Channel): NightRule | null {
   const cur = now.h * 60 + now.m
   let best: NightRule | null = null
   let bestAge = Infinity
   rules.forEach((r) => {
     if (r[channel] == null) return
-    if (!isWithinWindow(now, r.start, r.end)) return
+    if (!isRuleActive(now, r)) return
     const age = (cur - parseHM(r.start) + 1440) % 1440   // minutos desde que empezó
     if (age <= bestAge) { best = r; bestAge = age }      // <= : a igualdad gana la última
   })
   return best
 }
 
-// Valor vigente de un canal, o null si ninguna franja lo programa ahora mismo.
+// Valor vigente de un canal, o null si ninguna regla lo programa ahora mismo.
 export function activeSetpoint(now: { h: number; m: number }, rules: NightRule[], channel: Channel): number | null {
   const r = activeRuleFor(now, rules, channel)
   return r ? (r[channel] as number) : null
@@ -123,9 +149,11 @@ export function normalizeRules(raw: unknown): NightRule[] {
   const out: NightRule[] = []
   for (const r of items) {
     const start = hm(r.start)
-    const end = hm(r.end)
-    if (!start || !end) continue
-    out.push({ start, end, temp: temp(r.temp), brightness: bright(r.brightness) })
+    if (!start) continue
+    // Sin `end` (o con uno ilegible) la regla es del tipo "desde": no se descarta, que es
+    // justo la forma de escribirla. Solo se llega aquí con `start` válido, así que un
+    // objeto sin horas sigue cayéndose.
+    out.push({ start, end: hm(r.end), temp: temp(r.temp), brightness: bright(r.brightness) })
   }
   return out
 }

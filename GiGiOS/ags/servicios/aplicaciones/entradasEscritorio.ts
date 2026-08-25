@@ -84,3 +84,39 @@ export function obtenerEntradaEscritorio(
   }
   return null
 }
+
+/**
+ * Igual que `obtenerEntradaEscritorio`, pero partiendo de candidatos ya calculados y con
+ * una segunda pasada **por prefijo**.
+ *
+ * El motivo es medido: un cliente de PulseAudio se identifica con su binario (`brave`) y
+ * el `.desktop` instalado se llama `brave-origin` — la búsqueda exacta no casa y la app
+ * se queda sin nombre ni icono. Se exige separador (`-`, `.`, `_`) tras el candidato y se
+ * elige la clave MÁS CORTA: si no, `brave` casaría antes con cualquiera de las PWA
+ * (`brave-hjlhbeff…-default`) que con el navegador. Mínimo de 3 caracteres para que un
+ * candidato corto no pesque una entrada al azar.
+ */
+export function obtenerEntradaEscritorioPorCandidatos(
+  candidatos: Array<string | null | undefined>,
+): EntradaEscritorio | null {
+  const mapa = obtenerIndice()
+  const normalizados = candidatos.map(normalizarIdentificadorAplicacion).filter(Boolean)
+
+  for (const candidato of normalizados) {
+    const entrada = mapa.get(candidato)
+    if (entrada) return entrada
+  }
+
+  for (const candidato of normalizados) {
+    if (candidato.length < 3) continue
+    let mejor: string | null = null
+    for (const clave of mapa.keys()) {
+      if (!clave.startsWith(candidato)) continue
+      if (!"-._".includes(clave.charAt(candidato.length))) continue
+      if (!mejor || clave.length < mejor.length) mejor = clave
+    }
+    if (mejor) return mapa.get(mejor) ?? null
+  }
+
+  return null
+}

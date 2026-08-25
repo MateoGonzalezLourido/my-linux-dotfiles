@@ -8,7 +8,7 @@ import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import { buildMonitorSpecLua, monitorNeedsUpdate } from "./modes"
 import type { MonitorPref } from "./modes"
-import { activeSetpoint, activeRuleFor, normalizeRules } from "./schedule"
+import { activeSetpoint, activeRuleFor, normalizeRules, ruleKey } from "./schedule"
 import type { NightRule } from "./schedule"
 import { parseModetestCaps, parseEdidHdr } from "./caps"
 import { applyBrightness, brightnessSupported, softwareDim } from "./brightness"
@@ -325,7 +325,7 @@ function claimNightOverride() { nightOverrideKey = scheduleKey() }
 function scheduleKey(): string {
   if (rulesOn()) {
     const r = activeRuleFor(nowHM(), nightRules.get(), "temp")
-    return r ? `${r.start}-${r.end}` : "none"
+    return r ? ruleKey(r) : "none"
   }
   return "no-schedule"
 }
@@ -375,6 +375,11 @@ let brightnessBeforeWindow: number | null = config.brightnessWindow?.before ?? n
  *  franja al arrancar?" — que es justo lo que necesita la restauración del tramo software. */
 const franjaAlArrancar: string | null = config.brightnessWindow?.key ?? null
 
+// Nota para las reglas SIN final (`end: null`): no "salen" nunca por sí solas, así que
+// mientras una de ellas programe el brillo no hay restauración — la hay cuando otra regla
+// la releva (se aplica el nuevo valor) o cuando se borra/apaga el horario. Es lo que
+// significa "desde esta hora y hasta nuevo aviso"; la franja sigue siendo la forma de decir
+// "y luego devuélvemelo como estaba".
 function applyScheduledBrightness() {
   const r = rulesOn() ? activeRuleFor(nowHM(), nightRules.get(), "brightness") : null
 
@@ -392,7 +397,7 @@ function applyScheduledBrightness() {
     return
   }
 
-  const key = `${r.start}-${r.end}|${r.brightness}`
+  const key = `${ruleKey(r)}|${r.brightness}`
   if (key === lastBrightnessKey) return
   // Sin backend confirmado, `applyBrightness` no llega al hardware — y en un sobremesa el
   // sondeo DDC tarda ~1 s, así que al arrancar aún no lo hay. No se marca la franja como
@@ -539,7 +544,7 @@ export function initDisplayService() {
       // bueno. Medido: con la franja 00:00-07:00→80 vigente, ceder el mando sin más dejaba el
       // brillo sin restaurar en cada arranque — gamma a 100 y el slider saltando al suelo.
       const r = rulesOn() ? activeRuleFor(nowHM(), nightRules.get(), "brightness") : null
-      const claveActiva = r && r.brightness != null ? `${r.start}-${r.end}|${r.brightness}` : null
+      const claveActiva = r && r.brightness != null ? `${ruleKey(r)}|${r.brightness}` : null
       if (claveActiva !== null && claveActiva !== franjaAlArrancar) return
       applyBrightness(config.brightness)
     }

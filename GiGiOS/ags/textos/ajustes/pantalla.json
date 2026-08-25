@@ -16,10 +16,12 @@
       "fijarEn": "Fijar en"
     },
     "horario": {
-      "hasta": "a",
+      "desde": "Desde",
+      "hasta": "hasta las",
+      "enAdelante": "en adelante",
       "vigente": "vigente",
       "tooltipVigente": "Rige ahora mismo: {{canales}}",
-      "sinFranjas": "Ahora ({{hora}}) · sin franjas: manda el ajuste manual de arriba",
+      "sinFranjas": "Ahora ({{hora}}) · sin reglas vigentes: manda el ajuste manual de arriba",
       "resumen": "Ahora ({{hora}}) · luz nocturna: {{luz}} · brillo: {{brillo}}",
       "luzApagada": "apagada"
     },
@@ -31,7 +33,7 @@
     },
     "acciones": {
       "borrar": "Borrar regla",
-      "anadir": "Añadir franja"
+      "anadir": "Añadir regla"
     }
   },
   "monitor": {
@@ -101,8 +103,8 @@
     "descripcion": "Se usa fuera de las franjas programadas. Menos K produce un tono más cálido."
   },
   "programacion": {
-    "titulo": "Programar por franjas horarias",
-    "descripcion": "Cada franja puede ajustar la luz nocturna, el brillo o ambos, y puede cruzar la medianoche. Al terminar, la luz vuelve al ajuste manual y el brillo recupera su valor anterior.\n«No cambiar» deja ese canal intacto; «Apagar» mantiene la luz nocturna apagada aunque esté encendida a mano; el brillo solo se fija al entrar."
+    "titulo": "Programación horaria",
+    "descripcion": "Cada regla puede ajustar la luz nocturna, el brillo o ambos. Elige «hasta las» para una franja con final (puede cruzar la medianoche) o «en adelante» para poner solo la hora a la que empieza: rige desde ahí hasta que otra regla la releve.\nAl terminar una franja, la luz vuelve al ajuste manual y el brillo recupera su valor anterior. «No cambiar» deja ese canal intacto; «Apagar» mantiene la luz nocturna apagada aunque esté encendida a mano; el brillo solo se fija al empezar a regir."
   },
   "globales": {
     "titulo": "Fluidez y juegos",

@@ -5,7 +5,8 @@ update_info=dolphin_detailsmodesettings.upd:rename-leading-padding
 
 [ExtractDialog]
 2048x1152 screen: Window-Maximized=true
-DirHistory[$e]=$HOME/Github-Repos/
+2276x1280 screen: Window-Maximized=true
+DirHistory[$e]=$HOME/Obsidian/raspberry-ecosistema/,$HOME/Github-Repos/
 
 [General]
 BrowseThroughArchives=false

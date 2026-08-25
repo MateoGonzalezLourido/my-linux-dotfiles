@@ -1,5 +1,6 @@
 import SettingsTabs from "../../notificaciones/settings/SettingsTabs"
 import SeccionAccesibilidad from "../accesibilidad/SeccionAccesibilidad"
+import SeccionAtajos from "../atajos/SeccionAtajos"
 import SeccionBarraEscritorios from "../barra/SeccionBarraEscritorios"
 import SeccionCuenta from "../cuenta/SeccionCuenta"
 import SeccionAlmacenamiento from "../disco/SeccionAlmacenamiento"
@@ -20,6 +21,7 @@ export type IdSeccion =
   | "energy" | "games" | "bar" | "workspaces" | "orion" | "clipboard"
   | "storage" | "cleanup"
   | "notifications" | "monitoring" | "scans" | "supervision" | "system"
+  | "shortcuts"
 
 export interface SeccionNavegacion {
   id: IdSeccion
@@ -52,6 +54,7 @@ export const SECCIONES_NAVEGACION: SeccionNavegacion[] = [
   { id: "scans", label: textos.secciones.escaneos, icon: "󰇚" },
   { id: "supervision", label: textos.secciones.supervision, icon: "󰓅" },
   { id: "system", label: textos.secciones.sistema, icon: "󰌢" },
+  { id: "shortcuts", label: textos.secciones.atajos, icon: "󰘳" },
 ]
 
 const FABRICAS_SECCION: Record<IdSeccion, () => unknown> = {
@@ -79,6 +82,7 @@ const FABRICAS_SECCION: Record<IdSeccion, () => unknown> = {
   scans: () => <SeccionSeguridad vista="escaneos" />,
   supervision: () => <SeccionSistema vista="supervision" />,
   system: () => <SeccionSistema vista="informacion" />,
+  shortcuts: () => <SeccionAtajos />,
 }
 
 export function crearContenidoSeccion(id: IdSeccion): unknown {

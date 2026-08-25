@@ -3098,6 +3098,13 @@ scale.qs-slider.brightness slider {
   margin: 0;
   padding: 0;
 }
+scale.qs-slider.speaker trough, scale.qs-slider.mic trough, scale.qs-slider.app trough, scale.qs-slider.media trough {
+  background-image: linear-gradient(to right, transparent 0%, transparent 49.6%, rgba(255, 255, 255, 0.3) 49.6%, rgba(255, 255, 255, 0.3) 50.4%, transparent 50.4%, transparent 100%);
+}
+scale.qs-slider.speaker.amplificado progress, scale.qs-slider.mic.amplificado progress, scale.qs-slider.app.amplificado progress, scale.qs-slider.media.amplificado progress {
+  background: #fab387;
+  box-shadow: 0 0 10px rgba(250, 179, 135, 0.35);
+}
 scale.qs-slider.temperature trough {
   background: linear-gradient(to right, color-mix(in srgb, var(--acento-2, #89b4fa) 45%, transparent), color-mix(in srgb, var(--acento, #cba6f7) 55%, transparent));
 }
@@ -6131,6 +6138,60 @@ window.cal-window.csd decoration {
 
 .dev-select {
   min-width: 190px;
+}
+
+.kb-totales {
+  font-size: 11px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--acento, #cba6f7) 82%, transparent);
+  font-family: "MesloLGS Nerd Font";
+}
+
+.kb-buscador {
+  min-height: 30px;
+}
+
+.kb-lista {
+  padding: 2px 0 4px;
+}
+
+.kb-ajustes-grupo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--acento, #cba6f7) 78%, transparent);
+  font-family: "MesloLGS Nerd Font";
+  padding: 12px 14px 5px;
+}
+
+.kb-ajustes-fila {
+  min-height: 28px;
+  padding: 4px 14px;
+  border-radius: 7px;
+}
+.kb-ajustes-fila:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.kb-ajustes-tecla {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: monospace;
+  color: rgba(226, 226, 226, 0.92);
+  min-width: 150px;
+}
+
+.kb-ajustes-desc {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.62);
+  font-family: "MesloLGS Nerd Font";
+}
+
+.kb-ajustes-vacia {
+  font-size: 11px;
+  color: rgba(226, 226, 226, 0.45);
+  font-family: "MesloLGS Nerd Font";
+  padding: 18px 14px;
 }
 
 scale.dev-slider {

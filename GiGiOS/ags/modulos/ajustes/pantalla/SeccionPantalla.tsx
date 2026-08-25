@@ -81,7 +81,7 @@ export default function SeccionPantalla() {
   evalPoll()
 
   // Qué está aplicando el horario AHORA. Es la respuesta visible a "¿por qué se ha
-  // encendido?": si una franja rige, se ve aquí y su tarjeta sale marcada.
+  // encendido?": si una regla rige, se ve aquí y su tarjeta sale marcada.
   const scheduleSummary = createComputed(() => {
     const t = horaHorario()
     const hh = `${String(t.h).padStart(2, "0")}:${String(t.m).padStart(2, "0")}`
@@ -90,7 +90,7 @@ export default function SeccionPantalla() {
     }
     const temp = activeSetpoint(t, nightRules(), "temp")
     const bright = activeSetpoint(t, nightRules(), "brightness")
-    // "—" es "ninguna franja lo programa"; una franja que APAGA (temp 0) sí programa algo
+    // "—" es "ninguna regla lo programa"; una regla que APAGA (temp 0) sí programa algo
     // y se dice, o el resumen no distinguiría "manda el manual" de "la fuerzo apagada".
     const luz = temp == null ? "—" : temp > 0 ? `${temp} K` : textos.reglas.horario.luzApagada
     const bri = bright != null ? `${bright} %` : "—"
@@ -310,7 +310,7 @@ export default function SeccionPantalla() {
 
       <ControlesLuz />
 
-      {/* ── Franjas horarias: luz nocturna y/o brillo (independiente del manual) ── */}
+      {/* ── Reglas horarias: luz nocturna y/o brillo (independiente del manual) ── */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["sp-field"]}>
         <box spacing={6} valign={Gtk.Align.CENTER}>
           <TituloAjuste label={textos.programacion.titulo} hexpand halign={Gtk.Align.START} />
@@ -330,15 +330,17 @@ export default function SeccionPantalla() {
           halign={Gtk.Align.START} xalign={0}
         />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={nightRulesEnabled}>
-          <For each={nightRules} id={claveReglaHorario}>
-            {(rule: NightRule, index: any) => <FilaReglaHorario regla={rule} indice={index} />}
-          </For>
+          {/* La regla que se añade nace SIN final ("en adelante"): añadir una es decir "a esta
+              hora quiero esto", y obligar a inventarse un final era justo la fricción que se
+              quitó; la franja sigue a un clic, en el selector de la propia fila. El horario por
+              defecto al ENCENDER la programación sí es una franja 22:00–07:00 completa (ver
+              `setNightRulesEnabled`). */}
           <button
             cssClasses={["sp-add-rule"]}
             halign={Gtk.Align.START}
             onClicked={() => setNightRulesAndSave([...nightRules.get(), {
               start: "22:00",
-              end: "07:00",
+              end: null,
               temp: TEMPERATURA_REGLA_PREDETERMINADA,
               brightness: null,
             }])}
@@ -348,11 +350,25 @@ export default function SeccionPantalla() {
               <label label={textos.reglas.acciones.anadir} />
             </box>
           </button>
+          {/* El `<For>` va en su PROPIA caja, no suelto entre los hermanos de este contenedor.
+              `For` no inserta por índice: en cada cambio de la lista quita todos sus hijos y los
+              vuelve a añadir, y añadir en un `Gtk.Box` es siempre AL FINAL — con el botón como
+              hermano directo, tocar una franja reordenaba tarjetas y botón entre sí. */}
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+            <For each={nightRules} id={claveReglaHorario}>
+              {(rule: NightRule, index: any) => <FilaReglaHorario regla={rule} indice={index} />}
+            </For>
+          </box>
         </box>
       </box>
 
       {/* ── Globales ── */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-field"]}>
+      {/* Todo lo que hay dentro es VRR, y ambos bloques ya se ocultan sin monitor compatible;
+          el título no, así que en un equipo sin VRR quedaba «Fluidez y juegos» encabezando un
+          grupo vacío. La condición va en el grupo entero, no repetida en el título: `admiteVrr`
+          (el monitor seleccionado) implica `anyVrr` (alguno lo admite). */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-field"]}
+        visible={anyVrr}>
         <TituloSubseccion label={textos.globales.titulo} halign={Gtk.Align.START} />
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={admiteVrr}>

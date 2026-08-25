@@ -1,5 +1,5 @@
 import { createState, onCleanup } from "ags"
-import { notifPanelVisible, openNotifPanel, closeNotifPanel } from "../modulos/notificaciones/store"
+import { notifPanelVisible, openNotifPanel, closeNotifPanel, notifSettingsVisible, setNotifSettingsVisible } from "../modulos/notificaciones/store"
 import GLib from "gi://GLib"
 
 export const [calendarVisible, setCalendarVisible] = createState(false)
@@ -22,7 +22,8 @@ export const [trayMenuVisible, setTrayMenuVisible] = createState(false)
 // bar, igual que la ventana de ajustes de notificaciones.
 export const [settingsPanelVisible, setSettingsPanelVisible] = createState(false)
 export function openSettingsPanel() {
-  closeAllPanels()
+  setNotifSettingsVisible(false)
+  cerrarPanelesParaAjustes()
   setSettingsPanelVisible(true)
 }
 export function alternarPanelAjustes() {
@@ -63,7 +64,7 @@ export const [infoSsid, setInfoSsid] = createState<string | null>(null)
 // anyPanelVisible = true si CUALQUIER panel está abierto.
 // La barra observa esto para no ocultarse mientras haya un panel abierto.
 // Abrir un panel cierra el resto (exclusividad mutua).
-import { orionVisible } from "../modulos/orion/state"
+import { orionVisible, hidePanel as cerrarOrion } from "../modulos/orion/state"
 
 // ── Registro centralizado de paneles ─────────────────────────────────────────
 // Única fuente de verdad. Para que un panel nuevo mantenga la barra visible
@@ -173,6 +174,49 @@ export function closeAllPanels() {
   setTrayMenuVisible(false)
   closeNotifPanel()
 }
+
+/** Cierra los paneles que NO están en `closeAllPanels`: el calendario y Orion.
+ *
+ * Viven fuera de ese registro porque no son paneles de la barra (Orion es una
+ * ventana OVERLAY propia con su propio ciclo de vida, y el calendario se abre
+ * desde el reloj), así que hay que cerrarlos aparte.
+ */
+export function cerrarPanelesNoBarra() {
+  setCalendarVisible(false)
+  if (orionVisible.get()) cerrarOrion()
+}
+
+/** Deja la pantalla libre antes de abrir una de las DOS ventanas de ajustes (la
+ * general y la de notificaciones).
+ *
+ * Ambas son layer-shell OVERLAY ancladas a los cuatro bordes: lo que quede
+ * abierto no se ve, pero sigue vivo — reteniendo la barra por `anyPanelVisible`,
+ * con sus temporizadores y sus sondeos corriendo — y reaparece intacto al cerrar
+ * los ajustes, como si no se hubiera hecho nada. `closeAllPanels()` no basta:
+ * Orion y el calendario no forman parte de él.
+ *
+ * `conservarNotificaciones` es para el engranaje de la cabecera del panel de
+ * notificaciones: ese botón ALTERNA la ventana de ajustes, así que cerrar el
+ * panel desde el que se abre dejaría al usuario sin nada al volver a pulsarlo.
+ */
+export function cerrarPanelesParaAjustes(opciones: { conservarNotificaciones?: boolean } = {}) {
+  setPowerMenuVisible(false)
+  setQuickSettingsVisible(false)
+  setFunctionsMenuVisible(false)
+  setTrayMenuVisible(false)
+  if (!opciones.conservarNotificaciones) closeNotifPanel()
+  cerrarPanelesNoBarra()
+}
+
+// Las dos ventanas de ajustes también se excluyen entre sí, y la de
+// notificaciones se abre desde sitios que no pasan por ninguna función de aquí
+// (el engranaje de la cabecera y el botón «editar» de una tarjeta), así que el
+// cierre cuelga de su propio estado en vez de duplicarse en cada sitio.
+notifSettingsVisible.subscribe(() => {
+  if (!notifSettingsVisible.get()) return
+  setSettingsPanelVisible(false)
+  cerrarPanelesParaAjustes({ conservarNotificaciones: true })
+})
 
 /** Abre Quick Settings cerrando los demás paneles, o lo cierra si ya está abierto. */
 /** Abre el menú de energía cerrando los demás paneles, o lo cierra si ya está abierto. */

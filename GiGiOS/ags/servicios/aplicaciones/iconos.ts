@@ -2,7 +2,11 @@ import Gdk from "gi://Gdk"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { Gtk } from "ags/gtk4"
-import { obtenerEntradaEscritorio, type ClienteAplicacionLike } from "./entradasEscritorio"
+import {
+  obtenerEntradaEscritorio,
+  obtenerEntradaEscritorioPorCandidatos,
+  type ClienteAplicacionLike,
+} from "./entradasEscritorio"
 import {
   nombreBaseAplicacion,
   normalizarIdentificadorAplicacion,
@@ -154,3 +158,23 @@ export function obtenerIconoGenericoAplicacion(
 }
 
 export { nombreBaseAplicacion }
+
+/**
+ * Nombre de icono del tema para una lista de candidatos ya resuelta (la mezcla de
+ * aplicaciones de Quick Settings, que no tiene un cliente de Hyprland del que tirar).
+ * Devuelve `null` en vez de inventarse un nombre: quien llama decide el genérico, que es
+ * justo lo que antes no pasaba — se le daba a `Gtk.Image` el nombre de la app en
+ * minúsculas y el hueco quedaba vacío sin un solo error.
+ *
+ * Un `.desktop` con `Icon=` de ruta absoluta (AppImage) no aporta nombre de tema: ahí se
+ * cae a los candidatos y, si tampoco, al genérico de quien llama.
+ */
+export function nombreIconoDesdeCandidatos(candidatos: string[]): string | null {
+  const entrada = obtenerEntradaEscritorioPorCandidatos(candidatos)
+  const nombres = (entrada?.icono as any)?.get_names?.() as string[] | undefined
+  const desdeEntrada = nombres?.find(existeEnTema)
+  if (desdeEntrada) return desdeEntrada
+
+  for (const candidato of candidatos) if (existeEnTema(candidato)) return candidato
+  return null
+}

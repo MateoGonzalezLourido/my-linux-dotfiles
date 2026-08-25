@@ -11,10 +11,26 @@ import {
   audioDispositivosOcultos, alternarDispositivoAudioOculto,
 } from "../ajustes/preferences"
 import {
-  MIC_SAFE_MAX,
   porcentajeMic,
   crudoDesdePorcentajeMic,
 } from "../../servicios/multimedia/volumenMicrofono"
+import {
+  VOLUMEN_MAX,
+  PASO_VOLUMEN,
+  ajustarVolumen,
+} from "../../servicios/multimedia/volumenAmplificado"
+import { fijarVolumenEndpoint } from "../../servicios/multimedia/escrituraVolumen"
+import {
+  audioPresets,
+  setAudioPresets,
+  guardarAudioPresets as saveAudioPresets,
+  obtenerStreams,
+  clavePreset,
+  nombreStream,
+  type TipoMezcla,
+} from "../../servicios/multimedia/presetsApps"
+import { claveApp, esClienteDeSistema } from "../../servicios/multimedia/identidadApps"
+import { presentacionApp, tieneEntradaEscritorio } from "../../servicios/multimedia/presentacionApps"
 import {
   esSalidaDigital,
   esEndpointMuerto,
@@ -72,7 +88,7 @@ import {
   valorBluetoothParaGuardar,
 } from "../../servicios/bluetooth/estadoInicio"
 import { getBluetoothTileInfo } from "../../servicios/bluetooth/tileState"
-import { resolveMediaLengthSeconds, safeMediaPosition } from "../../servicios/multimedia/mediaProgress"
+import { isLiveStreamLength, resolveMediaLengthSeconds, safeMediaPosition } from "../../servicios/multimedia/mediaProgress"
 import { findMediaClient } from "../../servicios/multimedia/mediaClient"
 import {
   obtenerEstadoReproductor,
@@ -279,35 +295,12 @@ try {
   console.error("Failed to init audio switch-on-connect", e)
 }
 
-// ── Persistence Utilities ──────────────────────────────────────────────────────
-const PRESETS_PATH = `${GLib.get_user_config_dir()}/gigios/audioPresets.json`
-
-function loadAudioPresets(): Record<string, number> {
-  try {
-    const [ok, content] = GLib.file_get_contents(PRESETS_PATH)
-    if (ok) return JSON.parse(new TextDecoder().decode(content))
-  } catch (e) { }
-  return {}
-}
-
-let saveTimeout: number | null = null
-
-function saveAudioPresets(p: Record<string, number>) {
-  if (saveTimeout !== null) {
-    GLib.source_remove(saveTimeout)
-  }
-  saveTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
-    try {
-      const dir = GLib.path_get_dirname(PRESETS_PATH)
-      if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) {
-        execAsync(["mkdir", "-p", dir]).catch(() => { })
-      }
-      GLib.file_set_contents(PRESETS_PATH, JSON.stringify(p))
-    } catch (e) { }
-    saveTimeout = null
-    return GLib.SOURCE_REMOVE
-  })
-}
+// ── Presets de volumen por aplicación ─────────────────────────────────────────
+// El almacén y el vigilante que los aplica viven en
+// `servicios/multimedia/presetsApps.ts`: aquí solo queda la UI. Estaban en este fichero
+// y esa era la causa del fallo — la aplicación del preset colgaba del sondeo de abajo,
+// que solo corre con el submenú abierto, así que una app lanzada con Quick Settings
+// cerrado se quedaba con su propio volumen. Ver la cabecera de ese módulo.
 
 // ── Shared audio-apps polling ───────────────────────────────────────────────────
 // Presets y sondeo de "mezcla de aplicaciones" viven a nivel de módulo, no por
@@ -317,10 +310,13 @@ function saveAudioPresets(p: Record<string, number>) {
 // refcount alimenta a todas las instancias, y una guardia por firma evita reconstruir
 // la lista cuando nada cambió (antes <For> recreaba TODAS las filas cada 2 s porque
 // pactl devuelve objetos nuevos y la clave por defecto es identidad por referencia).
-const EXCLUDE_CLIENTS = ["pactl", "gjs", "astal", "pipewire", "wireplumber", "xdg-desktop-portal", "hyprland", "gsd-color", "gjs-console", "pavucontrol"]
-
-// Estado de presets compartido (una sola fuente; antes dos states podían divergir).
-const [audioPresets, setAudioPresets] = createState<Record<string, number>>(loadAudioPresets())
+// Las apps "en silencio" salen de la lista de CLIENTES de PulseAudio, y ahí está todo el
+// que abre el servidor de sonido, no solo lo que el usuario ha lanzado. La lista negra
+// literal que había aquí solo tapaba los nombres que alguien se acordó de escribir —
+// `pw-mon` no estaba, y salía como una app más. Hoy son dos filtros en
+// `identidadApps.ts`/`presentacionApps.ts`: fuera la infraestructura de audio, y fuera lo
+// que no case con ningún `.desktop` instalado (un proceso sin entrada de escritorio no es
+// una app que el usuario reconozca en una lista de volúmenes).
 
 // Firma estable: nombre|índice|volumen por stream. Si no cambia, no tocamos el state
 // y <For> no reconstruye nada.
@@ -338,57 +334,36 @@ function streamsSignature(arr: any[]): string {
 // ── Speaker apps poller ──
 const [spkAppStreams, setSpkAppStreams] = createState<any[]>([])
 let spkLastInteraction = 0
-const spkHandledStreams = new Set<number>()
 let spkSig = ""
 let spkPollId: number | null = null
 let spkRefs = 0
 
 function loadSpkStreams() {
   if (Date.now() - spkLastInteraction < 2500) return
-  Promise.all([
-    execAsync(["bash", "-c", "pactl -f json list sink-inputs 2>/dev/null"]).catch(() => "[]"),
-    execAsync(["bash", "-c", "pactl -f json list clients 2>/dev/null"]).catch(() => "[]")
-  ]).then(([inputsStr, clientsStr]) => {
-    try {
-      const inputs = JSON.parse(inputsStr)
-      const clients = JSON.parse(clientsStr)
-      const inputsArr = Array.isArray(inputs) ? inputs : (inputs ? [inputs] : [])
-      const clientsArr = Array.isArray(clients) ? clients : (clients ? [clients] : [])
-      const clientMap = new Map()
-      clientsArr.forEach(c => clientMap.set(String(c.index), c))
-      const activeAppNames = new Set<string>()
-      const presetsNow = audioPresets.get()
+  obtenerStreams("speaker").then(({ streams, clientes }) => {
+    // Aquí NO se aplica ningún preset: de eso se encarga el vigilante de
+    // `presetsApps.ts`, que está siempre activo y engancha a `stream-added`. Este sondeo
+    // solo alimenta la lista.
+    // Deduplicación por IDENTIDAD, no por el nombre visible: el cliente de captura de
+    // Brave se anuncia como "Brave input" y el stream como "Brave", así que comparando
+    // cadenas salían dos filas de la misma app.
+    const identidadesActivas = new Set<string>()
+    streams.forEach(si => identidadesActivas.add(claveApp(si.properties)))
 
-      const enhanced = inputsArr.map(si => {
-        const client = clientMap.get(String(si.client))
-        if (client) si.properties = { ...client.properties, ...si.properties }
-        const name = si.properties?.["application.name"] || si.properties?.["node.name"] || "App"
-        const key = `app:spk:${name.toLowerCase()}`
-        activeAppNames.add(name.toLowerCase())
-        if (!spkHandledStreams.has(si.index)) {
-          const p = presetsNow[key]
-          if (p !== undefined) execAsync(["pactl", "set-sink-input-volume", `${si.index}`, `${Math.round(p * 100)}%`]).catch(() => { })
-          spkHandledStreams.add(si.index)
-        }
-        return si
-      })
+    const silentApps: any[] = []
+    clientes.forEach(c => {
+      const props = c.properties
+      const clave = claveApp(props)
+      if (!clave || identidadesActivas.has(clave)) return
+      if (esClienteDeSistema(props)) return
+      if (!tieneEntradaEscritorio(props)) return
+      identidadesActivas.add(clave)
+      silentApps.push({ index: -1, client: c.index, properties: props, volume: null, isSilent: true })
+    })
 
-      const silentApps: any[] = []
-      clientsArr.forEach(c => {
-        const name = c.properties?.["application.name"]
-        if (!name) return
-        const lowerName = name.toLowerCase()
-        if (activeAppNames.has(lowerName) || EXCLUDE_CLIENTS.some(e => lowerName.includes(e))) return
-        activeAppNames.add(lowerName)
-        silentApps.push({ index: -1, client: c.index, properties: c.properties, volume: null, isSilent: true })
-      })
-
-      const next = [...enhanced, ...silentApps]
-      const sig = streamsSignature(next)
-      if (sig !== spkSig) { spkSig = sig; setSpkAppStreams(next) }
-    } catch (e) {
-      if (spkSig !== "") { spkSig = ""; setSpkAppStreams([]) }
-    }
+    const next = [...streams, ...silentApps]
+    const sig = streamsSignature(next)
+    if (sig !== spkSig) { spkSig = sig; setSpkAppStreams(next) }
   }).catch(() => { if (spkSig !== "") { spkSig = ""; setSpkAppStreams([]) } })
 }
 
@@ -409,44 +384,15 @@ function stopSpkPoll() {
 // navegadores, etc. como si grabaran).
 const [micAppStreams, setMicAppStreams] = createState<any[]>([])
 let micLastInteraction = 0
-const micHandledStreams = new Set<number>()
 let micSig = ""
 let micPollId: number | null = null
 let micRefs = 0
 
 function loadMicStreams() {
   if (Date.now() - micLastInteraction < 2500) return
-  Promise.all([
-    execAsync(["bash", "-c", "pactl -f json list source-outputs 2>/dev/null"]).catch(() => "[]"),
-    execAsync(["bash", "-c", "pactl -f json list clients 2>/dev/null"]).catch(() => "[]")
-  ]).then(([inputsStr, clientsStr]) => {
-    try {
-      const inputs = JSON.parse(inputsStr)
-      const clients = JSON.parse(clientsStr)
-      const inputsArr = Array.isArray(inputs) ? inputs : (inputs ? [inputs] : [])
-      const clientsArr = Array.isArray(clients) ? clients : (clients ? [clients] : [])
-      const clientMap = new Map()
-      clientsArr.forEach(c => clientMap.set(String(c.index), c))
-      const presetsNow = audioPresets.get()
-
-      const enhanced = inputsArr.map(si => {
-        const client = clientMap.get(String(si.client))
-        if (client) si.properties = { ...client.properties, ...si.properties }
-        const name = si.properties?.["application.name"] || si.properties?.["node.name"] || "App"
-        const key = `app:mic:${name.toLowerCase()}`
-        if (!micHandledStreams.has(si.index)) {
-          const p = presetsNow[key]
-          if (p !== undefined) execAsync(["pactl", "set-source-output-volume", `${si.index}`, `${Math.round(p * 100)}%`]).catch(() => { })
-          micHandledStreams.add(si.index)
-        }
-        return si
-      })
-
-      const sig = streamsSignature(enhanced)
-      if (sig !== micSig) { micSig = sig; setMicAppStreams(enhanced) }
-    } catch (e) {
-      if (micSig !== "") { micSig = ""; setMicAppStreams([]) }
-    }
+  obtenerStreams("mic").then(({ streams }) => {
+    const sig = streamsSignature(streams)
+    if (sig !== micSig) { micSig = sig; setMicAppStreams(streams) }
   }).catch(() => { if (micSig !== "") { micSig = ""; setMicAppStreams([]) } })
 }
 
@@ -925,13 +871,30 @@ function makeScale(
   getValue: () => number,
   setValue: (v: number) => void,
   subscribe?: (cb: () => void) => void,
-  layout: { hexpand?: boolean; heightRequest?: number; widthRequest?: number; max?: number } = {},
+  layout: {
+    hexpand?: boolean; heightRequest?: number; widthRequest?: number; max?: number
+    /** Redondeo/imantado del valor antes de escribirlo (ver `volumenAmplificado.ts`).
+     * Los deslizadores de volumen pasan `ajustarVolumen`; el resto no ajusta nada. */
+    ajustar?: (v: number) => number
+    /** Pinta el deslizador de naranja mientras el valor pasa del 100 %
+     * (amplificación por software). Solo para los de volumen. */
+    marcarAmplificado?: boolean
+  } = {},
 ): Gtk.Scale {
   const max = layout.max ?? 1
-  const adj = new Gtk.Adjustment({ lower: 0, upper: max, stepIncrement: 0.01 })
+  const ajustar = layout.ajustar ?? ((v: number) => v)
+  const adj = new Gtk.Adjustment({
+    lower: 0, upper: max,
+    stepIncrement: PASO_VOLUMEN, pageIncrement: PASO_VOLUMEN * 5,
+  })
   adj.value = clamp(getValue(), 0, max)
-  if (subscribe) {
-    subscribe(() => { adj.value = clamp(getValue(), 0, max) })
+  // La clase se recalcula desde el VALOR, no desde quién lo cambió: así también
+  // se pinta cuando el volumen lo sube otra herramienta (pavucontrol, `wpctl`).
+  const marcarAmplificado = (v: number) => {
+    if (!layout.marcarAmplificado) return
+    const debe = v > 1
+    if (scale.cssClasses.includes("amplificado") === debe) return
+    scale.cssClasses = debe ? [...classes, "amplificado"] : classes
   }
   const scale = new Gtk.Scale({
     orientation: Gtk.Orientation.HORIZONTAL,
@@ -943,8 +906,35 @@ function makeScale(
   if (layout.heightRequest !== undefined) scale.heightRequest = layout.heightRequest
   if (layout.widthRequest !== undefined) scale.widthRequest = layout.widthRequest
   scale.cssClasses = classes
+  marcarAmplificado(adj.value)
+  // Se suscribe DESPUÉS de construir la escala: `marcarAmplificado` la toca.
+  if (subscribe) {
+    subscribe(() => {
+      const v = clamp(getValue(), 0, max)
+      adj.value = v
+      marcarAmplificado(v)
+    })
+  }
 
-  conectarCambioDeslizador(scale, (val) => setValue(clamp(val, 0, max)))
+  // El imán tiene que VERSE, y no basta con escribir el valor imantado: el
+  // manejador de `change-value` corre ANTES del predeterminado de GTK, que
+  // después pone en el ajuste el valor crudo del ratón — o sea que el relleno se
+  // quedaría en el 98,3 % mientras por debajo se escribe el 100 %. Se corrige en
+  // un `idle`, ya con GTK fuera; mientras arrastras lo pisa el siguiente evento
+  // de movimiento (el tirador sigue al ratón, como debe) y al parar, encaja.
+  let correccionPendiente = false
+  conectarCambioDeslizador(scale, (val) => {
+    const v = ajustar(clamp(val, 0, max))
+    setValue(v)
+    marcarAmplificado(v)
+    if (v === val || correccionPendiente) return
+    correccionPendiente = true
+    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+      correccionPendiente = false
+      adj.value = clamp(ajustar(adj.value), 0, max)
+      return GLib.SOURCE_REMOVE
+    })
+  })
   return scale
 }
 
@@ -1731,6 +1721,12 @@ function QsMedia() {
     }
 
     actualizarPosicion()
+
+    // Un directo SÍ publica duración, solo que imposible (un Int64 gigante). No
+    // hay nada que recuperar: los rodeos de abajo buscan un `mpris:length` que
+    // aún no ha llegado, y aquí ya llegó. Insistir costaría un Pause+Play en
+    // Firefox — un corte de audio real — por cada retransmisión.
+    if (isLiveStreamLength(p.length, duracionMprisCruda)) return
 
     const esFirefox = String(p.bus_name || "").toLowerCase().includes("firefox")
     const puedePrepararFirefox = esFirefox
@@ -2745,7 +2741,9 @@ function QsMedia() {
 // presets, mute...), solo cambiaba sink↔source, la lista de streams y las
 // etiquetas en español. `QsAudioMenuBase` concentra la lógica parametrizada
 // por `kind`; `QsAudioMenu`/`QsMicMenu` quedan como wrappers de una línea.
-type QsAudioKind = "speaker" | "mic"
+// Alias del tipo del servicio de presets: así `clavePreset(kind, …)` no puede
+// desalinearse con lo que aplica el vigilante.
+type QsAudioKind = TipoMezcla
 
 function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => void }) {
   const isSpk = kind === "speaker"
@@ -2920,21 +2918,26 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   const devTag = isSpk ? "spk" : "mic"
                   const stableId = ep.name || ep.description || `id:${ep.id}`
                   const devKey = `dev:${devTag}:${stableId}`
-                  // El micro tiene su propia escala 0-100% → 0-MIC_SAFE_MAX
-                  // (`servicios/multimedia/volumenMicrofono.ts`; hoy el techo es 1.00,
-                  // o sea el máximo real). El clamp al restaurar protege contra un
-                  // preset guardado con otro techo. `aPorcentaje`/`desdePorcentaje`
+                  // El micro tiene su propia escala: el 100 % de la UI es
+                  // `MIC_SAFE_MAX` de la curva cruda de PipeWire
+                  // (`servicios/multimedia/volumenMicrofono.ts`; hoy 1.00, o sea el
+                  // máximo real). El clamp al restaurar protege contra un preset
+                  // guardado con otro techo. `aPorcentaje`/`desdePorcentaje`
                   // son la MISMA conversión que usan la pastilla y el OSD: tenerla en
                   // un solo sitio es lo que impide que dos vistas del mismo micro
                   // enseñen números distintos, que es justo lo que pasaba.
-                  const maxVol = isSpk ? 1 : MIC_SAFE_MAX
+                  // El tope es el 200 %: por encima del 100 % es amplificación por
+                  // software, igual que el 153 % de pavucontrol pero sin su límite
+                  // de +11 dB (ver `volumenAmplificado.ts`). Para el micro el tope
+                  // se expresa en su propia escala, no en fracción cruda.
+                  const maxVol = isSpk ? VOLUMEN_MAX : crudoDesdePorcentajeMic(VOLUMEN_MAX * 100)
                   const aPorcentaje = (v: number) => isSpk ? Math.round(v * 100) : porcentajeMic(v)
                   const desdePorcentaje = (p: number) =>
-                    isSpk ? clamp(p / 100, 0, 1) : crudoDesdePorcentajeMic(p)
+                    isSpk ? clamp(p / 100, 0, VOLUMEN_MAX) : crudoDesdePorcentajeMic(p)
                   if (!handledDevices.has(`${devTag}:${stableId}`)) {
                     const p = presets.get()[devKey]
                     if (p !== undefined) {
-                      ep.volume = clamp(p, 0, maxVol)
+                      fijarVolumenEndpoint(ep, clamp(p, 0, maxVol))
                     }
                     handledDevices.add(`${devTag}:${stableId}`)
                   }
@@ -2943,14 +2946,19 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                     ["qs-slider", isSpk ? "speaker" : "mic"],
                     () => ep.volume,
                     (v) => {
-                      ep.volume = v
+                      // `fijarVolumenEndpoint`, NO `ep.volume = v`: el setter de
+                      // AstalWp recorta a 1.5 en silencio (ver el módulo).
+                      fijarVolumenEndpoint(ep, v)
                       const p = { ...presets.get() }
                       p[devKey] = v
                       setPresets(p)
                       saveAudioPresets(p)
                     },
                     (cb) => { ep.connect("notify::volume", cb) },
-                    { heightRequest: 4, max: maxVol },
+                    {
+                      heightRequest: 4, max: maxVol, marcarAmplificado: true,
+                      ajustar: (v) => ajustarVolumen(v, maxVol),
+                    },
                   )
 
                   // Elegir este dispositivo. El `id` de AstalWp ES el id global de
@@ -3024,15 +3032,15 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                             getValue={() => aPorcentaje(ep.volume)}
                             onCommit={(value) => {
                               const v = desdePorcentaje(value)
-                              ep.volume = v
+                              fijarVolumenEndpoint(ep, v)
                               const p = { ...presets.get(), [devKey]: v }
                               setPresets(p)
                               saveAudioPresets(p)
                             }}
-                            min={0} max={100}
+                            min={0} max={VOLUMEN_MAX * 100}
                             labelClass="qs-audio-vol-pct"
-                            tooltip="Editar volumen"
-                            widthRequest={18}
+                            tooltip="Editar volumen · hasta 200 % (amplificado)"
+                            widthRequest={26}
                           />
                         </box>
                       </box>
@@ -3105,15 +3113,19 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
               <For each={streams}>
                 {(si: any) => {
                   const props = si.properties || {}
-                  const name = props["application.name"]
-                    || props["node.name"]
-                    || props["media.name"]
-                    || props["application.process.binary"]
-                    || "App"
-                  // Clave unificada con el poller: `app:${devTag}:` (antes la fila de
-                  // mic guardaba con `mic:` pero el poller aplicaba con `app:mic:`, así
-                  // que el preset no se releía).
-                  const key = `app:${isSpk ? "spk" : "mic"}:${name.toLowerCase()}`
+                  // La CLAVE del preset sale de `presetsApps.ts`, la MISMA que usa el
+                  // vigilante para aplicar. Estaba duplicada a mano aquí y ya costó un
+                  // fallo silencioso (la fila de mic guardaba con `mic:` y el poller
+                  // aplicaba con `app:mic:`, así que el preset no se releía nunca).
+                  const nombreCrudo = nombreStream(si)
+                  const key = clavePreset(kind, nombreCrudo)
+                  // Lo que se ENSEÑA es otra cosa: `application.name` lo pone la app y
+                  // llega como binario en minúscula ("spotify") o con sufijo de rol
+                  // ("Brave input"). `presentacionApp` lo resuelve —nombre e icono—
+                  // contra el `.desktop` instalado; ver `identidadApps.ts`. La clave no
+                  // puede seguirle: cambiarla invalidaría `audioPresets.json` y el
+                  // vigilante no puede depender de GTK.
+                  const { nombre: name, icono: icon } = presentacionApp(props, kind)
 
                   const volObj = si.volume || {}
                   const channels = Object.keys(volObj)
@@ -3132,7 +3144,7 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   })
                   // El modo "media" (slider ancho tipo Spotify) solo existe para
                   // altavoces; las entradas de micrófono siempre usan el slider "mic".
-                  const isMedia = isSpk && (name.toLowerCase().includes("spotify") || si.properties?.["media.name"])
+                  const isMedia = isSpk && (nombreCrudo.toLowerCase().includes("spotify") || si.properties?.["media.name"])
                   const streamScale = makeScale(
                     isMedia ? ["qs-slider", "media"] : ["qs-slider", isSpk ? "app" : "mic"],
                     () => currentVol.get(),
@@ -3148,12 +3160,14 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                       applyVol(v)
                     },
                     undefined,
-                    { heightRequest: 4 },
+                    // Las apps ya se escribían con `pactl`, que nunca tuvo el tope
+                    // de AstalWp: aquí el 200 % es solo subirle el techo al
+                    // deslizador (el mismo boost por app que ofrece pavucontrol).
+                    {
+                      heightRequest: 4, max: VOLUMEN_MAX, marcarAmplificado: true,
+                      ajustar: (v) => ajustarVolumen(v),
+                    },
                   )
-                  const icon = props["application.icon_name"]
-                    || props["window.icon_name"]
-                    || name.toLowerCase()
-                    || (isSpk ? "audio-x-generic-symbolic" : "audio-input-microphone-symbolic")
 
                   return (
                     <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["qs-wifi-item", "qs-audio-app-item"]}>
@@ -3175,10 +3189,10 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                             saveAudioPresets(p)
                             applyVol(v)
                           }}
-                          min={0} max={100}
+                          min={0} max={VOLUMEN_MAX * 100}
                           labelClass={si.isSilent ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
-                          tooltip="Editar volumen"
-                          widthRequest={18}
+                          tooltip="Editar volumen · hasta 200 % (amplificado)"
+                          widthRequest={26}
                         />
                       </box>
                       <box spacing={6}>
