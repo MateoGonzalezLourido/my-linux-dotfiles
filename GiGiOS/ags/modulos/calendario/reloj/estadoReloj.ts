@@ -10,6 +10,7 @@ import {
   rutaConfig,
 } from "../../../servicios/almacenamiento/json.ts"
 import { esHoraValida } from "../dominio/fechas.ts"
+import { alReanudar } from "../../../servicios/sistema/reanudacion.ts"
 import {
   VERSION_RELOJ,
   cronometroInicial,
@@ -180,6 +181,32 @@ function replanificar() {
 // Cualquier cambio en la lista rearma el único temporizador. `dispararVencidas` también escribe la
 // lista, así que esta suscripción cierra el ciclo: sonar → desactivar → replanificar.
 alarmas.subscribe(replanificar)
+
+/**
+ * Al volver de una suspensión hay que replanificar **ya**, no en el siguiente salto.
+ *
+ * El tope de 15 minutos de arriba acota la deriva, pero no la elimina, y el hueco que deja se come
+ * alarmas enteras: si suspendes con un salto de 15 min armado y despiertas a las 07:00 con una
+ * alarma a las 07:05, ese salto reanuda con los minutos que le quedaban y puede vencer a las 07:12
+ * — momento en el que `alarmasQueVencen` ya no la ve, porque su tolerancia es de 30 s. La alarma no
+ * suena tarde: **no suena**, y sin nada en el log. Replanificar contra el reloj de pared en cuanto
+ * volvemos cierra esa ventana.
+ *
+ * Se aprovecha para repetir el saneado de la carga: una puntual cuya hora cayó DENTRO de la
+ * suspensión no debe sonar con retraso (misma decisión que `sanearAlCargar`, y por el mismo motivo),
+ * pero hasta ahora se quedaba marcada como activa hasta el siguiente arranque de AGS — visible en la
+ * lista, y mintiendo. Desactivarla publica la lista, y esa publicación ya replanifica por la
+ * suscripción de arriba; por eso el `return`.
+ */
+alReanudar(() => {
+  const { alarmas: saneadas, desactivadas } = sanearAlCargar(alarmas.get(), Date.now())
+  if (desactivadas.length > 0) {
+    console.info(`[${ETIQUETA}] ${desactivadas.length} alarma(s) puntual(es) vencida(s) durante la suspensión`)
+    establecerAlarmas(saneadas)
+    return
+  }
+  replanificar()
+})
 
 // ── CRUD de alarmas ──────────────────────────────────────────────────────────
 

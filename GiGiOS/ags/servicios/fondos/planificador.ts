@@ -45,6 +45,7 @@
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { execAsync } from "ags/process"
+import { alReanudar } from "../sistema/reanudacion.ts"
 
 const SCRIPTS      = `${GLib.get_user_config_dir()}/hypr/scripts`
 const WALLPAPER_SH = `${SCRIPTS}/wallpaper.sh`
@@ -126,28 +127,17 @@ function vigilar(path: string, alCambiar: () => void) {
 /**
  * Rearma al volver de una suspensión. Es lo que sustituye al troceo del
  * temporizador — ver el aviso de la cabecera.
+ *
+ * La suscripción a `PrepareForSleep` nació aquí y hoy vive en
+ * `servicios/sistema/reanudacion.ts`, compartida con el tic del reloj y el
+ * planificador de alarmas: los tres necesitan lo mismo (recalcular contra el reloj
+ * de pared en cuanto CLOCK_MONOTONIC se ha quedado atrás) y una sola suscripción
+ * al bus de sistema los sirve a todos. El fallo blando —sin logind, no hay señal y
+ * el fondo se corrige en el siguiente límite— sigue siendo el de siempre, ahora
+ * dentro del servicio.
  */
 function vigilarSuspension() {
-  try {
-    const bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, null)
-    bus.signal_subscribe(
-      "org.freedesktop.login1",
-      "org.freedesktop.login1.Manager",
-      "PrepareForSleep",
-      "/org/freedesktop/login1",
-      null,
-      Gio.DBusSignalFlags.NONE,
-      (_c, _s, _p, _i, _sig, params) => {
-        // `true` = nos vamos a dormir; `false` = ya hemos vuelto, que es cuando
-        // el reloj monotónico se ha quedado atrás y hay que recalcular.
-        const [durmiendo] = params.deep_unpack() as [boolean]
-        if (!durmiendo) void ciclo()
-      },
-    )
-  } catch (_) {
-    // Sin logind no hay señal de resume. Se degrada a que tras una suspensión el
-    // fondo se corrija en el siguiente límite en vez de al despertar.
-  }
+  alReanudar(() => void ciclo())
 }
 
 /**

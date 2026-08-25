@@ -45,6 +45,7 @@ import AstalBluetooth from "gi://AstalBluetooth"
 import AstalNotifd from "gi://AstalNotifd"
 import AstalHyprland from "gi://AstalHyprland"
 import { ticReloj } from "../../servicios/sistema/reloj"
+import { alReanudar } from "../../servicios/sistema/reanudacion.ts"
 import Gio from "gi://Gio"
 import GdkPixbuf from "gi://GdkPixbuf"
 import cairo from "gi://cairo"
@@ -638,25 +639,11 @@ function rearmarRestauracionBluetooth() {
  * Fail-open: sin logind no hay señal y se degrada al comportamiento de antes.
  */
 function vigilarSuspensionBluetooth() {
-  try {
-    const bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, null)
-    bus.signal_subscribe(
-      "org.freedesktop.login1",
-      "org.freedesktop.login1.Manager",
-      "PrepareForSleep",
-      "/org/freedesktop/login1",
-      null,
-      Gio.DBusSignalFlags.NONE,
-      (_c, _s, _p, _i, _sig, params) => {
-        // `true` = nos vamos a dormir; `false` = ya hemos vuelto, que es cuando el adaptador
-        // puede haber revivido encendido por su cuenta.
-        const [durmiendo] = params.deep_unpack() as [boolean]
-        if (!durmiendo) rearmarRestauracionBluetooth()
-      },
-    )
-  } catch (error) {
-    console.warn(`No se pudo vigilar la suspensión para Bluetooth: ${bluetoothPowerError(error)}`)
-  }
+  // La suscripción al `PrepareForSleep` de logind es común a todo el shell y vive en
+  // `servicios/sistema/reanudacion.ts`: aquí había una segunda conexión al bus de sistema
+  // haciendo exactamente lo mismo que la de los fondos. El fail-open (sin logind no hay señal
+  // y se degrada al comportamiento de antes) está ahora dentro del servicio.
+  alReanudar(rearmarRestauracionBluetooth)
 }
 
 /**
