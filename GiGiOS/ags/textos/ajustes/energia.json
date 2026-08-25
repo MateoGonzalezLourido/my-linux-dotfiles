@@ -86,6 +86,10 @@
     "titulo": "Ocultar la mascota del escritorio",
     "descripcion": "Retira el lagarto durante el ahorro. Su paseo redibuja la pantalla unas once veces por segundo y, por diseño, solo se anima cuando el escritorio está en reposo — justo cuando el equipo no debería estar gastando en un adorno. Vuelve al salir."
   },
+  "transparencia": {
+    "titulo": "Quitar la transparencia de los paneles",
+    "descripcion": "Deja los paneles, el buscador, el OSD y los avisos en un fondo sólido durante el ahorro. Lo que se ahorra no es dibujarlos: es el desenfoque que Hyprland hace del escritorio que se ve por debajo, un trabajo de GPU por cada fotograma en que un panel esté abierto. Es la única medida de esta lista que ahorra mientras estás mirando algo. Vuelve la transparencia al salir."
+  },
   "ondaSpotify": {
     "titulo": "Onda de Spotify sin analizar el audio",
     "descripcion": "Durante el ahorro, la onda deja de seguir la música y vuelve a su animación propia, sin capturar audio ni lanzar ningún proceso. Se sigue viendo y moviéndose. Solo se nota si el reproductor no está oculto por el ajuste anterior."

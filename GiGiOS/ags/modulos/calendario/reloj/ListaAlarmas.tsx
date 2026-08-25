@@ -1,9 +1,11 @@
 import { Gtk } from "ags/gtk4"
 import { createState, onCleanup } from "ags"
 import Interruptor from "../../../componentes/Interruptor.tsx"
+import { crearReconstruccionCoalescida } from "../../../utilidades/coalescer.ts"
 import { alarmas, alternarAlarma, eliminarAlarma } from "./estadoReloj.ts"
 import { textoProximaActivacion, textoRepeticion } from "./planificadorAlarmas.ts"
 import type { Alarma } from "./tipos.ts"
+import type { Visible } from "./visible.ts"
 
 /**
  * Lista de alarmas, con las activas arriba.
@@ -12,8 +14,15 @@ import type { Alarma } from "./tipos.ts"
  * problema propio: el texto «En 3 h 12 min» es derivado del reloj, y si cada fila lo mantuviera vivo
  * con su propio temporizador tendríamos una alarma por fila tickeando para actualizar una frase
  * aproximada. Se recalcula al reconstruir y al abrir la sección, que es cuando se mira.
+ *
+ * **Lo de «al abrir la sección» hay que hacerlo, no solo decirlo.** Esta lista solo se suscribía a
+ * `alarmas`, así que el «En 3 h 12 min» era el que se calculó cuando se construyó el panel — al
+ * arrancar la sesión— y ahí se quedaba mientras no se tocara ninguna alarma. Por eso recibe ahora
+ * `visible`: al hacerse visible la sección se reconstruye, que sigue sin costar ningún temporizador.
  */
-export function ListaAlarmas({ alEditar }: { alEditar: (alarma: Alarma) => void }): Gtk.Widget {
+export function ListaAlarmas(
+  { visible, alEditar }: { visible: Visible; alEditar: (alarma: Alarma) => void },
+): Gtk.Widget {
   const lista = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 6 })
   lista.set_css_classes(["reloj-lista-alarmas"])
 
@@ -87,11 +96,18 @@ export function ListaAlarmas({ alEditar }: { alEditar: (alarma: Alarma) => void 
     }
   }
 
-  const baja = alarmas.subscribe(reconstruir)
+  const repintado = crearReconstruccionCoalescida(reconstruir)
+  const bajas = [
+    alarmas.subscribe(repintado.programar),
+    // Al ocultarse no se reconstruye: sería levantar filas para nadie. `programar` colapsa además
+    // el caso de abrir la sección justo cuando cambia la lista.
+    visible.subscribe(() => { if (visible.get()) repintado.programar() }),
+  ]
   onCleanup(() => {
-    if (typeof baja === "function") baja()
+    repintado.cancelar()
+    for (const baja of bajas) if (typeof baja === "function") baja()
   })
-  reconstruir()
+  repintado.ahora()
 
   return lista as unknown as Gtk.Widget
 }

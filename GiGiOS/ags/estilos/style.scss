@@ -1215,7 +1215,7 @@ $osd-bg-opaco: rgb(8, 8, 12);
 // paneles grandes, el compositor sí aplicaba blur, pero el 6 % visible no daba
 // superficie suficiente para percibirlo. Los controles internos siguen usando
 // la base opaca de arriba para que la mayor transparencia no reste legibilidad.
-$osd-bg: rgba(8, 8, 12, 0.82);
+$osd-bg: lamina("--lamina-osd", rgba(8, 8, 12, 0.82));
 
 @keyframes osd-enter {
   from { opacity: 0; transform: translateY(-5px) scale(0.98); }
@@ -1390,7 +1390,7 @@ $qs-bg-opaco: rgb(8, 8, 12);
   );
 }
 
-$qs-bg: rgba(8, 8, 12, 0.94);
+$qs-bg: lamina("--lamina-qs", rgba(8, 8, 12, 0.94));
 $qs-accent: acento-cian();
 $qs-accent2: #7000ff;
 $qs-green: #00ff9d;
@@ -2998,9 +2998,14 @@ button.qs-user-settings-btn {
   scale.qs-slider {
     margin: 0;
 
+    // `background-color`, no `background`: el shorthand pisa el
+    // `background-image` de la marca del 100 % que pone la regla general
+    // (`&.speaker, &.mic, &.app, &.media`), y con la misma especificidad
+    // gana esta por ir después en el fichero — apagaba la marca en el
+    // micrófono y los dispositivos sin dar ningún error.
     trough {
       min-height: 3px;
-      background: rgba(255, 255, 255, 0.07);
+      background-color: rgba(255, 255, 255, 0.07);
     }
 
     progress { min-height: 3px; }
@@ -3133,7 +3138,7 @@ popover.upd-popover-container {
 }
 
 .notif-popup-item {
-  background: rgba(16, 16, 24, 0.97);
+  background: lamina("--lamina-popup", rgba(16, 16, 24, 0.97));
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 10px;
   padding: 8px 10px;
@@ -3353,7 +3358,7 @@ $np-bg-opaco: rgb(8, 8, 12);
   );
 }
 
-$np-bg: rgba(8, 8, 12, 0.94);
+$np-bg: lamina("--lamina-np", rgba(8, 8, 12, 0.94));
 
 window.np-window,
 window.np-window.background,
@@ -4030,7 +4035,7 @@ window.np-window.csd decoration {
 
 // La misma opacidad de Notificaciones y Ajustes rápidos deja ver el desenfoque del compositor sin
 // perder contraste. Con 0.96, incluso una regla de blur correcta parecía un fondo sólido.
-$cal-bg:          rgba(8, 8, 12, 0.94);
+$cal-bg:          lamina("--lamina-cal", rgba(8, 8, 12, 0.94));
 $cal-bg-surface:  rgba(255, 255, 255, 0.025);
 $cal-bg-surface2: rgba(255, 255, 255, 0.055);
 $cal-border:      rgba(255, 255, 255, 0.07);
@@ -4335,6 +4340,17 @@ window.cal-window.csd decoration {
   border-radius: 50%;
   min-width: 5px;
   min-height: 5px;
+}
+
+// Color de un evento. Una clase por color en vez de `css=` inline: cada `css=` de gnim
+// construye un `Gtk.CssProvider`, lo parsea y lo cuelga del `get_style_context()` (deprecado en
+// GTK4) de ESE widget. En la rejilla del mes eso eran hasta 168 providers por reconstrucción y
+// por monitor, tirados y rehechos en cada cambio de mes. Los nombres salen de `COLORES_EVENTO`
+// (`modulos/calendario/dominio/tipos.ts`); ver la nota del par en `_colores.scss`.
+@each $nombre, $hex in $colores-evento {
+  .cal-ev-#{$nombre} {
+    background-color: $hex;
+  }
 }
 
 // ── Agenda view ───────────────────────────────────────────────────────────────
@@ -5709,7 +5725,7 @@ progressbar.alm-barra {
 // Las dos variantes se compilan una vez. La preferencia solo cambia la clase de
 // las ventanas, por lo que la selección se ve al instante y no lanza procesos ni
 // reescribe hojas de estilo durante la sesión.
-$fondo-shell-grafito-translucido: rgba($bg-shell-grafito, 0.94);
+$fondo-shell-grafito-translucido: lamina("--lamina-grafito", rgba($bg-shell-grafito, 0.94));
 
 @function sobre-fondo-grafito($tinte) {
   @return color.mix(
@@ -5791,7 +5807,7 @@ window.cal-window.fondo-shell-grafito {
 }
 
 .notif-popup-window.fondo-shell-grafito .notif-popup-item:not(.dunst) {
-  background: rgba($bg-shell-grafito, 0.97);
+  background: lamina("--lamina-popup-grafito", rgba($bg-shell-grafito, 0.97));
 }
 
 .sp-fondo-muestra {

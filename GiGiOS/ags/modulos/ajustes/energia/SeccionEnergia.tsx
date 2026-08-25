@@ -16,6 +16,7 @@ import {
   fallbackWaveInPowerSave, setFallbackWaveInPowerSave,
   freezeBackgroundInPowerSave, setFreezeBackgroundInPowerSave,
   hideMascotaInPowerSave, setHideMascotaInPowerSave,
+  opaquePanelsInPowerSave, setOpaquePanelsInPowerSave,
   reduceBrightnessInPowerSave, setReduceBrightnessInPowerSave,
   powerSaveBrightnessPct, setPowerSaveBrightnessPct,
   tlpAutoInPowerSave, setTlpAutoInPowerSave,
@@ -247,6 +248,7 @@ export default function SeccionEnergia() {
         <AjusteInterruptor titulo={textos.spotify.titulo} informacion={textos.spotify.descripcion} activo={hideSpotifyBarInPowerSave} alAlternar={() => setHideSpotifyBarInPowerSave(!hideSpotifyBarInPowerSave.get())} />
         <AjusteInterruptor titulo={textos.ondaSpotify.titulo} informacion={textos.ondaSpotify.descripcion} activo={fallbackWaveInPowerSave} alAlternar={() => setFallbackWaveInPowerSave(!fallbackWaveInPowerSave.get())} />
         <AjusteInterruptor titulo={textos.mascota.titulo} informacion={textos.mascota.descripcion} activo={hideMascotaInPowerSave} alAlternar={() => setHideMascotaInPowerSave(!hideMascotaInPowerSave.get())} />
+        <AjusteInterruptor titulo={textos.transparencia.titulo} informacion={textos.transparencia.descripcion} activo={opaquePanelsInPowerSave} alAlternar={() => setOpaquePanelsInPowerSave(!opaquePanelsInPowerSave.get())} />
       </TarjetaAjustes>
 
     </box>

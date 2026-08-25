@@ -2,7 +2,7 @@ import GLib from "gi://GLib"
 import { Gtk } from "ags/gtk4"
 import { onCleanup } from "ags"
 import { cronometro, iniciarCronometro, pausarCronometro, reiniciarCronometro } from "./estadoReloj.ts"
-import { formatearCronometro, transcurrido } from "./tiempos.ts"
+import { formatearCronometro, msHastaSiguienteTickAscendente, transcurrido } from "./tiempos.ts"
 import type { Visible } from "./visible.ts"
 
 /**
@@ -16,6 +16,12 @@ import type { Visible } from "./visible.ts"
  *
  * Refresca a 10 Hz porque enseña décimas. Sin ellas bastaría 1 Hz, pero un cronómetro sin décimas
  * es un reloj.
+ *
+ * **El tick se realinea en cada vuelta**, como el del temporizador. Antes repetía con
+ * `SOURCE_CONTINUE` cada 100 ms, y GLib mide ese intervalo desde que TERMINA el callback anterior:
+ * el retraso de cada vuelta se acumulaba sobre la siguiente y las décimas se veían saltar de dos en
+ * dos. Como la medida sale de `Date.now()`, la cifra nunca era incorrecta — solo se saltaba valores
+ * a la vista, que en un cronómetro es justo lo que se está mirando.
  */
 export function Cronometro({ visible }: { visible: Visible }): Gtk.Widget {
   const etiqueta = new Gtk.Label({ label: formatearCronometro(0) })
@@ -42,18 +48,24 @@ export function Cronometro({ visible }: { visible: Visible }): Gtk.Widget {
     }
   }
 
+  function programarTick() {
+    pararTick()
+    const espera = msHastaSiguienteTickAscendente(transcurrido(cronometro.get(), Date.now()))
+    tick = GLib.timeout_add(GLib.PRIORITY_DEFAULT, espera, () => {
+      tick = null
+      pintar()
+      if (cronometro.get().estado === "corriendo" && visible.get()) programarTick()
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
   function sincronizar() {
     const estado = cronometro.get().estado
     etiquetaPrincipal.set_label(
       estado === "corriendo" ? "Pausar" : estado === "pausado" ? "Continuar" : "Iniciar",
     )
     if (estado === "corriendo" && visible.get()) {
-      if (tick === null) {
-        tick = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-          pintar()
-          return GLib.SOURCE_CONTINUE
-        })
-      }
+      if (tick === null) programarTick()
     } else {
       pararTick()
     }

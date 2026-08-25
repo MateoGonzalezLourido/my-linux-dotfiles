@@ -25,6 +25,7 @@ interface PowerConfig {
   freezeBackground: boolean    // when true, background maintenance polling freezes during power-save
   fallbackWave: boolean        // when true, the Spotify wave drops cava for its procedural animation
   hideMascota: boolean         // when true, the desktop pet window is unmounted during power-save
+  opaquePanels: boolean        // when true, the shell's translucent surfaces turn fully opaque during power-save
   reduceBrightness: boolean    // when true, screen brightness drops to `brightnessPct` during power-save
   brightnessPct: number        // target brightness (0..100) while power-save is on
   tlpAuto: boolean             // when true, the TLP profile switches to "ahorro" during power-save
@@ -52,6 +53,10 @@ const DEFAULTS: PowerConfig = {
   freezeBackground: true,
   fallbackWave: true,
   hideMascota: true,
+  // Apagado por defecto, como el brillo y TLP: es la única medida de esta sección que
+  // CAMBIA EL ASPECTO del escritorio en vez de quitar algo que sobra, y encontrarse los
+  // paneles opacos sin haberlo pedido se lee como un fallo del tema, no como un ahorro.
+  opaquePanels: false,
   reduceBrightness: false,
   brightnessPct: 40,
   tlpAuto: false,
@@ -78,6 +83,7 @@ function loadConfig(): PowerConfig {
         freezeBackground: typeof data.freezeBackground === "boolean" ? data.freezeBackground : DEFAULTS.freezeBackground,
         fallbackWave: typeof data.fallbackWave === "boolean" ? data.fallbackWave : DEFAULTS.fallbackWave,
         hideMascota: typeof data.hideMascota === "boolean" ? data.hideMascota : DEFAULTS.hideMascota,
+        opaquePanels: typeof data.opaquePanels === "boolean" ? data.opaquePanels : DEFAULTS.opaquePanels,
         reduceBrightness: typeof data.reduceBrightness === "boolean" ? data.reduceBrightness : DEFAULTS.reduceBrightness,
         brightnessPct: typeof data.brightnessPct === "number" ? clampPct(data.brightnessPct) : DEFAULTS.brightnessPct,
         tlpAuto: typeof data.tlpAuto === "boolean" ? data.tlpAuto : DEFAULTS.tlpAuto,
@@ -117,6 +123,7 @@ export const [hideSpotifyBarInPowerSave, _setHideSpotifyBar] = createState(initi
 export const [freezeBackgroundInPowerSave, _setFreezeBackground] = createState(initial.freezeBackground)
 export const [fallbackWaveInPowerSave, _setFallbackWave] = createState(initial.fallbackWave)
 export const [hideMascotaInPowerSave, _setHideMascota] = createState(initial.hideMascota)
+export const [opaquePanelsInPowerSave, _setOpaquePanels] = createState(initial.opaquePanels)
 export const [reduceBrightnessInPowerSave, _setReduceBrightness] = createState(initial.reduceBrightness)
 export const [powerSaveBrightnessPct, _setBrightnessPct] = createState(initial.brightnessPct)
 export const [tlpAutoInPowerSave, _setTlpAuto] = createState(initial.tlpAuto)
@@ -160,6 +167,7 @@ function persistAhora() {
       freezeBackground: freezeBackgroundInPowerSave.get(),
       fallbackWave: fallbackWaveInPowerSave.get(),
       hideMascota: hideMascotaInPowerSave.get(),
+      opaquePanels: opaquePanelsInPowerSave.get(),
       reduceBrightness: reduceBrightnessInPowerSave.get(),
       brightnessPct: powerSaveBrightnessPct.get(),
       tlpAuto: tlpAutoInPowerSave.get(),
@@ -211,6 +219,11 @@ export function setFallbackWaveInPowerSave(v: boolean) {
 }
 export function setHideMascotaInPowerSave(v: boolean) {
   _setHideMascota(v)
+  recompute()
+  persist()
+}
+export function setOpaquePanelsInPowerSave(v: boolean) {
+  _setOpaquePanels(v)
   recompute()
   persist()
 }
@@ -287,6 +300,16 @@ export const [spectrumSuspended, _setSpectrumSuspended] = createState(false)
 // está vacío o sin foco — o sea, justo en los ratos en que el equipo estaría en reposo y la
 // batería no debería estar pagando una animación decorativa.
 export const [mascotaSuspended, _setMascotaSuspended] = createState(false)
+// transparenciaSuspendida: powerSaveActive AND the user opted in to opaque panels.
+// Lo consume `opacidadAhorro.ts`, que redefine las variables `--lamina-*` del tema.
+// Lo que se ahorra no es GTK —pintar un color sólido o uno con alfa cuesta lo mismo—
+// sino HYPRLAND: cada lámina translúcida lleva `blur = true` en `hypr/gigios/reglas.lua`
+// (quick-settings, notification-panel, calendar-panel, orion, osd), y desenfocar lo que
+// se ve por debajo es trabajo de GPU por fotograma mientras el panel esté abierto. Con
+// la lámina opaca, GTK declara la región como opaca y el compositor puede saltarse tanto
+// el desenfoque como el pintado del escritorio de detrás. Es la única medida de la
+// sección que ahorra mientras el usuario MIRA algo, no mientras el equipo está en reposo.
+export const [transparenciaSuspendida, _setTransparenciaSuspendida] = createState(false)
 // Pre-composed human label so the UI doesn't have to combine three states in one binding.
 export const [batteryStatusText, _setBatteryStatusText] = createState(textos.estado.sinBateria)
 
@@ -311,6 +334,7 @@ function recompute() {
   _setBackgroundJobsSuspended(active && freezeBackgroundInPowerSave.get())
   _setSpectrumSuspended(active && fallbackWaveInPowerSave.get())
   _setMascotaSuspended(active && hideMascotaInPowerSave.get())
+  _setTransparenciaSuspendida(active && opaquePanelsInPowerSave.get())
 }
 
 if (bat) {

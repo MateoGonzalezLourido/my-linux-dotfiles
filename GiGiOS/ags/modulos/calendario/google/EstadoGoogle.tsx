@@ -1,6 +1,5 @@
 import { Gtk } from "ags/gtk4"
 import { onCleanup } from "ags"
-import { calendarVisible } from "../../../estado/shell"
 import { hayCuentaConfigurada } from "./autenticacion.ts"
 import { estadoSync, sincronizar, textoEstado } from "./sincronizacion.ts"
 
@@ -11,8 +10,11 @@ import { estadoSync, sincronizar, textoEstado } from "./sincronizacion.ts"
  * lado deja al usuario sin saber que la integración existe ni cómo activarla; el tooltip nombra el
  * script que hay que ejecutar una vez.
  *
- * Al abrirse el panel se dispara una sincronización. Es el único disparador automático: no hay
- * sondeo, así que este es el momento en que el calendario se pone al día.
+ * **El disparo al abrir el panel ya no está aquí**, aunque siga ocurriendo: vive en
+ * `sincronizacion.ts`, a nivel de módulo. Este widget se construye una vez por monitor, así que con
+ * tres pantallas la suscripción lanzaba tres sincronizaciones y tres lecturas del fichero de
+ * credenciales por apertura. Aquí solo queda pintar el estado y el botón de refrescar, que pasa
+ * `manual` para saltarse el mínimo entre pasadas automáticas.
  */
 export function EstadoGoogle(): Gtk.Widget {
   const etiqueta = new Gtk.Label({ label: "" })
@@ -22,7 +24,7 @@ export function EstadoGoogle(): Gtk.Widget {
   boton.set_css_classes(["cal-icon-btn"])
   boton.set_child(etiqueta)
   boton.connect("clicked", () => {
-    if (hayCuentaConfigurada()) void sincronizar({ forzarCompleta: false })
+    if (hayCuentaConfigurada()) void sincronizar({ manual: true })
   })
 
   function pintar() {
@@ -46,15 +48,9 @@ export function EstadoGoogle(): Gtk.Widget {
     )
   }
 
-  const bajas = [
-    estadoSync.subscribe(pintar),
-    // Abrir el panel sincroniza; cerrarlo no cancela nada, la pasada en curso termina sola.
-    calendarVisible.subscribe(() => {
-      if (calendarVisible.get() && hayCuentaConfigurada()) void sincronizar()
-    }),
-  ]
+  const baja = estadoSync.subscribe(pintar)
   onCleanup(() => {
-    for (const baja of bajas) if (typeof baja === "function") baja()
+    if (typeof baja === "function") baja()
   })
   pintar()
 

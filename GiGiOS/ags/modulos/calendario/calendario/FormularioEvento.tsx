@@ -1,7 +1,7 @@
 import { Gtk } from "ags/gtk4"
 import { createState } from "ags"
 import Interruptor from "../../../componentes/Interruptor.tsx"
-import { COLORES_EVENTO, COLOR_HEX } from "../dominio/tipos.ts"
+import { COLORES_EVENTO, claseColor } from "../dominio/tipos.ts"
 import type { BorradorEvento } from "../dominio/tipos.ts"
 import { errorDeCampo, validarEvento } from "../dominio/validacion.ts"
 import {
@@ -141,8 +141,7 @@ export function FormularioEvento({ altoDisponible = 0 }: { altoDisponible?: numb
     muestra.set_child(
       (
         <box
-          cssClasses={["cal-color-muestra"]}
-          css={`background-color: ${COLOR_HEX[color]};`}
+          cssClasses={["cal-color-muestra", claseColor(color)]}
           widthRequest={16}
           heightRequest={16}
         />

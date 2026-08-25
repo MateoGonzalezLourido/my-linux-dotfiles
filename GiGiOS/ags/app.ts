@@ -25,6 +25,7 @@ import { initTlpAuto } from "./servicios/energia/tlpAuto"
 import { initInactividadAhorro } from "./servicios/pantalla/inactividadAhorro"
 import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
+import { initOpacidadAhorro } from "./servicios/energia/opacidadAhorro"
 import { iniciarCierreAjustesAlCambiarEscritorio } from "./servicios/escritorios/cierreAlCambiarEscritorio"
 import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
 import { initPlanificadorFondos } from "./servicios/fondos/planificador"
@@ -151,6 +152,11 @@ app.start({
     // dejaría el gobernador de CPU en `performance` sin UI donde apagarlo. Es un
     // `pkill` acotado a nuestro argv0, así que tampoco tiene sentido apartarlo.
     initGamemode()
+    // Quita la transparencia de los paneles si el ahorro ya está activo al arrancar.
+    // A t=0 y no con los init* de abajo porque SE VE: apartarlo cuatro segundos serían
+    // cuatro segundos de paneles translúcidos que luego cambian solos a la vista. Es un
+    // CssProvider y una suscripción, así que no compite con nada.
+    initOpacidadAhorro()
 
     // ── Trabajo de fondo, apartado del pintado inicial ────────────────────────
     // Nada de esto se ve: son vigilantes y un barrido de limpieza. Corriendo aquí

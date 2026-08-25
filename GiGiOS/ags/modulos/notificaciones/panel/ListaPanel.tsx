@@ -4,6 +4,7 @@ import GLib from "gi://GLib"
 import {
   groupByApp,
   notifications,
+  type StoredNotification,
 } from "../store"
 import EmptyState from "../../../componentes/EmptyState"
 import { notifDaemonConflict, type DaemonConflict } from "../daemon/comprobacion"
@@ -31,13 +32,28 @@ export default function ListaPanel({
   const [limite, setLimite] = createState(TAMANO_TRAMO)
   let creciendo = false
 
-  /** Total montable en la vista activa: notificaciones en plana, aplicaciones en agrupada. */
+  /** Total montable en la vista activa: notificaciones en plana, aplicaciones en agrupada.
+   *  Memoizado por identidad: `ajuste.connect("value-changed"/"changed")` dispara esto en
+   *  cada tick de un scroll (hasta 60/s), y sin caché cada uno recorría la lista entera para
+   *  construir un Set de apps aunque las notificaciones no hubieran cambiado desde el tick
+   *  anterior. */
+  let cacheListaTotal: StoredNotification[] | null = null
+  let cacheAgrupadoTotal: boolean | null = null
+  let cacheValorTotal = 0
   const totalMontable = (): number => {
     const lista = notifications.get() ?? []
-    if (!groupByApp.get()) return lista.length
-    const aplicaciones = new Set<string>()
-    lista.forEach((notificacion) => aplicaciones.add(notificacion.appName))
-    return aplicaciones.size
+    const agrupado = groupByApp.get()
+    if (lista === cacheListaTotal && agrupado === cacheAgrupadoTotal) return cacheValorTotal
+    cacheListaTotal = lista
+    cacheAgrupadoTotal = agrupado
+    if (!agrupado) {
+      cacheValorTotal = lista.length
+    } else {
+      const aplicaciones = new Set<string>()
+      lista.forEach((notificacion) => aplicaciones.add(notificacion.appName))
+      cacheValorTotal = aplicaciones.size
+    }
+    return cacheValorTotal
   }
 
   // Amplía el tramo cerca del final o cuando el tramo actual aún no llena la ventana.

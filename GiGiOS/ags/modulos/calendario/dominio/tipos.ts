@@ -15,14 +15,22 @@
 export const COLORES_EVENTO = ["purple", "teal", "red", "amber", "blue", "pink"] as const
 export type ColorEvento = (typeof COLORES_EVENTO)[number]
 
-/** Hex de cada color. Se mantiene aquí y no en SCSS porque el punto del mes se pinta inline. */
-export const COLOR_HEX: Record<ColorEvento, string> = {
-  purple: "#7F77DD",
-  teal: "#1D9E75",
-  red: "#E24B4A",
-  amber: "#BA7517",
-  blue: "#378ADD",
-  pink: "#D4537E",
+/**
+ * Clase CSS que pinta un color de evento.
+ *
+ * **El hex ya no vive aquí, y eso no es un traslado cosmético.** Antes había un `COLOR_HEX` y cada
+ * punto, franja y muestra se pintaba con `css={...}` inline; en gnim eso construye un
+ * `Gtk.CssProvider` por widget, lo parsea y lo añade al contexto de estilo de ese widget. La
+ * cuadrícula del mes son hasta cuatro puntos por celda × 42 celdas × 3 monitores, y se reconstruye
+ * entera en cada cambio de mes, de día o de evento: cientos de providers creados y tirados por
+ * clic. Con una clase estática, GTK resuelve el color con el resto de la hoja y no se crea nada.
+ *
+ * ⚠️ Es la mitad de un par: `$colores-evento` en `estilos/_colores.scss` genera las seis clases.
+ * Añadir un color a `COLORES_EVENTO` sin añadirlo allí **no da error**, solo deja el punto sin
+ * pintar — y hay que recompilar `out.css`, que es el que lee AGS.
+ */
+export function claseColor(color: ColorEvento): string {
+  return `cal-ev-${color}`
 }
 
 export const COLOR_POR_DEFECTO: ColorEvento = "purple"

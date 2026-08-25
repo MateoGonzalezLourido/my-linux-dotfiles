@@ -1,7 +1,8 @@
 import GLib from "gi://GLib"
 import { Gtk } from "ags/gtk4"
 import { createState, onCleanup } from "ags"
-import { formatearFechaLarga, hoyISO } from "../dominio/fechas.ts"
+import { formatearFechaLarga } from "../dominio/fechas.ts"
+import { hoyReactivo } from "../estado.ts"
 import { Cronometro } from "./Cronometro.tsx"
 import { FormularioAlarma } from "./FormularioAlarma.tsx"
 import { ListaAlarmas } from "./ListaAlarmas.tsx"
@@ -15,6 +16,12 @@ import type { Visible } from "./visible.ts"
  * **El reloj grande se alinea con el cambio real de segundo**, no con un intervalo de 1000 ms
  * arrancado en un momento cualquiera: con lo segundo, la cifra salta a destiempo y de vez en cuando
  * se salta un valor. Y como todos los ticks de esta sección, solo existe mientras se ve.
+ *
+ * **La fecha larga NO cuelga de ese tick.** Colgaba, y eso significaba un `new Date`, un parseo con
+ * expresión regular y una cadena nueva **cada segundo y en cada monitor** para un valor que cambia
+ * una vez al día. Va por `hoyReactivo`, que se mueve con el tic global al minuto y solo avisa
+ * cuando la fecha cambia de verdad — así además la fecha se corrige sola a medianoche con el panel
+ * abierto, que antes tampoco pasaba.
  */
 export function VistaReloj({ visible }: { visible: Visible }): Gtk.Widget {
   const [editandoAlarma, establecerEditandoAlarma] = createState<{ alarma: Alarma | null } | null>(null)
@@ -30,8 +37,9 @@ export function VistaReloj({ visible }: { visible: Visible }): Gtk.Widget {
   function pintarHora() {
     const ahora = GLib.DateTime.new_now_local()
     horaGrande.set_label(ahora.format("%H:%M:%S") ?? "")
-    fechaHoy.set_label(formatearFechaLarga(hoyISO()))
   }
+
+  const pintarFecha = () => fechaHoy.set_label(formatearFechaLarga(hoyReactivo.get()))
 
   function pararTick() {
     if (tick !== null) {
@@ -58,14 +66,16 @@ export function VistaReloj({ visible }: { visible: Visible }): Gtk.Widget {
     else pararTick()
   }
 
-  const baja = visible.subscribe(sincronizar)
+  const bajas = [visible.subscribe(sincronizar), hoyReactivo.subscribe(pintarFecha)]
   onCleanup(() => {
     pararTick()
-    if (typeof baja === "function") baja()
+    for (const baja of bajas) if (typeof baja === "function") baja()
   })
+  pintarFecha()
   sincronizar()
 
   const listaAlarmas = ListaAlarmas({
+    visible,
     alEditar: (alarma) => establecerEditandoAlarma({ alarma }),
   })
 

@@ -1,7 +1,8 @@
 import { Gtk } from "ags/gtk4"
 import { onCleanup } from "ags"
-import { formatearFechaLarga, hoyISO } from "../dominio/fechas.ts"
-import { abrirCreacion, agendaSeleccionada, fechaSeleccionada } from "../estado.ts"
+import { crearReconstruccionCoalescida } from "../../../utilidades/coalescer.ts"
+import { formatearFechaLarga } from "../dominio/fechas.ts"
+import { abrirCreacion, agendaSeleccionada, fechaSeleccionada, hoyReactivo } from "../estado.ts"
 import { TarjetaEvento } from "./TarjetaEvento.tsx"
 
 /**
@@ -10,6 +11,10 @@ import { TarjetaEvento } from "./TarjetaEvento.tsx"
  * Se reconstruye entera al cambiar el día o los eventos, por lo mismo que la rejilla: las filas son
  * widgets sin estado y una lista reactiva por identidad de objeto es justo el patrón que en este
  * proyecto acabó destruyendo widgets con el foco dentro.
+ *
+ * Las suscripciones comparten una sola reconstrucción coalescida: `agendaSeleccionada` deriva de
+ * `fechaSeleccionada`, así que cambiar de día avisaba dos veces y la primera pasada leía la agenda
+ * del día anterior. Mismo motivo que en `VistaMes` — ver `utilidades/coalescer.ts`.
  */
 export function AgendaDia(): Gtk.Widget {
   const lista = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 4 })
@@ -32,7 +37,7 @@ export function AgendaDia(): Gtk.Widget {
 
     titulo.set_label(formatearFechaLarga(fecha))
     subtitulo.set_label(
-      fecha === hoyISO()
+      fecha === hoyReactivo.get()
         ? items.length === 0 ? "Hoy · sin eventos" : `Hoy · ${items.length} evento${items.length === 1 ? "" : "s"}`
         : items.length === 0 ? "Sin eventos" : `${items.length} evento${items.length === 1 ? "" : "s"}`,
     )
@@ -59,11 +64,17 @@ export function AgendaDia(): Gtk.Widget {
     for (const item of items) lista.append(TarjetaEvento({ item }))
   }
 
-  const bajas = [fechaSeleccionada.subscribe(reconstruir), agendaSeleccionada.subscribe(reconstruir)]
+  const repintado = crearReconstruccionCoalescida(reconstruir)
+  const bajas = [
+    fechaSeleccionada.subscribe(repintado.programar),
+    agendaSeleccionada.subscribe(repintado.programar),
+    hoyReactivo.subscribe(repintado.programar),
+  ]
   onCleanup(() => {
+    repintado.cancelar()
     for (const baja of bajas) if (typeof baja === "function") baja()
   })
-  reconstruir()
+  repintado.ahora()
 
   return (
     <box cssClasses={["cal-agenda-view"]} orientation={Gtk.Orientation.VERTICAL} spacing={0}>

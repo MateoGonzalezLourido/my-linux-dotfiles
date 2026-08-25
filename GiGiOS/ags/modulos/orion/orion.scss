@@ -32,7 +32,7 @@ $j-bg-shell-opaco: c.$bg-bar;
   );
 }
 
-$j-bg-shell:       rgba(c.$bg-bar, 0.94);
+$j-bg-shell:       c.lamina("--lamina-orion", rgba(c.$bg-bar, 0.94));
 $j-bg-item:        fondo-control-opaco(rgba(255, 255, 255, 0.035));
 $j-bg-item-hover:  fondo-control-opaco(rgba(255, 255, 255, 0.075));
 $j-bg-item-active: c.acento-sobre($j-bg-shell-opaco, 0.11);

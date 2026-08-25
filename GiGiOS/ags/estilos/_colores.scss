@@ -95,3 +95,48 @@ $radius-pill: 999px;
 @function acento-azul-sobre($fondo, $alpha)      { @return acento-var-sobre("--acento-2", $blue, $fondo, $alpha); }
 @function acento-turquesa-sobre($fondo, $alpha)  { @return acento-var-sobre("--acento-3", $turquesa, $fondo, $alpha); }
 @function acento-cian-sobre($fondo, $alpha)      { @return acento-var-sobre("--acento-3c", $cian, $fondo, $alpha); }
+
+// ── Láminas ───────────────────────────────────────────────────────────────────
+// El fondo de cada superficie grande del shell (los paneles, el OSD, Orion, los
+// popups de aviso) es TRANSLÚCIDO, y eso no es solo estética: Hyprland tiene que
+// desenfocar el escritorio que se ve por debajo en cada fotograma que la lámina
+// esté en pantalla, y la lámina no puede declarar región opaca, así que el
+// compositor tampoco puede saltarse lo que hay detrás.
+//
+// Por eso el fondo de una lámina no se escribe ya como color: se escribe con
+// `lamina()`, que emite una variable CSS de GTK con el color translúcido de
+// siempre como reserva — el mismo truco que `acento()` justo arriba, y por la
+// misma razón: sin nada que la defina el resultado es idéntico al de antes, y
+// `servicios/energia/opacidadAhorro.ts` puede volverlas opacas en caliente
+// (ajuste "quitar la transparencia" del modo ahorro) sin recompilar esta hoja ni
+// recargar AGS. Apagarlo es vaciar la hoja: cada `var()` cae en su reserva.
+//
+// ⚠️ Lo que devuelve es un `var()`, o sea **texto para GTK, no un color de Sass**:
+// no se le puede aplicar `color.mix()` ni `color.change()`. Para componer tintes
+// sobre la lámina están los `$*-bg-opaco` de cada módulo, que es lo que ya se
+// usaba (los controles de dentro de un panel son opacos a propósito, para tapar
+// el blur), así que ninguna lámina estaba dentro de una función de color.
+@function lamina($nombre, $reserva) {
+  @return var(#{$nombre}, #{$reserva});
+}
+
+// ── Colores de evento del calendario ──────────────────────────────────────────
+// Los seis colores que puede tener un evento. Vivían en `COLOR_HEX`
+// (`modulos/calendario/dominio/tipos.ts`) y se pintaban con `css=` inline, o sea
+// **un `Gtk.CssProvider` nuevo por widget**: la rejilla del mes son hasta cuatro
+// puntos por celda × 42 celdas, y se reconstruye entera en cada cambio de mes, de
+// día o de evento — en los tres monitores. Aquí generan seis clases estáticas que
+// GTK resuelve con el resto de la hoja, sin crear nada por widget.
+//
+// ⚠️ Son la mitad de un par: los nombres de esta lista tienen que coincidir con
+// `COLORES_EVENTO` de `dominio/tipos.ts`, que es de donde sale la clase
+// `cal-ev-<color>`. Añadir un color en TS sin añadirlo aquí no da ningún error:
+// solo deja el punto sin pintar.
+$colores-evento: (
+  "purple": #7f77dd,
+  "teal": #1d9e75,
+  "red": #e24b4a,
+  "amber": #ba7517,
+  "blue": #378add,
+  "pink": #d4537e,
+);

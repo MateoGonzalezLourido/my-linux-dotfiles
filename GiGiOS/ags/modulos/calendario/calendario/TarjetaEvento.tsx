@@ -1,5 +1,5 @@
 import { Gtk } from "ags/gtk4"
-import { COLOR_HEX, esEditable } from "../dominio/tipos.ts"
+import { claseColor, esEditable } from "../dominio/tipos.ts"
 import { textoIntervalo } from "../dominio/agenda.ts"
 import type { EventoEnDia } from "../dominio/agenda.ts"
 import { abrirEdicion, borradoPendiente, eliminarEvento, establecerBorradoPendiente } from "../estado.ts"
@@ -49,8 +49,7 @@ export function TarjetaEvento({ item }: { item: EventoEnDia }): Gtk.Widget {
   return (
     <box cssClasses={["cal-agenda-event-row"]} spacing={8}>
       <box
-        cssClasses={["cal-event-color-stripe"]}
-        css={`background-color: ${COLOR_HEX[evento.color]};`}
+        cssClasses={["cal-event-color-stripe", claseColor(evento.color)]}
         widthRequest={3}
       />
       <box orientation={Gtk.Orientation.VERTICAL} hexpand spacing={1}>

@@ -109,3 +109,19 @@ export function msHastaSiguienteTick(ms: number, resolucionMs = 1000): number {
   const resto = Math.max(0, ms) % resolucionMs
   return resto === 0 ? resolucionMs : resto
 }
+
+/**
+ * Lo mismo, pero para una cuenta que SUBE (el cronómetro) en vez de bajar.
+ *
+ * No vale la función de arriba: contando hacia atrás, la etiqueta cambia cuando pasa el resto;
+ * contando hacia delante, cuando pasa lo que falta para el siguiente múltiplo. Usar la de la cuenta
+ * atrás aquí daría un tick anticipado y otro tardío alternándose.
+ *
+ * Hace falta porque el cronómetro repetía cada 100 ms con `SOURCE_CONTINUE`, y GLib cuenta ese
+ * intervalo **desde que el callback anterior terminó**: cada vuelta acumula el retraso de la
+ * anterior, así que las décimas se veían saltar de dos en dos cada pocos segundos. Realineando
+ * contra `Date.now()` en cada vuelta, la deriva no se acumula.
+ */
+export function msHastaSiguienteTickAscendente(ms: number, resolucionMs = 100): number {
+  return resolucionMs - (Math.max(0, ms) % resolucionMs)
+}

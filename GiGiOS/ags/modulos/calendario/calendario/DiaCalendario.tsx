@@ -1,5 +1,5 @@
 import { Gtk } from "ags/gtk4"
-import { COLOR_HEX } from "../dominio/tipos.ts"
+import { claseColor } from "../dominio/tipos.ts"
 import type { EventoCalendario } from "../dominio/tipos.ts"
 import type { CeldaMes } from "../dominio/fechas.ts"
 import { seleccionarFecha } from "../estado.ts"
@@ -31,7 +31,7 @@ export function DiaCalendario({
   if (eventos.length > 0) clases.push("con-eventos")
 
   const puntos = eventos.slice(0, MAX_PUNTOS).map((ev) => (
-    <box cssClasses={["cal-event-dot"]} css={`background-color: ${COLOR_HEX[ev.color]};`} widthRequest={5} heightRequest={5} />
+    <box cssClasses={["cal-event-dot", claseColor(ev.color)]} widthRequest={5} heightRequest={5} />
   ))
   // El «+N» sustituye al último punto en vez de añadirse: con cinco eventos, cinco puntos y un
   // contador no caben en una celda de la rejilla y desbordan la fila entera.

@@ -44,6 +44,7 @@ import AstalNetwork from "gi://AstalNetwork"
 import AstalBluetooth from "gi://AstalBluetooth"
 import AstalNotifd from "gi://AstalNotifd"
 import AstalHyprland from "gi://AstalHyprland"
+import { ticReloj } from "../../servicios/sistema/reloj"
 import Gio from "gi://Gio"
 import GdkPixbuf from "gi://GdkPixbuf"
 import cairo from "gi://cairo"
@@ -967,24 +968,15 @@ function QsHeader() {
   const [date, setDate] = createState(getDate())
   const notifs = createBinding(notifd, "notifications")
 
-  // El reloj solo corre con el panel abierto: al cerrar se remueve el timer en
-  // vez de dejarlo despertando cada segundo para nada (patrón de netSpeedTimer).
-  let clockTimer: number | null = null
-  quickSettingsVisible.subscribe(() => {
-    if (quickSettingsVisible.get()) {
-      setTime(getTime())
-      setDate(getDate())
-      if (clockTimer === null) {
-        clockTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-          setTime(getTime())
-          setDate(getDate())
-          return GLib.SOURCE_CONTINUE
-        })
-      }
-    } else if (clockTimer !== null) {
-      GLib.source_remove(clockTimer)
-      clockTimer = null
-    }
+  // Reloj alineado al minuto y COMPARTIDO con el de la barra
+  // (`servicios/sistema/reloj.ts`): `getTime()` no enseña segundos, así que el
+  // `setInterval` de 1 s de antes recalculaba la misma cadena 59 de cada 60
+  // veces (y por monitor). `ticReloj` ya es un único temporizador de sesión,
+  // armado exacto al siguiente cambio de minuto — aquí solo hace falta
+  // suscribirse, sin timer propio que abrir y cerrar con la visibilidad del panel.
+  ticReloj.subscribe(() => {
+    setTime(getTime())
+    setDate(getDate())
   })
 
   return (
@@ -1178,7 +1170,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   const network = AstalNetwork.get_default()
   const wifi = network.wifi
   const bt = AstalBluetooth.get_default()
-  const [monitor, setMonitor] = createState("Monitor")
+  const hypr = AstalHyprland.get_default()
 
   // Tile de red consciente de ethernet: si network.primary es WIRED y el cable
   // está activo, muestra el nombre del perfil de NetworkManager (p. ej. "Casa");
@@ -1251,28 +1243,16 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   // debería notificar), así que esto ataca la clase entera en vez de un caso.
   quickSettingsVisible.subscribe(() => { if (quickSettingsVisible.get()) syncBtInfo() })
 
-  // Update monitor info
-  const updateMonitor = () => {
-    execAsync(["bash", "-c", "hyprctl activeworkspace -j | jq -r .monitor"]).then(m => setMonitor(m)).catch(() => { })
-  }
-  updateMonitor()
-  // Igual que el reloj: el sondeo del monitor solo corre con el panel abierto y
-  // se remueve al cerrar en vez de despertar cada 5s (patrón de netSpeedTimer).
-  let monitorTimer: number | null = null
-  quickSettingsVisible.subscribe(() => {
-    if (quickSettingsVisible.get()) {
-      updateMonitor()
-      if (monitorTimer === null) {
-        monitorTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5000, () => {
-          updateMonitor()
-          return GLib.SOURCE_CONTINUE
-        })
-      }
-    } else if (monitorTimer !== null) {
-      GLib.source_remove(monitorTimer)
-      monitorTimer = null
-    }
-  })
+  // Monitor enfocado: antes un sondeo `hyprctl activeworkspace -j | jq` cada 5s
+  // (con el panel abierto). `focused-monitor` es una propiedad real de
+  // AstalHyprland con `notify`, así que se sigue por evento — mismo patrón que
+  // los tiles de red y Bluetooth de arriba, incluido el resembrado al abrir
+  // por si se pierde una emisión con el panel cerrado.
+  const leerMonitor = () => hypr.get_focused_monitor()?.name ?? "Monitor"
+  const [monitor, setMonitor] = createState(leerMonitor())
+  const syncMonitor = () => setMonitor(leerMonitor())
+  hypr.connect("notify::focused-monitor", syncMonitor)
+  quickSettingsVisible.subscribe(() => { if (quickSettingsVisible.get()) syncMonitor() })
 
   const wp = AstalWp.get_default()
   const speaker = wp?.audio?.defaultSpeaker
@@ -1946,7 +1926,8 @@ function QsMedia() {
   // El sondeo de posición solo corre con el panel abierto: al cerrar se REMUEVE el
   // timer, no basta con saltarse el cuerpo. Antes se armaba una vez y vivía toda la
   // sesión comprobando la visibilidad — 86.400 despertares del bucle principal al día
-  // (y por monitor) para no hacer nada. Mismo patrón que clockTimer/netSpeedTimer.
+  // (y por monitor) para no hacer nada. Mismo patrón que netSpeedTimer (el
+  // reloj, arriba, ya no lo necesita: comparte el tic de minuto de la barra).
   update()
   let mediaTimer: number | null = null
   const cancelarRevision = revisionMultimedia.subscribe(update)

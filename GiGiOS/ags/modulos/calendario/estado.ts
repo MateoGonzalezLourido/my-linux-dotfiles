@@ -2,6 +2,7 @@
 // los widgets no leen ni escriben disco, y `dominio/` no sabe que existe AGS.
 
 import { createComputed, createState } from "ags"
+import { ticReloj } from "../../servicios/sistema/reloj.ts"
 import type { BorradorEvento, EventoCalendario } from "./dominio/tipos.ts"
 import { CALENDARIO_LOCAL, COLOR_POR_DEFECTO } from "./dominio/tipos.ts"
 import { agendaDelDia, indicePorFecha } from "./dominio/agenda.ts"
@@ -46,6 +47,29 @@ const inicial: ArchivoCalendario = (() => {
 
 const hoy = hoyISO()
 const partesHoy = desdeFechaISO(hoy)!
+
+/**
+ * El día de hoy, reactivo. **Sin ningún temporizador nuevo.**
+ *
+ * `hoyISO()` es una función pura: quien la llamaba se quedaba con el día que hubiera cuando se
+ * construyó el widget. Con el panel abierto a medianoche, la celda «hoy» de la cuadrícula y el
+ * «Hoy · N eventos» de la agenda seguían señalando ayer, y no había nada que los volviera a
+ * recalcular salvo que el usuario tocara otra cosa.
+ *
+ * La fuente es `ticReloj`, el tic global al minuto que ya mueve el reloj de la barra y que
+ * comparten los tres monitores: no se añade ni un `timeout` más, y la suscripción es una sola para
+ * todo el shell, no una por monitor.
+ *
+ * **Tiene que ser `createState` y no `createComputed`.** El derivado de gnim no compara nada: al
+ * invalidarse avisa a todos sus suscriptores tanto si el valor cambió como si no
+ * (`invalidate()` en `jsx/state.ts`), así que un `createComputed` sobre `ticReloj` habría
+ * reconstruido la cuadrícula y la agenda **cada minuto** en los tres monitores — justo el sondeo
+ * que este módulo no tiene. `createState` sí filtra con `Object.is` en el `set`, de modo que de
+ * los 1.440 tics del día exactamente uno provoca repintado.
+ */
+const [hoyReactivo, establecerHoyReactivo] = createState(hoy)
+ticReloj.subscribe(() => establecerHoyReactivo(hoyISO()))
+export { hoyReactivo }
 
 export const [eventos, establecerEventos] = createState<EventoCalendario[]>(inicial.eventos)
 export const [configuracion, establecerConfiguracion] = createState(inicial.configuracion)

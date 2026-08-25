@@ -1,9 +1,11 @@
 import { Gtk } from "ags/gtk4"
 import { onCleanup } from "ags"
-import { DIAS_SEMANA_CORTOS, hoyISO, nombreMes } from "../dominio/fechas.ts"
+import { crearReconstruccionCoalescida } from "../../../utilidades/coalescer.ts"
+import { DIAS_SEMANA_CORTOS, nombreMes } from "../dominio/fechas.ts"
 import {
   cuadricula,
   fechaSeleccionada,
+  hoyReactivo,
   indiceMes,
   irAHoy,
   irAMesRelativo,
@@ -19,6 +21,12 @@ import { DiaCalendario } from "./DiaCalendario.tsx"
  * que sostener tres suscripciones por celda, y evita el `<For>` indexado por identidad de objeto que
  * en este proyecto ya provocó destrucción de widgets en pleno evento de foco (ver `ags/CLAUDE.md`,
  * franjas horarias). No hay sondeo periódico: nada se repinta si no cambia el estado.
+ *
+ * **Las tres suscripciones comparten UNA reconstrucción coalescida**, y no es un adorno: `indiceMes`
+ * deriva de `cuadricula`, así que pasar de mes avisaba dos veces —y `seleccionarFecha()` sobre un
+ * día de relleno, tres—, cada una levantando 42 botones otra vez en cada uno de los monitores. La
+ * primera de esas pasadas leía además el índice todavía sin invalidar, o sea que pintaba los puntos
+ * del mes que acababas de dejar. Ver `utilidades/coalescer.ts`.
  */
 export function VistaMes(): Gtk.Widget {
   const contenedorRejilla = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
@@ -37,7 +45,7 @@ export function VistaMes(): Gtk.Widget {
     const celdas = cuadricula.get()
     const seleccionada = fechaSeleccionada.get()
     const indice = indiceMes.get()
-    const hoy = hoyISO()
+    const hoy = hoyReactivo.get()
     const { anio, mes } = mesVisible.get()
 
     tituloMes.set_label(`${nombreMes(mes)} ${anio}`)
@@ -67,15 +75,18 @@ export function VistaMes(): Gtk.Widget {
     contenedorRejilla.append(rejilla)
   }
 
+  const repintado = crearReconstruccionCoalescida(reconstruir)
   const bajas = [
-    cuadricula.subscribe(reconstruir),
-    fechaSeleccionada.subscribe(reconstruir),
-    indiceMes.subscribe(reconstruir),
+    cuadricula.subscribe(repintado.programar),
+    fechaSeleccionada.subscribe(repintado.programar),
+    indiceMes.subscribe(repintado.programar),
+    hoyReactivo.subscribe(repintado.programar),
   ]
   onCleanup(() => {
+    repintado.cancelar()
     for (const baja of bajas) if (typeof baja === "function") baja()
   })
-  reconstruir()
+  repintado.ahora()
 
   const cabeceraDias = new Gtk.Grid()
   cabeceraDias.set_css_classes(["cal-weekday-headers"])
