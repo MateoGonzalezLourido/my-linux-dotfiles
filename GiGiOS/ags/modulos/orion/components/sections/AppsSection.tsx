@@ -4,7 +4,7 @@
 // el icono y la tarjeta de mosaico vía `../shared/tarjetaApp`.
 
 import { Gtk } from "ags/gtk4"
-import Gio from "gi://Gio"
+import type Gio from "gi://Gio"
 import {
   activeSection,
   hidePanel,
@@ -13,6 +13,7 @@ import {
 } from "../../state"
 import { launchApp } from "../../data/launch"
 import { registrarInvalidadorCatalogo } from "../../data/catalogo"
+import { getAppInfos } from "../../data/appsInfo"
 import { activarDobleClic } from "../shared/dobleClic"
 import { crearIconoApp, construirTileApp } from "../shared/tarjetaApp"
 import { vaciarCaja, vaciarFlowBox } from "../shared/gtkUtils"
@@ -58,8 +59,7 @@ let _appCache: AppEntry[] | null = null
 
 function getAllApps(): AppEntry[] {
   if (_appCache) return _appCache
-  _appCache = (Gio.AppInfo.get_all() as Gio.AppInfo[])
-    .filter(a => a.should_show())
+  _appCache = getAppInfos()
     .map(a => {
       const cmdline = (a.get_commandline() ?? "").replace(/%[fFuUdDnNickvmb]/g, "").trim()
       const cats = (a as any).get_categories?.()?.split(";").filter(Boolean) ?? []

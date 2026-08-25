@@ -195,10 +195,25 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
     sincronizarAcciones()
   }
 
-  rightPanelApp.subscribe(rebuild)
+  // Al teclear en el buscador, cada tecla resuelta puede volver a proponer la
+  // MISMA app como primer resultado (`setQuery` en `../../state.ts` llama a
+  // `showAppContext` en cada resolución): sin esta guarda, `rebuild()`
+  // vaciaba y reconstruía el panel entero (cabecera + 4 acciones) aunque no
+  // hubiera nada que cambiara en pantalla. `favorites.subscribe` sigue yendo
+  // directo a `rebuild()`, sin pasar por aquí: un fijado/desfijado tiene que
+  // reflejarse aunque la app no haya cambiado.
+  let ultimaAppId: string | null = null
+  function sincronizarApp() {
+    const app = rightPanelApp.get()
+    if (app && app.appId === ultimaAppId) return
+    ultimaAppId = app?.appId ?? null
+    rebuild()
+  }
+
+  rightPanelApp.subscribe(sincronizarApp)
   rightPanelVisible.subscribe(sincronizarAcciones)
   favorites.subscribe(rebuild)
-  rebuild()
+  sincronizarApp()
 
   return (
     <box

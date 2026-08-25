@@ -13,7 +13,6 @@ import {
 import type { SearchResult } from "../../search"
 import { activarDobleClic } from "../shared/dobleClic"
 import { crearIconoApp } from "../shared/tarjetaApp"
-import { vaciarCaja } from "../shared/gtkUtils"
 import type {
   ElementoNavegacionBusqueda,
   NavegacionBusqueda,
@@ -119,19 +118,44 @@ export function ReactiveSection(
   etiquetaVacia.visible = false
   contenido.append(etiquetaVacia)
 
+  // Filas VIVAS por `resultado.id`, reutilizadas entre resoluciones en vez de
+  // destruirse y recrearse en cada tecla (mismo criterio que el `<For>` con
+  // `id` del resto del shell — ver la nota de identidad de objeto en el
+  // CLAUDE.md raíz). El id de un resultado (app o atajo) es estable de una
+  // query a otra para la misma entidad, así que la fila —widgets, gestos,
+  // handlers de foco ya conectados— sobrevive; solo se reordena.
+  const filas = new Map<string, { contenedor: Gtk.Box; navegable: ElementoNavegacionBusqueda }>()
+
   function reconstruir(resultados: SearchResult[]) {
-    vaciarCaja(contenido, etiquetaVacia)
     if (resultados.length === 0) {
+      for (const fila of filas.values()) contenido.remove(fila.contenedor)
+      filas.clear()
       navegacion.establecerResultados([])
       etiquetaVacia.visible = true
       return
     }
     etiquetaVacia.visible = false
+
+    const idsNuevos = new Set(resultados.map(r => r.id))
+    for (const [id, fila] of filas) {
+      if (!idsNuevos.has(id)) {
+        contenido.remove(fila.contenedor)
+        filas.delete(id)
+      }
+    }
+
     const navegables: ElementoNavegacionBusqueda[] = []
+    let anterior: Gtk.Widget = etiquetaVacia
     for (const resultado of resultados) {
-      const { contenedor, navegable } = crearFila(resultado, navegacion)
-      contenido.append(contenedor)
-      navegables.push(navegable)
+      let fila = filas.get(resultado.id)
+      if (!fila) {
+        fila = crearFila(resultado, navegacion)
+        filas.set(resultado.id, fila)
+        contenido.append(fila.contenedor)
+      }
+      contenido.reorder_child_after(fila.contenedor, anterior)
+      anterior = fila.contenedor
+      navegables.push(fila.navegable)
     }
     navegacion.establecerResultados(navegables)
   }

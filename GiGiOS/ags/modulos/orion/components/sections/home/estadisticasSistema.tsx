@@ -108,17 +108,25 @@ async function updateNvidia() {
 
 // ── Polling ───────────────────────────────────────────────────────────────────
 // Las stats (CPU/RAM/GPU) sólo se ven en la sección de inicio de Jarvis. Para no
-// consumir en reposo (sobre todo el spawn de nvidia-smi cada segundo), el poll
-// sólo corre mientras Orion está visible Y en "inicio"; se para al cerrar o al
-// cambiar de sección. En reposo el consumo es cero.
+// consumir en reposo, el poll sólo corre mientras Orion está visible Y en
+// "inicio"; se para al cerrar o al cambiar de sección. En reposo el consumo es
+// cero.
 
 let _pollSource: number | null = null
+
+// CPU/RAM/iGPU son lecturas de sysfs (micras); nvidia-smi es un spawn de
+// proceso real (~lo más caro de este módulo con diferencia). Van a tics
+// distintos: CPU/RAM/iGPU cada 1000ms para que la franja se sienta fluida,
+// nvidia-smi cada 2000ms (mitad de spawns) porque un uso de dGPU no cambia
+// tan rápido como para necesitar la misma cadencia.
+let _nvidiaTick = false
 
 function tick() {
   updateCpu()
   updateRam()
   updateIGpu()
-  updateNvidia()
+  _nvidiaTick = !_nvidiaTick
+  if (_nvidiaTick) updateNvidia()
 }
 
 function pollShouldRun(): boolean {
@@ -132,6 +140,7 @@ function startPolling() {
   prevTotal = 0
   prevIdle = 0
   prevRc6 = -1
+  _nvidiaTick = false  // el tick inmediato de abajo lo pone a true → nvidia-smi también refresca al abrir
   tick()  // refresco inmediato para no mostrar datos rancios al abrir
   _pollSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 1000, () => {
     tick()

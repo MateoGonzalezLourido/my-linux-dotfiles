@@ -2,22 +2,11 @@
 // id y descripción de cada `.desktop` (algoritmo de subsecuencia estilo
 // rofi/fzf), con pesos distintos por campo.
 
-import Gio from "gi://Gio"
+import type Gio from "gi://Gio"
 import { MAX_RESULTADOS } from "../engine"
 import type { HandlerMatch, SearchHandler, SearchResult } from "../types"
 import { launchApp } from "../../data/launch"
-import { registrarInvalidadorCatalogo } from "../../data/catalogo"
-
-let _cache: Gio.AppInfo[] | null = null
-function getApps(): Gio.AppInfo[] {
-  if (!_cache) _cache = (Gio.AppInfo.get_all() as Gio.AppInfo[]).filter(a => a.should_show())
-  return _cache
-}
-
-// Sin esto, una app desinstalada desde el panel derecho seguiría apareciendo en
-// la búsqueda toda la sesión. No hay UI que repintar: la próxima consulta
-// reconstruye la lista.
-registrarInvalidadorCatalogo(() => { _cache = null })
+import { getAppInfos } from "../../data/appsInfo"
 
 // ── Fuzzy subsequence scoring ─────────────────────────────────────────────────
 // All query chars must appear in target in order (rofi fuzzy algorithm).
@@ -127,7 +116,7 @@ export const appsHandler: SearchHandler = {
   match(query: string): HandlerMatch {
     const q = query.toLowerCase()
 
-    const ranked = getApps()
+    const ranked = getAppInfos()
       .map(a => ({ a, s: scoreApp(a, q) }))
       .filter(({ s }) => s > 0)
       .sort((x, y) => y.s - x.s)

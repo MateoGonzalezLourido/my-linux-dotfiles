@@ -472,14 +472,20 @@ déficit *a medias* con el título; acotado a 14 (con `tooltipText` para no perd
     paquete mucho mejor que sobre el binario: un `Exec` con `sh -c`/`env` resuelve al intérprete. Lo
     rellenan los cuatro sitios que abren el panel; los favoritos lo resuelven con
     `Gio.DesktopAppInfo.new(id)` porque guardan el id, no la ruta.
-  - **`data/catalogo.ts` existe porque había DOS cachés de `.desktop` que no caducaban**: `_appCache`
-    en `AppsSection.tsx` y `_cache` en `search/handlers/apps.ts`. Se poblaron pensando en un catálogo
-    que solo cambia entre sesiones, cosa que dejó de ser cierta al poder desinstalar: sin
-    invalidarlas, la app recién borrada seguía en la rejilla y en la búsqueda hasta reiniciar el
-    shell y, al pulsarla, no se abría nada **sin dar ningún error**. Es solo el punto de encuentro (y
-    no importa GTK a propósito): así `RightPanel` avisa sin depender de la sección ni del buscador,
-    que es lo que habría creado un ciclo de imports entre los tres. La sección **no fuerza su carga
-    perezosa** al invalidar: repintar una sección que el usuario aún no ha abierto pagaría el parseo
+  - **`data/catalogo.ts` existe porque había hasta CUATRO cachés de `.desktop` que no caducaban**:
+    `_appCache` en `AppsSection.tsx`, `_cache` en `search/handlers/apps.ts`, `_iconCache` en
+    `favoritosFlow.tsx` y (esta sin cachear siquiera) el escaneo de `appResolver.findInGioApps`. Se
+    poblaron pensando en un catálogo que solo cambia entre sesiones, cosa que dejó de ser cierta al
+    poder desinstalar: sin invalidarlas, la app recién borrada seguía en la rejilla y en la búsqueda
+    hasta reiniciar el shell y, al pulsarla, no se abría nada **sin dar ningún error**. Es solo el
+    punto de encuentro (y no importa GTK a propósito): así `RightPanel` avisa sin depender de la
+    sección ni del buscador, que es lo que habría creado un ciclo de imports entre los tres.
+    **`data/appsInfo.ts` es la caché compartida de la lista CRUDA de `Gio.AppInfo.get_all()`** (con
+    su propio invalidador registrado aquí): los cuatro sitios de arriba la consumen en vez de
+    escanear cada uno por su cuenta, y cada uno sigue quedándose con su propia transformación
+    derivada (tiles de `AppEntry`, filas puntuadas, mapa de iconos) porque esas sí son distintas
+    entre consumidores. La sección **no fuerza su carga perezosa** al invalidar: repintar una
+    sección que el usuario aún no ha abierto pagaría el parseo
     de los ~161 `.desktop` para nada. Un consumidor nuevo del catálogo debe registrarse aquí.
   - **«Desinstalar» va la última y separada por `.rp-action-sep`, sin rojo en reposo**: es la única
     acción del panel sin vuelta atrás y quedaba a un píxel de «Fijar en inicio», que es trivial y

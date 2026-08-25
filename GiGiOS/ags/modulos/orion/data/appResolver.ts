@@ -2,9 +2,10 @@
 // (rolling releases, un `-bin`/`-git` cambiado por el estable…). Se ejecuta
 // al arrancar (`favorites.ts`) y al fallar un lanzamiento.
 
-import Gio from "gi://Gio"
+import type Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import type { FavoriteApp } from "./favorites"
+import { getAppInfos } from "./appsInfo"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -71,8 +72,7 @@ function findInGioApps(origBin: string): string | null {
   let bestExec = ""
   let bestScore = 0
 
-  for (const app of Gio.AppInfo.get_all() as Gio.AppInfo[]) {
-    if (!app.should_show()) continue
+  for (const app of getAppInfos()) {
     const s = scoreGioApp(app, origBin)
     if (s > bestScore) {
       bestScore = s

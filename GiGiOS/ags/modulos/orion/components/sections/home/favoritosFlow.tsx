@@ -14,13 +14,18 @@ import { launchApp } from "../../../data/launch"
 import { activarDobleClic } from "../../shared/dobleClic"
 import { crearIconoApp, construirTileApp } from "../../shared/tarjetaApp"
 import { vaciarFlowBox } from "../../shared/gtkUtils"
+import { getAppInfos } from "../../../data/appsInfo"
+import { registrarInvalidadorCatalogo } from "../../../data/catalogo"
 
-// Cache of appId/execName → Gio.Icon for rendering favorites
+// Cache of appId/execName → Gio.Icon for rendering favorites. Se construye
+// sobre la lista ya compartida de `getAppInfos()` en vez de escanear
+// `Gio.AppInfo.get_all()` por su cuenta, y se invalida junto con el resto del
+// catálogo — antes no caducaba nunca en toda la sesión.
 let _iconCache: Map<string, Gio.Icon | null> | null = null
 function lookupGioIcon(appId: string, execName: string): Gio.Icon | null {
   if (!_iconCache) {
     _iconCache = new Map()
-    for (const a of Gio.AppInfo.get_all() as Gio.AppInfo[]) {
+    for (const a of getAppInfos()) {
       const id  = a.get_id()
       const ex  = a.get_executable()
       const ico = a.get_icon()
@@ -30,6 +35,8 @@ function lookupGioIcon(appId: string, execName: string): Gio.Icon | null {
   }
   return _iconCache.get(appId) ?? _iconCache.get(execName) ?? null
 }
+
+registrarInvalidadorCatalogo(() => { _iconCache = null })
 
 // ── Drag-to-reorder state ─────────────────────────────────────────────────────
 // Kept module-level so buildAppFlowBtn (also module-level) can access appsFlow
