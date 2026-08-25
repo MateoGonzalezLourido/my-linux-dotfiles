@@ -951,6 +951,47 @@ popover.tray-overflow-popover.closing > contents {
   }
 }
 
+// El reloj enseñando el cronómetro en vez de la hora. Sin una marca, la pastilla pasa a dar un
+// número que no es la hora sin nada que lo explique — que es lo que hacía irreconocible a la
+// versión original del clic derecho.
+// Aviso de alarma próxima, dentro de la pastilla y antes de la hora. Blanco mientras solo es un
+// recordatorio (hereda el `$text` del reloj) y NARANJA cuando la más próxima entra en los últimos
+// 15 minutos. El salto de color es el aviso: el icono lleva en pantalla desde una hora antes, así
+// que aparecer no avisa de nada — solo cambiar.
+.bar-pill.clock-pill label.clock-alarma {
+  font-size: 14px;
+  // Se mete 3 px en el padding izquierdo de la pastilla en vez de empujar la hora con un
+  // `margin-right`: así se abre hueco entre el icono y la hora sin desplazar a la derecha todo lo
+  // que viene detrás, que movería la hora de sitio cada vez que aparece o desaparece una alarma.
+  margin-left: -3px;
+
+  &.alarma-inminente {
+    color: $orange;
+  }
+}
+
+// El temporizador va en AZUL y el cronómetro en violeta. El color no es adorno: los dos sustituyen
+// la hora por un número que no es la hora, y cuando salen LOS DOS a la vez —`05:00 │ 01:23`— es lo
+// único que dice cuál es cuál, porque una cuenta atrás y una que sube de valor parecido son
+// indistinguibles de un vistazo, que es como se mira la barra.
+//
+// El color va POR ETIQUETA y no por la pastilla entera (como estaba, con `.clock-crono` sobre el
+// contenedor tiñendo todos sus `label`): con dos cifras dentro, teñir el contenedor las pinta a las
+// dos del mismo color, que es justo lo que hay que evitar.
+.bar-pill.clock-pill label.clock-temporizador {
+  color: $blue;
+}
+
+.bar-pill.clock-pill label.clock-crono {
+  color: $violet;
+}
+
+// El separador no es de ninguno de los dos: apagado, para que las cifras manden.
+.bar-pill.clock-pill label.clock-sep {
+  color: rgba($text, 0.3);
+  font-weight: 400;
+}
+
 @keyframes pulse {
 
   0%,
@@ -4953,6 +4994,53 @@ window.cal-window.csd decoration {
   padding: 2px 0;
 }
 
+// El campo editable ocupa el sitio de `.reloj-temporizador-display` cuando el temporizador está
+// parado, así que copia su tipografía y su tamaño: si no, la tarjeta pega un salto de altura y de
+// peso visual al pulsar «Iniciar». Los spinbuttons van sin caja propia —fondo y borde a cero— para
+// que las tres cifras se lean como un único número y no como tres formularios seguidos.
+.reloj-temporizador-campo {
+  padding: 2px 0;
+
+  spinbutton.cal-spin {
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    background-color: transparent;
+    border-color: transparent;
+    border-radius: 5px;
+    font-size: 21px;
+    font-weight: 700;
+    color: $cal-text;
+    font-family: $cal-font;
+    font-variant-numeric: tabular-nums;
+
+    text {
+      min-width: 34px;
+      padding: 0;
+      margin: 0;
+      caret-color: $cal-violet;
+    }
+
+    &:hover { background-color: rgba($text, 0.05); }
+    &:focus,
+    &:focus-within {
+      background-color: acento(0.12);
+      border-color: transparent;
+    }
+
+    text:focus {
+      outline: none;
+      box-shadow: none;
+    }
+  }
+
+  .cal-campo-sep {
+    font-size: 19px;
+    font-weight: 700;
+    color: $cal-text-hint;
+  }
+}
+
 .reloj-tarjeta-alarmas {
   min-height: 0;
   padding: 0;
@@ -5095,23 +5183,6 @@ window.cal-window.csd decoration {
   font-family: $cal-font;
 }
 
-.reloj-preset {
-  min-height: 20px;
-  padding: 2px 3px;
-  border-radius: 6px;
-  border: 1px solid $cal-border;
-  background-color: transparent;
-  color: $cal-text-dim;
-  font-size: 9px;
-  font-family: $cal-font;
-
-  &:hover {
-    background-color: acento(0.09);
-    border-color: acento(0.2);
-    color: $cal-text;
-  }
-}
-
 /* ── Notification settings tabs (Phase 3) ───────────────────────────── */
 .st-tabbar { padding: 2px; }
 .st-tab {
@@ -5196,6 +5267,8 @@ window.cal-window.csd decoration {
   &.confirm { background: rgba($pink, 0.32); border-color: rgba($pink, 0.6); color: $text; }
 }
 .re-hint { font-size: 9px; color: rgba($text, 0.4); font-family: $font-icon; }
+/* Aviso de ruta de audio inexistente: no bloquea el guardado, solo advierte. */
+.re-hint.aviso { color: rgba($orange, 0.85); }
 
 /* ── Color picker (rules + apps) ─────────────────────────────────────── */
 .cp-auto {

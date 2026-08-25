@@ -84,6 +84,14 @@ export function summarizeRule(rule: NotifRule): string {
   if (rw && rw.appName === "") e.push(textos.resumen.efectos.ocultarApp)
   else if (rw && rw.appName !== undefined) e.push(textos.resumen.efectos.renombrarApp)
   if (rw && (rw.summary !== undefined || rw.body !== undefined)) e.push(textos.resumen.efectos.reescribir)
+  if (rule.effects.muteAudio) e.push(textos.resumen.efectos.sinAudio)
+  // Del sonido se enseña solo el nombre del fichero: la ruta completa desbordaría la fila y lo
+  // que identifica al audio es el nombre.
+  if (rule.effects.soundFile) {
+    e.push(formatearTexto(textos.resumen.efectos.sonido, {
+      archivo: rule.effects.soundFile.split("/").filter(Boolean).pop() ?? rule.effects.soundFile,
+    }))
+  }
   if (rule.effects.color) e.push(formatearTexto(textos.resumen.efectos.color, { color: rule.effects.color }))
   if (rule.effects.style === "dunst") e.push(textos.resumen.efectos.dunst)
   else if (rule.effects.style === "default") e.push(textos.resumen.efectos.gigios)

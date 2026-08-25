@@ -17,6 +17,9 @@ export interface EntradaSonido {
   soundFile?: string
   /** Hint `suppress-sound`: quien la envía pide que no suene. */
   suppressSound?: boolean
+  /** Ruta del audio fijado por el usuario en una regla (`EffectSpec.soundFile`). No viene de la
+   *  notificación: viene de la configuración, y por eso puede dar sonido a una que no lo pedía. */
+  sonidoRegla?: string
   /** No molestar activo en el daemon. */
   noMolestar: boolean
   /** `meta.muteAudio`, calculado por el motor de reglas. */
@@ -26,6 +29,23 @@ export interface EntradaSonido {
 }
 
 export type MotivoSilencio = "sin-sonido" | "suppress-sound" | "no-molestar" | "regla"
+
+/**
+ * Expande un `~` inicial. Una ruta la teclea una persona en el editor de reglas o en el
+ * formulario de alarmas, y ahí `~/Música/aviso.ogg` es lo natural de escribir; sin expandirlo
+ * el reproductor buscaría un directorio llamado `~` y fallaría **en silencio**, que es el peor
+ * modo de fallo posible para esta función.
+ */
+export function expandirRuta(ruta: string, home: string): string {
+  if (ruta === "~") return home
+  return ruta.startsWith("~/") ? home + ruta.slice(1) : ruta
+}
+
+/** ¿Es una ruta de fichero y no el nombre de un sonido del tema? Se decide por la forma, que es
+ *  lo único que hay: los nombres de tema (`bell`, `alarm-clock-elapsed`) no llevan barras. */
+export function esRuta(valor: string): boolean {
+  return valor.startsWith("/") || valor.startsWith("~/")
+}
 
 export type DecisionSonido =
   | { reproducir: true; tipo: "archivo"; recurso: string }
@@ -49,13 +69,23 @@ export type DecisionSonido =
  * usuario que activa No molestar está pidiendo silencio, y la notificación sigue viéndose.
  */
 export function decidirSonido(entrada: EntradaSonido): DecisionSonido {
+  const personalizado = entrada.sonidoRegla?.trim()
   const archivo = entrada.soundFile?.trim()
   const tema = entrada.soundName?.trim()
-  if (!archivo && !tema) return { reproducir: false, motivo: "sin-sonido" }
+  if (!personalizado && !archivo && !tema) return { reproducir: false, motivo: "sin-sonido" }
 
-  if (entrada.suppressSound) return { reproducir: false, motivo: "suppress-sound" }
+  // `suppress-sound` lo pone el emisor porque ya ha sonado por su cuenta; un sonido puesto a mano
+  // en una regla es una orden posterior y más específica del usuario sobre *esa* notificación, así
+  // que le gana. El No molestar y el silencio por regla, no: los dos son «quiero silencio», y el
+  // segundo convive con este campo en la misma pantalla (fijar ambos es contradictorio y manda el
+  // que calla).
+  if (entrada.suppressSound && !personalizado) return { reproducir: false, motivo: "suppress-sound" }
   if (entrada.noMolestar) return { reproducir: false, motivo: "no-molestar" }
   if (entrada.muteAudio) return { reproducir: false, motivo: "regla" }
+
+  // Lo que fija el usuario manda sobre lo que pida la notificación: es el único punto del sistema
+  // donde se puede cambiar el sonido de un aviso ajeno.
+  if (personalizado) return { reproducir: true, tipo: "archivo", recurso: personalizado }
 
   // El fichero manda sobre el nombre de tema: es más específico y no depende de que el tema de
   // sonidos instalado tenga esa entrada.

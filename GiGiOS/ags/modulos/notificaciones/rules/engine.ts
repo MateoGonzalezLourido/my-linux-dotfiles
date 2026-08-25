@@ -77,6 +77,7 @@ export function evaluate(input: NotifInput, index: RuleIndex, now: number): Eval
   let noHistory: boolean | undefined
   let muteAudio: boolean | undefined
   let dontShow: boolean | undefined
+  let soundFile: string | undefined
   let suppress: boolean | undefined
   let dedupSpec: NotifRule["effects"]["dedupKey"] | undefined
   let rewriteAppName: string | undefined
@@ -98,6 +99,7 @@ export function evaluate(input: NotifInput, index: RuleIndex, now: number): Eval
     noHistory   = setOnce(noHistory, e.noHistory)
     muteAudio   = setOnce(muteAudio, e.muteAudio)
     dontShow    = setOnce(dontShow, e.dontShow)
+    soundFile   = setOnce(soundFile, e.soundFile)
     suppress    = setOnce(suppress, e.suppress)
     dedupSpec      = setOnce(dedupSpec, e.dedupKey)
     rewriteAppName = setOnce(rewriteAppName, r.effects.rewrite?.appName)
@@ -127,6 +129,7 @@ export function evaluate(input: NotifInput, index: RuleIndex, now: number): Eval
     meta.expiresAt = now + ttlMs
   }
   const result: EvalResult = { meta, suppress: suppress ?? false }
+  if (soundFile !== undefined) result.soundFile = soundFile
   if (rewriteAppName !== undefined || rewriteSummary !== undefined || rewriteBody !== undefined) {
     result.rewrite = {}
     if (rewriteAppName !== undefined) result.rewrite.appName = rewriteAppName

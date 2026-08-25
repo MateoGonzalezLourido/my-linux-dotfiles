@@ -8,7 +8,7 @@
 
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
-import { comandoReproduccion, decidirSonido } from "./decision.ts"
+import { comandoReproduccion, decidirSonido, expandirRuta } from "./decision.ts"
 import type { EntradaSonido } from "./decision.ts"
 
 const cacheProgramas = new Map<string, boolean>()
@@ -29,7 +29,14 @@ function disponible(programa: string): boolean {
  * a decidir qué hacer con la que llega la número quince.
  */
 export function reproducirSonidoNotificacion(entrada: EntradaSonido): void {
-  const decision = decidirSonido(entrada)
+  // El `~` se expande aquí y no en `decision.ts`: la decisión es pura y no puede preguntar por el
+  // directorio del usuario. Las rutas las teclea una persona en Ajustes, así que llegan con `~`.
+  const home = GLib.get_home_dir()
+  const decision = decidirSonido({
+    ...entrada,
+    soundFile: entrada.soundFile ? expandirRuta(entrada.soundFile, home) : entrada.soundFile,
+    sonidoRegla: entrada.sonidoRegla ? expandirRuta(entrada.sonidoRegla, home) : entrada.sonidoRegla,
+  })
   if (!decision.reproducir) return
 
   const comando = comandoReproduccion(decision, disponible)
@@ -44,4 +51,31 @@ export function reproducirSonidoNotificacion(entrada: EntradaSonido): void {
   execAsync(comando).catch((e) => {
     console.warn(`[notif sonido] ${comando[0]} falló:`, e)
   })
+}
+
+/**
+ * Reproduce un fichero ya, sin pasar por ninguna guarda. Es el botón «Probar» de Ajustes y del
+ * formulario de alarmas: ahí el usuario está pidiendo *este* audio a propósito, así que ni el No
+ * molestar ni las reglas pintan nada — lo que quiere saber es si la ruta que ha escrito suena.
+ *
+ * Devuelve `false` si no hay con qué reproducir; el fallo posterior (fichero ilegible, formato
+ * raro) sigue muriendo en el log, como en el resto del módulo.
+ */
+export function reproducirArchivo(ruta: string): boolean {
+  const expandida = expandirRuta(ruta.trim(), GLib.get_home_dir())
+  if (expandida === "") return false
+  const comando = comandoReproduccion(
+    { reproducir: true, tipo: "archivo", recurso: expandida },
+    disponible,
+  )
+  if (comando === null) return false
+  execAsync(comando).catch((e) => console.warn(`[notif sonido] prueba de «${expandida}» falló:`, e))
+  return true
+}
+
+/** ¿Existe el fichero de audio? Para avisar en el editor de una ruta mal escrita — nunca para
+ *  impedir guardarla (ver `rules/validate.ts`). */
+export function existeAudio(ruta: string): boolean {
+  const expandida = expandirRuta(ruta.trim(), GLib.get_home_dir())
+  return expandida !== "" && GLib.file_test(expandida, GLib.FileTest.EXISTS)
 }

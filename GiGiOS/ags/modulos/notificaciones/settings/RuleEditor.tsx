@@ -10,6 +10,7 @@ import { fijarEfectosEvento, restaurarEvento } from "../rules/sistemaStore.ts"
 import { eventoSistema } from "../rules/catalogoSistema.ts"
 import { validateRule } from "../rules/validate.ts"
 import ColorPicker from "./ColorPicker.tsx"
+import { crearCampoRutaAudio } from "../sonido/CampoRutaAudio.ts"
 import CampoCoincidencia from "./CampoCoincidencia.tsx"
 import CamposReescritura, { type CampoReescrituraId } from "./CamposReescritura.tsx"
 import { AlternadorEditor, CampoEditor } from "./ControlesEditor.tsx"
@@ -78,6 +79,21 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
     && rule.name === textos.resumen.nuevaRegla
     && Object.keys(rule.match).length === 0
     && Object.keys(rule.effects).length === 0
+
+  // El campo de sonido se construye UNA vez y escribe en el borrador desde su callback: montarlo
+  // dentro de una expresión reactiva lo recrearía a cada tecla y el foco se perdería a la primera.
+  const campoSonido = crearCampoRutaAudio({
+    valor: rule.effects.soundFile,
+    marcador: textos.editor.ayudas.sonidoEjemplo,
+    etiquetaProbar: textos.editor.acciones.probarSonido,
+    ayudaProbar: textos.editor.acciones.probarSonidoAyuda,
+    avisoNoExiste: textos.editor.ayudas.sonidoNoExiste,
+    alCambiar: (ruta) => {
+      const e = { ...draft.get().effects }
+      if (ruta) e.soundFile = ruta; else delete e.soundFile
+      patch({ effects: e })
+    },
+  })
 
   const [advanced, setAdvanced] = createState(false)
 
@@ -243,6 +259,19 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
             halign={Gtk.Align.START}
             wrap={true}
           />
+
+          {/* sonido propio — el único sitio donde se cambia el audio de un aviso ajeno. Visible
+              también en los avisos del sistema y en las predefinidas: ahí es donde más se usa
+              ("que la alarma suene con esto"). */}
+          <CampoEditor titulo={textos.editor.titulos.sonido}>
+            {campoSonido.widget}
+            <label
+              cssClasses={["re-hint"]}
+              label={textos.editor.ayudas.sonido}
+              halign={Gtk.Align.START}
+              wrap={true}
+            />
+          </CampoEditor>
 
           {/* accent color */}
           <CampoEditor titulo={textos.editor.titulos.color}>

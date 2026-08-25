@@ -48,6 +48,14 @@ interface OpcionesCampoNumerico {
   mostrarBotones?: boolean
 }
 
+/** Dos dígitos siempre: sin esto la hora se lee «9:5» y no cuadra con el resto de la interfaz. */
+function rellenarDosDigitos(s: Gtk.SpinButton) {
+  s.connect("output", () => {
+    s.set_text(String(s.get_value_as_int()).padStart(2, "0"))
+    return true
+  })
+}
+
 export interface CampoFecha {
   widget: Gtk.Widget
   obtener: () => string
@@ -131,15 +139,8 @@ export function crearCampoHora(
   const minutosIniciales = Math.max(0, horaAMinutos(inicial))
   const horas = spin(0, 23, Math.floor(minutosIniciales / 60), 2, mostrarBotones)
   const minutos = spin(0, 59, minutosIniciales % 60, 2, mostrarBotones)
-  // Dos dígitos siempre: sin esto la hora se lee «9:5» y no cuadra con el resto de la interfaz.
-  const rellenar = (s: Gtk.SpinButton) => {
-    s.connect("output", () => {
-      s.set_text(String(s.get_value_as_int()).padStart(2, "0"))
-      return true
-    })
-  }
-  rellenar(horas)
-  rellenar(minutos)
+  rellenarDosDigitos(horas)
+  rellenarDosDigitos(minutos)
 
   let silenciado = false
   const leer = () => minutosAHora(horas.get_value_as_int() * 60 + minutos.get_value_as_int())
@@ -171,6 +172,73 @@ export function crearCampoHora(
     setSensible: (v: boolean) => {
       horas.set_sensitive(v)
       minutos.set_sensitive(v)
+      widget.set_opacity(v ? 1 : 0.4)
+    },
+  }
+}
+
+export interface CampoDuracion {
+  widget: Gtk.Widget
+  obtener: () => number
+  establecer: (ms: number) => void
+  setSensible: (v: boolean) => void
+}
+
+/**
+ * Duración `HH:MM:SS` editable, en milisegundos.
+ *
+ * Es un campo de DURACIÓN, no de hora del día, y por eso no reutiliza `crearCampoHora`: aquel
+ * cuenta minutos desde medianoche y no tiene segundos, que es justo la unidad que hace falta para
+ * un temporizador de «1:30».
+ *
+ * Los segundos **no dan la vuelta** (`set_wrap(false)` en `spin`): pasar de 59 a 00 sin sumar un
+ * minuto convertiría un intento de subir la cuenta en una bajada de casi un minuto, en silencio.
+ * Subir de tramo es explícito, cambiando el campo de al lado.
+ */
+export function crearCampoDuracion(
+  inicialMs: number,
+  alCambiar: (ms: number) => void,
+  { mostrarBotones = true }: OpcionesCampoNumerico = {},
+): CampoDuracion {
+  const totalSegundos = Math.min(23 * 3600 + 59 * 60 + 59, Math.max(0, Math.round(inicialMs / 1000)))
+
+  const horas = spin(0, 23, Math.floor(totalSegundos / 3600), 2, mostrarBotones)
+  const minutos = spin(0, 59, Math.floor((totalSegundos % 3600) / 60), 2, mostrarBotones)
+  const segundos = spin(0, 59, totalSegundos % 60, 2, mostrarBotones)
+  for (const s of [horas, minutos, segundos]) rellenarDosDigitos(s)
+
+  let silenciado = false
+  const leer = () =>
+    (horas.get_value_as_int() * 3600 + minutos.get_value_as_int() * 60 + segundos.get_value_as_int()) *
+    1000
+  const notificar = () => {
+    if (!silenciado) alCambiar(leer())
+  }
+  for (const s of [horas, minutos, segundos]) s.connect("value-changed", notificar)
+
+  const widget = (
+    <box cssClasses={["cal-campo-duracion"]} spacing={mostrarBotones ? 3 : 1}>
+      {horas}
+      <label cssClasses={["cal-campo-sep"]} label=":" />
+      {minutos}
+      <label cssClasses={["cal-campo-sep"]} label=":" />
+      {segundos}
+    </box>
+  ) as unknown as Gtk.Widget
+
+  return {
+    widget,
+    obtener: leer,
+    establecer: (ms: number) => {
+      const total = Math.min(23 * 3600 + 59 * 60 + 59, Math.max(0, Math.round(ms / 1000)))
+      silenciado = true
+      horas.set_value(Math.floor(total / 3600))
+      minutos.set_value(Math.floor((total % 3600) / 60))
+      segundos.set_value(total % 60)
+      silenciado = false
+    },
+    setSensible: (v: boolean) => {
+      for (const s of [horas, minutos, segundos]) s.set_sensitive(v)
       widget.set_opacity(v ? 1 : 0.4)
     },
   }

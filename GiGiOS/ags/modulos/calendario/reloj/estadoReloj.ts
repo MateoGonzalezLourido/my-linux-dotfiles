@@ -33,7 +33,7 @@ import {
   reiniciarCronometro as reiniciarCronoPuro,
   restanteTemporizador,
 } from "./tiempos.ts"
-import { SONIDO_ALARMA, SONIDO_TEMPORIZADOR } from "../../notificaciones/sonido/decision.ts"
+import { SONIDO_ALARMA, SONIDO_TEMPORIZADOR, esRuta } from "../../notificaciones/sonido/decision.ts"
 
 export const RUTA_RELOJ = rutaConfig("reloj.json")
 const ETIQUETA = "reloj"
@@ -112,17 +112,21 @@ alarmas.subscribe(guardarAlarmas)
 /**
  * Emite la alerta como una notificación NORMAL.
  *
- * El reloj no tiene popup ni reproductor propios: manda un `notify-send` con `sound-name` y deja que
+ * El reloj no tiene popup ni reproductor propios: manda un `notify-send` con el sonido y deja que
  * el motor de reglas, el No molestar y `sonido/decision.ts` decidan qué se ve y qué suena. El hint
  * de origen es `alarm` y no `system` a propósito — `system` activaría la builtin del skin dunst, que
  * es para los avisos de los scripts de `hypr/scripts/`, no para esto.
+ *
+ * El sonido sale como `sound-file` si es una ruta y como `sound-name` si es un nombre del tema: son
+ * dos hints distintos del spec y mandar una ruta por `sound-name` no falla, simplemente **no suena**
+ * (canberra busca ese nombre dentro del tema instalado y no lo encuentra).
  */
 function emitirAlerta(titulo: string, cuerpo: string, sonido: string) {
   execAsync([
     "notify-send",
     "-a", "Reloj",
     "-u", "critical", // permanece hasta que se atienda; una alarma que se va sola no es una alarma
-    "-h", `string:sound-name:${sonido}`,
+    "-h", esRuta(sonido) ? `string:sound-file:${sonido}` : `string:sound-name:${sonido}`,
     "-h", "string:x-gigios-source:alarm",
     titulo,
     cuerpo,

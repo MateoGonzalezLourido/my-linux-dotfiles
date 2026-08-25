@@ -100,6 +100,23 @@ export function formatearCronometro(ms: number): string {
 }
 
 /**
+ * `MM:SS`, o `H:MM:SS`. Mismo redondeo hacia abajo que `formatearCronometro`, pero sin décimas.
+ *
+ * Es el formato del reloj de la BARRA, que sustituye a la hora mientras el cronómetro corre. Ahí las
+ * décimas no se pueden enseñar: obligarían a repintar a 10 Hz —y por monitor— una etiqueta que está
+ * siempre en pantalla, para un dígito que a ese tamaño no se lee. En el panel, donde el cronómetro es
+ * lo que estás mirando, se siguen enseñando.
+ */
+export function formatearCronometroCorto(ms: number): string {
+  const segundosTotales = Math.floor(Math.max(0, ms) / 1000)
+  const horas = Math.floor(segundosTotales / 3600)
+  const minutos = Math.floor((segundosTotales % 3600) / 60)
+  const segundos = segundosTotales % 60
+  const dd = (n: number) => String(n).padStart(2, "0")
+  return horas > 0 ? `${horas}:${dd(minutos)}:${dd(segundos)}` : `${dd(minutos)}:${dd(segundos)}`
+}
+
+/**
  * Milisegundos hasta el próximo cambio VISIBLE de la etiqueta.
  *
  * Se usa para alinear el tick con el reloj en vez de disparar cada 1000 ms desde un origen

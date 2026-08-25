@@ -54,6 +54,15 @@ export interface EffectSpec {
   suppress?: boolean
   muteAudio?: boolean
   dontShow?: boolean
+  /** Ruta absoluta del audio que debe sonar con esta notificación. Es el «ponle este sonido»
+   *  del usuario: **hace sonar la notificación aunque quien la emite no pida sonido alguno**
+   *  (sin `sound-name` ni `sound-file`), que es justo lo que se busca — una app que nunca ha
+   *  sonado no se puede volver sonora de otra forma. Gana al `sound-file`/`sound-name` del
+   *  emisor y a su `suppress-sound`, porque es configuración explícita para *estas*
+   *  notificaciones concretas; no gana al No molestar ni a `muteAudio` (ver
+   *  `sonido/decision.ts`). Un `muteAudio` en la misma regla la deja muda: silenciar es la
+   *  intención más específica de las dos. */
+  soundFile?: string
   dedupKey?: DedupKeySpec
   conditions?: string[]
   // accent color override (hex, e.g. "#89b4fa"). Highest priority in color resolution:
@@ -115,4 +124,7 @@ export interface EvalResult {
   meta: NotifMeta
   suppress: boolean // consumed by ingest; never persisted on the notification
   rewrite?: { appName?: string; summary?: string; body?: string }
+  /** `EffectSpec.soundFile` de la regla ganadora. Va aquí y **no en `NotifMeta`** a propósito:
+   *  la meta se persiste con la notificación y el sonido se consume una sola vez, al ingerir. */
+  soundFile?: string
 }

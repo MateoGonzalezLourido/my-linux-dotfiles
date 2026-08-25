@@ -2,6 +2,7 @@ import { Gtk } from "ags/gtk4"
 import { hoyISO } from "../dominio/fechas.ts"
 import { crearCampoFecha, crearCampoHora } from "../calendario/campos.tsx"
 import { actualizarAlarma, anadirAlarma, generarIdAlarma } from "./estadoReloj.ts"
+import { crearCampoRutaAudio } from "../../notificaciones/sonido/CampoRutaAudio.ts"
 import type { Alarma, DiaSemana } from "./tipos.ts"
 
 const NOMBRES_DIA = ["L", "M", "X", "J", "V", "S", "D"]
@@ -43,6 +44,15 @@ export function FormularioAlarma({
     fecha = f
   }, { mostrarBotones: false })
 
+  // Sonido propio. Vacío = el sonido de alarma del tema, que es lo que sonaba siempre hasta ahora.
+  const campoSonido = crearCampoRutaAudio({
+    valor: alarma?.sonido,
+    marcador: "~/Música/alarma.ogg  ·  vacío = sonido por defecto",
+    etiquetaProbar: "Probar",
+    ayudaProbar: "Reproducir este audio ahora",
+    avisoNoExiste: "Ese fichero no existe ahora mismo. Se guarda igual, pero no sonará hasta que esté.",
+  })
+
   const filaFecha = (
     <box cssClasses={["cal-form-row", "reloj-alarma-fila-fecha"]} spacing={8}>
       <label cssClasses={["cal-form-label"]} label="Fecha" halign={Gtk.Align.START} valign={Gtk.Align.CENTER} />
@@ -79,7 +89,10 @@ export function FormularioAlarma({
   function guardar() {
     const etiqueta = entradaEtiqueta.get_text().trim()
     const dias = [...diasIniciales].sort((a, b) => a - b)
-    const base = { etiqueta, hora, activa: alarma?.activa ?? true, sonido: alarma?.sonido }
+    const sonido = campoSonido.obtener()
+    // `undefined` y no `""`: el planificador decide el sonido por defecto con `?? SONIDO_ALARMA`,
+    // y una cadena vacía pasaría esa guarda y dejaría la alarma muda.
+    const base = { etiqueta, hora, activa: alarma?.activa ?? true, sonido: sonido === "" ? undefined : sonido }
     const nueva: Alarma =
       dias.length > 0
         ? { ...base, id: alarma?.id ?? generarIdAlarma(), tipo: "semanal", dias }
@@ -138,6 +151,11 @@ export function FormularioAlarma({
         </box>
 
         {filaFecha}
+
+        <box cssClasses={["cal-form-row", "reloj-alarma-sonido"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+          <label cssClasses={["cal-form-label"]} label="Sonido" halign={Gtk.Align.START} />
+          {campoSonido.widget}
+        </box>
 
         <box cssClasses={["cal-dialog-actions", "cal-dialog-alarma-actions"]} spacing={7} halign={Gtk.Align.END}>
           <button cssClasses={["cal-btn"]} onClicked={alCerrar}>

@@ -150,3 +150,59 @@ export function textoProximaActivacion(alarma: Alarma, ahoraMs: number): string 
   const dias = Math.floor(horas / 24)
   return dias === 1 ? "Mañana" : `En ${dias} días`
 }
+
+// ── Aviso de alarmas próximas (indicador de la barra) ────────────────────────
+
+/** Ventana en la que una alarma ya se anuncia en la barra. */
+export const VENTANA_AVISO_ALARMA_MS = 60 * 60_000
+/** Dentro de esta, el aviso pasa a urgente (naranja). */
+export const VENTANA_ALARMA_INMINENTE_MS = 15 * 60_000
+
+export interface AvisoAlarmas {
+  /** Las que sonarán dentro de la ventana, de la más próxima a la más lejana. */
+  proximas: Vencimiento[]
+  /** Si alguna cae dentro de la ventana corta. */
+  inminente: boolean
+}
+
+/**
+ * Qué alarmas hay que anunciar y con cuánta urgencia.
+ *
+ * **Recalcula desde `alarmas` en cada llamada en vez de derivarse de `siguienteVencimiento`.** Ese
+ * devuelve UNA, la más próxima, y el indicador tiene que listar todas las de la hora siguiente: dos
+ * alarmas a las 7:00 y a las 7:30 son dos líneas del tooltip, no una. Es un recorrido sobre una
+ * lista de unidades de elementos, una vez por minuto — no hay nada que memoizar aquí.
+ *
+ * `inminente` se calcula sobre la MÁS PRÓXIMA y no sobre «alguna»: son lo mismo, porque la lista
+ * viene ordenada, pero dejarlo escrito evita que alguien lo cambie a un `some()` sobre la ventana
+ * larga, que pondría el icono naranja por una alarma a 50 minutos.
+ */
+export function avisoAlarmas(
+  alarmas: Alarma[],
+  ahoraMs: number,
+  ventanaMs: number = VENTANA_AVISO_ALARMA_MS,
+  ventanaInminenteMs: number = VENTANA_ALARMA_INMINENTE_MS,
+): AvisoAlarmas {
+  const proximas: Vencimiento[] = []
+  for (const alarma of alarmas) {
+    const cuando = proximaActivacion(alarma, ahoraMs)
+    if (cuando === null) continue
+    if (cuando - ahoraMs > ventanaMs) continue
+    proximas.push({ alarma, cuando })
+  }
+  proximas.sort((a, b) => a.cuando - b.cuando)
+  return {
+    proximas,
+    inminente: proximas.length > 0 && proximas[0].cuando - ahoraMs <= ventanaInminenteMs,
+  }
+}
+
+/** Una línea por alarma: «07:00 · Despertar · en 12 min». Sin etiqueta se omite ese tramo. */
+export function lineaAvisoAlarma(vencimiento: Vencimiento, ahoraMs: number): string {
+  const minutos = Math.max(0, Math.round((vencimiento.cuando - ahoraMs) / 60_000))
+  const cuanto = minutos < 1 ? "ahora mismo" : minutos === 1 ? "en 1 min" : `en ${minutos} min`
+  const etiqueta = vencimiento.alarma.etiqueta.trim()
+  return etiqueta === ""
+    ? `${vencimiento.alarma.hora} · ${cuanto}`
+    : `${vencimiento.alarma.hora} · ${etiqueta} · ${cuanto}`
+}

@@ -4,6 +4,7 @@
 import type { NotifRule, StringMatch } from "./types.ts"
 import { POPUP_STYLES } from "./types.ts"
 import { isValidHex } from "./color.ts"
+import { esRuta } from "../sonido/decision.ts"
 import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear.ts"
 
@@ -39,6 +40,14 @@ export function validateRule(rule: NotifRule): string[] {
     if (sm && sm.op === "regex" && !regexValid(sm.value)) {
       errors.push(formatearTexto(textos.validacion.expresion, { campo: label, valor: sm.value }))
     }
+  }
+
+  // El sonido propio tiene que ser una RUTA, absoluta o desde `~`. Se comprueba la forma y no
+  // que el fichero exista: un audio en un disco que ahora no está montado sigue siendo una regla
+  // válida, y bloquear el guardado por eso obligaría a borrar la configuración para poder salir.
+  // El editor avisa aparte de que la ruta no existe, que es donde ese aviso sirve de algo.
+  if (e.soundFile !== undefined && !esRuta(e.soundFile.trim())) {
+    errors.push(formatearTexto(textos.validacion.sonido, { valor: e.soundFile }))
   }
 
   // A color effect, if present, must be a valid hex.

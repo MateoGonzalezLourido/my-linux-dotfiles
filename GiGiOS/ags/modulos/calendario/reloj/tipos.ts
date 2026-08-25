@@ -14,7 +14,13 @@ interface AlarmaBase {
   /** `"HH:MM"` en hora local. */
   hora: string
   activa: boolean
-  /** `sound-name` estándar que se le pide al sistema de notificaciones. */
+  /** Sonido de la alerta: **o el nombre de un sonido del tema** (`alarm-clock-elapsed`) **o la
+   *  ruta de un fichero** propio (`~/Música/aviso.ogg`). Se distinguen por la forma —una ruta
+   *  lleva barras, un nombre de tema no (`sonido/decision.ts:esRuta`)— y viajan como hints
+   *  distintos (`sound-name` / `sound-file`). Ausente = el sonido de alarma por defecto.
+   *
+   *  Es un único campo y no dos a propósito: son alternativas excluyentes, y con dos campos
+   *  habría que decidir cuál gana cuando estén los dos puestos. */
   sonido?: string
 }
 

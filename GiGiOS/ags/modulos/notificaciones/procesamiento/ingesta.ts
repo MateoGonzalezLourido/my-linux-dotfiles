@@ -103,7 +103,7 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
     source,
     event,
   }
-  const { meta, suppress, rewrite } = evaluate(input, ruleIndex.get(), Date.now())
+  const { meta, suppress, rewrite, soundFile: sonidoRegla } = evaluate(input, ruleIndex.get(), Date.now())
   if (suppress) return null
 
   // Text rewriting: placeholders resolve against the ORIGINAL notification fields + its hints.
@@ -168,6 +168,9 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
     soundName: readStringHint(n, "sound-name"),
     soundFile: readStringHint(n, "sound-file"),
     suppressSound: readBoolHint(n, "suppress-sound"),
+    // Sonido puesto a mano en una regla o en un aviso del sistema. Es lo único capaz de hacer
+    // sonar una notificación que no pedía sonido, y de cambiar el que pedía.
+    sonidoRegla,
     noMolestar: noMolestarActivo(),
     muteAudio: meta.muteAudio,
     urgencia: input.urgency,

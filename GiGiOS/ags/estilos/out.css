@@ -1879,6 +1879,27 @@ popover.tray-overflow-popover.closing > contents {
   margin-top: 2px;
 }
 
+.bar-pill.clock-pill label.clock-alarma {
+  font-size: 14px;
+  margin-left: -3px;
+}
+.bar-pill.clock-pill label.clock-alarma.alarma-inminente {
+  color: #fab387;
+}
+
+.bar-pill.clock-pill label.clock-temporizador {
+  color: #89b4fa;
+}
+
+.bar-pill.clock-pill label.clock-crono {
+  color: #cba6f7;
+}
+
+.bar-pill.clock-pill label.clock-sep {
+  color: rgba(226, 226, 226, 0.3);
+  font-weight: 400;
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -5517,6 +5538,45 @@ window.cal-window.csd decoration {
   padding: 2px 0;
 }
 
+.reloj-temporizador-campo {
+  padding: 2px 0;
+}
+.reloj-temporizador-campo spinbutton.cal-spin {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  background-color: transparent;
+  border-color: transparent;
+  border-radius: 5px;
+  font-size: 21px;
+  font-weight: 700;
+  color: #e2e2e2;
+  font-family: "MesloLGS Nerd Font", monospace;
+  font-variant-numeric: tabular-nums;
+}
+.reloj-temporizador-campo spinbutton.cal-spin text {
+  min-width: 34px;
+  padding: 0;
+  margin: 0;
+  caret-color: var(--acento, #cba6f7);
+}
+.reloj-temporizador-campo spinbutton.cal-spin:hover {
+  background-color: rgba(226, 226, 226, 0.05);
+}
+.reloj-temporizador-campo spinbutton.cal-spin:focus, .reloj-temporizador-campo spinbutton.cal-spin:focus-within {
+  background-color: color-mix(in srgb, var(--acento, #cba6f7) 12%, transparent);
+  border-color: transparent;
+}
+.reloj-temporizador-campo spinbutton.cal-spin text:focus {
+  outline: none;
+  box-shadow: none;
+}
+.reloj-temporizador-campo .cal-campo-sep {
+  font-size: 19px;
+  font-weight: 700;
+  color: rgba(226, 226, 226, 0.32);
+}
+
 .reloj-tarjeta-alarmas {
   min-height: 0;
   padding: 0;
@@ -5654,22 +5714,6 @@ window.cal-window.csd decoration {
   font-size: 10px;
   color: rgba(226, 226, 226, 0.32);
   font-family: "MesloLGS Nerd Font", monospace;
-}
-
-.reloj-preset {
-  min-height: 20px;
-  padding: 2px 3px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background-color: transparent;
-  color: rgba(226, 226, 226, 0.56);
-  font-size: 9px;
-  font-family: "MesloLGS Nerd Font", monospace;
-}
-.reloj-preset:hover {
-  background-color: color-mix(in srgb, var(--acento, #cba6f7) 9%, transparent);
-  border-color: color-mix(in srgb, var(--acento, #cba6f7) 20%, transparent);
-  color: #e2e2e2;
 }
 
 /* ── Notification settings tabs (Phase 3) ───────────────────────────── */
@@ -5869,6 +5913,11 @@ window.cal-window.csd decoration {
   font-size: 9px;
   color: rgba(226, 226, 226, 0.4);
   font-family: "MesloLGS Nerd Font";
+}
+
+/* Aviso de ruta de audio inexistente: no bloquea el guardado, solo advierte. */
+.re-hint.aviso {
+  color: rgba(250, 179, 135, 0.85);
 }
 
 /* ── Color picker (rules + apps) ─────────────────────────────────────── */
