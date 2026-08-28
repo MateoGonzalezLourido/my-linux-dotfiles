@@ -141,7 +141,7 @@ Useful overrides:
 curl -fsSL <url> | INSTALL_PACKAGES=0 bash        # skip package installation
 curl -fsSL <url> | KITTY_PROFILE=desktop bash     # force a Kitty profile
 curl -fsSL <url> | FIREFOX_PROFILE=laptop bash    # force a Firefox profile
-curl -fsSL <url> | DOTFILES_BRANCH=guides bash    # install a different branch
+curl -fsSL <url> | DOTFILES_BRANCH=<branch> bash     # install a different branch
 curl -fsSL <url> | ASSUME_YES=1 bash              # unattended: no confirmations at all
 ```
 

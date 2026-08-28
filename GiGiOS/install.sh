@@ -6,7 +6,7 @@
 # Uso:
 #   curl -sSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
 #   bash install.sh --help                            # todas las opciones
-#   curl -sSL <url> | DOTFILES_BRANCH=guides bash     # otra rama del repo (no per-equipo: eso va por *_PROFILE)
+#   curl -sSL <url> | DOTFILES_BRANCH=<rama> bash      # otra rama del repo (no per-equipo: eso va por *_PROFILE)
 #   curl -sSL <url> | INSTALL_PACKAGES=0 bash         # sin instalar paquetes
 #   curl -sSL <url> | KITTY_PROFILE=desktop bash      # forzar perfil de Kitty
 #   curl -sSL <url> | FIREFOX_PROFILE=desktop bash    # forzar perfil de Firefox
