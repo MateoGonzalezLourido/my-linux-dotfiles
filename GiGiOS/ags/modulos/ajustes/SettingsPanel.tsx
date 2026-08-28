@@ -12,6 +12,26 @@ import { settingsPanelVisible, setSettingsPanelVisible, privilegedPromptActive }
 import NavegacionAjustes from "./panel/NavegacionAjustes.tsx"
 import { crearContenidoSeccion, type IdSeccion } from "./panel/secciones.tsx"
 import { clasesFondoShell } from "./preferences"
+import { medidasLamina, seguirTamanoLamina } from "../../utilidades/tamanoLamina"
+
+// Tamaño de DISEÑO del panel, con los dos ejes tratados de forma distinta a propósito:
+//
+// - El ANCHO es **fijo**: 860 px y punto. `medidasLamina` solo lo recorta si la pantalla es
+//   más estrecha, que es un caso de "no cabe", no un ajuste al contenido. Nada de dentro
+//   puede ensancharlo — la nav va con `hexpand={false}` y el contenido no propaga ni su
+//   mínimo ni su natural.
+// - El ALTO es un **intervalo**: parte de 700 y se estira hasta lo que quepa en la pantalla.
+//   Quien lo estira es la **NAV**, no la sección: la lista de destinos es lo único constante
+//   entre secciones, así que el panel no cambia de tamaño al navegar y el salto de las que
+//   se pintan tarde (Sistema) desaparece por construcción. El techo lo aplica
+//   `NavegacionAjustes` con `maxContentHeight`.
+//
+// Antes esto vivía como `min-width`/`min-height` en `.sp-panel` más un `heightRequest={700}`
+// fijo aquí, o sea un tamaño único sin relación con la pantalla — ver
+// `utilidades/tamanoLamina.ts`. 860 y no los 820 de aquel `min-width` porque aquel nunca fue
+// el ancho real: el `min-width: 590px` de `.sp-content` más los 226 de la nav ya empujaban
+// el panel a ~855, así que 820 dejaba el contenido más estrecho de lo que estaba.
+const DISENO = { ancho: 860, alto: 700 }
 
 export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
@@ -19,11 +39,21 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   // null = panel cerrado → no se construye ninguna sección. La sección elegida se
   // conserva en `seccion` entre aperturas; lo que se tira es el árbol de widgets.
   const vistaActiva = createComputed(() => settingsPanelVisible() ? seccion() : null)
-  let contenidoDesplazable: Gtk.ScrolledWindow
+  let contenidoDesplazable: Gtk.ScrolledWindow | undefined
+
+  const medidas = medidasLamina(gdkmonitor, DISENO)
 
   const panel = (
-    <box cssClasses={["sp-panel"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}>
+    // El tamaño se PIDE aquí, no en CSS, y se recalcula si el monitor cambia de
+    // resolución (Ajustes > Pantalla lo hace en caliente). El ancho que se pide es el
+    // definitivo; el alto es el de partida, y lo sube la nav. `halign`/`valign` CENTER más
+    // un tamaño acotado a la pantalla es lo que impide el desborde.
+    <box cssClasses={["sp-panel"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0}
+      halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}
+      widthRequest={medidas.ancho} heightRequest={medidas.alto}
+      $={seguirTamanoLamina(gdkmonitor, DISENO)}>
       <NavegacionAjustes
+        gdkmonitor={gdkmonitor}
         seccion={seccion}
         seleccionar={(destino) => {
           establecerSeccion(destino)
@@ -31,15 +61,26 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
         }}
       />
 
-      {/* content (scrollable: algunas secciones —Pantalla— son más altas que el panel) */}
+      {/* Contenido desplazable. **La sección no participa en el tamaño del panel**: ni su
+          mínimo ni su natural suben, así que abre lo que abras el panel mide lo mismo.
+          Las dos piezas:
+
+          - políticas en EXTERNAL: con `hscrollbarPolicy` en NEVER (como estaba) GTK4 suma
+            el MÍNIMO del hijo a lo que pide este ScrolledWindow, así que cualquier sección
+            que pidiera de más ensanchaba el panel entero — y las que se pintan tarde
+            (Sistema rellena sus tarjetas cuando termina el sondeo) lo ensanchaban DESPUÉS
+            de haber salido ya con el tamaño bueno, que es el salto que se veía. EXTERNAL
+            desplaza en vez de empujar, y no dibuja barra (el CSS ya las ocultaba).
+          - `propagateNatural*` en false: lo mismo para el natural. Quien estira el panel es
+            la nav (ver el comentario de `DISENO`). */}
       <Gtk.ScrolledWindow
         cssClasses={["sp-content"]}
         $={(self: Gtk.ScrolledWindow) => { contenidoDesplazable = self }}
         hexpand
         vexpand
-        heightRequest={700}
+        propagateNaturalWidth={false}
         propagateNaturalHeight={false}
-        hscrollbarPolicy={Gtk.PolicyType.NEVER}
+        hscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
         vscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
       >
         <box orientation={Gtk.Orientation.VERTICAL} hexpand>

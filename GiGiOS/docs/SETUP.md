@@ -55,10 +55,10 @@ estén disponibles.
 
 Solo quedan estas decisiones personales:
 
-1. **GPU:** antes de abrir Hyprland, escribe el perfil de esta máquina en
-   `~/.config/gigios/gpu-perfil` (una línea, fuera del repo). Déjalo ausente para Intel o
-   AMD sin NVIDIA; usa `laptop-hibrida` para un portátil Intel+NVIDIA o `sobremesa-nvidia`
-   para una NVIDIA como GPU principal. Consulta la §9.
+1. **GPU:** ya no hace falta hacer nada. El instalador (paso `gpu`) lee las clases PCI de
+   `/sys` y escribe el perfil en `~/.config/gigios/gpu-perfil`; te dice cuál eligió al
+   terminar. Si el acierto no te vale, escribí otro nombre a mano: el fichero **nunca se
+   pisa** si ya existe. Consulta la §9.
 2. **Spotify:** ejecuta `~/.config/ags/scripts/spotify-auth.sh` si quieres integrar tu
    cuenta. Es opcional y las credenciales nunca se incluyen en Git.
 3. **Seguridad:** `install.sh` ya descarga las firmas de ClamAV; si te saltaste ese paso, `sudo freshclam` una vez. A partir de ahí se comprueban al iniciar sesión y se actualizan solas si están viejas (interruptor «Actualizar las firmas al iniciar sesión» en Ajustes > Seguridad > Antivirus); durante la sesión no corre ningún `clamav-freshclam` ni temporizador equivalente.
@@ -559,16 +559,34 @@ versiona** (la elección de máquina es estado local, como manda
 echo sobremesa-nvidia > ~/.config/gigios/gpu-perfil
 ```
 
+Normalmente no tendrás que escribirlo: el instalador lo hace por ti en el paso `gpu`
+(`install.sh --solo gpu` lo repite sin tocar nada más) recorriendo `/sys/bus/pci/devices`
+y mirando la clase PCI `0x03xxxx` y el fabricante de cada tarjeta. Lee `/sys` y no
+`lspci` a propósito: el paso puede correr con `--sin paquetes`, donde `pciutils` no está
+garantizado. La regla es:
+
+| Hardware detectado                    | Perfil que escribe |
+| ------------------------------------- | ------------------ |
+| NVIDIA + iGPU (Intel/AMD) **y batería** | `laptop-hibrida`   |
+| NVIDIA sin iGPU, o NVIDIA sin batería   | `sobremesa-nvidia` |
+| Solo Intel o solo AMD                   | `integrada`        |
+
 - **Portátil Intel + NVIDIA para offload:** `laptop-hibrida`. Hyprland y la pantalla
   funcionan sobre Intel; los juegos pesados se lanzan con `prime-run`.
 - **Sobremesa NVIDIA:** `sobremesa-nvidia`.
-- **Solo AMD o solo Intel:** deja el fichero ausente. Normalmente Hyprland puede escoger
-  la GPU automáticamente; crea un perfil específico únicamente si necesitas fijar
-  dispositivos o solucionar una particularidad del driver.
+- **Solo AMD o solo Intel:** `integrada`. Ese módulo **no configura nada**, y ese es su
+  cometido: Mesa y aquamarine ya eligen bien cuando hay una sola GPU, y las variables de
+  los perfiles NVIDIA sobre Mesa rompen la aceleración de vídeo en vez de mejorarla.
+  Existe para que «no hay nada que configurar» sea una respuesta y no un hueco — con el
+  fichero ausente, `gpu.lua` no puede distinguirlo de «todavía no lo he elegido» y avisa
+  en pantalla en **cada inicio de sesión**.
+- **`nvidia-vieja-hyde`:** nunca se elige solo. Es un apaño para tarjetas antiguas
+  concretas; ponlo a mano si sabes que lo necesitas.
 
-Los perfiles de portátil híbrido y sobremesa NVIDIA están versionados. Sin fichero (o con
-un nombre que no exista) no se aplica ninguno y sale un aviso en pantalla, pero el
-compositor arranca igual: el primer arranque es portable.
+`nvidia-vieja-hyde` aparte, los cuatro perfiles están versionados. El instalador **no
+pisa** un `gpu-perfil` que ya exista, así que tu elección manual gana siempre. Sin
+fichero (o con un nombre que no exista) no se aplica ninguno y sale un aviso en pantalla,
+pero el compositor arranca igual: el primer arranque es portable.
 
 `gigios/env-firefox.lua` solo activa Wayland/EGL y no fuerza un driver VA-API ni desactiva el
 sandbox multimedia. Los ajustes exclusivos de NVIDIA están aislados en el perfil de
@@ -790,8 +808,7 @@ directorios que sueles copiar**:
 
 | Ruta | Por qué importa |
 |---|---|
-| `~/.config/hypr/scripts/compact-workspaces.sh` | compacta workspaces (`SUPER+SHIFT+N`); incluido en GiGiOS |
-| `~/.config/hypr/scripts/toggle-gaps-borders.sh` | alterna gaps (`SUPER+SHIFT+E`); incluido en GiGiOS |
+| `~/.config/hypr/gigios/keybinds.lua` | compactar workspaces (`SUPER+SHIFT+N`) y alternar gaps (`SUPER+SHIFT+E`) son hoy `GiGiOS.compactar()` y `GiGiOS.toggle_gaps()` **dentro del config Lua**; los `compact-workspaces.sh` / `toggle-gaps-borders.sh` de esta tabla desaparecieron en la migración a Lua |
 | `~/.config/inicializador/init.sh` | lo lanza `gigios/autostart.lua`; está versionado en `GiGiOS/inicializador/` y `GiGiOS/bin/link.sh` crea el enlace |
 | `~/.local/share/fonts/SF Pro Display/*.otf` | fuente del lock screen, no empaquetada (§3) |
 | `~/.local/share/fonts/steelfish outline regular/*.otf` | fuente del lock screen, no empaquetada (§3) |

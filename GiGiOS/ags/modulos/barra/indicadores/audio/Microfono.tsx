@@ -2,6 +2,11 @@ import { Gtk, Gdk } from "ags/gtk4"
 import { createState } from "ags"
 import AstalWp from "gi://AstalWp"
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
+import { hayUsoDeMicrofono } from "../../../../servicios/multimedia/capturasMicrofono"
+import {
+  clasificacionPendiente, origenCapturas, sincronizarOrigenes,
+} from "../../../../servicios/multimedia/origenCapturas"
+import { microfonoAppsIgnoradas } from "../../../ajustes/preferences"
 
 export default function Microfono() {
     const cicloVida = crearCicloVida()
@@ -43,17 +48,39 @@ export default function Microfono() {
                 return !route || route.available !== AstalWp.Available.NO
             })
 
-        // El micro se considera "activo" si CUALQUIER app tiene una captura abierta.
+        // El micro se considera "activo" si alguna app tiene una captura abierta.
         // AstalWp ya expone esas capturas como `audio.recorders` y emite
         // `recorder-added`/`recorder-removed` al instante, así que en vez de sondear
         // `pactl` cada 2 s (un subproceso por monitor) reaccionamos a las señales:
         // cero subprocesos, cero timers y sin coste cuando no hay nada capturando.
-        const isRecording = () => (audio.recorders?.length ?? 0) > 0
+        //
+        // NO vale con contar `recorders`: ahí entra todo lo que capture una
+        // ENTRADA de audio, incluido el monitor de un altavoz o la salida de otra
+        // app. Nuestro propio `cava` (la onda de Spotify) encendía el icono al dar
+        // a play. Quién es quién lo decide `capturasMicrofono.ts` con lo que
+        // `origenCapturas.ts` averigua por `pactl`; ahí están las medidas.
+        const isRecording = () => hayUsoDeMicrofono(
+            audio.recorders,
+            microfonoAppsIgnoradas.get(),
+            origenCapturas.get(),
+            // Con una consulta en vuelo, lo aún sin clasificar espera: contarlo
+            // haría parpadear el icono al arrancar una captura de sistema.
+            clasificacionPendiente.get() ? "espera" : "cuenta",
+        )
 
         // Visible siempre que haya un micro conectado Y alguna app lo esté usando.
         // El mute ya NO oculta el icono: solo cambia su apariencia (ver más abajo),
         // para que se vea que una app tiene el micro abierto aunque esté silenciado.
-        const sync = () => setVisible(hasMic() && isRecording())
+        //
+        // `sincronizarOrigenes` no lanza nada si ya conoce todas las capturas
+        // vivas, así que puede ir en el camino común sin miedo a un bucle:
+        // recibir un veredicto vuelve a llamar aquí, y esa segunda vez ya no
+        // pregunta nada. Esa vuelta es además lo que cierra la carrera de una
+        // captura que aparezca con la consulta anterior en vuelo.
+        const sync = () => {
+            sincronizarOrigenes(audio.recorders)
+            setVisible(hasMic() && isRecording())
+        }
         sync()
 
         // TODAS las señales recalculan las DOS condiciones, no "cada una la suya".
@@ -75,6 +102,12 @@ export default function Microfono() {
         // Cubre el caso de que ya hubiera una captura al arrancar/recargar AGS
         // (el recorder-added pudo emitirse antes de conectar los handlers).
         cicloVida.conectarSenales(audio, ["notify::recorders", "notify::microphones"], sync)
+        // Apartar (o recuperar) una captura desde Ajustes tiene que verse al momento:
+        // la lista cambia sin que WirePlumber emita nada. Igual el veredicto de
+        // `pactl`, que llega unos ms después del evento que lo pidió.
+        cicloVida.suscribir(microfonoAppsIgnoradas, sync)
+        cicloVida.suscribir(origenCapturas, sync)
+        cicloVida.suscribir(clasificacionPendiente, sync)
 
         let desconectarMicro: (() => void) | null = null
         const bindMic = (next: AstalWp.Endpoint | null) => {

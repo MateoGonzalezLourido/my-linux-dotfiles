@@ -40,6 +40,14 @@
 # Ojo: este motivo NO pasa por `gamingFreeze`. Son dos interruptores distintos, cada uno
 # con su UI; apagar la congelación al jugar no debe apagar la del ahorro.
 #
+# APAGAR LA DETECCIÓN ENTERA: Ajustes > Juegos > "Detectar juegos en marcha"
+# (`escanerJuegos` en preferences.json) para de raíz el escáner de ventanas del shell. No
+# hace falta tocar nada aquí: sin escáner AGS escribe `gaming: false` de forma permanente
+# —y `gameScanner: false` al lado, por si algún lector quiere distinguir "ahora no hay
+# ninguna partida" de "en este equipo no se juega"—, así que el motivo "juego" no se
+# dispara nunca y `gamingFreeze` queda sin efecto. El motivo AHORRO sigue igual: es otro
+# interruptor y no pasa por la detección.
+
 # El gate BLOQUEA, no SALTA: el trabajo aplazado se hace en cuanto cierras el juego,
 # no se pierde. Por eso va justo ANTES del cuerpo del sondeo y DESPUÉS de la espera
 # (así updates-monitor sigue bloqueado en su inotify, que no cuesta nada).

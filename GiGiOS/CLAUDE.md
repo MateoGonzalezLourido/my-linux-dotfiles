@@ -170,7 +170,10 @@ ya medido (efecto sin error visible) que se repite si no se conoce.
 Puntos que conviene recordar sin abrir el documento:
 
 - El **perfil de GPU** es machine-specific y lo elige `~/.config/gigios/gpu-perfil` (fichero local
-  fuera del repo), no un comentario a mano.
+  fuera del repo), no un comentario a mano. Lo escribe el instalador (paso `gpu`, detección por
+  clase PCI en `/sys`) y **nunca pisa uno que ya exista**. `integrada.lua` es el perfil vacío a
+  propósito de una Intel/AMD sola: con el fichero ausente, `gpu.lua` avisa en pantalla en cada
+  inicio de sesión porque no puede distinguir «no hay nada que configurar» de «no lo he elegido».
 - `gigios/dispositivos.lua`, `gigios/pantalla.lua` y `gigios/env.lua` leen JSON de
   `~/.config/gigios/` (dispositivos, pantalla, idioma) escrito por AGS — ausencia de clave = no se
   aplica nada, nunca un valor de fábrica que sorprenda en otra máquina.

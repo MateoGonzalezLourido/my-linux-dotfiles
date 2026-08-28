@@ -11,6 +11,7 @@
 // fondo y no se ve. La caché de disco es la que hace el pintado instantáneo, y
 // releerla cuesta una lectura de 8 KB que ya está en la caché de páginas.
 import { Gtk } from "ags/gtk4"
+import Pango from "gi://Pango"
 import { With, createState, onCleanup } from "ags"
 import { TituloSeccion, TituloSubseccion } from "../componentes"
 import SupervisionSistema from "./SupervisionSistema"
@@ -30,8 +31,15 @@ function InfoGroupView({ group }: { group: InfoGroup }) {
       {group.items.map((item, i) => (
         <box cssClasses={i ? ["sys-row", "bordered"] : ["sys-row"]} spacing={20}>
           <label cssClasses={["sys-label"]} label={item.label} halign={Gtk.Align.START} valign={Gtk.Align.START} />
+          {/* `wrapMode` WORD_CHAR y no el WORD por defecto: el ancho MÍNIMO de una etiqueta
+              que envuelve por palabras es el de su palabra más larga, y aquí los valores son
+              cosas como una versión de kernel o un modelo de GPU, sin un solo espacio donde
+              partir. Esta sección es además la que se pinta TARDE (el sondeo termina después
+              del primer frame), así que ese mínimo llegaba con el panel ya en pantalla y lo
+              ensanchaba de golpe. Partiendo también por carácter, el mínimo es de un carácter
+              y la sección no puede empujar al panel. */}
           <label cssClasses={["sys-value"]} label={item.value} hexpand halign={Gtk.Align.START}
-            xalign={0} wrap={true} selectable={true} maxWidthChars={48} />
+            xalign={0} wrap={true} wrapMode={Pango.WrapMode.WORD_CHAR} selectable={true} maxWidthChars={48} />
         </box>
       ))}
     </box>

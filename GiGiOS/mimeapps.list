@@ -164,7 +164,7 @@ text/yaml=code.desktop;
 
 # Texto y documentación ligera
 application/octet-stream=org.kde.kate.desktop;
-text/markdown=obsidian.desktop;org.kde.kate.desktop;
+text/markdown=code.desktop;obsidian.desktop;org.kde.kate.desktop;
 text/plain=org.kde.kate.desktop;
 text/x-xresources=org.kde.kate.desktop;
 
@@ -390,4 +390,4 @@ image/x-tga=org.kde.kolourpaint.desktop;
 image/x-xbitmap=org.kde.kolourpaint.desktop;
 image/x-xcf=org.kde.kolourpaint.desktop;
 image/x-xpixmap=org.kde.kolourpaint.desktop;
-text/markdown=okularApplication_md.desktop;
+text/markdown=code.desktop;okularApplication_md.desktop;

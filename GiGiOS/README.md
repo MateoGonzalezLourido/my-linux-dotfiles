@@ -114,15 +114,26 @@ curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfi
 This will:
 
 1. Install every package this rice depends on (Hyprland, AGS/Astal, hyprlock/hypridle,
-   ClamAV, Firejail, TLP, and the full desktop app set) via `pacman`/`paru`/`yay`.
+   ClamAV, Firejail, TLP, and the full desktop app set) in **one transaction**. When `paru`
+   or `yay` is present it drives the whole list, repo and AUR together — one confirmation,
+   one dependency resolution, and AGS/Astal come as a **binary** from any repo that carries
+   them (`chaotic-aur` does) instead of compiling `libastal-meta` from source.
 2. Clone the bare dotfiles repo and check it out into `$HOME` (backing up anything in the way).
 3. Symlink every config into its canonical XDG path (`~/.config/ags`, `~/.config/hypr`, …).
-4. Select the right Kitty/Firefox profile for this machine (or force it, see below).
-5. Compile the shell's SCSS, rebuild the Dolphin thumbnail cache.
-6. Install the `/etc` fragments that legitimately need root (USB writeback udev rule, `i2c-dev`
+4. Install the `/etc` fragments that legitimately need root (USB writeback udev rule, `i2c-dev`
    for DDC/CI brightness, TLP profile switch helper + sudoers rule, ClamAV update helper +
-   sudoers rule, handing the power button over to Hyprland).
-7. Run a final preflight check.
+   sudoers rule, handing the power button over to Hyprland) — and kick off the ~200 MB ClamAV
+   signature download **in the background**, so it overlaps with everything below.
+5. Select the right Kitty/Firefox profile for this machine (or force it, see below).
+6. Compile the shell's SCSS, rebuild the Dolphin thumbnail cache.
+7. Enable the services the desktop needs (NetworkManager, Bluetooth, and — on a laptop —
+   TLP, disabling `power-profiles-daemon` first because the two fight over the same knobs).
+8. Detect the GPU and write this machine's profile to `~/.config/gigios/gpu-perfil`
+   (never overwriting one you wrote yourself).
+9. Run a final preflight check.
+
+Every one of those is a named step: `install.sh --pasos` lists them, `--solo`/`--sin` pick
+or skip any combination (`install.sh --solo gpu`, `install.sh --sin clamav-db,cursor`).
 
 Useful overrides:
 
@@ -131,7 +142,12 @@ curl -fsSL <url> | INSTALL_PACKAGES=0 bash        # skip package installation
 curl -fsSL <url> | KITTY_PROFILE=desktop bash     # force a Kitty profile
 curl -fsSL <url> | FIREFOX_PROFILE=laptop bash    # force a Firefox profile
 curl -fsSL <url> | DOTFILES_BRANCH=guides bash    # install a different branch
+curl -fsSL <url> | ASSUME_YES=1 bash              # unattended: no confirmations at all
 ```
+
+`ASSUME_YES=1` (or `--yes`) is what you want for an unattended reinstall: it silences
+pacman's confirmation and, for anything that really has to be built from AUR, the
+helper's PKGBUILD review prompts too.
 
 The same command **updates** an already-installed machine: it fetches, fast-forwards the local
 checkout, and re-verifies every symlink.
@@ -141,8 +157,9 @@ checkout, and re-verifies every symlink.
 A couple of one-time, per-machine choices that are intentionally **not** versioned (they're local
 state, not code — see `docs/anadir-perfiles-por-equipo.md`):
 
-- **GPU profile**: write one line to `~/.config/gigios/gpu-perfil` (`sobremesa-nvidia`,
-  `laptop-hibrida`, or leave it absent for plain Intel/AMD).
+- **GPU profile**: the installer detects it and writes `~/.config/gigios/gpu-perfil` for you
+  (`laptop-hibrida`, `sobremesa-nvidia`, or `integrada` for plain Intel/AMD). It never
+  overwrites a file you already wrote, so override it by hand whenever the guess is wrong.
 - **Region/locale**: set once from Settings → Region (nothing is assumed on your behalf).
 - **Cursor theme**: set once from Settings → Devices → Pointer, if you want a specific one.
 

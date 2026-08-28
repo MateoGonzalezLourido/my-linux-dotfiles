@@ -17,6 +17,10 @@ local VALIDOS = {
   ["laptop-hibrida"] = true,
   ["sobremesa-nvidia"] = true,
   ["nvidia-vieja-hyde"] = true,
+  -- "no hay nada que configurar" también es una elección: sin este nombre, la
+  -- única forma de decirlo era dejar el fichero ausente, y eso avisaba en cada
+  -- inicio de sesión en cualquier máquina Intel/AMD. Ver gpu/integrada.lua.
+  ["integrada"] = true,
 }
 
 local ruta = util.HOGAR .. "/.config/gigios/gpu-perfil"

@@ -2,6 +2,25 @@ hypr/docs/superpowers/
 hypr/scripts/wallpaper.sh.save
 .directory
 ags/estilos/out.css.map
-ags/**/*.test.ts
+# Tests: son de desarrollo momentáneo, NO se versionan ni viajan al instalador.
+# Sin ancla de directorio ni extensión fija a propósito: la regla anterior era
+# `ags/**/*.test.ts`, y eso dejaba pasar un `.test.tsx`, un `.spec.ts` o un test
+# escrito fuera de `ags/`. Un patrón sin `/` casa a cualquier profundidad.
+#
+# El otro lado de esta regla vive en dos sitios, y hay que tocar los tres a la vez:
+#   - `bin/preflight.sh` NO puede exigir un test en su lista `required` (un checkout
+#     limpio no lo tiene nunca; tiene una guardia que lo comprueba con check-ignore),
+#   - `bin/verify-files.sh` (pre-push) rechaza el push si alguno acaba rastreado.
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.jsx
+*.test.mts
+*.spec.ts
+*.spec.tsx
+*.spec.js
+*_test.py
+*_test.js
+test_*.py
 hypr/logs/
 __pycache__/

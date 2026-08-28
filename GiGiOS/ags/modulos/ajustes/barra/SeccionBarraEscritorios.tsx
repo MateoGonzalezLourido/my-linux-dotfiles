@@ -1,6 +1,7 @@
 import { For, onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import Interruptor from "../../../componentes/Interruptor"
+import CapturasMicrofono from "./CapturasMicrofono"
 import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
 import { InlineEditableValue } from "../../../componentes/InlineEditableValue"
 import {
@@ -24,6 +25,7 @@ import {
   WORKSPACE_APP_LIMIT_MIN, WORKSPACE_APP_LIMIT_MAX,
   workspaceVisibleLimit, setWorkspaceVisibleLimit,
   WORKSPACE_VISIBLE_LIMIT_MIN, WORKSPACE_VISIBLE_LIMIT_MAX,
+  segundaVentanaAlLado, setSegundaVentanaAlLado,
 } from "../preferences"
 import {
   knownTrayApps, hiddenTrayApps, trayOverflowAt,
@@ -135,6 +137,10 @@ export default function SeccionBarraEscritorios({ vista }: { vista: VistaBarra }
         <AjusteInterruptor titulo={textos.barra.bateria.titulo} informacion={textos.barra.bateria.descripcion} activo={batteryBarEnabled} alAlternar={() => setBatteryBarEnabled(!batteryBarEnabled.get())} />
         <AjusteInterruptor titulo={textos.barra.red.titulo} informacion={textos.barra.red.descripcion} activo={networkBarEnabled} alAlternar={() => setNetworkBarEnabled(!networkBarEnabled.get())} />
         <AjusteInterruptor titulo={textos.barra.indicadorMicrofono.titulo} informacion={textos.barra.indicadorMicrofono.descripcion} activo={micIndicatorEnabled} alAlternar={() => setMicIndicatorEnabled(!micIndicatorEnabled.get())} />
+        {/* Debajo del interruptor y solo con él activo: la lista de capturas es
+            lo que decide cuándo se enciende ese icono, así que sin indicador no
+            gobierna nada. */}
+        <box visible={micIndicatorEnabled}><CapturasMicrofono /></box>
         <AjusteInterruptor titulo={textos.barra.compartirPantalla.titulo} informacion={textos.barra.compartirPantalla.descripcion} activo={screencastIndicatorEnabled} alAlternar={() => setScreencastIndicatorEnabled(!screencastIndicatorEnabled.get())} />
         <AjusteInterruptor titulo={textos.barra.bandeja.titulo} informacion={textos.barra.bandeja.descripcion} activo={trayBarEnabled} alAlternar={() => setTrayBarEnabled(!trayBarEnabled.get())} />
         <AjusteInterruptor titulo={textos.barra.notificaciones.titulo} informacion={textos.barra.notificaciones.descripcion} activo={notificationBarEnabled} alAlternar={() => setNotificationBarEnabled(!notificationBarEnabled.get())} />
@@ -168,6 +174,15 @@ export default function SeccionBarraEscritorios({ vista }: { vista: VistaBarra }
             alCambiar={setWorkspaceVisibleLimit}
           />
         </box>
+      </TarjetaAjustes>}
+
+      {vista === "workspaces" && <TarjetaAjustes titulo={textos.seccionesNuevas.barraEscritorios.colocacion} icono="󰕰">
+        <AjusteInterruptor
+          titulo={textos.ventanas.segundaAlLado.titulo}
+          informacion={textos.ventanas.segundaAlLado.descripcion}
+          activo={segundaVentanaAlLado}
+          alAlternar={() => setSegundaVentanaAlLado(!segundaVentanaAlLado.get())}
+        />
       </TarjetaAjustes>}
 
       {vista === "barra" && <TarjetaAjustes titulo={textosApps.seccion.titulo} icono="󰀻" visible={trayBarEnabled}>

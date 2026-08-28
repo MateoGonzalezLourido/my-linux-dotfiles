@@ -1,0 +1,9 @@
+{
+  "descripcion": "Apps que están capturando audio. Las que graban la salida del sistema se apartan solas; desactiva a mano solo lo que la detección no acierte.",
+  "vacio": "Ninguna app está capturando audio ahora mismo.",
+  "fila": {
+    "capturando": "Usa el micrófono",
+    "sistema": "Graba la salida del sistema",
+    "inactiva": "Sin capturar"
+  }
+}

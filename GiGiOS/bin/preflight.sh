@@ -12,27 +12,36 @@ ok() { printf 'OK      %s\n' "$*"; }
 fail() { printf 'ERROR   %s\n' "$*" >&2; errors=$((errors + 1)); }
 warn() { printf 'AVISO   %s\n' "$*"; warnings=$((warnings + 1)); }
 
+# SOLO FICHEROS VERSIONADOS. Aquí llegó a haber nueve `*.test.ts` y eso hacía que
+# el instalador FALLASE SIEMPRE en una máquina nueva: `.gitignore` lleva
+# `ags/**/*.test.ts` desde que los tests de AGS dejaron de versionarse, así que un
+# checkout limpio no puede contenerlos por definición — el preflight final salía con
+# nueve "falta ..." y el instalador terminaba con "la instalación NO está completa"
+# aunque todo estuviera bien. En la máquina de desarrollo pasaba porque allí los
+# ficheros existen sin estar rastreados, que es justo el caso que oculta el fallo.
+# La comprobación de coherencia de más abajo impide que vuelva a colarse una ruta
+# ignorada en esta lista.
 required=(
   install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh ags/app.ts ags/estilos/style.scss ags/estilos/out.css
   mimeapps.list menus/applications.menu kdeglobals qt6ct/qt6ct.conf
   mime/packages/text-x-xresources.xml mime/packages/text-x-codigo.xml
   ags/servicios/juegos/evidencia.ts ags/servicios/juegos/iconos.ts
-  ags/modulos/barra/escritorios/orden.ts ags/modulos/barra/escritorios/orden.test.ts
-  ags/modulos/barra/escritorios/descripcion.ts ags/modulos/barra/escritorios/descripcion.test.ts
-  ags/servicios/energia/tiempoMantenerDespierto.ts ags/servicios/energia/tiempoMantenerDespierto.test.ts
-  ags/servicios/bluetooth/estadoInicio.ts ags/servicios/bluetooth/estadoInicio.test.ts
-  ags/servicios/bluetooth/tileState.ts ags/servicios/bluetooth/tileState.test.ts
+  ags/modulos/barra/escritorios/orden.ts
+  ags/modulos/barra/escritorios/descripcion.ts
+  ags/servicios/energia/tiempoMantenerDespierto.ts
+  ags/servicios/bluetooth/estadoInicio.ts
+  ags/servicios/bluetooth/tileState.ts
   ags/servicios/pantalla/brightness.ts ags/servicios/pantalla/atenuacion.ts
-  ags/servicios/multimedia/mediaClient.ts ags/servicios/multimedia/mediaClient.test.ts
-  ags/servicios/multimedia/mediaProgress.ts ags/servicios/multimedia/mediaProgress.test.ts
+  ags/servicios/multimedia/mediaClient.ts
+  ags/servicios/multimedia/mediaProgress.ts
   ags/modulos/notificaciones/daemon/BannerConflicto.tsx ags/modulos/notificaciones/daemon/comprobacion.ts
-  ags/modulos/notificaciones/rules/engine.style.test.ts ags/modulos/ajustes/ProfileAvatar.tsx
+  ags/modulos/ajustes/ProfileAvatar.tsx
   ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx ags/modulos/ajustes/seguridad/preferencias.ts
   ags/modulos/ajustes/accesibilidad/SeccionAccesibilidad.tsx ags/modulos/ajustes/accesibilidad/OpcionDaltonismo.tsx ags/modulos/ajustes/accesibilidad/daltonismo.ts
-  ags/modulos/ajustes/accesibilidad/daltonismo.test.ts ags/textos/ajustes/accesibilidad.json
+  ags/textos/ajustes/accesibilidad.json
   hypr/hyprland.lua hypr/gigios/util.lua hypr/gigios/json.lua hypr/gigios/variables.lua
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
-  hypr/gigios/gpu.lua hypr/gigios/gpu/laptop-hibrida.lua hypr/gigios/gpu/sobremesa-nvidia.lua
+  hypr/gigios/gpu.lua hypr/gigios/gpu/laptop-hibrida.lua hypr/gigios/gpu/sobremesa-nvidia.lua hypr/gigios/gpu/integrada.lua
   Wallpapers/sunset.jpg
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
@@ -46,6 +55,28 @@ required=(
 for path in "${required[@]}"; do
   [[ -f "$GIGIOS/$path" ]] || fail "falta $path"
 done
+
+# Guardia contra la regresión que rompió el instalador: una ruta IGNORADA por git no
+# puede exigirse, porque en la máquina de desarrollo existe (y pasa) y en un checkout
+# limpio no existe nunca (y falla). El fallo no se ve donde se edita la lista, sólo en
+# la máquina nueva, que es el peor sitio posible para descubrirlo. Se comprueba contra
+# el mismo git que versiona GiGiOS: el repo bare de dotfiles (lo normal) o un clon
+# corriente. Sin git no se comprueba nada — es una guardia de desarrollo, no un
+# requisito de instalación.
+PREFLIGHT_GIT=()
+if command -v git >/dev/null 2>&1; then
+  if git --git-dir="$HOME/.dotfiles" --work-tree="$HOME" rev-parse --git-dir >/dev/null 2>&1; then
+    PREFLIGHT_GIT=(git --git-dir="$HOME/.dotfiles" --work-tree="$HOME")
+  elif git -C "$GIGIOS" rev-parse --show-toplevel >/dev/null 2>&1; then
+    PREFLIGHT_GIT=(git -C "$GIGIOS")
+  fi
+fi
+if ((${#PREFLIGHT_GIT[@]})); then
+  for path in "${required[@]}"; do
+    "${PREFLIGHT_GIT[@]}" check-ignore -q "$GIGIOS/$path" 2>/dev/null \
+      && fail "required exige un fichero que .gitignore excluye: $path (un checkout limpio nunca lo tendrá)"
+  done
+fi
 
 # Todos los módulos que carga el config Lua deben formar parte del checkout.
 # Bajo hyprlang un `source =` ausente sacaba el overlay de error de Hyprland; en
@@ -109,19 +140,18 @@ if command -v python3 >/dev/null 2>&1; then
   done < <(find "$GIGIOS/hypr/scripts" -type f -name '*.py' -print)
   find "$GIGIOS/hypr/scripts" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null
 
-  # El motor de selección de fondos decide qué fondo toca a cada hora, y sus
-  # casos límite (la vuelta de medianoche, el tramo vacío) fallan de forma muda:
-  # el escritorio sale con "un" fondo, solo que el equivocado.
+  # El motor de selección de fondos decide qué fondo toca a cada hora, y sus casos
+  # límite (la vuelta de medianoche, el tramo vacío) fallan de forma muda: el
+  # escritorio sale con "un" fondo, solo que el equivocado. Si el test está, se corre.
   #
-  # Ausente es AVISO y no error a propósito: los tests de AGS dejaron de
-  # versionarse (`ags/**/*.test.ts` en .gitignore), así que si algún día se hace
-  # lo mismo con estos, un checkout limpio no puede fallar el preflight por una
-  # decisión deliberada. Pero se dice, para que "no se ejecutan" nunca sea mudo.
+  # AUSENTE NO DICE NADA, y es deliberado: ningún test se versiona (ver .gitignore),
+  # así que un checkout limpio NUNCA lo tiene. Avisar aquí sería un aviso fijo en cada
+  # instalación por una decisión tomada a propósito — el mismo ruido que ya rompió el
+  # instalador cuando `required` exigía los `*.test.ts`. Los tests son de la máquina de
+  # desarrollo; ahí es donde este bloque tiene algo que ejecutar.
   if [[ -f "$GIGIOS/hypr/scripts/lib/seleccion_fondos_test.py" ]]; then
     (cd "$GIGIOS/hypr/scripts/lib" && python3 -m unittest discover -p '*_test.py' -q >/dev/null 2>&1) \
       || fail "las pruebas del motor de fondos (hypr/scripts/lib) no pasan"
-  else
-    warn "sin pruebas del motor de fondos: hypr/scripts/lib/seleccion_fondos_test.py no está en el checkout"
   fi
 fi
 
@@ -200,9 +230,16 @@ if [[ "$mode" == "--installed" ]]; then
     fi
   fi
 
+  # La comparación es de LÍNEA EXACTA a propósito: lo que se valida no es "esta app
+  # aparece en algún sitio" sino el ORDEN, y el orden es lo que decide qué app abre el
+  # archivo. Contrapartida conocida: cambiar un predeterminado desde Dolphin («Abrir con >
+  # Establecer como predeterminada») reescribe mimeapps.list y hace fallar este bloque —
+  # es lo buscado. Si el cambio era a propósito, se actualiza la tabla de aquí abajo en el
+  # mismo commit que el mimeapps.list; si no, el fallo avisa de que una app te ha robado
+  # una asociación por la espalda, que era invisible hasta que abrías el archivo.
   while IFS='|' read -r mime application; do
     grep -Fqx "$mime=$application;" "$GIGIOS/mimeapps.list" \
-      || fail "asociación MIME ausente: $mime -> $application"
+      || fail "asociación MIME ausente: $mime -> $application (actual: $(grep -m1 "^$mime=" "$GIGIOS/mimeapps.list" || echo 'sin entrada'))"
   done <<'EOF'
 inode/directory|org.kde.dolphin.desktop
 application/pdf|firefox.desktop
@@ -211,7 +248,7 @@ image/png|org.kde.gwenview.desktop
 video/mp4|org.kde.haruna.desktop
 audio/mpeg|org.kde.elisa.desktop
 text/plain|org.kde.kate.desktop
-text/markdown|obsidian.desktop;org.kde.kate.desktop
+text/markdown|code.desktop;obsidian.desktop;org.kde.kate.desktop
 text/x-xresources|org.kde.kate.desktop
 text/x-csrc|code.desktop
 text/x-configuration|code.desktop
@@ -484,6 +521,56 @@ EOF
     fi
     rm -f "$bundle"
   fi
+  # Perfil de GPU. Sin él gigios/gpu.lua avisa en pantalla EN CADA INICIO DE SESIÓN, y
+  # como el escritorio arranca igual el aviso se vuelve ruido de fondo que nadie atiende.
+  # El instalador lo escribe solo (paso `gpu`); aquí sólo se comprueba que quedó puesto y
+  # que el nombre existe como módulo — un nombre inválido no aplica NADA y avisa igual.
+  gpu_perfil_ruta="$HOME/.config/gigios/gpu-perfil"
+  if [[ -s "$gpu_perfil_ruta" ]]; then
+    gpu_perfil="$(tr -d '[:space:]' < "$gpu_perfil_ruta")"
+    if [[ -f "$GIGIOS/hypr/gigios/gpu/$gpu_perfil.lua" ]]; then
+      ok "perfil de GPU: $gpu_perfil"
+    else
+      fail "perfil de GPU desconocido: '$gpu_perfil' (no existe hypr/gigios/gpu/$gpu_perfil.lua)"
+    fi
+  else
+    warn "sin perfil de GPU en $gpu_perfil_ruta (Hyprland avisará en cada inicio; ejecutá install.sh --solo gpu)"
+  fi
+
+  # TLP. Sólo aplica donde hay batería del sistema: el instalador no instala TLP en un
+  # sobremesa a propósito. La trampa que esto destapa es que el paquete puede estar
+  # instalado y la unidad NO activada — el selector de Ajustes > Energía sigue
+  # funcionando (el helper hace `tlp start` en caliente) y por eso nadie lo nota, pero
+  # cada arranque empieza sin gestión de energía y el portátil consume de más.
+  if compgen -G '/sys/class/power_supply/*/type' >/dev/null; then
+    tiene_bateria_sistema=0
+    for tipo_fichero in /sys/class/power_supply/*/type; do
+      [[ -r "$tipo_fichero" ]] || continue
+      IFS= read -r tipo < "$tipo_fichero" || continue
+      [[ "$tipo" == Battery ]] || continue
+      alimentacion="${tipo_fichero%/type}"
+      if [[ -r "$alimentacion/scope" ]]; then
+        IFS= read -r alcance < "$alimentacion/scope" || continue
+        [[ "$alcance" == Device ]] && continue
+      fi
+      tiene_bateria_sistema=1
+      break
+    done
+    if ((tiene_bateria_sistema)); then
+      if ! command -v tlp >/dev/null 2>&1; then
+        fail "falta 'tlp' en un equipo con batería (sudo pacman -S --needed tlp tlp-rdw)"
+      elif ! systemctl is-enabled --quiet tlp.service 2>/dev/null; then
+        fail "tlp.service no está activado: cada arranque empieza sin gestión de energía (sudo systemctl enable --now tlp.service)"
+      else
+        ok "TLP activo (perfiles Normal/Ahorro de Ajustes > Energía)"
+      fi
+      if systemctl is-enabled --quiet power-profiles-daemon.service 2>/dev/null ||
+         systemctl is-active --quiet power-profiles-daemon.service 2>/dev/null; then
+        warn "power-profiles-daemon compite con TLP por los mismos ajustes (sudo systemctl disable --now power-profiles-daemon.service)"
+      fi
+    fi
+  fi
+
   "$GIGIOS/bin/link.sh" --check || fail "symlinks incompletos"
 fi
 

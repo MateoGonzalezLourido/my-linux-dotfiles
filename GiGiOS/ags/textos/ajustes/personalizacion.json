@@ -5,7 +5,8 @@
       "comportamiento": "Comportamiento",
       "elementos": "Módulos visibles",
       "espaciosBarra": "Espacios de trabajo en la barra",
-      "espacios": "Límites del selector"
+      "espacios": "Límites del selector",
+      "colocacion": "Colocación de ventanas"
     },
     "funcionesShell": {
       "titulo": "Funciones del shell",
@@ -143,6 +144,10 @@
     }
   },
   "ventanas": {
+    "segundaAlLado": {
+      "titulo": "La segunda ventana, al lado",
+      "descripcion": "Con una sola ventana en el escritorio, la siguiente se abre a la derecha en vez de apilarse debajo, esté donde esté el ratón.\nA partir de la tercera cada ventana se coloca donde señale el puntero, como siempre.\nSe aplica al instante."
+    },
     "anclaje": {
       "titulo": "Anclar ventanas al escritorio de lanzamiento",
       "descripcion": "Al abrir una app desde el buscador (SUPER+ESPACIO) o desde Orion, su ventana aparece en el escritorio donde la lanzaste aunque te hayas cambiado mientras cargaba.\nAl desactivarlo, cada ventana aparece en el escritorio en el que estés."

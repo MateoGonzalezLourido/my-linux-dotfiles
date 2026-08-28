@@ -12,10 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
+      # El preflight en modo checkout no necesita Node ni Hyprland: comprueba que
+      # están todos los ficheros versionados, que los scripts Bash/Python parsean y
+      # que los módulos Lua que carga hyprland.lua existen. Es exactamente lo que
+      # falla cuando un commit se deja algo suelto.
       - name: Validar archivos y scripts
         run: GiGiOS/bin/preflight.sh
-      - name: Ejecutar tests TypeScript puros
-        run: find GiGiOS/ags/widget -name '*.test.ts' -print0 | xargs -0 node --test
+      # NO hay paso de tests, y no es un olvido: ningún test se versiona (son de
+      # desarrollo momentáneo, ver .gitignore), así que en un checkout de CI no existe
+      # ninguno que ejecutar. Los tests se corren en la máquina donde se escriben.

@@ -137,9 +137,16 @@ if [[ -d "$FNM_PATH" ]]; then
 fi
 unset FNM_PATH
 
+# Bun.
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
 [[ -r "$ZDOTDIR/functions/fish-parity.zsh" ]] && source "$ZDOTDIR/functions/fish-parity.zsh"
 
 # Equivalente al greeting del perfil Fish, solo en una terminal real.
 if [[ -t 1 ]] && command -v fastfetch >/dev/null 2>&1; then
     fastfetch --logo-type kitty
 fi
+
+# bun completions
+[ -s "/home/paraguayo33/.bun/_bun" ] && source "/home/paraguayo33/.bun/_bun"

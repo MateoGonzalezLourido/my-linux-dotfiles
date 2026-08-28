@@ -58,6 +58,19 @@ export { networkBarEnabled }
 const [micIndicatorEnabled, _setMicIndicatorEnabled] = createState(true)
 export { micIndicatorEnabled }
 
+// Capturas que NO cuentan como uso del micrófono para ese indicador. **Es una
+// escotilla, no el mecanismo**: lo que graba el monitor de un altavoz o la
+// salida de otra app se detecta solo (`servicios/multimedia/origenCapturas.ts`
+// se lo pregunta a `pactl`), así que en el caso normal esta lista se queda
+// vacía. Solo se apunta aquí lo que la detección no cace.
+// La clave es el `node.name` del stream (lo que AstalWp publica como
+// `description`: "discord_capture", "WEBRTC VoiceEngine"…), no el nombre de la
+// app: Discord abre dos streams distintos y solo uno es el micro. Se guarda tal
+// cual, sin normalizar a minúsculas — un `node.name` es una identidad exacta,
+// igual que en `audioDispositivosOcultos`.
+const [microfonoAppsIgnoradas, _setMicrofonoAppsIgnoradas] = createState<string[]>([])
+export { microfonoAppsIgnoradas }
+
 // Indicador de captura de pantalla en la barra (compartir por portal + grabadores
 // locales). El toggle es MAESTRO y se aplica en caliente: su setter lanza o mata
 // hypr/scripts/screencast-monitor.sh, así que apagado no queda ni proceso ni icono.
@@ -217,6 +230,18 @@ export { anclarVentanasRofi }
 const [escanerAppsInicio, _setEscanerAppsInicio] = createState(false)
 export { escanerAppsInicio }
 
+// La SEGUNDA ventana de un escritorio nace al lado y no debajo
+// (hypr/gigios/reparto-ventanas.lua). Con una sola ventana en mosaico, el eje del
+// corte lo decidía `dwindle:smart_split`, o sea el cuadrante donde tuvieras el
+// ratón: con el puntero abajo el escritorio salía partido en dos franjas
+// horizontales, distinto en cada arranque. Activado fuerza `preselect right`,
+// pase lo que pase con el ratón; de la tercera ventana en adelante manda otra
+// vez el puntero. Lo lee el config de Hyprland, no el shell, así que el setter
+// tiene que recargar Hyprland (`util.prefs()` se lee una vez por ejecución).
+// Default: activado.
+const [segundaVentanaAlLado, _setSegundaVentanaAlLado] = createState(true)
+export { segundaVentanaAlLado }
+
 // Absorber SUPER + tecla que no sea un atajo (hypr/gigios/nop-binds.lua). Hyprland
 // solo se traga una tecla si algún bind la captura, así que sin esto SUPER+C
 // escribe una "c" en la aplicación; `catchall` no sirve porque el compositor
@@ -271,6 +296,17 @@ export { updatesIntervalHours }
 // ni al termómetro — ver la cabecera de gaming-gate.sh. Default: activado.
 const [gamingFreezeEnabled, _setGamingFreezeEnabled] = createState(true)
 export { gamingFreezeEnabled }
+
+// Detección de juegos en marcha (servicios/juegos/registro.ts). Es lo que alimenta la
+// pastilla de juegos de la barra, el auto-DND por juego, la onda de Spotify y el
+// `gaming` de runtime-state.json. Al apagarlo el registro suelta las señales por
+// ventana (`notify::title/class/fullscreen`) y deja de recoger evidencia de /proc y de
+// los `.desktop`: quien no juega se ahorra ese trabajo por completo, y `gaming` pasa a
+// ser `false` de forma permanente para todos los que leen el fichero (ver gamingState.ts
+// y hypr/scripts/lib/gaming-gate.sh). Se aplica EN CALIENTE en los dos sentidos.
+// Default: activado.
+const [escanerJuegos, _setEscanerJuegos] = createState(true)
+export { escanerJuegos }
 
 // No molestar automático: cuando está activo, un watcher en el shell
 // (modulos/notificaciones/autoDnd) enciende notifd.dontDisturb mientras haya un
@@ -360,6 +396,11 @@ function load() {
     if (typeof saved.brightnessOsd === "boolean") _setBrightnessOsdEnabled(saved.brightnessOsd)
     if (typeof saved.startupVolumeMuted === "boolean") _setStartupVolumeMuted(saved.startupVolumeMuted)
     if (typeof saved.startupMicMuted === "boolean") _setStartupMicMuted(saved.startupMicMuted)
+    if (Array.isArray(saved.microfonoAppsIgnoradas)) {
+      _setMicrofonoAppsIgnoradas(
+        saved.microfonoAppsIgnoradas.filter((c: unknown): c is string => typeof c === "string" && c.length > 0),
+      )
+    }
     if (Array.isArray(saved.audioDispositivosOcultos)) {
       _setAudioDispositivosOcultos(
         saved.audioDispositivosOcultos.filter((c: unknown): c is string => typeof c === "string" && c.length > 0),
@@ -395,6 +436,9 @@ function load() {
     if (typeof saved.escanerAppsInicio === "boolean") {
       _setEscanerAppsInicio(saved.escanerAppsInicio)
     }
+    if (typeof saved.segundaVentanaAlLado === "boolean") {
+      _setSegundaVentanaAlLado(saved.segundaVentanaAlLado)
+    }
     if (typeof saved.absorberSuperSinAtajo === "boolean") {
       _setAbsorberSuperSinAtajo(saved.absorberSuperSinAtajo)
     }
@@ -409,6 +453,7 @@ function load() {
       _setUpdatesIntervalHours(Math.floor(saved.updatesIntervalHours))
     }
     if (typeof saved.gamingFreeze === "boolean") _setGamingFreezeEnabled(saved.gamingFreeze)
+    if (typeof saved.escanerJuegos === "boolean") _setEscanerJuegos(saved.escanerJuegos)
     if (typeof saved.autoDnd === "boolean") _setAutoDndEnabled(saved.autoDnd)
     if (Array.isArray(saved.autoDndFullscreenApps)) {
       _setAutoDndFullscreenApps(sanitizeApps(saved.autoDndFullscreenApps))
@@ -446,6 +491,7 @@ function save() {
       brightnessOsd: brightnessOsdEnabled.get(),
       startupVolumeMuted: startupVolumeMuted.get(),
       startupMicMuted: startupMicMuted.get(),
+      microfonoAppsIgnoradas: microfonoAppsIgnoradas.get(),
       audioDispositivosOcultos: audioDispositivosOcultos.get(),
       trayBar: trayBarEnabled.get(),
       notificationBar: notificationBarEnabled.get(),
@@ -464,6 +510,7 @@ function save() {
       anclarVentanasRofi: anclarVentanasRofi.get(),
       escanerAppsInicio: escanerAppsInicio.get(),
       absorberSuperSinAtajo: absorberSuperSinAtajo.get(),
+      segundaVentanaAlLado: segundaVentanaAlLado.get(),
       orion: orionEnabled.get(),
       orionAppsDefault: orionAppsDefault.get(),
       orionRecordarUltimaSeccion: orionRecordarUltimaSeccion.get(),
@@ -471,6 +518,7 @@ function save() {
       updatesPeriodic: updatesPeriodicEnabled.get(),
       updatesIntervalHours: updatesIntervalHours.get(),
       gamingFreeze: gamingFreezeEnabled.get(),
+      escanerJuegos: escanerJuegos.get(),
       autoDnd: autoDndEnabled.get(),
       autoDndFullscreenApps: autoDndFullscreenApps.get(),
       popupDuracionNormalMs: popupDuracionNormalMs.get(),
@@ -537,6 +585,15 @@ export function setStartupVolumeMuted(on: boolean) {
 export function setStartupMicMuted(on: boolean) {
   _setStartupMicMuted(on)
   save()
+}
+/** Flip-flop: aparta la captura del indicador de micrófono o la devuelve a la
+ * cuenta. Devuelve el estado nuevo (true = ahora está ignorada). */
+export function alternarAppMicrofonoIgnorada(clave: string): boolean {
+  const actuales = microfonoAppsIgnoradas.get()
+  const estaba = actuales.includes(clave)
+  _setMicrofonoAppsIgnoradas(estaba ? actuales.filter((c) => c !== clave) : [...actuales, clave])
+  save()
+  return !estaba
 }
 /** Flip-flop: aparta el dispositivo o lo devuelve a la lista. Devuelve el estado
  * nuevo por si el llamador quiere reaccionar. */
@@ -637,6 +694,15 @@ export function setAbsorberSuperSinAtajo(on: boolean) {
   save()   // síncrono: preferences.json ya está en disco cuando el reload lo relea
   execAsync(["hyprctl", "reload"]).catch(() => {})
 }
+// Mismo trato que setAbsorberSuperSinAtajo, y por el mismo motivo: quien lee
+// esta preferencia es el config de Hyprland, que la cachea en `util.prefs()`
+// durante toda la ejecución. Sin la recarga el interruptor se vería cambiado y
+// no haría nada hasta el siguiente arranque.
+export function setSegundaVentanaAlLado(on: boolean) {
+  _setSegundaVentanaAlLado(on)
+  save()   // síncrono: preferences.json ya está en disco cuando el reload lo relea
+  execAsync(["hyprctl", "reload"]).catch(() => {})
+}
 export function setOrionEnabled(on: boolean) {
   _setOrionEnabled(on)
   save()
@@ -707,6 +773,15 @@ export function setAutoDndEnabled(on: boolean) {
 // de la caché del gate) sin reiniciar ningún monitor.
 export function setGamingFreezeEnabled(on: boolean) {
   _setGamingFreezeEnabled(on)
+  save()
+}
+// Tampoco necesita relanzar nada: el registro de juegos está suscrito a este estado y
+// se conecta o se desconecta solo (servicios/juegos/registro.ts), y gamingState.ts
+// reescribe runtime-state.json en el acto para que el lado bash lo vea sin esperar a
+// que se abra o se cierre una ventana.
+export function setEscanerJuegos(on: boolean) {
+  if (escanerJuegos.get() === on) return
+  _setEscanerJuegos(on)
   save()
 }
 /** Acota a [1 s, 60 s]: los mismos límites que aplica popup/logica.ts al pintar. */

@@ -26,6 +26,7 @@ import { initInactividadAhorro } from "./servicios/pantalla/inactividadAhorro"
 import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
 import { initOpacidadAhorro } from "./servicios/energia/opacidadAhorro"
+import { initOpacidadVentanas } from "./servicios/energia/opacidadVentanas"
 import { iniciarCierreAjustesAlCambiarEscritorio } from "./servicios/escritorios/cierreAlCambiarEscritorio"
 import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
 import { initPlanificadorFondos } from "./servicios/fondos/planificador"
@@ -157,6 +158,10 @@ app.start({
     // cuatro segundos de paneles translúcidos que luego cambian solos a la vista. Es un
     // CssProvider y una suscripción, así que no compite con nada.
     initOpacidadAhorro()
+    // Su gemelo para las ventanas del compositor. Mismo t=0 y por lo mismo, y encima
+    // aquí es gratis: la primera pasada solo lanza el `hyprctl` si lo que quiere no es
+    // ya lo que el config aplicó al cargarse (lo compara contra el fichero en disco).
+    initOpacidadVentanas()
 
     // ── Trabajo de fondo, apartado del pintado inicial ────────────────────────
     // Nada de esto se ve: son vigilantes y un barrido de limpieza. Corriendo aquí

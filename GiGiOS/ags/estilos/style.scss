@@ -5330,8 +5330,9 @@ window.cal-window.csd decoration {
 .sp-window { background: transparent; }
 .sp-backdrop { background: rgba(0, 0, 0, 0.5); }
 .sp-panel {
-  min-width: 820px;
-  min-height: 560px;
+  /* Sin min-width/min-height: el tamaño lo pide SettingsPanel.tsx recortado a la
+     pantalla del monitor. Un mínimo en CSS es un suelo que GTK nunca baja, así que
+     aquí reintroducirlo vuelve a sacar el panel de una pantalla pequeña. */
   background: #08080c;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
@@ -5345,7 +5346,8 @@ window.cal-window.csd decoration {
   border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 .sp-nav-scroll {
-  min-height: 470px;
+  /* Sin min-height: la lista se desplaza (policy EXTERNAL) dentro del alto que le
+     deje el panel; fijar un mínimo aquí lo empujaría desde dentro. */
 }
 .sp-nav-title {
   font-size: 11px;
@@ -5385,7 +5387,7 @@ window.cal-window.csd decoration {
 }
 
 .sp-content {
-  min-width: 590px;
+  /* Sin min-width: este ScrolledWindow ocupa lo que sobra del ancho del panel. */
   padding: 18px 20px;
 
   scrollbar,
@@ -5403,7 +5405,11 @@ window.cal-window.csd decoration {
 }
 
 .sp-section {
-  min-width: 590px;
+  /* Suelo de legibilidad, no el ancho de diseño: el ancho real lo da el panel
+     (hexpand). Por debajo de esto la sección se desplaza en horizontal en vez de
+     ensanchar el panel. Era 590 —más que los ~555 que deja el panel de 820— y por
+     eso el panel salía más ancho de lo que decía su propio min-width. */
+  min-width: 420px;
 }
 .sp-section-title {
   font-size: 15px;
@@ -5791,8 +5797,10 @@ progressbar.alm-barra {
   background: rgba(0, 0, 0, 0.5);
 }
 .nsw-panel {
-  min-width: 760px;
-  min-height: 620px;
+  /* Sin min-width/min-height: el tamaño lo pide SettingsWindow.tsx recortado a la
+     pantalla del monitor (`utilidades/tamanoLamina.ts`). Un mínimo en CSS es un suelo
+     que GTK nunca baja, así que reintroducirlo vuelve a sacar la ventana de una
+     pantalla pequeña. */
   background: #08080c;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;

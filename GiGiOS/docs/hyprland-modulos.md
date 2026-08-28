@@ -18,8 +18,11 @@ su módulo equivalente. `hypr/hyprland.lua` is a thin entry point that loads the
 `permisos`, …). Note:
 
 - **GPU profile is machine-specific**: exactly one module under `hypr/gigios/gpu/` is loaded
-  (`laptop-hibrida.lua` / `sobremesa-nvidia.lua` / …), y **ya no se descomenta a mano** — lo elige
-  `~/.config/gigios/gpu-perfil`, un fichero local de una línea fuera del repo.
+  (`laptop-hibrida.lua` / `sobremesa-nvidia.lua` / `integrada.lua` / …), y **ya no se descomenta a
+  mano** — lo elige `~/.config/gigios/gpu-perfil`, un fichero local de una línea fuera del repo que
+  escribe el instalador (paso `gpu`) y que nunca se pisa si ya existe. `integrada.lua` es el «no
+  hay nada que configurar» explícito de una Intel/AMD sola: sin él, la única forma de decirlo era
+  dejar el fichero ausente, y eso disparaba el aviso de `gpu.lua` en cada inicio de sesión.
 - `gigios/dispositivos.lua` **lee `~/.config/gigios/devices.json`** (Ajustes > Dispositivos, vía
   `ags/servicios/dispositivos/service.ts`) y se carga después de `gigios/userprefs.lua` para pisar
   lo de ahí. Fichero ausente = no se aplica nada y manda `userprefs`. Los defaults del módulo son
@@ -722,6 +725,19 @@ la de 504x1098 de al lado, **por arriba o por abajo según dónde esté el rató
 derecha, parte la columna derecha, arriba o abajo igual. `hl.get_cursor_pos()` existe y devuelve
 `{x, y}` — la ausencia de esa función se dio por supuesta al escribir la primera versión y era falsa.
 
+**La SEGUNDA ventana de un escritorio va SIEMPRE al lado, nunca debajo** — y esa sí es una regla
+forzada, la única del módulo. Con una sola ventana en mosaico, la siguiente nace a la **derecha**
+(`preselect right`) pase lo que pase con el ratón. No salía por el camino de los mínimos porque ahí
+no puede salir: la peor mitad de una ventana que ocupa el escritorio entero da la talla de sobra, el
+módulo se apartaba y el eje lo decidía `smart_split`, o sea el cuadrante donde hubieras dejado el
+cursor — con el ratón en la mitad de abajo, dos franjas horizontales, la peor de las dos formas en
+un panel apaisado y encima distinta en cada arranque sin que se vea por qué. El eje aquí no se
+calcula, se fija; el **lado** sí es convención (derecha, el default de dwindle, para que la ventana
+que ya tenías no se te mueva). De la tercera en adelante vuelve a mandar todo lo demás. Esta rama va
+**antes** de la comprobación de `repartoVentanas` y **no** exige `ws.visible`: no enfoca a nadie, así
+que ni es reparto ni puede arrastrar la vista a un escritorio oculto. Se apaga con
+`segundaVentanaAlLado: false`.
+
 **Es PREVENCIÓN, no una rejilla forzada**: mientras el sitio natural dé un tamaño razonable el
 módulo **no interviene** y manda dwindle con su cuadrante. El listón se mide sobre la **peor mitad
 posible** del objetivo natural — la que sale de partirlo por su lado **corto**, la más achatada de
@@ -782,7 +798,9 @@ avisar (medido: pidiendo agrandar tst3 se agrandó tst2). Por eso el drop compru
 siga siendo la ventana que soltaste antes de tocar nada.
 
 **Ajustes** en `~/.config/gigios/preferences.json`, sin UI (como `maxVentanasEscritorio`):
-`repartoVentanas` (**ausente = activado**, se comprueba `== false`), `anchoMinimoVentana` /
+`repartoVentanas` (**ausente = activado**, se comprueba `== false`), `segundaVentanaAlLado`
+(**ausente = activado**, mismo criterio; apaga solo el forzado de la segunda ventana),
+`anchoMinimoVentana` /
 `altoMinimoVentana` (**ausentes = 480x320**; los dos a 0 lo desactivan). Se leen por `util.prefs()`,
 o sea una vez por ejecución del config: cambiarlos pide un `hyprctl reload`.
 
@@ -846,6 +864,53 @@ envoltorio no existiera —config a medio recargar, `ventanas.lua` roto— mueve
 desordenada es mejor que no llegar. Los cuatro consumidores Lua hacen lo propio con un
 `pcall(require, "gigios.ventanas")` y repliegue a "ejecuta la acción tal cual", por la trampa nº 1
 de la migración (un error aquí deja la sesión sin atajos).
+
+### Ventanas opacas durante el modo ahorro (`opacidad_ahorro`, en `gigios/ventanas.lua`)
+
+Gemelo, para las ventanas del compositor, del ajuste **«quitar la transparencia de los paneles»** del
+shell (Ajustes > Energía). Aquel deja opacas las láminas de AGS; este deja opacas las **ventanas**,
+que es lo que transparenta `decoration:inactive_opacity` (0.92 en esta configuración: toda ventana
+sin foco va semitransparente).
+
+**Lo que se ahorra es del compositor, no del cliente.** Una superficie con alfa < 1 obliga a Hyprland
+a componer lo que hay **debajo** —el resto del mosaico y el fondo— en cada fotograma que se redibuje,
+y la deja fuera de los atajos de región opaca. Con las dos opacidades a 1.0 la ventana de delante
+tapa de verdad. Es, como el de los paneles, de los pocos ajustes del ahorro que ahorran mientras el
+usuario **mira** algo y no mientras el equipo está en reposo.
+
+**La condición viene resuelta de AGS y aquí no se reevalúa.** `~/.config/gigios/opacidad-ventanas.json`
+trae una sola clave, `forzada`, que AGS escribe ya combinada (**modo ahorro activo Y ajuste
+encendido**) — mismo criterio que `powerSaveFreeze` en `runtime-state.json`, y por el mismo motivo:
+rederivar aquí «¿hay ahorro?» obligaría a mirar `/sys/class/power_supply`, que lista también la pila
+del ratón (ver la sección de `oom-monitor.sh`). Fichero **ausente o corrupto → la opacidad de
+siempre**; nunca una sesión con las ventanas opacas sin haberlo pedido.
+
+**Son dos caminos y hacen falta los dos:**
+
+| camino | quién lo dispara | para qué |
+|---|---|---|
+| `hyprctl eval "GiGiOS.opacidad_ahorro(<bool>)"` | `ags/servicios/energia/opacidadVentanas.ts`, en cada transición | aplicarlo **en vivo**, sin recargar |
+| leer el JSON al cargar el módulo | cualquier ejecución del config | que un **`hyprctl reload`** no reponga el 0.92 a espaldas de AGS, y que una sesión que arranca ya en ahorro nazca opaca |
+
+El segundo no es opcional: **no hay señal de recarga** que AGS pueda observar (es el mismo motivo por
+el que `display.json` lo lee también `gigios/pantalla.lua`). Y el estado de arranque se lee **antes**
+del `hl.config` grande y se aplica **dentro** de él, no con una segunda llamada a continuación, para
+que la recarga no tenga un instante con las ventanas transparentes.
+
+**AGS llama a la función del config, y no manda un `hl.config` con los valores.** La opacidad a la
+que hay que **volver** al salir del ahorro vive en la tabla `aspecto` de `gigios/ventanas.lua` —
+donde ya están los gaps, por la misma razón—, y copiarla en TypeScript sería la desincronización
+silenciosa de siempre: el día que se cambie aquí, el ahorro restauraría el valor viejo. La forma que
+se despacha es `GiGiOS and GiGiOS.opacidad_ahorro and GiGiOS.opacidad_ahorro(true)`, defensiva
+porque `hyprctl eval` **envuelve lo que le pasas en un `return …;`**: con el módulo sin cargar se
+invocaría un `nil` y el error saldría por stdout **con código de salida 0**, que es justo lo que hace
+que estos fallos pasen inadvertidos.
+
+**No hay apunte de recuperación, y aquí no hace falta** (al revés que con el brillo o los tiempos de
+inactividad del ahorro): esto no aparta ningún valor del usuario. El estado al que se vuelve está
+escrito en el propio config, así que un AGS que muera con el ahorro puesto deja como mucho las
+ventanas opacas hasta el siguiente `hyprctl reload` — visible, inocuo y sin residuo en disco que
+pueda contaminar los ajustes reales.
 
 ### Tope de ventanas en mosaico por escritorio (`gigios/limite-ventanas.lua`)
 
@@ -1519,6 +1584,35 @@ silenciosa), así que la estructura separa **fuente versionada** de **copia de c
 en `/etc/gigios/tlp/active` (world-readable, que AGS relee al arrancar sin sudo). **`install.sh` NO
 toca `/etc/tlp.conf`** — eso lo hace el helper la primera vez que el usuario elige un perfil; si tenías
 un `tlp.conf` afinado, pega su contenido en `system/tlp/normal.conf` antes de reinstalar.
+
+**`tlp.service` se habilita en el bucle de servicios de `install.sh`, y faltaba.** El instalador
+añadía los paquetes (`tlp tlp-rdw`, solo si `tiene_bateria`) y los perfiles conmutables, pero su
+bucle de `systemctl enable --now` cubría únicamente `NetworkManager.service` y `bluetooth.service`:
+**la unidad de TLP no la activaba nadie**. El fallo es silencioso porque el selector de Ajustes >
+Energía seguía funcionando igual — el helper hace `tlp start`, que aplica el perfil **en caliente** y
+no depende de la unidad — y `/etc/tlp.conf` persiste entre reinicios; lo que no ocurría es que ese
+fichero se APLICARA al arrancar o al cambiar de AC a batería. Resultado: un portátil recién
+instalado empezaba cada sesión sin TLP puesto hasta que alguien movía el selector o entraba en modo
+ahorro, sin un solo error por ningún lado. Ahora el bucle recorre un array `unidades` al que se le
+suma `tlp.service` **bajo el mismo `tiene_bateria`** que decide instalar el paquete (en un sobremesa
+no se toca nada, y así no compite con `power-profiles-daemon`). El `list-unit-files` que ya guardaba
+el bucle sigue delante: si el paquete no llegó a instalarse, avisa y sigue en vez de abortar.
+`tlp-rdw` no tiene unidad propia que activar — va por dispatcher de NetworkManager.
+
+**Y `power-profiles-daemon` se desactiva antes, porque si no la mitad del arreglo no sirve.** TLP y
+ppd escriben LOS MISMOS ajustes del kernel (governor, EPP, ASPM, autosuspend USB): con los dos
+vivos gana el que escriba el último y el portátil acaba en un estado que no es ninguno de los dos
+perfiles. No da error, solo consumo — y CachyOS trae ppd activo en varias ediciones, así que en una
+máquina recién instalada pasa por defecto. `install.sh` lo `disable --now` justo antes de activar
+`tlp.service`, y solo en el mismo `tiene_bateria`. Se **desactiva**, no se enmascara: volver atrás
+es un `systemctl enable --now power-profiles-daemon.service`.
+
+**El preflight lo comprueba ahora, que es lo que faltaba para que no se repita.** En modo
+`--installed`, y solo si hay batería del SISTEMA (mismo criterio de `scope != Device` que usa
+`install.sh`), exige que `tlp` esté instalado y que `tlp.service` esté `is-enabled`, y avisa si ppd
+sigue vivo. Antes nada validaba esto: por eso un portátil pudo estar meses con los paquetes
+instalados, los perfiles en `/etc/gigios/tlp/` y la unidad apagada, y el preflight decir que la
+instalación estaba correcta.
 
 **Por qué es seguro y no una escalada:** todo lo que `sudo` toca es root-owned, y la regla sudoers
 casa el comando **exacto con argumento fijo** (`normal`/`ahorro`), no un script en `~/.config`. Editar

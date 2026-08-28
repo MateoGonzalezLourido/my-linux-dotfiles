@@ -44,6 +44,12 @@
 #   INSTALL_STEPS    lista para --solo   (ej. INSTALL_STEPS=paquetes,css)
 #   SKIP_STEPS       lista para --sin    (ej. SKIP_STEPS=clamav-db,cursor)
 #
+# VELOCIDAD: todas las dependencias van en UNA sola transacción (repos + AUR juntos si hay
+# paru o yay), y las dos descargas largas que no bloquean a nadie —el índice de pkgfile y los
+# ~200 MB de firmas de ClamAV— se lanzan en segundo plano y se recogen al final. Para una
+# reinstalación desatendida, --yes: quita la confirmación de pacman y las preguntas de
+# revisión de PKGBUILD del ayudante de AUR.
+#
 # REEJECUTARLO ES SEGURO Y ES EL MODO NORMAL DE ACTUALIZAR. Todos los pasos son
 # idempotentes: lo ya instalado se detecta y se omite, y lo que no se puede completar
 # degrada con aviso en vez de abortar. Solo son fatales los fallos que dejarían el
@@ -68,7 +74,7 @@ ONLY_PACKAGES="${ONLY_PACKAGES:-0}"
 # en que los lista `--pasos`. Añadir un paso nuevo es añadirlo aquí y envolver su bloque
 # en `if paso_activo <nombre>`; no hay que tocar el parseo de opciones.
 declare -A DESC_PASO=(
-  [paquetes]="dependencias de pacman + AUR (AGS/Astal) + servicios de red y Bluetooth"
+  [paquetes]="TODAS las dependencias (repos + AUR) en una sola tanda + servicios de red, BT y energía"
   [repo]="clonar/actualizar ~/.dotfiles y hacer el checkout en \$HOME"
   [symlinks]="enlazar las rutas XDG a ~/GiGiOS (bin/link.sh)"
   [dolphin]="perfil ligero de Dolphin (miniaturas y comportamiento)"
@@ -77,12 +83,13 @@ declare -A DESC_PASO=(
   [css]="compilar ags/estilos/out.css con sass"
   [mime]="bases MIME y caché de aplicaciones de KDE"
   [sistema]="ficheros de /etc: udev USB, i2c-dev, botón de encendido, helpers TLP/ClamAV/limpieza"
+  [gpu]="elegir el perfil de GPU de esta máquina (~/.config/gigios/gpu-perfil)"
   [clamav-db]="descarga de la base de firmas de ClamAV (~200 MB)"
   [cursor]="generar la mitad hyprcursor del tema de puntero"
   [shell]="poner Zsh como shell predeterminado"
   [preflight]="validación final de la instalación"
 )
-ORDEN_PASOS=(paquetes repo symlinks dolphin kitty firefox css mime sistema clamav-db cursor shell preflight)
+ORDEN_PASOS=(paquetes repo symlinks sistema clamav-db dolphin kitty firefox css mime gpu cursor shell preflight)
 
 SOLO_PASOS=()
 SIN_PASOS=()
@@ -264,6 +271,31 @@ limpiar_keepalive() {
 }
 trap limpiar_keepalive EXIT
 
+# Descargas largas que NO bloquean a nadie: se lanzan en segundo plano en cuanto es
+# posible y se recogen al final, justo antes de validar.
+#
+# Las dos son puro tráfico de red y ningún paso intermedio depende de ellas:
+#   - pkgfile      lista de ficheros de los repos; sólo la usa `command-not-found`.
+#   - firmas ClamAV ~200 MB; sólo las usa el escáner de descargas, ya en sesión.
+# Antes se hacían en serie en mitad del instalador y su tiempo se SUMABA al de todo lo
+# demás. Ahora se solapan con la instalación de paquetes, el checkout, los symlinks, los
+# perfiles, el CSS y las bases MIME.
+PKGFILE_PID=""
+CLAMAV_PID=""
+esperar_descargas_de_fondo() {
+  if [[ -n "$PKGFILE_PID" ]]; then
+    wait "$PKGFILE_PID" \
+      || warn "No pude actualizar pkgfile; command-not-found funcionará tras ejecutar 'sudo pkgfile --update'."
+    PKGFILE_PID=""
+  fi
+  if [[ -n "$CLAMAV_PID" ]]; then
+    info "Esperando a que terminen de bajar las firmas de ClamAV ..."
+    wait "$CLAMAV_PID" \
+      || warn "No pude descargar las firmas de ClamAV; se reintentará solo al iniciar sesión."
+    CLAMAV_PID=""
+  fi
+}
+
 # Resumen de todo lo que quedó a medias. Sin esto, los avisos se pierden entre el scroll
 # de pacman y una instalación degradada es indistinguible de una correcta: termina igual,
 # con "Instalación base completa". Aquí se repiten juntos y al final del todo, que es lo
@@ -283,6 +315,38 @@ resumen_degradado() {
   fi
 }
 
+# Instala una regla sudoers a partir de su plantilla versionada.
+#
+# VIVE AQUÍ, EN EL NIVEL SUPERIOR, y no dentro del bloque del paso `mime` como estaba:
+# quien la llama es el paso `sistema` (TLP, ClamAV, limpieza), así que con `--sin mime`
+# —o con cualquier `--solo` que no incluyera `mime`— la función NO llegaba a definirse y
+# la primera llamada salía con 127 «orden no encontrada», que con `set -e` ABORTA el
+# instalador entero. Una función no es un paso; no puede colgar de que un paso corra. Tres bloques hacían
+# esto mismo copiado y pegado (TLP, ClamAV, limpieza), cada uno con su `mktemp` sin
+# comprobar: si /tmp estaba lleno o era de solo lectura, `mktemp` fallaba, `sed` escribía
+# en una ruta vacía y `visudo -cf ""` validaba cualquier cosa. Aquí se comprueba una vez.
+#
+# El orden importa y es el mismo de antes: se materializa el usuario real en un temporal,
+# se VALIDA con visudo y solo entonces se instala. Una regla sudoers malformada en
+# /etc/sudoers.d rompe sudo en toda la máquina, así que nunca se escribe sin validar.
+instalar_sudoers() {
+  local plantilla="$1" destino="$2" aviso="$3" tmp
+  [[ -r "$plantilla" ]] || { warn "Falta la plantilla sudoers $plantilla; $aviso"; return 1; }
+  tmp="$(mktemp)" || { warn "No pude crear un fichero temporal para $destino; $aviso"; return 1; }
+  if ! sed "s/__GIGIOS_USER__/$(id -un)/" "$plantilla" > "$tmp"; then
+    rm -f "$tmp"
+    warn "No pude preparar la regla sudoers $destino; $aviso"
+    return 1
+  fi
+  if sudo visudo -cf "$tmp" >/dev/null; then
+    sudo install -Dm440 "$tmp" "$destino" \
+      || warn "No pude instalar $destino; $aviso"
+  else
+    warn "La regla sudoers de $destino no validó; no la instalo. $aviso"
+  fi
+  rm -f "$tmp"
+}
+
 # Instala paquetes SIN que uno malo se lleve por delante al resto.
 #
 # Antes era un único `pacman -S --needed "${official[@]}"` con `set -e` detrás: si un
@@ -295,40 +359,104 @@ resumen_degradado() {
 # resuelve bien las dependencias; (3) si el lote falla, se reintenta paquete a paquete
 # para aislar al culpable, y se sigue con todos los demás. Lo que no entre se anota y sale
 # en el resumen final.
+# El ayudante de AUR, detectado UNA vez. Si existe, es también quien instala los
+# paquetes de repo: `paru`/`yay` resuelven repos y AUR en la MISMA transacción, así que
+# no hay que decidir por adelantado de dónde sale cada nombre ni encadenar dos
+# instalaciones con dos confirmaciones.
+AYUDANTE_AUR=""
+if command -v paru >/dev/null 2>&1; then AYUDANTE_AUR=paru
+elif command -v yay >/dev/null 2>&1; then AYUDANTE_AUR=yay
+fi
+
 PAQUETES_FALLIDOS=()
-pacman_install() {
+
+# UNA transacción para todo: repos oficiales + AUR.
+#
+# Antes eran dos pasadas: `sudo pacman -S` con la lista oficial y, después,
+# `paru/yay -S aylurs-gtk-shell-git libastal-meta` aparte. Eso costaba dos
+# confirmaciones, dos resoluciones de dependencias y —lo caro de verdad— una
+# COMPILACIÓN desde AUR de `libastal-meta` (una quincena de bibliotecas Vala/C) que en
+# muchas máquinas NO HACÍA FALTA: con `chaotic-aur` configurado, `aylurs-gtk-shell-git`
+# y `libastal-meta` existen ya como BINARIO. Al mezclarlo todo en una lista, el ayudante
+# coge la versión de repo cuando la hay y sólo compila lo que de verdad es AUR-only.
+#
+# Sin ayudante instalado se cae a `sudo pacman` con lo que haya en los repos y se avisa
+# de lo que quede fuera: es exactamente el comportamiento anterior, no una regresión.
+paquetes_instalar() {
   local -a deseados=("$@") disponibles=() ausentes=() fallidos=()
   local paquete
-  local -a flags=(-S --needed)
-  ((ASSUME_YES)) && flags+=(--noconfirm)
+  local -a gestor flags=(-S --needed)
+  if [[ -n "$AYUDANTE_AUR" ]]; then
+    gestor=("$AYUDANTE_AUR")
+    # Sin esto, un paquete AUR abre tres preguntas por PKGBUILD (ver diff, editar,
+    # limpiar) que en `curl | bash` no puede contestar nadie. Solo con --yes: por
+    # defecto se respeta que el usuario quiera revisar lo que se compila.
+    if ((ASSUME_YES)); then
+      flags+=(--noconfirm)
+      case "$AYUDANTE_AUR" in
+        paru) flags+=(--skipreview) ;;
+        yay)  flags+=(--answerdiff=None --answeredit=None --answerclean=None --removemake) ;;
+      esac
+    fi
+  else
+    gestor=(sudo pacman)
+    ((ASSUME_YES)) && flags+=(--noconfirm)
+  fi
 
-  info "Comprobando la disponibilidad de ${#deseados[@]} paquetes en los repos ..."
+  # DOS llamadas a pacman, no dos por paquete. Con ~150 paquetes el bucle de
+  # `pacman -Si` + `pacman -Qq` uno a uno tardaba más de medio minuto SIN IMPRIMIR NADA
+  # entre el "Comprobando la disponibilidad ..." y la primera línea de pacman: parecía
+  # colgado y invitaba a un Ctrl+C en mitad del instalador. En lote son décimas.
+  #
+  # LC_ALL=C es obligatorio: el campo se llama "Name" en inglés y "Nombre" en español, y
+  # el parseo depende de él. Sin fijar el locale, en una máquina en español TODOS los
+  # paquetes salían como ausentes.
+  #
+  # `pacman -Si` con un nombre inexistente en la lista NO aborta: informa de los que
+  # encuentra y manda el resto a stderr (que se descarta), así que un nombre renombrado
+  # río arriba sigue detectándose como ausente en vez de tumbar la comprobación entera.
+  info "Comprobando la disponibilidad de ${#deseados[@]} paquetes ..."
+  local -A conocidos=()
+  while IFS= read -r paquete; do
+    [[ -n "$paquete" ]] && conocidos["$paquete"]=1
+  done < <(
+    { LC_ALL=C pacman -Si "${deseados[@]}" 2>/dev/null | awk -F': +' '/^Name +:/ { print $2 }'
+      LC_ALL=C pacman -Qq "${deseados[@]}" 2>/dev/null; } | sort -u
+  )
   for paquete in "${deseados[@]}"; do
-    if pacman -Si "$paquete" >/dev/null 2>&1 || pacman -Qq "$paquete" >/dev/null 2>&1; then
+    if [[ -n "${conocidos[$paquete]:-}" ]]; then
       disponibles+=("$paquete")
     else
       ausentes+=("$paquete")
     fi
   done
+  # Lo que no está en ningún repo NO es necesariamente un error: puede ser AUR-only. Con
+  # ayudante se le pasa igual y que lo resuelva él; sin ayudante sí es lo que falta.
   if ((${#ausentes[@]})); then
-    warn "Los repos configurados no ofrecen: ${ausentes[*]} (¿renombrados? ¿falta un repo? ¿hace falta 'pacman -Sy'?)"
+    if [[ -n "$AYUDANTE_AUR" ]]; then
+      info "Fuera de los repos (los busca $AYUDANTE_AUR en AUR): ${ausentes[*]}"
+      disponibles+=("${ausentes[@]}")
+    else
+      warn "Los repos configurados no ofrecen: ${ausentes[*]} (¿renombrados? ¿falta un repo? ¿hace falta 'pacman -Sy'?)"
+      warn "Sin paru ni yay no puedo buscarlos en AUR. Instalá uno y repetí el instalador."
+    fi
   fi
   ((${#disponibles[@]})) || { warn "No hay ningún paquete instalable; omito este lote."; return 0; }
 
-  if run_interactive sudo pacman "${flags[@]}" "${disponibles[@]}"; then
+  if run_interactive "${gestor[@]}" "${flags[@]}" "${disponibles[@]}"; then
     return 0
   fi
 
   warn "La instalación en lote falló; reintento paquete a paquete para aislar el problema (esto tarda más)."
   for paquete in "${disponibles[@]}"; do
     pacman -Qq "$paquete" >/dev/null 2>&1 && continue
-    run_interactive sudo pacman "${flags[@]}" "$paquete" >/dev/null 2>&1 \
+    run_interactive "${gestor[@]}" "${flags[@]}" "$paquete" >/dev/null 2>&1 \
       || fallidos+=("$paquete")
   done
   if ((${#fallidos[@]})); then
     PAQUETES_FALLIDOS+=("${fallidos[@]}")
     warn "No se pudieron instalar: ${fallidos[*]}"
-    warn "Reintentá luego con: sudo pacman -S --needed ${fallidos[*]}"
+    warn "Reintentá luego con: ${gestor[*]} -S --needed ${fallidos[*]}"
   fi
   return 0
 }
@@ -473,42 +601,62 @@ install_packages() {
     info "Sin batería del sistema: omito TLP (los perfiles de energía son cosa de portátil)."
   fi
 
-  info "Instalando dependencias de repos oficiales ..."
-  pacman_install "${official[@]}"
+  # AGS y las bibliotecas Astal entran EN LA MISMA LISTA, no en una pasada aparte.
+  # Son dependencias del escritorio como cualquier otra; que su origen habitual sea AUR
+  # es un detalle del proveedor, no una fase distinta de la instalación. Metidas aquí:
+  #   - una sola confirmación y una sola resolución de dependencias,
+  #   - si un repo configurado las ofrece como binario (chaotic-aur las tiene), se
+  #     instalan como binario y NO se compila `libastal-meta`, que era lo que convertía
+  #     una instalación nueva en una espera de varios minutos.
+  # El `--needed` hace que en una reejecución no se toquen: ya no hace falta el sondeo de
+  # `command -v ags` + los ocho typelibs que había aquí para decidir si valía la pena.
+  official+=(aylurs-gtk-shell-git libastal-meta)
 
-  info "Actualizando el índice local de pkgfile para sugerir paquetes cuando falte un comando ..."
-  run_interactive sudo pkgfile --update \
-    || warn "No pude actualizar pkgfile; command-not-found funcionará después de ejecutar 'sudo pkgfile --update'."
+  # pkgfile en SEGUNDO PLANO: descarga la lista de ficheros de los 7 repos (decenas de
+  # MB) y no la necesita ningún paso posterior — sólo el `command-not-found` del shell,
+  # que se usa después de instalar. Se espera al final (`esperar_descargas_de_fondo`),
+  # justo antes de validar. Es tiempo que antes se sumaba y ahora se solapa.
+  if command -v pkgfile >/dev/null 2>&1; then
+    info "Actualizando el índice de pkgfile en segundo plano ..."
+    sudo -n pkgfile --update >/dev/null 2>&1 &
+    PKGFILE_PID=$!
+  fi
 
-  local astal_ready=1 namespace
-  command -v ags >/dev/null || astal_ready=0
-  for namespace in Battery Bluetooth Hyprland Mpris Network Notifd Tray Wp; do
-    compgen -G "/usr/lib/girepository-1.0/Astal${namespace}-*.typelib" >/dev/null \
-      || astal_ready=0
-  done
-  if [[ "$astal_ready" != 1 ]]; then
-    local ayudante_aur=""
-    command -v paru >/dev/null && ayudante_aur=paru
-    [[ -z "$ayudante_aur" ]] && command -v yay >/dev/null && ayudante_aur=yay
-    if [[ -n "$ayudante_aur" ]]; then
-      info "Instalando AGS y las bibliotecas Astal desde AUR ($ayudante_aur) ..."
-      # Compilar desde AUR falla por motivos ajenos a este repo (un PKGBUILD roto río
-      # arriba, una firma caducada). Antes eso abortaba el instalador con `set -e` y sin
-      # mensaje, dejando sin hacer los symlinks y el resto de pasos. Ahora se anota: el
-      # preflight final vuelve a señalarlo, y el escritorio queda instalado salvo el shell.
-      run_interactive "$ayudante_aur" -S --needed aylurs-gtk-shell-git libastal-meta \
-        || warn "Falló la instalación de AGS/Astal desde AUR. Reintentá con: $ayudante_aur -S --needed aylurs-gtk-shell-git libastal-meta"
-    else
-      warn "AGS/Astal requieren AUR y no encontré paru ni yay. Instalá uno y repetí el instalador; el resto de la instalación continúa."
-    fi
+  info "Instalando dependencias (${#official[@]} paquetes, una sola tanda${AYUDANTE_AUR:+ vía $AYUDANTE_AUR}) ..."
+  paquetes_instalar "${official[@]}"
+
+  if [[ -z "$AYUDANTE_AUR" ]] && ! command -v ags >/dev/null 2>&1; then
+    warn "AGS/Astal no están y no encontré paru ni yay para buscarlos en AUR. Instalá uno y repetí el instalador; el resto de la instalación continúa."
   fi
 
   # Uno por uno y no en una sola orden: `systemctl enable --now a b` falla ENTERO si una
   # de las dos unidades no existe (bluez no instalado, por ejemplo), y entonces la red
   # tampoco quedaba activada aunque NetworkManager sí estuviera.
-  info "Activando los servicios que usa el panel de red y Bluetooth ..."
+  local -a unidades=(NetworkManager.service bluetooth.service)
+  # TLP solo donde se instaló (portátil, ver más arriba). Sin habilitar su unidad, el
+  # perfil de /etc/tlp.conf NO se aplica al arrancar ni al cambiar de AC a batería: el
+  # selector de Ajustes > Energía seguía funcionando —el helper hace `tlp start`, que
+  # actúa en caliente— pero cada reinicio empezaba sin TLP hasta que alguien lo movía
+  # a mano o entraba en modo ahorro. `tlp-rdw` no tiene unidad propia que activar (va
+  # por dispatcher de NetworkManager).
+  if tiene_bateria; then
+    unidades+=(tlp.service)
+    # TLP y power-profiles-daemon se pelean por los mismos ajustes del kernel (governor,
+    # EPP, ASPM) y el resultado depende de quién escriba el último: el portátil acaba con
+    # una mezcla que no es ninguno de los dos perfiles. Es un requisito de TLP, no una
+    # preferencia nuestra, y no da error — sólo consumo. CachyOS trae ppd activo en varias
+    # de sus ediciones, así que en una máquina recién instalada esto pasa por defecto.
+    # Se DESACTIVA, no se enmascara: revertirlo es un `systemctl enable --now`.
+    if systemctl is-enabled --quiet power-profiles-daemon.service 2>/dev/null ||
+       systemctl is-active --quiet power-profiles-daemon.service 2>/dev/null; then
+      info "Desactivando power-profiles-daemon: entra en conflicto con TLP (lo usa Ajustes > Energía)."
+      sudo systemctl disable --now power-profiles-daemon.service \
+        || warn "No pude desactivar power-profiles-daemon; competirá con TLP. Hacelo con: sudo systemctl disable --now power-profiles-daemon.service"
+    fi
+  fi
+  info "Activando los servicios que usa el panel de red, Bluetooth y la energía ..."
   local unidad
-  for unidad in NetworkManager.service bluetooth.service; do
+  for unidad in "${unidades[@]}"; do
     systemctl list-unit-files "$unidad" >/dev/null 2>&1 || {
       warn "La unidad $unidad no existe (¿falló su paquete?); no la activo."
       continue
@@ -689,6 +837,128 @@ else
   info "Omito los symlinks: las rutas XDG se quedan como estén."
 fi
 
+if paso_activo sistema; then
+  # --- 4. Ficheros de sistema (/etc) ---
+  # ADELANTADO a propósito, justo detrás de los symlinks: es aquí donde arranca la
+  # descarga de firmas de ClamAV (~200 MB, en segundo plano), y cuanto antes empiece
+  # más se solapa con lo que queda (perfiles, CSS, bases MIME, puntero, validación).
+  # Sólo depende del checkout ($HOME/GiGiOS/system) y de sudo, de nada posterior.
+  # NO se symlinkean, se copian: udev y systemd leen /etc antes de que $HOME esté montado, y
+  # apuntar /etc a un directorio escribible por el usuario sería una escalada silenciosa.
+  # Sin este paso la instalación arranca igual, pero con dos fallos mudos:
+  #   • sin la regla udev, una copia a un USB "termina" con cientos de MB aún en RAM y retirar
+  #     el pendrive pierde los datos de verdad (ver CLAUDE.md, sección USB);
+  #   • sin i2c-dev no existen los nodos /dev/i2c-*, así que ddcutil no ve el monitor y el
+  #     slider de brillo desaparece en un sobremesa (en un portátil da igual: usa sysfs).
+  SYSTEM_DIR="$HOME/GiGiOS/system"
+  if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
+    info "Instalando los ficheros de sistema en /etc (pide sudo) ..."
+    # Con INSTALL_PACKAGES=0 no se pasó por install_packages, así que sudo no está
+    # precalentado y el primer `sudo install` abriría un prompt de contraseña en mitad del
+    # paso. Es idempotente: si ya hay credencial válida, no hace nada.
+    sudo_prime
+    if sudo install -Dm644 "$SYSTEM_DIR/udev/99-gigios-usb-writeback.rules" \
+         /etc/udev/rules.d/99-gigios-usb-writeback.rules; then
+      sudo udevadm control --reload-rules \
+        || warn "No pude recargar udev; la regla de USB se aplicará al reiniciar."
+    else
+      warn "No pude instalar la regla udev de USB. Instálala a mano (ver CLAUDE.md, sección USB)."
+    fi
+    if sudo install -Dm644 "$SYSTEM_DIR/modules-load.d/i2c-dev.conf" \
+         /etc/modules-load.d/i2c-dev.conf; then
+      # modules-load.d solo actúa en el arranque: cargarlo ahora evita tener que reiniciar
+      # para que el brillo por DDC/CI funcione ya en esta sesión.
+      sudo modprobe i2c-dev || warn "No pude cargar i2c-dev ahora; se cargará al reiniciar."
+    else
+      warn "No pude instalar i2c-dev.conf; el brillo por DDC/CI no funcionará hasta hacerlo."
+    fi
+    # Botón de encendido: se lo cedemos a Hyprland. Sin esto logind lo maneja él
+    # (HandlePowerKey=poweroff de fábrica), a nivel de asiento y sin pasar por el
+    # compositor, así que el bind se ejecuta pero el apagado de logind lo tapa y la
+    # acción elegida en Ajustes > Energía no se nota nunca (fallo mudo).
+    if sudo install -Dm644 "$SYSTEM_DIR/logind.conf.d/99-gigios-powerkey.conf" \
+         /etc/systemd/logind.conf.d/99-gigios-powerkey.conf; then
+      # `reload` y no `restart`: reiniciar logind puede llevarse la sesión por delante.
+      sudo systemctl reload systemd-logind \
+        || warn "No pude recargar systemd-logind; el botón de encendido usará la acción de logind hasta reiniciar."
+    else
+      warn "No pude ceder el botón de encendido a Hyprland; seguirá apagando el equipo (ver CLAUDE.md, sección del botón de encendido)."
+    fi
+    # TLP: perfiles conmutables Normal/Ahorro. Solo si TLP está instalado (en un
+    # equipo sin TLP la función queda oculta en Ajustes > Energía). Todo lo que toca
+    # root es root-owned: helper en /usr/local/bin, perfiles en /etc/gigios/tlp, y la
+    # regla sudoers acotada al comando exacto. NO se toca /etc/tlp.conf aquí: eso lo
+    # hace el helper cuando el usuario elige un perfil.
+    if command -v tlp >/dev/null 2>&1; then
+      sudo install -Dm755 "$SYSTEM_DIR/tlp/gigios-tlp-apply.sh" /usr/local/bin/gigios-tlp-apply \
+        && sudo install -Dm644 "$SYSTEM_DIR/tlp/normal.conf" /etc/gigios/tlp/normal.conf \
+        && sudo install -Dm644 "$SYSTEM_DIR/tlp/ahorro.conf" /etc/gigios/tlp/ahorro.conf \
+        || warn "No pude instalar los perfiles TLP de GiGiOS."
+      instalar_sudoers "$SYSTEM_DIR/tlp/sudoers-gigios-tlp" /etc/sudoers.d/gigios-tlp \
+        "el cambio de perfil de energía pedirá contraseña."
+    else
+      info "TLP no está instalado; omito los perfiles conmutables de energía (se activarán al instalar 'tlp')."
+    fi
+    # ClamAV: botón "Actualizar firmas" de Ajustes > Seguridad > Antivirus. Mismo esquema que TLP
+    # (helper root-owned + regla sudoers acotada al comando exacto) porque /var/lib/clamav es de
+    # `clamav` y habilitar el servicio de actualización es de root. Sin esto el botón no se pinta;
+    # la actualización sigue pudiendo hacerse a mano con `sudo freshclam`.
+    if command -v freshclam >/dev/null 2>&1; then
+      sudo install -Dm755 "$SYSTEM_DIR/clamav/gigios-clamav-update.sh" /usr/local/bin/gigios-clamav-update \
+        || warn "No pude instalar el helper de ClamAV; el botón de firmas no aparecerá en Ajustes."
+      instalar_sudoers "$SYSTEM_DIR/clamav/sudoers-gigios-clamav" /etc/sudoers.d/gigios-clamav \
+        "actualizar las firmas pedirá contraseña."
+      # Sin firmas el escáner de descargas no puede analizar NADA, así que se descargan aquí, una
+      # vez, de forma síncrona (tarda unos minutos y baja ~200 MB).
+      #
+      # Y NO se habilita `clamav-freshclam.service`, que es lo que hacía antes: mantenerlas al día
+      # es hoy un booleano de GiGiOS (`clamavAutoUpdate` en security.json, activado por defecto) que
+      # dispara `hypr/scripts/actualizar-firmas.sh --auto` UNA vez al iniciar sesión, y solo si la
+      # base falta o pasa de un día. Durante la sesión no queda ningún temporizador de ClamAV. Dejar
+      # el servicio encendido reintroduciría justo eso, y encima sin interruptor a la vista (el shell
+      # lo apaga solo si se lo encuentra vivo; ver servicios/seguridad/clamav.ts).
+      #
+      # Y NO se vuelven a descargar en cada reejecución del instalador. Antes se bajaban
+      # siempre: reinstalar o actualizar los dotfiles costaba varios minutos y ~200 MB de
+      # descarga para acabar con la misma base que ya estaba en disco. Se mira si la base
+      # existe y tiene menos de un día — exactamente el mismo criterio que usa
+      # actualizar-firmas.sh --auto al iniciar sesión — y si es así se omite.
+      if ! paso_activo clamav-db; then
+        info "Omito la descarga de firmas de ClamAV; se hará sola al iniciar sesión."
+      elif compgen -G '/var/lib/clamav/daily.c?d' >/dev/null &&
+        [[ -n "$(find /var/lib/clamav -maxdepth 1 -name 'daily.c?d' -mtime -1 -print -quit 2>/dev/null)" ]]; then
+        info "Las firmas de ClamAV ya están al día; no las descargo."
+      else
+        # En SEGUNDO PLANO: son ~200 MB y nada de lo que viene después los necesita.
+        # Se recogen en `esperar_descargas_de_fondo`, antes de la validación final.
+        # `sudo -n` y no `sudo`: un proceso de fondo que se pare a pedir contraseña se
+        # queda colgado sin que se vea el prompt. La credencial ya está caliente
+        # (sudo_prime + keepalive); si no lo estuviera, falla rápido y se avisa.
+        info "Descargando la base de firmas de ClamAV en segundo plano (~200 MB) ..."
+        sudo -n /usr/local/bin/gigios-clamav-update update >/dev/null 2>&1 &
+        CLAMAV_PID=$!
+      fi
+    else
+      info "ClamAV no está instalado; omito el helper de firmas (se activará al instalar 'clamav')."
+    fi
+    # Limpieza de disco: Ajustes > Almacenamiento > Liberar espacio. Tercer helper con el mismo
+    # esquema (root-owned + sudoers acotado), y aquí el NOPASSWD es lo que hace posible la
+    # AUTOLIMPIEZA desatendida: un diálogo de contraseña que aparece solo, de madrugada, no lo lee
+    # nadie. Por eso el helper solo expone verbos cuyo efecto se regenera (caché de pacman, journal,
+    # /var/tmp, huérfanos); vaciar la caché entera y borrar instantáneas siguen pidiendo contraseña
+    # por pkexec desde su botón. Sin esto, esas limpiezas salen como "falta el ayudante" en la UI y
+    # el resto (todo lo que vive bajo $HOME) sigue funcionando.
+    sudo install -Dm755 "$SYSTEM_DIR/limpieza/gigios-limpieza.sh" /usr/local/bin/gigios-limpieza \
+      || warn "No pude instalar el helper de limpieza; las limpiezas de sistema pedirán instalarlo."
+    instalar_sudoers "$SYSTEM_DIR/limpieza/sudoers-gigios-limpieza" /etc/sudoers.d/gigios-limpieza \
+      "la autolimpieza quedará limitada a tu carpeta personal (sin caché de pacman ni journal)."
+  else
+    warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
+  fi
+else
+  info "Omito los ficheros de /etc (udev USB, i2c-dev, botón de encendido, helpers)."
+fi
+
 if paso_activo dolphin; then
   # --- 4. Aplicar el perfil ligero de Dolphin ---
   DOLPHIN_CONFIGURATOR="$HOME/GiGiOS/bin/configurar-dolphin.sh"
@@ -803,146 +1073,66 @@ if paso_activo mime; then
     warn "No encontré kbuildsycoca6 ni kbuildsycoca5; el menú 'Abrir con...' podría quedar vacío."
   fi
 
-  # Instala una regla sudoers a partir de su plantilla versionada. Tres bloques hacían
-  # esto mismo copiado y pegado (TLP, ClamAV, limpieza), cada uno con su `mktemp` sin
-  # comprobar: si /tmp estaba lleno o era de solo lectura, `mktemp` fallaba, `sed` escribía
-  # en una ruta vacía y `visudo -cf ""` validaba cualquier cosa. Aquí se comprueba una vez.
-  #
-  # El orden importa y es el mismo de antes: se materializa el usuario real en un temporal,
-  # se VALIDA con visudo y solo entonces se instala. Una regla sudoers malformada en
-  # /etc/sudoers.d rompe sudo en toda la máquina, así que nunca se escribe sin validar.
-  instalar_sudoers() {
-    local plantilla="$1" destino="$2" aviso="$3" tmp
-    [[ -r "$plantilla" ]] || { warn "Falta la plantilla sudoers $plantilla; $aviso"; return 1; }
-    tmp="$(mktemp)" || { warn "No pude crear un fichero temporal para $destino; $aviso"; return 1; }
-    if ! sed "s/__GIGIOS_USER__/$(id -un)/" "$plantilla" > "$tmp"; then
-      rm -f "$tmp"
-      warn "No pude preparar la regla sudoers $destino; $aviso"
-      return 1
-    fi
-    if sudo visudo -cf "$tmp" >/dev/null; then
-      sudo install -Dm440 "$tmp" "$destino" \
-        || warn "No pude instalar $destino; $aviso"
-    else
-      warn "La regla sudoers de $destino no validó; no la instalo. $aviso"
-    fi
-    rm -f "$tmp"
-  }
 else
   info "Omito la reconstrucción de las bases MIME y de KDE."
 fi
 
-if paso_activo sistema; then
-  # --- 9. Ficheros de sistema (/etc) ---
-  # NO se symlinkean, se copian: udev y systemd leen /etc antes de que $HOME esté montado, y
-  # apuntar /etc a un directorio escribible por el usuario sería una escalada silenciosa.
-  # Sin este paso la instalación arranca igual, pero con dos fallos mudos:
-  #   • sin la regla udev, una copia a un USB "termina" con cientos de MB aún en RAM y retirar
-  #     el pendrive pierde los datos de verdad (ver CLAUDE.md, sección USB);
-  #   • sin i2c-dev no existen los nodos /dev/i2c-*, así que ddcutil no ve el monitor y el
-  #     slider de brillo desaparece en un sobremesa (en un portátil da igual: usa sysfs).
-  SYSTEM_DIR="$HOME/GiGiOS/system"
-  if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
-    info "Instalando los ficheros de sistema en /etc (pide sudo) ..."
-    # Con INSTALL_PACKAGES=0 no se pasó por install_packages, así que sudo no está
-    # precalentado y el primer `sudo install` abriría un prompt de contraseña en mitad del
-    # paso. Es idempotente: si ya hay credencial válida, no hace nada.
-    sudo_prime
-    if sudo install -Dm644 "$SYSTEM_DIR/udev/99-gigios-usb-writeback.rules" \
-         /etc/udev/rules.d/99-gigios-usb-writeback.rules; then
-      sudo udevadm control --reload-rules \
-        || warn "No pude recargar udev; la regla de USB se aplicará al reiniciar."
+
+if paso_activo gpu; then
+  # --- 10. Perfil de GPU de esta máquina ---
+  # Sin este fichero, gigios/gpu.lua avisa EN PANTALLA EN CADA INICIO DE SESIÓN («sin
+  # perfil de GPU: escribe uno en ~/.config/gigios/gpu-perfil»). Era el único paso de
+  # docs/SETUP.md que quedaba pendiente después del instalador, y como el escritorio
+  # arranca igual, lo normal era no hacerlo nunca y convivir con el aviso.
+  #
+  # La elección NO se versiona (es estado local por máquina, igual que el perfil de
+  # Kitty o el de Firefox; ver docs/anadir-perfiles-por-equipo.md), por eso se escribe
+  # aquí y no en el repo.
+  #
+  # Se lee /sys y no `lspci`: este paso puede correr con --sin paquetes, donde pciutils
+  # no está garantizado, y un `command -v lspci` fallido dejaría el perfil sin elegir
+  # sin que se note. Clases PCI 0x03xxxx = VGA / 3D controller / Display controller.
+  GPU_PERFIL="$HOME/.config/gigios/gpu-perfil"
+  detectar_perfil_gpu() {
+    local dispositivo clase vendor nvidia=0 integrada=0 encontrada=0
+    for dispositivo in /sys/bus/pci/devices/*; do
+      [[ -r "$dispositivo/class" && -r "$dispositivo/vendor" ]] || continue
+      IFS= read -r clase < "$dispositivo/class" || continue
+      [[ "$clase" == 0x03* ]] || continue
+      IFS= read -r vendor < "$dispositivo/vendor" || continue
+      encontrada=1
+      case "$vendor" in
+        0x10de) nvidia=1 ;;
+        0x8086|0x1002|0x1022) integrada=1 ;;
+      esac
+    done
+    ((encontrada)) || return 1
+    if ((nvidia)); then
+      # Híbrida sólo en portátil: en un sobremesa con iGPU y NVIDIA la pantalla cuelga
+      # casi siempre de la NVIDIA, que es lo que asume sobremesa-nvidia.
+      if ((integrada)) && tiene_bateria; then printf 'laptop-hibrida'
+      else printf 'sobremesa-nvidia'; fi
+    elif ((integrada)); then
+      printf 'integrada'
     else
-      warn "No pude instalar la regla udev de USB. Instálala a mano (ver CLAUDE.md, sección USB)."
+      return 1
     fi
-    if sudo install -Dm644 "$SYSTEM_DIR/modules-load.d/i2c-dev.conf" \
-         /etc/modules-load.d/i2c-dev.conf; then
-      # modules-load.d solo actúa en el arranque: cargarlo ahora evita tener que reiniciar
-      # para que el brillo por DDC/CI funcione ya en esta sesión.
-      sudo modprobe i2c-dev || warn "No pude cargar i2c-dev ahora; se cargará al reiniciar."
+  }
+  if [[ -s "$GPU_PERFIL" ]]; then
+    info "Perfil de GPU ya elegido ($(tr -d '[:space:]' < "$GPU_PERFIL")); no lo toco."
+  elif perfil_gpu="$(detectar_perfil_gpu)"; then
+    # `nvidia-vieja-hyde` no se elige nunca automáticamente: es un apaño para tarjetas
+    # antiguas concretas y sólo lo sabe quien tiene una.
+    if mkdir -p "$(dirname "$GPU_PERFIL")" && printf '%s\n' "$perfil_gpu" > "$GPU_PERFIL"; then
+      info "Perfil de GPU detectado y escrito en $GPU_PERFIL: $perfil_gpu"
     else
-      warn "No pude instalar i2c-dev.conf; el brillo por DDC/CI no funcionará hasta hacerlo."
+      warn "No pude escribir $GPU_PERFIL; Hyprland avisará al iniciar sesión. Escribilo a mano: echo $perfil_gpu > $GPU_PERFIL"
     fi
-    # Botón de encendido: se lo cedemos a Hyprland. Sin esto logind lo maneja él
-    # (HandlePowerKey=poweroff de fábrica), a nivel de asiento y sin pasar por el
-    # compositor, así que el bind se ejecuta pero el apagado de logind lo tapa y la
-    # acción elegida en Ajustes > Energía no se nota nunca (fallo mudo).
-    if sudo install -Dm644 "$SYSTEM_DIR/logind.conf.d/99-gigios-powerkey.conf" \
-         /etc/systemd/logind.conf.d/99-gigios-powerkey.conf; then
-      # `reload` y no `restart`: reiniciar logind puede llevarse la sesión por delante.
-      sudo systemctl reload systemd-logind \
-        || warn "No pude recargar systemd-logind; el botón de encendido usará la acción de logind hasta reiniciar."
-    else
-      warn "No pude ceder el botón de encendido a Hyprland; seguirá apagando el equipo (ver CLAUDE.md, sección del botón de encendido)."
-    fi
-    # TLP: perfiles conmutables Normal/Ahorro. Solo si TLP está instalado (en un
-    # equipo sin TLP la función queda oculta en Ajustes > Energía). Todo lo que toca
-    # root es root-owned: helper en /usr/local/bin, perfiles en /etc/gigios/tlp, y la
-    # regla sudoers acotada al comando exacto. NO se toca /etc/tlp.conf aquí: eso lo
-    # hace el helper cuando el usuario elige un perfil.
-    if command -v tlp >/dev/null 2>&1; then
-      sudo install -Dm755 "$SYSTEM_DIR/tlp/gigios-tlp-apply.sh" /usr/local/bin/gigios-tlp-apply \
-        && sudo install -Dm644 "$SYSTEM_DIR/tlp/normal.conf" /etc/gigios/tlp/normal.conf \
-        && sudo install -Dm644 "$SYSTEM_DIR/tlp/ahorro.conf" /etc/gigios/tlp/ahorro.conf \
-        || warn "No pude instalar los perfiles TLP de GiGiOS."
-      instalar_sudoers "$SYSTEM_DIR/tlp/sudoers-gigios-tlp" /etc/sudoers.d/gigios-tlp \
-        "el cambio de perfil de energía pedirá contraseña."
-    else
-      info "TLP no está instalado; omito los perfiles conmutables de energía (se activarán al instalar 'tlp')."
-    fi
-    # ClamAV: botón "Actualizar firmas" de Ajustes > Seguridad > Antivirus. Mismo esquema que TLP
-    # (helper root-owned + regla sudoers acotada al comando exacto) porque /var/lib/clamav es de
-    # `clamav` y habilitar el servicio de actualización es de root. Sin esto el botón no se pinta;
-    # la actualización sigue pudiendo hacerse a mano con `sudo freshclam`.
-    if command -v freshclam >/dev/null 2>&1; then
-      sudo install -Dm755 "$SYSTEM_DIR/clamav/gigios-clamav-update.sh" /usr/local/bin/gigios-clamav-update \
-        || warn "No pude instalar el helper de ClamAV; el botón de firmas no aparecerá en Ajustes."
-      instalar_sudoers "$SYSTEM_DIR/clamav/sudoers-gigios-clamav" /etc/sudoers.d/gigios-clamav \
-        "actualizar las firmas pedirá contraseña."
-      # Sin firmas el escáner de descargas no puede analizar NADA, así que se descargan aquí, una
-      # vez, de forma síncrona (tarda unos minutos y baja ~200 MB).
-      #
-      # Y NO se habilita `clamav-freshclam.service`, que es lo que hacía antes: mantenerlas al día
-      # es hoy un booleano de GiGiOS (`clamavAutoUpdate` en security.json, activado por defecto) que
-      # dispara `hypr/scripts/actualizar-firmas.sh --auto` UNA vez al iniciar sesión, y solo si la
-      # base falta o pasa de un día. Durante la sesión no queda ningún temporizador de ClamAV. Dejar
-      # el servicio encendido reintroduciría justo eso, y encima sin interruptor a la vista (el shell
-      # lo apaga solo si se lo encuentra vivo; ver servicios/seguridad/clamav.ts).
-      #
-      # Y NO se vuelven a descargar en cada reejecución del instalador. Antes se bajaban
-      # siempre: reinstalar o actualizar los dotfiles costaba varios minutos y ~200 MB de
-      # descarga para acabar con la misma base que ya estaba en disco. Se mira si la base
-      # existe y tiene menos de un día — exactamente el mismo criterio que usa
-      # actualizar-firmas.sh --auto al iniciar sesión — y si es así se omite.
-      if ! paso_activo clamav-db; then
-        info "Omito la descarga de firmas de ClamAV; se hará sola al iniciar sesión."
-      elif compgen -G '/var/lib/clamav/daily.c?d' >/dev/null &&
-        [[ -n "$(find /var/lib/clamav -maxdepth 1 -name 'daily.c?d' -mtime -1 -print -quit 2>/dev/null)" ]]; then
-        info "Las firmas de ClamAV ya están al día; no las descargo."
-      else
-        info "Descargando la base de firmas de ClamAV (puede tardar unos minutos)…"
-        sudo /usr/local/bin/gigios-clamav-update update >/dev/null 2>&1 \
-          || warn "No pude descargar las firmas de ClamAV; se reintentará solo al iniciar sesión."
-      fi
-    else
-      info "ClamAV no está instalado; omito el helper de firmas (se activará al instalar 'clamav')."
-    fi
-    # Limpieza de disco: Ajustes > Almacenamiento > Liberar espacio. Tercer helper con el mismo
-    # esquema (root-owned + sudoers acotado), y aquí el NOPASSWD es lo que hace posible la
-    # AUTOLIMPIEZA desatendida: un diálogo de contraseña que aparece solo, de madrugada, no lo lee
-    # nadie. Por eso el helper solo expone verbos cuyo efecto se regenera (caché de pacman, journal,
-    # /var/tmp, huérfanos); vaciar la caché entera y borrar instantáneas siguen pidiendo contraseña
-    # por pkexec desde su botón. Sin esto, esas limpiezas salen como "falta el ayudante" en la UI y
-    # el resto (todo lo que vive bajo $HOME) sigue funcionando.
-    sudo install -Dm755 "$SYSTEM_DIR/limpieza/gigios-limpieza.sh" /usr/local/bin/gigios-limpieza \
-      || warn "No pude instalar el helper de limpieza; las limpiezas de sistema pedirán instalarlo."
-    instalar_sudoers "$SYSTEM_DIR/limpieza/sudoers-gigios-limpieza" /etc/sudoers.d/gigios-limpieza \
-      "la autolimpieza quedará limitada a tu carpeta personal (sin caché de pacman ni journal)."
   else
-    warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
+    warn "No pude identificar la GPU de esta máquina; elegí el perfil a mano (ver docs/SETUP.md §9): echo <perfil> > $GPU_PERFIL"
   fi
 else
-  info "Omito los ficheros de /etc (udev USB, i2c-dev, botón de encendido, helpers)."
+  info "Omito la elección del perfil de GPU."
 fi
 
 if paso_activo cursor; then
@@ -983,6 +1173,11 @@ fi
 # completa" y CORTABA antes de las notas finales, que es justo donde se explica qué hacer
 # a continuación; y con `set -e` ni siquiera se veía el resumen de lo que sí se hizo. Se
 # anota el resultado, se imprime todo, y el código de salida lo decide el resumen final.
+# Recoger aquí lo que se lanzó en segundo plano, y no antes: es el último punto donde
+# todavía se puede avisar de que algo no bajó, y para entonces ya se han solapado con
+# todo lo demás. Va delante de la validación porque el preflight comprueba `pkgfile`.
+esperar_descargas_de_fondo
+
 preflight_fallo=0
 if ! paso_activo preflight; then
   info "Omito la validación final."
@@ -1026,9 +1221,21 @@ paso_activo repo && cat <<'EOF'
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:
               dotfiles remote set-url origin git@github.com:MateoGonzalezLourido/my-linux-dotfiles.git
 EOF
-cat <<'EOF'
+if paso_activo gpu; then
+  if [[ -s "${GPU_PERFIL:-}" ]]; then
+    printf '  • GPU:      perfil «%s» en %s (cambialo escribiendo otro nombre; ver docs/SETUP.md §9).\n' \
+      "$(tr -d '[:space:]' < "$GPU_PERFIL")" "$GPU_PERFIL"
+  else
+    cat <<'EOF'
+  • GPU:      no se pudo elegir perfil. Escribí uno en ~/.config/gigios/gpu-perfil o
+              Hyprland avisará en cada inicio de sesión; ver docs/SETUP.md §9.
+EOF
+  fi
+else
+  cat <<'EOF'
   • Hardware: antes de iniciar Hyprland elegí el perfil GPU; ver docs/SETUP.md.
 EOF
+fi
 paso_activo cursor && cat <<'EOF'
   • Puntero:  elegí el tema en Ajustes > Dispositivos > Puntero. Sin elegirlo, el
               compositor usa el puntero de XCursor; para añadir soporte hyprcursor

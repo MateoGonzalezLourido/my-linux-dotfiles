@@ -54,7 +54,7 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 2 | `gigios/monitores.lua` | Regla comodín: preferido, escala 1 (fallback) | a mano |
 | 3 | `gigios/pantalla.lua` | Resolución/Hz/escala/VRR por monitor concreto (`desc:`) | a mano — **el dato** lo escribe AGS en `display.json` |
 | 4 | `gigios/input.lua` | Teclado, ratón, touchpad y gestos (valores base) | a mano |
-| 5 | `gigios/ventanas.lua` | Gaps, bordes, sombras, blur, `layout` + `sin_smart_split()`, el envoltorio que usan los cuatro caminos que mueven ventanas entre escritorios | a mano |
+| 5 | `gigios/ventanas.lua` | Gaps, bordes, sombras, blur, opacidad, `layout` + `sin_smart_split()`, el envoltorio que usan los cuatro caminos que mueven ventanas entre escritorios, y `opacidad_ahorro()` | a mano — **la opacidad forzada del modo ahorro** la escribe AGS en `opacidad-ventanas.json` |
 | 6 | `gigios/animaciones.lua` | Curvas y animaciones | a mano |
 | 7 | `gigios/reglas.lua` | Reglas de ventana y de capa | a mano |
 | 8 | `gigios/compactar.lua` | `GiGiOS.compactar()` — renumera escritorios | a mano |
@@ -111,7 +111,7 @@ lenguaje Turing-completo). `hypridle` lo lanza `gigios/autostart.lua`, y sus
 
 ## Perfiles de GPU: `gigios/gpu/`
 
-Tres módulos, uno por hardware. **Ya no se descomenta una línea**: el perfil de
+Cuatro módulos, uno por hardware. **Ya no se descomenta una línea**: el perfil de
 cada máquina lo dice `~/.config/gigios/gpu-perfil`, un fichero local de una línea
 **fuera del repo** (la elección de máquina es estado local, como manda
 [`anadir-perfiles-por-equipo.md`](anadir-perfiles-por-equipo.md)):
@@ -119,6 +119,15 @@ cada máquina lo dice `~/.config/gigios/gpu-perfil`, un fichero local de una lí
 ```sh
 echo sobremesa-nvidia > ~/.config/gigios/gpu-perfil
 ```
+
+Lo escribe el instalador (paso `gpu`) leyendo las clases PCI de `/sys`, y **nunca pisa
+un fichero que ya exista**: si el acierto automático no te vale, lo cambiás a mano y el
+instalador respeta tu elección en las siguientes pasadas.
+
+`integrada.lua` no configura nada y ESE es su cometido: es la forma de decir «esta
+máquina es Intel o AMD sola, no hay nada que ajustar». Antes eso se decía dejando el
+fichero ausente, y `gpu.lua` no puede distinguir «todavía no lo he elegido» de «lo elegí
+y es que no hace falta»: avisaba en pantalla en CADA inicio de sesión, para siempre.
 
 Ausente o con un nombre inválido = no se aplica ningún perfil y sale un aviso en
 pantalla; el compositor arranca igual (fail-open).

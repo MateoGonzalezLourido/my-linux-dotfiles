@@ -73,6 +73,24 @@
 -- parte a la mayor por su lado largo (507x547). Ese es exactamente el punto en
 -- el que "una más" empezaba a estrujar.
 --
+-- ── LA SEGUNDA VENTANA DE UN ESCRITORIO SIEMPRE VA AL LADO ─────────────────
+--
+-- Excepción a lo anterior, y la única regla de este módulo que NO es
+-- prevención: con UNA sola ventana en mosaico, la siguiente nace **a la
+-- derecha**, nunca debajo, pase lo que pase con el ratón. No entra por el
+-- camino de los mínimos porque ahí nunca entraría: la peor mitad de una ventana
+-- que ocupa el escritorio entero da la talla de sobra, así que el módulo se
+-- apartaba y decidía `smart_split` — o sea el cuadrante donde hubieras dejado el
+-- cursor. Con el ratón en la mitad de abajo (la barra de tareas, el sitio más
+-- normal donde soltarlo) el resultado era un escritorio partido en dos franjas
+-- horizontales, que en un panel apaisado es la peor de las dos formas y encima
+-- salía distinto en cada arranque sin que se viera por qué.
+--
+-- Es un FORZADO deliberado, no una heurística: el eje no se calcula, se fija.
+-- El lado sí es una convención — derecha, el default de dwindle, para que la
+-- ventana que ya tenías no se te mueva de sitio. A partir de la tercera vuelve a
+-- mandar todo lo de arriba (mínimos, cercanía al ratón, smart_split).
+--
 -- ── LÍMITES CONOCIDOS ───────────────────────────────────────────────────────
 --
 --   · En un escritorio que NO se está viendo no se hace NADA, y eso incluye el
@@ -101,6 +119,8 @@
 -- Ajustes en ~/.config/gigios/preferences.json, como maxVentanasEscritorio:
 --   · `repartoVentanas` — AUSENTE = activado (se comprueba `== false`, un nil
 --     tiene que dejar pasar).
+--   · `segundaVentanaAlLado` — AUSENTE = activado, mismo criterio. Apaga solo el
+--     forzado de la segunda ventana; el resto del módulo sigue igual.
 --   · `anchoMinimoVentana` / `altoMinimoVentana` — el listón, en píxeles.
 --     Ausentes = 480x320. A 0 los dos = desactivado (nada baja de 0, así que
 --     nunca se interviene). Se leen por util.prefs(), o sea una vez por
@@ -203,11 +223,39 @@ hl.on("window.open_early", function(ventana)
   -- `open_early` llega ANTES de colocar la ventana y ANTES de aplicar reglas:
   -- es el único momento en el que aún se puede elegir el sitio sin cirugía.
   local ok, err = pcall(function()
-    if util.prefs().repartoVentanas == false then return end
     if not ventana or ventana.floating then return end
 
     local ws = ventana.workspace
     if not ws or ws.special or ws.id <= 0 then return end
+
+    local lista = mosaico(ws.id, ventana.address)
+    if #lista == 0 then return end   -- primera del escritorio: no hay nada que partir
+
+    -- SEGUNDA VENTANA: AL LADO, NUNCA DEBAJO. Ver la sección de la cabecera.
+    -- Va ANTES del listón de los mínimos porque con una sola ventana el listón
+    -- siempre lo aprueba y el eje acabaría saliendo del cuadrante del cursor; y
+    -- antes también de `repartoVentanas`, porque no es reparto: apagar la
+    -- prevención de ventanas estrujadas no tiene por qué devolverte las dos
+    -- franjas horizontales.
+    if #lista == 1 and util.prefs().segundaVentanaAlLado ~= false then
+      if pendiente then pendiente = nil end   -- ver la nota de la variable
+      -- Sin palanca 1: solo hay un objetivo posible, así que no hay nada que
+      -- enfocar (ni por tanto el problema de arrastrar la vista a un escritorio
+      -- oculto: esta rama sí vale con `ws.visible` falso) y `cerrar()` se
+      -- limitará a soltar el override.
+      hl.dispatch(hl.dsp.layout("preselect right"))
+      local p = { addr = ventana.address, enfocada = false }
+      pendiente = p
+      hl.timer(function()
+        if pendiente == p then
+          pendiente = nil
+          cerrar(p)
+        end
+      end, { timeout = ESPERA_LIMPIEZA, type = "oneshot" })
+      return
+    end
+
+    if util.prefs().repartoVentanas == false then return end
     -- Escritorio que no se ve: nada. Ver "límites conocidos" — sin poder
     -- enfocar (arrastraría la vista) el arreglo a medias empeora el resultado.
     if not ws.visible then return end
@@ -215,9 +263,6 @@ hl.on("window.open_early", function(ventana)
     local ancho_min = tonumber(util.prefs().anchoMinimoVentana) or ANCHO_MIN_DEFECTO
     local alto_min  = tonumber(util.prefs().altoMinimoVentana)  or ALTO_MIN_DEFECTO
     if ancho_min <= 0 and alto_min <= 0 then return end
-
-    local lista = mosaico(ws.id, ventana.address)
-    if #lista == 0 then return end   -- primera del escritorio: no hay nada que partir
 
     -- Objetivo natural de dwindle: la última enfocada de ESE escritorio.
     local natural = ws.last_window

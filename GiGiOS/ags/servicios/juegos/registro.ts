@@ -2,6 +2,7 @@ import AstalHyprland from "gi://AstalHyprland"
 import GLib from "gi://GLib"
 import { createState } from "ags"
 import { esClienteJuego, invalidarEvidenciaProceso, type ClienteConProceso } from "./evidencia"
+import { escanerJuegos } from "../../modulos/ajustes/preferences"
 
 export const [clientesJuego, establecerClientesJuego] = createState<ClienteConProceso[]>([])
 export const [clienteJuegoEnFoco, establecerClienteJuegoEnFoco] = createState<string | null>(null)
@@ -9,6 +10,16 @@ export const [clienteJuegoEnFoco, establecerClienteJuegoEnFoco] = createState<st
 export const [revisionVentanas, establecerRevisionVentanas] = createState(0)
 
 let iniciado = false
+// Espejo local de la preferencia `escanerJuegos` (Ajustes > Juegos). Se cachea en una
+// variable en vez de leer el estado en cada evento porque lo consultan las tres rutas
+// calientes (alta de ventana, cambio de título, cambio de foco).
+//
+// Apagado, este módulo deja de ser un escáner y pasa a ser solo el bus de eventos de
+// ventana: NO conecta las señales por cliente, NO lee /proc ni las entradas .desktop y
+// NO publica ningún juego. Lo que sí sigue emitiendo es `revisionVentanas`, porque el
+// auto-DND lo usa también para su lista de apps a pantalla completa, que no tiene nada
+// que ver con los juegos.
+let escanerActivo = true
 const juegos = new Map<string, ClienteConProceso>()
 const clientes = new Map<string, ClienteConProceso>()
 const conexionesCliente = new Map<string, Array<{ cliente: any; id: number }>>()
@@ -38,6 +49,11 @@ function evaluarCliente(
 ) {
   const direccion = claveDireccion((cliente as any)?.address)
   if (!direccion || !clientes.has(direccion)) return
+  // Sin escáner no hay nada que decidir, pero el evento sigue valiendo para el resto.
+  if (!escanerActivo) {
+    publicarRevision()
+    return
+  }
 
   const eraJuego = juegos.has(direccion)
   const esJuego = esClienteJuego(cliente)
@@ -54,7 +70,7 @@ function evaluarCliente(
 
 function conectarCliente(hypr: AstalHyprland.Hyprland, cliente: any) {
   const direccion = claveDireccion(cliente?.address)
-  if (!direccion || conexionesCliente.has(direccion)) return
+  if (!escanerActivo || !direccion || conexionesCliente.has(direccion)) return
   const conexiones: Array<{ cliente: any; id: number }> = []
 
   for (const senal of ["notify::title", "notify::class", "notify::fullscreen"]) {
@@ -80,7 +96,9 @@ function registrarCliente(hypr: AstalHyprland.Hyprland, cliente: any) {
   conectarCliente(hypr, cliente)
   evaluarCliente(hypr, cliente)
 
-  if (!cliente.class && !reintentos.has(direccion)) {
+  // El reintento tardío existe solo para volver a decidir si es un juego cuando la
+  // ventana aún no tenía clase; sin escáner no hay decisión que rehacer.
+  if (escanerActivo && !cliente.class && !reintentos.has(direccion)) {
     const fuente = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
       reintentos.delete(direccion)
       evaluarCliente(hypr, cliente, true)
@@ -93,18 +111,49 @@ function registrarCliente(hypr: AstalHyprland.Hyprland, cliente: any) {
 function olvidarCliente(hypr: AstalHyprland.Hyprland, direccionCruda: string) {
   const direccion = claveDireccion(direccionCruda)
   const cliente = clientes.get(direccion)
+  desconectarCliente(direccion)
+  clientes.delete(direccion)
+  invalidarEvidenciaProceso(cliente?.pid)
+  if (juegos.delete(direccion)) publicarJuegos()
+  actualizarFoco(hypr)
+  publicarRevision()
+}
+
+function desconectarCliente(direccion: string) {
+  for (const conexion of conexionesCliente.get(direccion) ?? []) {
+    try { conexion.cliente.disconnect(conexion.id) } catch (_) {}
+  }
+  conexionesCliente.delete(direccion)
   const reintento = reintentos.get(direccion)
   if (reintento !== undefined) {
     GLib.source_remove(reintento)
     reintentos.delete(direccion)
   }
-  for (const conexion of conexionesCliente.get(direccion) ?? []) {
-    try { conexion.cliente.disconnect(conexion.id) } catch (_) {}
+}
+
+/** Enciende o apaga el escáner en caliente, sin reiniciar el shell. Al apagarlo suelta
+ *  todo su trabajo (señales por ventana, reintentos pendientes y caché de /proc) y
+ *  publica "no hay juegos"; al encenderlo reevalúa lo que ya estuviera abierto. */
+function aplicarEscaner(hypr: AstalHyprland.Hyprland, activo: boolean) {
+  if (activo === escanerActivo) return
+  escanerActivo = activo
+
+  if (!activo) {
+    for (const direccion of [...conexionesCliente.keys()]) desconectarCliente(direccion)
+    for (const cliente of clientes.values()) invalidarEvidenciaProceso(cliente?.pid)
+    const habiaJuegos = juegos.size > 0
+    juegos.clear()
+    if (habiaJuegos) publicarJuegos()
+    establecerClienteJuegoEnFoco(null)
+    publicarRevision()
+    return
   }
-  conexionesCliente.delete(direccion)
-  clientes.delete(direccion)
-  invalidarEvidenciaProceso(cliente?.pid)
-  if (juegos.delete(direccion)) publicarJuegos()
+
+  for (const cliente of clientes.values()) {
+    conectarCliente(hypr, cliente)
+    evaluarCliente(hypr, cliente)
+  }
+  publicarJuegos()
   actualizarFoco(hypr)
   publicarRevision()
 }
@@ -113,6 +162,8 @@ export function iniciarRegistroJuegos(): void {
   if (iniciado) return
   iniciado = true
   const hypr = AstalHyprland.get_default()
+  escanerActivo = escanerJuegos.get()
+  escanerJuegos.subscribe(() => aplicarEscaner(hypr, escanerJuegos.get()))
 
   for (const cliente of hypr.get_clients?.() ?? []) registrarCliente(hypr, cliente)
   publicarJuegos()
@@ -141,6 +192,7 @@ export function iniciarRegistroJuegos(): void {
 }
 
 export function esClienteRegistradoComoJuego(cliente: any): boolean {
+  if (!escanerActivo) return false
   const direccion = claveDireccion(cliente?.address)
   return direccion ? juegos.has(direccion) : false
 }

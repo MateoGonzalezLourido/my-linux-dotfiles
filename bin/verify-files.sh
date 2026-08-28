@@ -16,6 +16,31 @@ if [ "${#files[@]}" -eq 0 ]; then
   mapfile -t files < <(git ls-files)
 fi
 
+# Los tests son de DESARROLLO MOMENTÁNEO: no se versionan ni viajan al
+# instalador. `GiGiOS/.gitignore` ya los excluye, pero un `git add -f` (o un
+# fichero que quedó rastreado de antes de existir la regla, que es lo que pasó
+# con fondoShell.test.ts y monitores.test.ts) se salta el ignore sin avisar. El
+# push es el último punto donde se puede parar, así que se para aquí.
+#
+# Por qué importa y no es sólo higiene: `bin/preflight.sh` llegó a exigir nueve
+# `*.test.ts` en su lista `required`. En la máquina de desarrollo existen y
+# pasaba; en un checkout limpio no existen NUNCA, así que el instalador
+# terminaba con nueve errores y "la instalación NO está completa" en cada
+# máquina nueva. Un test rastreado es la mitad de esa trampa.
+test_regex='(\.test|\.spec)\.(ts|tsx|js|jsx|mts)$|_test\.(py|js)$|^(.*/)?test_[^/]+\.py$'
+tests_versionados=()
+for f in "${files[@]}"; do
+  # Sin excepciones: NINGÚN test se versiona, tampoco el del motor de fondos.
+  [[ "$f" =~ $test_regex ]] && tests_versionados+=("$f")
+done
+if [ "${#tests_versionados[@]}" -gt 0 ]; then
+  echo "verify-files: hay tests rastreados; los tests no se versionan:" >&2
+  printf '  %s\n' "${tests_versionados[@]}" >&2
+  echo "Quitalos del índice sin borrarlos del disco:" >&2
+  printf '  dotfiles rm --cached %s\n' "${tests_versionados[*]}" >&2
+  exit 1
+fi
+
 # Formatos de ejecutable/binario que no tienen nada que hacer en un repo de
 # dotfiles, sea cual sea la extensión del archivo.
 denylist_regex='ELF|PE32|Mach-O|MS-DOS executable|Java archive|Microsoft Cabinet|Composite Document File'

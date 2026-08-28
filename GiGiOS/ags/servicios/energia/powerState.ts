@@ -26,6 +26,7 @@ interface PowerConfig {
   fallbackWave: boolean        // when true, the Spotify wave drops cava for its procedural animation
   hideMascota: boolean         // when true, the desktop pet window is unmounted during power-save
   opaquePanels: boolean        // when true, the shell's translucent surfaces turn fully opaque during power-save
+  opaqueWindows: boolean       // when true, Hyprland's window opacity is forced to 1.0 during power-save
   reduceBrightness: boolean    // when true, screen brightness drops to `brightnessPct` during power-save
   brightnessPct: number        // target brightness (0..100) while power-save is on
   tlpAuto: boolean             // when true, the TLP profile switches to "ahorro" during power-save
@@ -57,6 +58,10 @@ const DEFAULTS: PowerConfig = {
   // CAMBIA EL ASPECTO del escritorio en vez de quitar algo que sobra, y encontrarse los
   // paneles opacos sin haberlo pedido se lee como un fallo del tema, no como un ahorro.
   opaquePanels: false,
+  // Apagado por defecto por lo mismo que `opaquePanels`, del que es el gemelo para las
+  // ventanas del compositor: se VE (desaparece el velo de las ventanas sin foco) y una
+  // medida que se ve tiene que pedirse.
+  opaqueWindows: false,
   reduceBrightness: false,
   brightnessPct: 40,
   tlpAuto: false,
@@ -84,6 +89,7 @@ function loadConfig(): PowerConfig {
         fallbackWave: typeof data.fallbackWave === "boolean" ? data.fallbackWave : DEFAULTS.fallbackWave,
         hideMascota: typeof data.hideMascota === "boolean" ? data.hideMascota : DEFAULTS.hideMascota,
         opaquePanels: typeof data.opaquePanels === "boolean" ? data.opaquePanels : DEFAULTS.opaquePanels,
+        opaqueWindows: typeof data.opaqueWindows === "boolean" ? data.opaqueWindows : DEFAULTS.opaqueWindows,
         reduceBrightness: typeof data.reduceBrightness === "boolean" ? data.reduceBrightness : DEFAULTS.reduceBrightness,
         brightnessPct: typeof data.brightnessPct === "number" ? clampPct(data.brightnessPct) : DEFAULTS.brightnessPct,
         tlpAuto: typeof data.tlpAuto === "boolean" ? data.tlpAuto : DEFAULTS.tlpAuto,
@@ -124,6 +130,7 @@ export const [freezeBackgroundInPowerSave, _setFreezeBackground] = createState(i
 export const [fallbackWaveInPowerSave, _setFallbackWave] = createState(initial.fallbackWave)
 export const [hideMascotaInPowerSave, _setHideMascota] = createState(initial.hideMascota)
 export const [opaquePanelsInPowerSave, _setOpaquePanels] = createState(initial.opaquePanels)
+export const [opaqueWindowsInPowerSave, _setOpaqueWindows] = createState(initial.opaqueWindows)
 export const [reduceBrightnessInPowerSave, _setReduceBrightness] = createState(initial.reduceBrightness)
 export const [powerSaveBrightnessPct, _setBrightnessPct] = createState(initial.brightnessPct)
 export const [tlpAutoInPowerSave, _setTlpAuto] = createState(initial.tlpAuto)
@@ -168,6 +175,7 @@ function persistAhora() {
       fallbackWave: fallbackWaveInPowerSave.get(),
       hideMascota: hideMascotaInPowerSave.get(),
       opaquePanels: opaquePanelsInPowerSave.get(),
+      opaqueWindows: opaqueWindowsInPowerSave.get(),
       reduceBrightness: reduceBrightnessInPowerSave.get(),
       brightnessPct: powerSaveBrightnessPct.get(),
       tlpAuto: tlpAutoInPowerSave.get(),
@@ -224,6 +232,11 @@ export function setHideMascotaInPowerSave(v: boolean) {
 }
 export function setOpaquePanelsInPowerSave(v: boolean) {
   _setOpaquePanels(v)
+  recompute()
+  persist()
+}
+export function setOpaqueWindowsInPowerSave(v: boolean) {
+  _setOpaqueWindows(v)
   recompute()
   persist()
 }
@@ -310,6 +323,13 @@ export const [mascotaSuspended, _setMascotaSuspended] = createState(false)
 // el desenfoque como el pintado del escritorio de detrás. Es la única medida de la
 // sección que ahorra mientras el usuario MIRA algo, no mientras el equipo está en reposo.
 export const [transparenciaSuspendida, _setTransparenciaSuspendida] = createState(false)
+// opacidadVentanasForzada: powerSaveActive AND the user opted in to opaque windows.
+// El gemelo del de arriba para las ventanas DEL COMPOSITOR, y por eso su consumidor no es
+// un widget: `opacidadVentanas.ts` lo publica en ~/.config/gigios/opacidad-ventanas.json y
+// llama a `GiGiOS.opacidad_ahorro()` de `hypr/gigios/ventanas.lua`, que es quien conoce la
+// opacidad a la que hay que VOLVER (0.92 para las ventanas sin foco). Se combina aquí, como
+// todos los demás, para que el lado Lua no tenga que rederivar "¿hay ahorro?".
+export const [opacidadVentanasForzada, _setOpacidadVentanasForzada] = createState(false)
 // Pre-composed human label so the UI doesn't have to combine three states in one binding.
 export const [batteryStatusText, _setBatteryStatusText] = createState(textos.estado.sinBateria)
 
@@ -335,6 +355,7 @@ function recompute() {
   _setSpectrumSuspended(active && fallbackWaveInPowerSave.get())
   _setMascotaSuspended(active && hideMascotaInPowerSave.get())
   _setTransparenciaSuspendida(active && opaquePanelsInPowerSave.get())
+  _setOpacidadVentanasForzada(active && opaqueWindowsInPowerSave.get())
 }
 
 if (bat) {

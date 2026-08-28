@@ -79,8 +79,13 @@ const panelStates: PanelState[] = [
   trayMenuVisible,
   notifPanelVisible,
   calendarVisible,
-  orionVisible,
 ]
+
+// Orion NO va en `panelStates` a propósito. Es una ventana OVERLAY propia,
+// anclada abajo y con su keymode exclusivo: no cuelga de la barra ni se abre
+// desde ella, así que retenerla desplegaba la barra cada vez que se abría el
+// lanzador — dos cosas distintas pegadas por el registro. La barra sigue su
+// propia regla (hover, pin, auto-ocultado) mientras Orion está abierto.
 
 export const anyPanelVisible = {
   get: () => panelStates.some((s) => s.get()),

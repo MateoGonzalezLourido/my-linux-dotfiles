@@ -90,6 +90,10 @@
     "titulo": "Quitar la transparencia de los paneles",
     "descripcion": "Deja los paneles, el buscador, el OSD y los avisos en un fondo sólido durante el ahorro. Lo que se ahorra no es dibujarlos: es el desenfoque que Hyprland hace del escritorio que se ve por debajo, un trabajo de GPU por cada fotograma en que un panel esté abierto. Es la única medida de esta lista que ahorra mientras estás mirando algo. Vuelve la transparencia al salir."
   },
+  "transparenciaVentanas": {
+    "titulo": "Quitar la transparencia de las ventanas",
+    "descripcion": "Deja todas las ventanas de Hyprland con un fondo sólido durante el ahorro, incluidas las que no tienen el foco (normalmente al 92 %). Se ahorra lo mismo que con los paneles y por el mismo motivo: una ventana semitransparente obliga al compositor a dibujar también lo que hay debajo en cada fotograma. Devuelve la transparencia al salir."
+  },
   "ondaSpotify": {
     "titulo": "Onda de Spotify sin analizar el audio",
     "descripcion": "Durante el ahorro, la onda deja de seguir la música y vuelve a su animación propia, sin capturar audio ni lanzar ningún proceso. Se sigue viendo y moviéndose. Solo se nota si el reproductor no está oculto por el ajuste anterior."

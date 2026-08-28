@@ -1,6 +1,8 @@
 -- Aspecto y comportamiento de ventanas: general, decoration, layouts y misc.
 -- Aspecto de las ventanas: gaps, bordes, sombras, blur y layout.
 
+local util = require("gigios.util")
+
 -- FUENTE ÚNICA del "modo normal" del espaciado. GiGiOS.toggle_gaps()
 -- (gigios/keybinds.lua, SUPER+SHIFT+E) restaura EXACTAMENTE esta tabla al salir
 -- del modo compacto, en vez de los literales que llevaba copiados: cambiar un
@@ -16,6 +18,14 @@ local aspecto = {
   gaps_out = 8,
   border_size = 0,
   rounding    = 6,
+
+  -- Opacidad "de siempre" de las ventanas. Está aquí, y no suelta dentro del
+  -- bloque `decoration` de abajo, por el mismo motivo que los gaps: el modo
+  -- ahorro las fuerza a 1.0 y luego tiene que devolverlas, y con el valor
+  -- escrito a mano en dos sitios el día que se cambie aquí la restauración
+  -- pondría el de antes. Ver `opacidad_ahorro` más abajo.
+  active_opacity   = 1.0,
+  inactive_opacity = 0.92,
 }
 
 -- FUENTE ÚNICA de los ajustes de dwindle, por el mismo motivo que `aspecto`:
@@ -43,6 +53,60 @@ local dwindle = {
   smart_split = true,
 }
 
+-- ── OPACIDAD FORZADA DEL MODO AHORRO ───────────────────────────────────────
+--
+-- Gemelo, para las ventanas de Hyprland, del ajuste "quitar la transparencia de
+-- los paneles" del shell (Ajustes > Energía; ver `ags/servicios/energia/
+-- opacidadAhorro.ts`). Aquel deja opacas las láminas de AGS; este deja opacas
+-- las VENTANAS, que es lo que `inactive_opacity` transparenta.
+--
+-- Lo que se ahorra es lo mismo y es del compositor, no del cliente: una ventana
+-- con alfa < 1 obliga a Hyprland a componer lo que hay DEBAJO de ella (el resto
+-- del mosaico y el fondo) en cada fotograma que se redibuje, y además la excluye
+-- de cualquier atajo de superficie opaca. Con todas las ventanas a 1.0, la de
+-- delante tapa de verdad. Como el ajuste de los paneles, es de los pocos que
+-- ahorran mientras el usuario MIRA algo, no mientras el equipo está en reposo.
+--
+-- LA CONDICIÓN VIENE YA RESUELTA DE AGS, y esto no la reevalúa. El fichero
+-- ~/.config/gigios/opacidad-ventanas.json trae `forzada`, que AGS escribe como
+-- (modo ahorro activo Y el ajuste encendido) — mismo criterio que
+-- `powerSaveFreeze` en runtime-state.json: una sola fuente de verdad, porque
+-- rederivar aquí "¿hay ahorro?" nos obligaría a mirar /sys/class/power_supply,
+-- que lista también la pila del ratón. Fichero ausente o corrupto → `false`, o
+-- sea la opacidad de siempre; nunca una sesión con las ventanas opacas sin
+-- haberlo pedido.
+local RUTA_OPACIDAD = util.HOGAR .. "/.config/gigios/opacidad-ventanas.json"
+
+local function ahorro_pide_opaco()
+  local j = util.leer_json(RUTA_OPACIDAD)
+  return type(j) == "table" and j.forzada == true
+end
+
+--- Aplica (o retira) la opacidad forzada del ahorro. `forzar` verdadero → las
+--- dos opacidades a 1.0; falso → las de `aspecto`, que son las únicas de verdad.
+---
+--- ES EL PUNTO DE ENTRADA EN VIVO: `ags/servicios/energia/opacidadVentanas.ts`
+--- lo llama con `hyprctl eval "GiGiOS.opacidad_ahorro(true)"` en cada
+--- transición, igual que scripts/anclaje.py usa GiGiOS.sin_smart_split. No se
+--- exporta un `hl.config` suelto desde AGS a propósito: el valor al que hay que
+--- VOLVER solo lo sabe este fichero, y duplicarlo en TypeScript es la misma
+--- desincronización que ya documenta `aspecto` para el toggle de gaps.
+local function opacidad_ahorro(forzar)
+  pcall(hl.config, {
+    decoration = {
+      active_opacity   = forzar and 1.0 or aspecto.active_opacity,
+      inactive_opacity = forzar and 1.0 or aspecto.inactive_opacity,
+    },
+  })
+end
+
+-- El estado de arranque se lee ANTES del hl.config de abajo y se aplica dentro
+-- de él, en vez de con una segunda llamada después: un `hyprctl reload` re-
+-- ejecuta este módulo entero, y con la corrección aparte habría un instante con
+-- las ventanas transparentes. Es el mismo motivo por el que pantalla.lua relee
+-- display.json en cada carga en vez de fiarlo todo a que AGS lo reaplique.
+local opaco_ahorro = ahorro_pide_opaco()
+
 hl.config({
   general = {
     gaps_in  = aspecto.gaps_in,
@@ -69,8 +133,10 @@ hl.config({
   decoration = {
     rounding       = aspecto.rounding,
     rounding_power = 4,
-    active_opacity   = 1.0,
-    inactive_opacity = 0.92,
+    -- Ver `opacidad_ahorro` arriba: con el ahorro pidiendo opaco, las dos van
+    -- a 1.0 y este módulo las devuelve a `aspecto` al salir.
+    active_opacity   = opaco_ahorro and 1.0 or aspecto.active_opacity,
+    inactive_opacity = opaco_ahorro and 1.0 or aspecto.inactive_opacity,
 
     shadow = {
       enabled      = true,
@@ -172,8 +238,10 @@ end
 -- `hyprctl eval`, que comparte el estado Lua del config (ver hyprland.lua).
 GiGiOS = GiGiOS or {}
 GiGiOS.sin_smart_split = sin_smart_split
+-- Lo llama AGS por `hyprctl eval` en cada transición del modo ahorro (ver arriba).
+GiGiOS.opacidad_ahorro = opacidad_ahorro
 
 -- Lo consume gigios/keybinds.lua (require cachea: es la misma tabla que acaba de
 -- aplicarse, no una copia). hyprland.lua carga este módulo con util.carga() e
 -- ignora el retorno; el valor solo importa para quien lo pida.
-return { aspecto = aspecto, dwindle = dwindle, sin_smart_split = sin_smart_split }
+return { aspecto = aspecto, dwindle = dwindle, sin_smart_split = sin_smart_split, opacidad_ahorro = opacidad_ahorro }

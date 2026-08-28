@@ -20,6 +20,7 @@ import {
   clientesJuego,
   iniciarRegistroJuegos,
 } from "../juegos/registro"
+import { escanerJuegos } from "../../modulos/ajustes/preferences"
 
 const STATE_PATH = `${GLib.get_user_config_dir()}/gigios/runtime-state.json`
 
@@ -81,6 +82,14 @@ function getPid(): number {
 // pid: si AGS muere, bash hace fail-open y el mantenimiento vuelve a correr.
 // El valor ya viene COMBINADO desde powerState.ts (ahorro activo Y el usuario lo pidió),
 // igual que spotifyBarSuspended y compañía; bash no reevalúa nada.
+//
+// `gameScanner` es la preferencia `escanerJuegos` (Ajustes > Juegos > "Detectar juegos
+// en marcha"). Con ella apagada el registro no detecta nada, así que `gaming` y
+// `gameFocused` valen `false` DE FORMA PERMANENTE — y eso es exactamente lo que el
+// lado bash necesita saber: nunca hay que congelar el mantenimiento por una partida.
+// Se escribe el motivo además del efecto para que quien lea el fichero pueda distinguir
+// "ahora mismo no hay ningún juego" de "en este equipo no se juega"; ningún consumidor
+// está obligado a mirarlo, porque `gaming: false` ya basta para hacer lo correcto.
 function writeFlag(gaming: boolean) {
   try {
     const dir = GLib.path_get_dirname(STATE_PATH)
@@ -89,6 +98,7 @@ function writeFlag(gaming: boolean) {
       gaming,
       gameFocused,
       lastGameFocus,
+      gameScanner: escanerJuegos.get(),
       powerSaveFreeze: backgroundJobsSuspended.get(),
       pid: getPid(),
     }))
@@ -131,6 +141,13 @@ export function initGamingState(): void {
   // El ahorro entra y sale sin que pase nada con las ventanas, así que sin esto el
   // fichero solo se actualizaría la próxima vez que abrieras o cerraras un juego.
   backgroundJobsSuspended.subscribe(() => writeFlag(isGaming.get()))
+  // Y el escáner, por lo mismo: al apagarlo sin ningún juego abierto no cambia la lista
+  // de clientes, así que nadie más reescribiría el fichero y `gameScanner` se quedaría
+  // mintiendo hasta la próxima ventana. Al apagarlo con un juego delante sí llega por
+  // `clientesJuego` (el registro vacía la lista), pero recompute() volvería a salir por
+  // su guarda de "no ha cambiado" si el orden fuera el otro; escribir aquí es lo que
+  // hace que el resultado no dependa de ese orden.
+  escanerJuegos.subscribe(() => writeFlag(isGaming.get()))
   clientesJuego.subscribe(() => {
     recompute()
     refreshFocus()

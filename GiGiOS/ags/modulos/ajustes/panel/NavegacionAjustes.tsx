@@ -1,23 +1,59 @@
-import { Gtk } from "ags/gtk4"
+import { Gtk, Gdk } from "ags/gtk4"
 import type { Accessor } from "ags"
+import { espacioDisponible, seguirGeometriaMonitor } from "../../../utilidades/tamanoLamina"
 import { SECCIONES_NAVEGACION, type IdSeccion } from "./secciones.tsx"
 import textos from "../../../textos/ajustes/general.json" with { type: "json" }
+
+// Lo que rodea a la lista dentro de `.sp-nav`: padding vertical (16+16), el título y el
+// espaciado. Se descuenta del alto de pantalla para que el techo de la lista sea el alto
+// que de verdad le queda.
+const MARCO_NAV = 76
 
 export default function NavegacionAjustes({
   seccion,
   seleccionar,
+  gdkmonitor,
 }: {
   seccion: Accessor<IdSeccion>
   seleccionar: (seccion: IdSeccion) => void
+  gdkmonitor: Gdk.Monitor
 }) {
+  let lista: Gtk.ScrolledWindow | undefined
+  // El alto del panel lo estira ESTA lista, no la sección abierta: la nav es lo único
+  // constante entre secciones, así que el panel deja de cambiar de tamaño al navegar. El
+  // techo es lo que quepa en la pantalla; a partir de ahí la lista se desplaza.
+  const aplicarTecho = () => {
+    lista?.set_max_content_height(Math.max(1, espacioDisponible(gdkmonitor).alto - MARCO_NAV))
+  }
+
   return (
-    <box cssClasses={["sp-nav"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+    // `hexpand={false}` EXPLÍCITO, y es obligatorio: en GTK4 el hexpand de un hijo sube
+    // por sus ancestros salvo que uno lo fije a la fuerza, y las etiquetas de las entradas
+    // lo llevan (es lo que alinea el texto a la izquierda del glifo). Sin esto la nav
+    // «expandía» igual que el contenido y se repartía con él todo el ancho sobrante del
+    // panel: los botones pasaban de sus ~225 px a más del doble. No se notaba mientras el
+    // contenido pedía un mínimo mayor que el panel, porque entonces no sobraba nada que
+    // repartir. La nav mide lo que miden sus etiquetas y ahí se queda.
+    <box cssClasses={["sp-nav"]} orientation={Gtk.Orientation.VERTICAL} spacing={4} hexpand={false}>
       <label cssClasses={["sp-nav-title"]} label={textos.panel.titulo} halign={Gtk.Align.START} />
+      {/* La lista vertical va en EXTERNAL, no en NEVER: con NEVER, GTK4 suma la altura
+          MÍNIMA de las 26 entradas (~900 px) a lo que pide el panel, así que la lista no
+          se desplazaba nunca y encima imponía un alto de panel imposible en pantallas
+          normales. Con EXTERNAL sube el NATURAL —acotado por `maxContentHeight`—, que es
+          justo lo que se quiere: el panel se estira para enseñar la nav entera mientras
+          quepa, y cuando no cabe la lista se desplaza. No dibuja barra. El ancho sí sigue
+          en NEVER: la nav debe medir lo que miden sus etiquetas, y es estático. */}
       <Gtk.ScrolledWindow
         cssClasses={["sp-nav-scroll"]}
+        $={(self: Gtk.ScrolledWindow) => {
+          lista = self
+          aplicarTecho()
+          seguirGeometriaMonitor(gdkmonitor, aplicarTecho)(self)
+        }}
         vexpand
+        propagateNaturalHeight
         hscrollbarPolicy={Gtk.PolicyType.NEVER}
-        vscrollbarPolicy={Gtk.PolicyType.NEVER}
+        vscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
       >
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
           {SECCIONES_NAVEGACION.map((destino) => (

@@ -6,9 +6,17 @@ import { notifSettingsVisible, setNotifSettingsVisible } from "../store"
 import SettingsTabs from "./SettingsTabs.tsx"
 import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 import { clasesFondoShell } from "../../ajustes/preferences"
+import { medidasLamina, seguirTamanoLamina } from "../../../utilidades/tamanoLamina"
+
+// Tamaño de DISEÑO de la lámina: un techo que `medidasLamina` recorta a la pantalla, no un
+// mínimo. Estaba como `min-width`/`min-height` en `.nsw-panel`, o sea un SUELO que GTK no
+// baja: en un monitor pequeño la ventana no cabía y se salía. Mismo caso que
+// `modulos/ajustes/SettingsPanel.tsx` — ver `utilidades/tamanoLamina.ts`.
+const DISENO = { ancho: 760, alto: 620 }
 
 export default function SettingsWindow(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
+  const medidas = medidasLamina(gdkmonitor, DISENO)
 
   const panel = (
     <box
@@ -17,6 +25,9 @@ export default function SettingsWindow(gdkmonitor: Gdk.Monitor) {
       spacing={0}
       halign={Gtk.Align.CENTER}
       valign={Gtk.Align.CENTER}
+      widthRequest={medidas.ancho}
+      heightRequest={medidas.alto}
+      $={seguirTamanoLamina(gdkmonitor, DISENO)}
     >
       <box cssClasses={["ns-header"]} spacing={8} valign={Gtk.Align.CENTER}>
         <label cssClasses={["ns-title"]} label={textos.seccion.tituloVentana} hexpand halign={Gtk.Align.START} />

@@ -15,6 +15,16 @@
 // aislarla exigiría un null-sink dedicado — desproporcionado para una onda de 54 px. Como la
 // onda solo se pinta mientras Spotify reproduce, en la práctica es su audio.
 //
+// **cava sale como "alguien está grabando" y hay que seguir filtrándolo.** Su stream es un
+// `Stream/Input/Audio` (captura el monitor del sink), así que AstalWp lo mete en
+// `audio.recorders` igual que un micro: mientras esto corría, el indicador de micrófono de la
+// barra se encendía al dar a play. Hoy se detecta solo (PipeWire le pone `stream.capture.sink`),
+// pero además está apartado a pelo por `node.name` —literalmente `cava`— en
+// `CAPTURAS_IGNORADAS_SIEMPRE` de `servicios/multimedia/capturasMicrofono.ts`: saber su veredicto
+// de antemano es lo que hace que reproducir música no lance ni un subproceso ni pueda hacer
+// parpadear el icono. Si algún día se lanza el proceso con otro nombre de nodo, actualiza esa
+// constante o vuelven las dos cosas, sin dar ningún error.
+//
 // **Fail-open hacia "la onda se mueve".** Si falta cava, si el proceso muere o si no hay
 // señal (Spotify Connect reproduciendo en el MÓVIL: el sink local está mudo), esto publica
 // `conSenal = false` y el widget vuelve a su animación procedimental. El modo de fallo nunca
