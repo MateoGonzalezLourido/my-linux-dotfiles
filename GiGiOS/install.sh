@@ -4,7 +4,7 @@
 # symlinks de GiGiOS. Pensado para una máquina nueva o recuperación.
 #
 # Uso:
-#   curl -sSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
 #   bash install.sh --help                            # todas las opciones
 #   curl -sSL <url> | DOTFILES_BRANCH=guides bash     # otra rama del repo (no per-equipo: eso va por *_PROFILE)
 #   curl -sSL <url> | INSTALL_PACKAGES=0 bash         # sin instalar paquetes
@@ -58,7 +58,7 @@
 # qué falta.
 set -euo pipefail
 
-REPO_URL="${DOTFILES_REPO:-https://github.com/MateoGonzalezLourido/my-linux-dotfiles.git}"
+REPO_URL="${DOTFILES_REPO:-https://github.com/mglourido/my-linux-dotfiles.git}"
 BRANCH="${DOTFILES_BRANCH:-main}"
 DOTGIT="$HOME/.dotfiles"
 BACKUP="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
@@ -1219,7 +1219,7 @@ paso_activo firefox && cat <<'EOF'
 EOF
 paso_activo repo && cat <<'EOF'
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:
-              dotfiles remote set-url origin git@github.com:MateoGonzalezLourido/my-linux-dotfiles.git
+              dotfiles remote set-url origin git@github.com:mglourido/my-linux-dotfiles.git
 EOF
 if paso_activo gpu; then
   if [[ -s "${GPU_PERFIL:-}" ]]; then

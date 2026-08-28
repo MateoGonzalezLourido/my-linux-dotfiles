@@ -29,7 +29,7 @@ contiene una batería del sistema elige `laptop`; en caso contrario elige
 se ignoran.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh \
+curl -fsSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh \
   | KITTY_PROFILE=desktop bash
 ```
 

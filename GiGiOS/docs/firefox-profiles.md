@@ -45,7 +45,7 @@ Durante una instalación, `FIREFOX_PROFILE` acepta `auto`, `laptop` o `desktop`.
 batería del sistema.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/laptop/GiGiOS/install.sh \
+curl -fsSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh \
   | FIREFOX_PROFILE=desktop bash
 ```
 

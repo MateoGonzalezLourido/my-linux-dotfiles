@@ -108,7 +108,7 @@ lives in this one repository and is deployed to your `$HOME` via symlinks, dotfi
 Target: **Arch Linux or CachyOS**. One command, on a fresh machine:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
 ```
 
 This will:

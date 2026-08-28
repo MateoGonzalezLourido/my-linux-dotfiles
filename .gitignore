@@ -45,37 +45,19 @@ core
 
 # --- GiGiOS ---
 
-# Logs de runtime
-GiGiOS/hypr/logs/
+# Las reglas de GiGiOS viven en GiGiOS/.gitignore, no aquí. Estaban repartidas
+# entre los dos ficheros y eso ya había costado dos errores: `GiGiOS/hypr/logs/`
+# estaba declarado en ambos, y `GiGiOS/ags/out.css.map` apuntaba a una ruta que no
+# existe (el fichero real es `ags/estilos/out.css.map`), así que la regla de aquí no
+# ignoraba nada y quien la leía creía que sí. Un solo sitio por subárbol.
+#
+# Aquí abajo solo quedan rutas de $HOME que no son de GiGiOS.
 
-# jarvis: datos privados del launcher (repos detectados) — no versionar
-GiGiOS/jarvis/
+# --- Metadatos de escritorio (todo $HOME) ---
 
-# Copias archivadas sin uso (código muerto)
-GiGiOS/_legacy/
-
-# Snapshots de migración
-GiGiOS/preflight-snapshot.txt
-
-# Foto de perfil: mecanismo viejo eliminado (ahora estandarizada en
-# ~/.cache/gigios/face.png, ver GiGiOS/docs/SETUP.md §13). Se ignoran para que los
-# dispositivos que todavía los tienen en disco no los vuelvan a añadir.
-GiGiOS/hypr/hyprlock_avatar.png
-GiGiOS/assets/face.png
-
-# --- GiGiOS/ags: generado / desechable — no versionar ---
-
-# @girs/: stubs de tipos GObject, se regeneran con `ags types`
-GiGiOS/ags/@girs/
-# scratch/: scripts de inspección/pruebas desechables
-GiGiOS/ags/scratch/
-# out.css.map: source-map de depuración generado desde style.scss
-GiGiOS/ags/out.css.map
-
-# config de vscode (actualmente no se usa)
-GiGiOS/ags/.vscode/
-
-# Metadatos de escritorio
+# Ficheros que deja Dolphin con la vista de cada carpeta. Aparecen en cualquier
+# sitio, no solo en GiGiOS: la regla es de $HOME y por eso cubre también el
+# subárbol de GiGiOS, que ya no necesita declararla por su cuenta.
 **/.directory
 
 # --- zsh (~/.config/zsh) ---
