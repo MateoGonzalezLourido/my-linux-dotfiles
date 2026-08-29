@@ -10,6 +10,28 @@
   box-shadow: none;
 }
 
+// ── Suelo de tamaño de los `slider` ───────────────────────────────────────────
+// El mínimo que GTK calcula para un nodo es `max(contenido, min-width/height) + borde +
+// relleno + MARGEN`, y los temas centran el tirador sobre su carril con MÁRGENES
+// NEGATIVOS: el Default de GTK usa `-1px` en el de las barras de desplazamiento y `-9px`
+// en el de los deslizadores; Graphite —el tema de esta máquina— `-8px`, y `-7px` mientras
+// se arrastra despacio (GTK añade la clase `fine-tune` sola). Nuestros `slider` van con el
+// mínimo y el borde a CERO (se ocultan o se pintan a mano), así que en cuanto gana un
+// margen negativo del tema el mínimo sale NEGATIVO y GTK avisa en cada medición:
+// «GtkGizmo (slider) reported min width -2, but sizes must be >= 0». No es cosmético: el
+// nodo que mide en negativo se coloca mal y el arrastre da tirones.
+//
+// `scale.qs-slider slider` ya fija `margin: 0`, pero empata en especificidad con el
+// `scale.fine-tune slider` del tema y el desempate lo decide el orden de los proveedores
+// —o sea, algo que no controlamos desde aquí—. Estas reglas ganan por especificidad, que
+// es lo único que no depende de en qué orden se cargue el CSS.
+scale.qs-slider.fine-tune slider,
+scale.qs-slider.fine-tune > trough > slider,
+scrollbar > range > trough > slider,
+scrollbar > range.fine-tune > trough > slider {
+  margin: 0;
+}
+
 // GTK dibuja un degradado/sombra al alcanzar cada extremo de un
 // GtkScrolledWindow. Se desactiva en los tres paneles principales, incluidos
 // sus scrolls anidados; la rueda y el touchpad siguen funcionando igual.
@@ -879,6 +901,12 @@ popover.tray-overflow-popover.closing > contents {
   }
 }
 
+// Realce compartido por la cadena de indicadores de estado y por el hover normal de
+// una pastilla: los dos tienen que dar EXACTAMENTE el mismo color, o el eslabón bajo
+// el cursor se distinguiría del resto de la banda.
+$cadena-realce: rgba(255, 255, 255, 0.07);
+$cadena-realce-activo: rgba(255, 255, 255, 0.055);
+
 .bar-pill {
   font-size: 16px;
   color: $text;
@@ -909,15 +937,26 @@ popover.tray-overflow-popover.closing > contents {
   margin-left: 20px;
 }
 
+// Cadena de indicadores de estado (actualizaciones, captura de pantalla,
+// notificaciones) + la pastilla de quick settings al final. Los eslabones se TOCAN:
+// el hueco entre dos pastillas lo cierra la junta del de la izquierda, que se solapa
+// con las esquinas redondeadas del de la derecha (ver `.cadena-junta`). Con márgenes
+// de por medio el realce encadenado se vería como una fila de islas.
 .bar-status-pair {
-  .bar-pill.nb-pill,
-  .bar-pill.qs-system-pill {
+  .bar-pill {
+    margin-left: 0;
+    margin-right: 0;
     border: none;
     box-shadow: none;
+    // El lado que da al eslabón siguiente lo cierra su junta, no una esquina propia.
+    border-radius: 7px 0 0 7px;
   }
 
+  // Quick settings cierra la cadena: conserva sus cuatro esquinas y el margen
+  // derecho que la separa del resto de la barra.
   .bar-pill.qs-system-pill {
-    margin-left: 0;
+    border-radius: 7px;
+    margin-right: 2px;
   }
 }
 
@@ -1014,15 +1053,17 @@ popover.tray-overflow-popover.closing > contents {
 // Wake up activo: el PC no se va a suspender. Estático y en teal — no comparte el
 // `.recording` pulsante de captura/micro a propósito: eso significa "algo te está
 // grabando ahora mismo" y merece llamar la atención; esto es un estado de fondo que
-// solo tiene que ser visible, no urgente.
+// solo tiene que ser visible, no urgente. Vive dentro de `.qs-system-pill`, así que sigue
+// la misma métrica que `.bluetooth-ind` / `.mic-indicator` (padding lateral 4 px, icono de
+// 16 px y sin margen vertical propio): la pastilla ya centra a sus hijos, y el `margin: 4px 0`
+// que tenía cuando iba suelto lo dejaba descuadrado respecto al resto de iconos.
 .wakeup-indicator {
-  color: acento-teal();
-  padding: 0 5px;
-  margin: 4px 0;
+  padding: 0 4px;
 
-  label {
+  .wakeup-icon {
     font-family: $font-icon;
-    font-size: 14px;
+    font-size: 16px;
+    color: acento-teal();
   }
 }
 
@@ -2177,11 +2218,17 @@ scrolledwindow.qs-display-select-list {
   }
 }
 
+// La talla BASE es la de Ajustes y la variante `.compact` la de Quick Settings —
+// al revés de como estaba, cuando el único tamaño era el compacto y un select
+// grande abría una lista con letra de 11 px e interlineado de 2 px. Las dos clases
+// las pone `DisplaySelect` según su prop `compact`.
 .qs-display-select-options {
-  padding: 3px;
+  padding: 4px;
   background-color: rgb(20, 20, 28);
   border-radius: 7px;
   opacity: 1;
+
+  &.compact { padding: 3px; }
 }
 
 button.qs-display-select-opt {
@@ -2189,10 +2236,16 @@ button.qs-display-select-opt {
   background-color: rgb(20, 20, 28);
   opacity: 1;
   border-radius: 6px;
-  padding: 2px 8px;
-  color: rgb(150, 150, 165);
-  font-size: 11px;
+  padding: 6px 10px;
+  color: rgb(190, 190, 205);
+  font-size: 12px;
   transition: all 100ms ease;
+
+  &.compact {
+    padding: 2px 8px;
+    color: rgb(150, 150, 165);
+    font-size: 11px;
+  }
 
   &:hover { background-color: rgb(34, 34, 43); }
 
@@ -2350,14 +2403,17 @@ button.sp-add-rule {
   }
 }
 
-// No molestar automático: lista de apps que silencian en pantalla completa
-.adnd-apps { margin-top: 2px; }
-.adnd-app-name {
+// Lista editable de clases de ventana (componentes/ListaClasesVentana): la del No
+// molestar automático y la de la pausa de la luz nocturna al jugar. El nombre `adnd-`
+// se conserva porque `AjusteDuracionPopups` reutiliza el de la etiqueta.
+.sp-clases { margin-top: 2px; }
+.adnd-app-name,
+.sp-clase-nombre {
   font-size: 12px;
   color: $text;
   font-family: $font-icon;
 }
-entry.adnd-entry {
+entry.sp-clase-entrada {
   font-size: 12px;
   font-family: $font-icon;
 }
@@ -2530,12 +2586,17 @@ button.qs-toggle {
   padding: 0;
 }
 
+// Iniciales de respaldo cuando no hay foto de perfil (ver AvatarPerfil.tsx).
+// `min-width`/`min-height` de GTK CSS son del CONTENIDO: el borde se SUMA. Con 30
+// aquí el label medía 32 dentro del hueco de 30 que le pide el widget, así que las
+// iniciales quedaban descentradas respecto al círculo. 28 + 1 px de borde por lado
+// = los 30 que pide `ProfileAvatar size={30}`.
 .qs-avatar {
   background: fondo-qs-opaco(rgba(139, 120, 255, 0.2));
   border: 1px solid rgba(139, 120, 255, 0.3);
   border-radius: 999px;
-  min-width: 30px;
-  min-height: 30px;
+  min-width: 28px;
+  min-height: 28px;
   color: $qs-accent2;
   font-size: 10px;
   font-weight: 700;
@@ -3068,10 +3129,6 @@ button.qs-user-settings-btn {
   min-width: 28px;
   transition: background-color 140ms ease, color 140ms ease;
 
-  .bar-status-pair & {
-    margin-right: 0;
-  }
-
   &:hover {
     background-color: rgba(255, 255, 255, 0.07);
   }
@@ -3097,6 +3154,110 @@ button.qs-user-settings-btn {
     background-color: rgba(255, 255, 255, 0.07);
     border-color: rgba(255, 255, 255, 0.075);
   }
+}
+
+// Cierre de la cadena contra quick settings (ver
+// `modulos/barra/componentes/cadenaEstado.tsx`). Hay UNA sola, al final: entre dos
+// eslabones no hace falta —se tocan y el de la derecha va sin esquinas mientras está
+// encendido—, y ponerla ahí solo pintaba su relleno DEBAJO de la pastilla, dos capas
+// del mismo blanco translúcido que sumaban una hebra más clara siguiendo el arco.
+//
+// Quick settings sí conserva sus cuatro esquinas, así que entre la banda y ella
+// quedaba un pellizco con el fondo de la barra a la vista. La junta mide 7 px y los
+// recupera con `margin-right: -7px`: se SOLAPA con las esquinas izquierdas de la
+// pastilla sin desplazarla ni ensanchar nada.
+//
+// El fondo no puede ser un color plano: taparía también el arco que ocupa la propia
+// pastilla y se notaría como una banda clara de 7 px dentro de ella. Se pinta con dos
+// radial-gradient de 7x7 —arriba y abajo— centrados justo en el centro de curvatura de
+// cada esquina (borde derecho de la junta, a 7 px del canto): dentro del radio
+// transparente —ahí manda quick settings, que además se dibuja encima por ser hermano
+// posterior— y fuera el mismo realce que la banda. Sale la curva hacia fuera que encaja
+// en la esquina redondeada, en vez de un pellizco.
+.cadena-junta {
+  min-width: 7px;
+  min-height: 30px;
+  margin: 4px -7px 4px 0;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-size: 7px 7px, 7px 7px;
+  background-position: left top, left bottom;
+  background-image:
+    radial-gradient(circle at 100% 100%, transparent 6.4px, transparent 7.1px),
+    radial-gradient(circle at 100% 0%, transparent 6.4px, transparent 7.1px);
+  transition: background-image 140ms ease;
+}
+
+// El arco arranca 0,6 px DENTRO del radio nominal (6,4 en vez de 7): el borde
+// redondeado del eslabón siguiente se dibuja suavizado sobre ~1 px, así que un relleno
+// que empiece justo en 7 px deja media cobertura en la costura y se ve una hebra más
+// oscura. Solaparse un poco es gratis —el eslabón se pinta encima y el color es el
+// mismo— y la costura desaparece.
+@mixin cadena-junta-relleno($color) {
+  background-image:
+    radial-gradient(circle at 100% 100%, transparent 6.4px, $color 7.1px),
+    radial-gradient(circle at 100% 0%, transparent 6.4px, $color 7.1px);
+}
+
+.cadena-junta.cadena-resaltada {
+  @include cadena-junta-relleno($cadena-realce);
+}
+
+// El realce lo pone el ESTADO de la cadena, no `:hover`: pasar el ratón por un
+// eslabón enciende también a los de su derecha, y GTK CSS no tiene forma de expresar
+// eso. Tres clases de especificidad para ganarle a los `background-color: transparent`
+// de cada pastilla (`.nb-pill`, `.upd-pill`, `.sc-pill`), que van más abajo.
+.bar-status-pair .bar-pill.cadena-resaltada {
+  background-color: $cadena-realce;
+}
+
+// Ver `cadena-continua` en cadenaEstado.tsx: el eslabón encendido que tiene otro
+// encendido a su izquierda va sin esquinas, así que la banda es un rectángulo liso
+// hasta la cabecera —que sí conserva las suyas— y no queda ninguna curva contra la
+// que la junta tenga que encajar.
+.bar-status-pair .bar-pill.cadena-continua {
+  border-radius: 0;
+}
+
+.Bar .bar-pill-btn:active .bar-pill.cadena-resaltada {
+  background-color: $cadena-realce-activo;
+}
+
+// Dentro de la cadena el realce lo pone SOLO el estado. `:hover` sigue activo en el
+// resto de la barra, pero aquí sería una segunda fuente de verdad que además no puede
+// pintar la junta (ningún selector llega desde un botón al hijo del hermano
+// anterior), así que al desincronizarse —GTK conserva el `:hover` en casos como un
+// grab o un salto del puntero— dejaba una pastilla encendida con su junta apagada.
+// `.sc-pill` no aparece porque no es un botón y nunca tuvo hover.
+.bar-status-pair {
+  .bar-pill-btn:hover .bar-pill.nb-pill:not(.cadena-resaltada),
+  .bar-pill-btn:hover .bar-pill.upd-pill:not(.cadena-resaltada),
+  .bar-pill.nb-pill:hover:not(.cadena-resaltada),
+  .bar-pill.upd-pill:hover:not(.cadena-resaltada) {
+    background-color: transparent;
+  }
+
+  // Y NINGÚN eslabón pinta borde. Cada pastilla trae el suyo de 1 px transparente y
+  // el hover (o `.panel-open`) le pone color: suelta, eso era el contorno de la
+  // pastilla; dentro de una banda continua es un RECUADRO CLARO alrededor de una sola
+  // de ellas. Se quita el borde entero, no solo su color, para que tampoco cuente en
+  // la anchura y todos los eslabones midan igual — quick settings, que cierra la
+  // cadena, tampoco tiene borde.
+  .bar-pill.nb-pill,
+  .bar-pill.upd-pill,
+  .bar-pill.sc-pill {
+    border: none;
+  }
+}
+
+// Indicador de captura de pantalla: pastilla sin fondo propio, como las otras dos de
+// la cadena. El pulso rojo vive en el icono (`.recording`), no aquí.
+.bar-pill.sc-pill {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0 2px;
+  min-width: 26px;
 }
 
 // ── Updates Button (actualizaciones SO + drivers GPU) ─────────────────────────
@@ -5443,7 +5604,12 @@ window.cal-window.csd decoration {
 }
 
 .sp-field {
-  min-width: 560px;
+  // Suelo de ancho para las columnas de campos, NO su ancho de diseño (lo da el
+  // panel). Era 560, y con el relleno de `.dev-row` (14+14) más el borde de la
+  // tarjeta sumaba 590 sobre los ~592 de hueco: cualquier anidamiento extra sacaba
+  // ya la barra horizontal. 520 deja margen y no se nota, porque estas cajas se
+  // estiran con el panel.
+  min-width: 520px;
 }
 .sp-field-label { font-size: 12px; color: $text; font-family: $font-icon; }
 .sp-field-value { font-size: 12px; font-weight: 700; color: acento(); font-family: $font-icon; }
@@ -5606,8 +5772,11 @@ button.dl-city-result {
   padding: 6px 12px;
 }
 .account-profile-summary { padding-top: 8px; padding-bottom: 8px; }
+// Mismo cálculo que `.qs-avatar`: 42 de contenido + 2 px de borde por lado = los
+// 46 que pide `ProfileAvatar size={46}`. Con 46 aquí el label medía 50 y las
+// iniciales salían descentradas.
 .account-avatar {
-  min-width: 46px; min-height: 46px;
+  min-width: 42px; min-height: 42px;
   border-radius: 999px;
   border: 2px solid acento(0.45);
   background-size: cover; background-position: center; background-repeat: no-repeat;

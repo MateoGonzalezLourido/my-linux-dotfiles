@@ -43,7 +43,7 @@ fi
 # ── Validación ────────────────────────────────────────────────────────────────
 f="$(realpath -- "$f" 2>/dev/null || echo "$f")"
 name="$(basename -- "$f")"
-[[ -n "$f" && -f "$f" ]] || { notificar aislado.sin-archivo -u critical "🛡️ $APP" "No existe el archivo: $f" -t 8000; exit 1; }
+[[ -n "$f" && -f "$f" ]] || { notificar aislado.sin-archivo -u critical "$APP" "No existe el archivo: $f" -t 8000; exit 1; }
 
 # ── 1) Análisis previo (ClamAV) ───────────────────────────────────────────────
 # clamscan lleva --max-filesize/--max-scansize al tope (2 GiB-1); si no, saltaría
@@ -63,7 +63,7 @@ if (( ${#clam[@]} )); then
         out=$(clamscan --no-summary "${CLAMSCAN_MAX[@]}" "$f" 2>/dev/null); rc=$?
     fi
     if grep -q "FOUND" <<< "$out"; then
-        notificar aislado.malware -u critical "🦠 Malware detectado — NO se lanza" \
+        notificar aislado.malware -u critical "Malware detectado — NO se lanza" \
             "$name: $(grep FOUND <<< "$out" | head -1)" -t 0
         exit 2
     elif (( rc != 0 )); then
@@ -81,21 +81,21 @@ if (( ${#clam[@]} )); then
             firmas_aviso_con_boton() { notificar "$1" -u "$2" "$3" "$4" -t 0; }
         fi
         if [[ -x "$UPDATE_SIGS" ]]; then
-            ( firmas_aviso_con_boton aislado.no-analizado normal "🛡️ No se pudo analizar" \
+            ( firmas_aviso_con_boton aislado.no-analizado normal "No se pudo analizar" \
                 "ClamAV no operativo (sin base de firmas o daemon parado). Se lanzará contenido pero SIN analizar." ) &
         else
-            notificar aislado.no-analizado -u normal "🛡️ No se pudo analizar" \
+            notificar aislado.no-analizado -u normal "No se pudo analizar" \
                 "ClamAV no operativo (¿falta ejecutar 'sudo freshclam'?). Se lanzará contenido pero SIN analizar." -t 10000
         fi
     fi
 else
-    notificar aislado.sin-antivirus -u normal "🛡️ Sin antivirus" \
+    notificar aislado.sin-antivirus -u normal "Sin antivirus" \
         "ClamAV no instalado: se lanzará contenido pero SIN analizar. Instala 'clamav' para el escaneo." -t 10000
 fi
 
 # ── 2) Contención (Firejail) ──────────────────────────────────────────────────
 if ! command -v firejail >/dev/null 2>&1; then
-    notificar aislado.falta-firejail -u critical "🛡️ Falta Firejail" \
+    notificar aislado.falta-firejail -u critical "Falta Firejail" \
         "Instala 'firejail' (sudo pacman -S firejail) para poder lanzar aislado." -t 0
     exit 3
 fi
@@ -107,14 +107,14 @@ case "${f,,}" in
         if command -v wine >/dev/null 2>&1; then
             launch_cmd=(wine "$f")
         else
-            notificar aislado.falta-wine -u critical "🛡️ Falta Wine" "Instala 'wine' para ejecutar .exe/.msi." -t 0
+            notificar aislado.falta-wine -u critical "Falta Wine" "Instala 'wine' para ejecutar .exe/.msi." -t 0
             exit 4
         fi ;;
     *.sh)  launch_cmd=(bash "$f") ;;
     *)     chmod +x "$f" 2>/dev/null; launch_cmd=("$f") ;;
 esac
 
-notificar aislado.lanzando -u normal "🛡️ Lanzando aislado" \
+notificar aislado.lanzando -u normal "Lanzando aislado" \
     "$name en jaula Firejail (sin red, sin acceso a tus datos)." -t 6000
 
 # --whitelist=$f → el $HOME de la jaula queda vacío salvo este archivo.

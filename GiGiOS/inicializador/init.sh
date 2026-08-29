@@ -75,6 +75,18 @@ apply_bluetooth() {
         local raw=$(jq -r '.bluetooth // empty' "$STATE_CONFIG")
         [ -n "$raw" ] && active=$raw
     fi
+
+    # Igual que el volumen y el micrófono: la preferencia de Personalización es
+    # la fuente de verdad para el estado inicial —activada apaga la radio,
+    # desactivada la enciende— y con ella el valor de system_state.json solo
+    # actúa de respaldo si el fichero de preferencias todavía no existe.
+    if [ -f "$PREFS_CONFIG" ]; then
+        if [ "$(jq -r '.startupBluetoothOff // false' "$PREFS_CONFIG")" = "true" ]; then
+            active=false
+        else
+            active=true
+        fi
+    fi
     
     if [ "$active" = "true" ]; then
         bluetoothctl power on

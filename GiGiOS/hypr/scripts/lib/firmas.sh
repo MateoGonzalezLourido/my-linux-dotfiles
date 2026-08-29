@@ -72,7 +72,7 @@ firmas_aviso_con_boton() {   # $1 evento  $2 urgencia  $3 título  $4 cuerpo
     salida=$(mktemp) || return 1
 
     notificar "$evento" -a "Seguridad" --wait -t 60000 \
-        -A "update=🛡️ Actualizar firmas" -u "$urgencia" "$titulo" "$cuerpo" > "$salida" &
+        -A "update=Actualizar firmas" -u "$urgencia" "$titulo" "$cuerpo" > "$salida" &
     notif=$!
     # `pkill -P` antes del `kill`, y no es redundante: lo que está en segundo plano es un SUBSHELL
     # que llama a una función, así que el notify-send real puede ser un HIJO suyo y sobrevivir a

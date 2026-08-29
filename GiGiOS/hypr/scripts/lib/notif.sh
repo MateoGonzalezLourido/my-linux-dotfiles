@@ -4,7 +4,7 @@
 # EL PROBLEMA: todo lo que sale de `hypr/scripts/` llegaba a AGS con el mismo hint
 # (`x-gigios-source:system`) y, en la mayoría de los scripts, sin `-a`, o sea con
 # `app_name` = "notify-send". Vistas desde el motor de reglas, «USB desconectado»,
-# «Disco casi lleno» y «🔓 Escalada de privilegios» eran EXACTAMENTE la misma cosa:
+# «Disco casi lleno» y «Escalada de privilegios» eran EXACTAMENTE la misma cosa:
 # el único gancho para distinguirlas era el texto del título, que cambia con el
 # contenido (`"RAM muy baja: 812MB disponibles"`, `"CPU sobrecalentada: 91°C"`) y con
 # cualquier retoque de redacción. Consecuencia práctica: las notificaciones del
@@ -37,7 +37,7 @@
 # Todo lo que va detrás del id se le pasa tal cual a `notify-send`, así que `-A`,
 # `--wait`, `--icon` y compañía siguen funcionando igual:
 #
-#     act=$(notificar descargas.ejecutable-nuevo --wait -t 45000 -A "launch=🛡️ Lanzar aislado" …)
+#     act=$(notificar descargas.ejecutable-nuevo --wait -t 45000 -A "launch=Lanzar aislado" …)
 #
 # AL AÑADIR UN AVISO NUEVO, DA DE ALTA SU ID EN EL CATÁLOGO de AGS. Si no, el aviso
 # funciona igual (nada depende de que esté catalogado) pero no aparece en la lista de

@@ -95,7 +95,15 @@ export default function SectionIndex() {
   scroll.set_child(capa)
   root.append(scroll)
 
+  // ⚠️ `compute_bounds()` NO falla mientras el botón está sin asignar: devuelve
+  // `true` con la caja CSS a secas — medido, `[-8,-3,16,6]` para un botón cuyo
+  // `get_width()` es todavía 0. O sea que un `valido && width > 0` da por buena
+  // una geometría falsa, y el indicador se asignaba a 16x6 px en un origen
+  // negativo: el fondo del botón activo no desaparecía, se encogía a una
+  // astilla invisible al abrir Orion. La asignación es lo único que hay que
+  // preguntar, y eso lo dice `get_width()/get_height()`.
   function medir(boton: Gtk.Button) {
+    if (boton.get_width() <= 0 || boton.get_height() <= 0) return null
     const resultado = boton.compute_bounds(fila)
     const valido = Array.isArray(resultado) ? resultado[0] : false
     const rect = Array.isArray(resultado) ? resultado[1] : null
@@ -129,6 +137,63 @@ export default function SectionIndex() {
 
   function dejarIndicadorQuieto() {
     establecerCssIndicador(".section-index-indicator { transform: none; }")
+  }
+
+  function colocarSinAnimar(geometria: { x: number; y: number; ancho: number; alto: number }) {
+    detenerAnimacion()
+    indicador.opacity = 1
+    aplicarGeometria(geometria.x, geometria.y, geometria.ancho, geometria.alto)
+    dejarIndicadorQuieto()
+  }
+
+  // `compute_bounds()` falla mientras la fila no está asignada, y eso pasa de
+  // verdad al abrir Orion: la ventana se mapea y el primer idle puede llegar
+  // antes de la primera allocación. Rendirse ahí dejaba `anchoActual` a 0 —
+  // `get-child-position` devuelve `false` y el Overlay pinta el indicador a su
+  // tamaño natural, o sea sin fondo bajo el botón activo — y nada lo reintentaba
+  // hasta el siguiente cambio de sección. Por eso la medición se reintenta por
+  // frame hasta que GTK entrega una geometría real.
+  const MAX_INTENTOS_GEOMETRIA = 90
+  let idFrameGeometria: number | null = null
+  let seccionPendiente: SectionId | null = null
+
+  function cancelarEsperaGeometria() {
+    if (idFrameGeometria === null) return
+    root.remove_tick_callback(idFrameGeometria)
+    idFrameGeometria = null
+    seccionPendiente = null
+  }
+
+  function esperarGeometria(section: SectionId) {
+    seccionPendiente = section
+    if (idFrameGeometria !== null) return
+    let intentos = 0
+    idFrameGeometria = root.add_tick_callback(() => {
+      const objetivo = seccionPendiente
+      const destino = objetivo === null ? undefined : botones.get(objetivo)
+      const geometria = destino ? medir(destino) : null
+      if (!geometria) {
+        // El reloj de frames sólo corre mapeado, así que este techo cuenta
+        // frames visibles: si tras ellos GTK sigue sin asignar, se abandona en
+        // vez de dejar un callback vivo para siempre.
+        if (objetivo !== null && ++intentos <= MAX_INTENTOS_GEOMETRIA) return true
+        idFrameGeometria = null
+        seccionPendiente = null
+        return false
+      }
+      idFrameGeometria = null
+      seccionPendiente = null
+      colocarSinAnimar(geometria)
+      return false
+    })
+  }
+
+  function sincronizarClases(section: SectionId) {
+    for (const [id, boton] of botones) {
+      boton.set_css_classes(id === section
+        ? ["section-index-btn", "active"]
+        : ["section-index-btn"])
+    }
   }
 
   function animarIndicador(
@@ -185,26 +250,25 @@ export default function SectionIndex() {
 
   function moverIndicador(section: SectionId, animar: boolean) {
     const destino = botones.get(section)
-    for (const [id, boton] of botones) {
-      boton.set_css_classes(id === section
-        ? ["section-index-btn", "active"]
-        : ["section-index-btn"])
-    }
+    sincronizarClases(section)
 
     if (!destino) {
+      cancelarEsperaGeometria()
       detenerAnimacion()
       indicador.opacity = 0
       return
     }
 
     const geometria = medir(destino)
-    if (!geometria) return
+    if (!geometria) {
+      esperarGeometria(section)
+      return
+    }
+    cancelarEsperaGeometria()
     indicador.opacity = 1
 
     if (!animar || anchoActual <= 0) {
-      detenerAnimacion()
-      aplicarGeometria(geometria.x, geometria.y, geometria.ancho, geometria.alto)
-      dejarIndicadorQuieto()
+      colocarSinAnimar(geometria)
       return
     }
 
@@ -213,27 +277,42 @@ export default function SectionIndex() {
     animarIndicador(xInicial, anchoInicial, geometria)
   }
 
+  // Cada apertura de Orion vuelve a mapear este widget (la ventana alterna
+  // `visible`, no se reconstruye). Recolocar aquí sin animar cubre las dos
+  // formas de llegar mal: la primera apertura, sin medida todavía, y una
+  // sección cambiada mientras estaba oculto (`preparePanelOpen` corre antes de
+  // volver a mostrar la ventana), que dejaba el fondo bajo el botón anterior.
   root.connect("map", () => {
-    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-      geometriaDisponible = true
-      moverIndicador(activeSection.get(), false)
-      return GLib.SOURCE_REMOVE
-    })
+    geometriaDisponible = true
+    detenerAnimacion()
+    const section = activeSection.get()
+    sincronizarClases(section)
+    const destino = botones.get(section)
+    const geometria = destino ? medir(destino) : null
+    if (geometria) {
+      cancelarEsperaGeometria()
+      colocarSinAnimar(geometria)
+    } else {
+      esperarGeometria(section)
+    }
   })
+  root.connect("unmap", cancelarEsperaGeometria)
   // Los Accessor de Gnim notifican sin entregar el valor al callback. Leerlo
   // explícitamente evita tratar `undefined` como una sección y ocultar el fondo.
   const desuscribir = activeSection.subscribe(() => {
     const section = activeSection.get()
-    if (geometriaDisponible) moverIndicador(section, true)
-    else {
-      for (const [id, boton] of botones) {
-        boton.set_css_classes(id === section
-          ? ["section-index-btn", "active"]
-          : ["section-index-btn"])
-      }
+    // Oculto no hay frames ni medidas fiables: basta con dejar las clases al
+    // día; el `map` de la próxima apertura coloca el indicador.
+    if (!root.get_mapped()) {
+      sincronizarClases(section)
+      seccionPendiente = section
+      return
     }
+    if (geometriaDisponible) moverIndicador(section, true)
+    else sincronizarClases(section)
   })
   root.connect("destroy", () => {
+    cancelarEsperaGeometria()
     detenerAnimacion()
     if (typeof desuscribir === "function") desuscribir()
   })

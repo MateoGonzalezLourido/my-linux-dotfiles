@@ -45,13 +45,13 @@ label=$(lsblk -dno LABEL "$dev" 2>/dev/null); : "${label:=$part}"
 # hay ficheros abiertos preferimos fallar y que el usuario cierre, no arriesgar).
 if grep -q "^$dev " /proc/mounts; then
     if ! err=$(udisksctl unmount -b "$dev" --no-user-interaction 2>&1); then
-        notificar usb.reparar-en-uso -u critical -t 15000 "🔧 No se pudo reparar" \
+        notificar usb.reparar-en-uso -u critical -t 15000 "No se pudo reparar" \
             "Hay que desmontar «$label» y está en uso: ${err##*: }"
         exit 1
     fi
 fi
 
-notificar usb.reparando -u low -t 5000 "🔧 Reparando «$label»…" "Se retiró sin expulsar. Sistema de ficheros: ${fstype:-desconocido}"
+notificar usb.reparando -u low -t 5000 "Reparando «$label»…" "Se retiró sin expulsar. Sistema de ficheros: ${fstype:-desconocido}"
 
 if out=$(busctl --system call org.freedesktop.UDisks2 "$obj" \
             org.freedesktop.UDisks2.Filesystem Repair 'a{sv}' 0 2>&1); then
@@ -63,9 +63,9 @@ if out=$(busctl --system call org.freedesktop.UDisks2 "$obj" \
         # volumen queda usable ya; conviene saber que Windows lo revisará.
         extra="Ya puedes usarlo."
         [[ "$fstype" == ntfs* ]] && extra="Ya puedes usarlo. Windows hará una comprobación completa la próxima vez que lo montes ahí."
-        notificar usb.reparado -u normal -t 10000 "✅ Volumen reparado" "«$label» ($fstype). $extra"
+        notificar usb.reparado -u normal -t 10000 "Volumen reparado" "«$label» ($fstype). $extra"
     else
-        notificar usb.reparacion-incompleta -u critical -t 15000 "⚠️ Reparación incompleta" \
+        notificar usb.reparacion-incompleta -u critical -t 15000 "Reparación incompleta" \
             "«$label» sigue con errores. Haz copia de lo que puedas leer y considera formatearlo."
     fi
     exit 0
@@ -80,5 +80,5 @@ case "$fstype" in
     vfat|fat*) command -v fsck.fat  >/dev/null 2>&1 || hint="\nInstala «dosfstools»." ;;
     exfat) command -v fsck.exfat >/dev/null 2>&1 || hint="\nInstala «exfatprogs»." ;;
 esac
-notificar usb.reparar-fallo -u critical -t 20000 "🔧 No se pudo reparar «$label»" "${out##*: }${hint}"
+notificar usb.reparar-fallo -u critical -t 20000 "No se pudo reparar «$label»" "${out##*: }${hint}"
 exit 1

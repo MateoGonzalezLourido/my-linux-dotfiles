@@ -23,7 +23,8 @@
       "tooltipVigente": "Rige ahora mismo: {{canales}}",
       "sinFranjas": "Ahora ({{hora}}) · sin reglas vigentes: manda el ajuste manual de arriba",
       "resumen": "Ahora ({{hora}}) · luz nocturna: {{luz}} · brillo: {{brillo}}",
-      "luzApagada": "apagada"
+      "luzApagada": "apagada",
+      "pausadaPorJuego": "En pausa: hay abierto un juego (o una app de tu lista) y la luz nocturna está retenida hasta que lo cierres (Ajustes > Juegos)."
     },
     "canales": {
       "luzNocturna": "Luz nocturna",

@@ -21,6 +21,7 @@ import {
   PANTALLA_COMPLETA_REAL,
   type ClienteJuegoLike,
 } from "../../../servicios/juegos/deteccion.ts"
+import { claseCoincide } from "../../../servicios/ventanas/coincidenciaClases.ts"
 
 export interface WorkspaceRef {
   id?: number | null
@@ -50,23 +51,18 @@ function onActiveWorkspace(
  *
  * `fullscreen` es un MODO (0 nada, 1 maximizado, 2 pantalla completa), no un bool:
  * con `!== 0` una ventana simplemente maximizada de la lista silenciaba las
- * notificaciones. La función se llama "fullscreen apps", así que exige el 2. */
+ * notificaciones. La función se llama "fullscreen apps", así que exige el 2.
+ *
+ * La comparación de clases es la compartida (`servicios/ventanas/coincidenciaClases.ts`):
+ * la misma que usa la pausa manual de la luz nocturna, que es la otra lista de clases que
+ * escribe el usuario. Aquí solo se le añade el requisito de pantalla completa. */
 export function matchesFullscreenApp(
   c: DndClientLike | null | undefined,
   apps: readonly string[],
 ): boolean {
   if (!c) return false
-  const isFullscreen = (c.fullscreen ?? 0) >= PANTALLA_COMPLETA_REAL
-  if (!isFullscreen) return false
-
-  const cls = (c.class ?? "").toLowerCase()
-  const initCls = (c.initialClass ?? c.initial_class ?? "").toLowerCase()
-  if (!cls && !initCls) return false
-
-  return apps.some((a) => {
-    const needle = a.trim().toLowerCase()
-    return needle.length > 0 && (cls.includes(needle) || initCls.includes(needle))
-  })
+  if ((c.fullscreen ?? 0) < PANTALLA_COMPLETA_REAL) return false
+  return claseCoincide(c, apps)
 }
 
 /**

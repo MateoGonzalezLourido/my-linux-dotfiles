@@ -21,7 +21,7 @@ export default function IndicadorMantenerDespierto() {
       cssClasses={["wakeup-indicator"]}
       tooltipText={tooltip}
     >
-      <label label="󰅶" />
+      <label cssClasses={["wakeup-icon"]} label="󰅶" />
     </box>
   )
 }

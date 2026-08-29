@@ -52,6 +52,11 @@ export function InlineEditableValue({
     })
   }
 
+  // `tooltip=""` = sin tooltip. Asignar la cadena vacía a `tooltip-text` deja
+  // `has-tooltip` en true y GTK enseña un recuadro vacío al pasar por encima,
+  // así que la propiedad no se pone en absoluto.
+  const propiedadesTooltip = tooltip ? { tooltipText: tooltip } : {}
+
   return (
     <Gtk.Stack
       hhomogeneous
@@ -63,7 +68,7 @@ export function InlineEditableValue({
       <button
         cssClasses={["qs-inline-value-btn"]}
         onClicked={beginEdit}
-        tooltipText={tooltip}
+        {...propiedadesTooltip}
         $={(self: Gtk.Button) => { valueButton = self }}
       >
         <label cssClasses={labelClasses} label={display} />

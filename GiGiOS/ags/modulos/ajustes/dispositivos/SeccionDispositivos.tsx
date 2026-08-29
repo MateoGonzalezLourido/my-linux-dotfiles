@@ -144,9 +144,15 @@ type VistaDispositivos = "raton" | "touchpad" | "teclado" | "impresoras"
 export default function SeccionDispositivos({ vista }: { vista: VistaDispositivos }) {
   const [confirmReset, setConfirmReset] = createState(false)
   if (vista === "impresoras") refreshPrinters()
+  // `vexpand` en el overlay + `valign START` en su hijo: la LISTA del select se dibuja
+  // como overlay de ESTE widget, así que su alto útil es el del overlay menos lo que baja
+  // el desplegable. En una sección corta (Idioma es un título y una tarjeta) el overlay
+  // medía lo que medía el contenido y al desplegable le quedaban ~40 px: cabía una opción
+  // y media de las 68 del idioma. Ahora el overlay se estira con el ScrolledWindow del
+  // panel y el contenido se queda arriba, así que la lista tiene alto por debajo.
   return (
-    <overlay cssClasses={["display-select-host"]}>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
+    <overlay cssClasses={["display-select-host"]} vexpand>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand valign={Gtk.Align.START}>
         <TituloSeccion titulo={textos.vistas[vista]} />
 
         {vista === "raton" && <TarjetaAjustes titulo={textos.tarjetas.raton} icono="󰍽">

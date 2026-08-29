@@ -5,7 +5,8 @@
   "grupos": {
     "deteccion": "Detección",
     "graficosLatencia": "Gráficos y latencia",
-    "rendimiento": "Rendimiento en segundo plano"
+    "rendimiento": "Rendimiento en segundo plano",
+    "pantalla": "Pantalla"
   },
   "tearing": {
     "titulo": "Permitir tearing (juegos)",
@@ -18,5 +19,20 @@
   "deteccion": {
     "titulo": "Detectar juegos en marcha",
     "descripcion": "Reconoce las ventanas de juego para la pastilla de la barra, el No molestar automático y las tareas que se aplazan al jugar.\nAl desactivarlo el sistema deja de mirar cada ventana y da por hecho que nunca hay ninguna partida."
+  },
+  "pausaLuzNocturna": {
+    "titulo": "Pausar la luz nocturna al jugar",
+    "descripcion": "Mientras haya un juego abierto la pantalla no se tiñe de cálido, aunque toque una franja horaria o la luz nocturna esté encendida a mano.\nSe repone al cerrar el juego; si la enciendes a mano durante la partida, manda tu decisión.",
+    "sinDeteccion": "La detección de juegos está desactivada, así que solo pausarán las apps de la lista.",
+    "lista": {
+      "titulo": "Apps que también la pausan",
+      "ayuda": "Para lo que el detector no reconoce como juego: un emulador, un juego sin acceso directo, un launcher propio. Cuentan igual que un juego, o sea mientras su ventana esté ABIERTA — no pongas aquí una app que tengas abierta todo el día o la luz nocturna no volverá a saltar. Usa Ventana para añadir la que tengas delante sin escribir su clase.",
+      "vacia": "Sin apps: solo pausan los juegos detectados.",
+      "placeholder": "clase de la ventana (p. ej. retroarch)",
+      "anadir": "Añadir",
+      "ventana": "Ventana",
+      "anadirVentana": "Añade la clase de la ventana enfocada",
+      "quitar": "Quitar de la lista"
+    }
   }
 }

@@ -79,7 +79,7 @@ elegir_particion() {
 
 part=$(elegir_particion)
 if [[ -z "$part" ]]; then
-    notificar usb.abrir-sin-volumen -u critical -t 12000 "📂 No hay nada que abrir" \
+    notificar usb.abrir-sin-volumen -u critical -t 12000 "No hay nada que abrir" \
         "/dev/$disk no expone ningún volumen con sistema de ficheros reconocido."
     exit 1
 fi
@@ -94,7 +94,7 @@ if [[ -z "$ruta" ]]; then
     if ! out=$(udisksctl mount -b "/dev/$part" --no-user-interaction 2>&1); then
         # Casos vistos: fs no soportado (falta el driver), volumen sucio que udisks
         # se niega a montar, o polkit denegando en un dispositivo del sistema.
-        notificar usb.abrir-fallo-montaje -u critical -t 15000 "📂 No se pudo abrir el USB" \
+        notificar usb.abrir-fallo-montaje -u critical -t 15000 "No se pudo abrir el USB" \
             "No se pudo montar /dev/$part: ${out##*: }"
         exit 1
     fi
@@ -106,7 +106,7 @@ if [[ -z "$ruta" ]]; then
 fi
 
 if [[ -z "$ruta" || ! -d "$ruta" ]]; then
-    notificar usb.abrir-fallo-montaje -u critical -t 15000 "📂 No se pudo abrir el USB" \
+    notificar usb.abrir-fallo-montaje -u critical -t 15000 "No se pudo abrir el USB" \
         "/dev/$part quedó montado en una ruta que no se pudo determinar."
     exit 1
 fi
@@ -121,7 +121,7 @@ if command -v dolphin >/dev/null 2>&1; then
 elif command -v xdg-open >/dev/null 2>&1; then
     setsid xdg-open "$ruta" >/dev/null 2>&1 </dev/null &
 else
-    notificar usb.abrir-sin-gestor -u critical -t 12000 "📂 No hay gestor de archivos" \
+    notificar usb.abrir-sin-gestor -u critical -t 12000 "No hay gestor de archivos" \
         "Ni «dolphin» ni «xdg-open» están disponibles. El USB está montado en $ruta."
     exit 1
 fi

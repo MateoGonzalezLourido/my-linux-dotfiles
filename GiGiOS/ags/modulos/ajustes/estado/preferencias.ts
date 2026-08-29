@@ -21,6 +21,9 @@ import {
   type AccionBotonEncendido,
 } from "../../../servicios/energia/botonEncendido"
 import {
+  normalizarAccionesOcultas,
+} from "../../menu-energia/acciones"
+import {
   FONDO_SHELL_PREDETERMINADO,
   normalizarFondoShell,
   type FondoShell,
@@ -89,7 +92,11 @@ export { volumeOsdEnabled, micOsdEnabled, brightnessOsdEnabled }
 // un script externo antes de que AGS termine de arrancar.
 const [startupVolumeMuted, _setStartupVolumeMuted] = createState(false)
 const [startupMicMuted, _setStartupMicMuted] = createState(false)
-export { startupVolumeMuted, startupMicMuted }
+// El bluetooth funciona igual que los dos de audio: activado apaga la radio,
+// desactivado la enciende. Con esto init.sh deja de reponer el `bluetooth` de
+// system_state.json, que pasa a ser solo el respaldo de la primera sesión.
+const [startupBluetoothOff, _setStartupBluetoothOff] = createState(false)
+export { startupVolumeMuted, startupMicMuted, startupBluetoothOff }
 
 // Dispositivos de audio que el usuario ha apartado con el clic derecho en el
 // menú de Quick Settings ("spk:<node.name>" / "mic:<node.name>", ver
@@ -308,6 +315,27 @@ export { gamingFreezeEnabled }
 const [escanerJuegos, _setEscanerJuegos] = createState(true)
 export { escanerJuegos }
 
+// Pausar la luz nocturna mientras haya un juego abierto (servicios/pantalla/service.ts).
+// Se mira que el juego EXISTA, no que tenga el foco: "no me la enciendas hasta que salga
+// del juego" — irse al escritorio un momento a mitad de partida no debe teñir la pantalla
+// de naranja y volver a quitarlo al hacer alt-tab. Depende del registro de juegos, así que
+// con `escanerJuegos` apagado no hay nada que detectar y la pausa no se dispara nunca (su
+// tarjeta se retira de Ajustes, igual que la de congelar tareas). Default: activado, como
+// "congelar tareas al jugar": las dos son lo mismo —el equipo se aparta mientras juegas—.
+const [pausaLuzNocturnaJuegos, _setPausaLuzNocturnaJuegos] = createState(true)
+export { pausaLuzNocturnaJuegos }
+
+// Clases de ventana que pausan la luz nocturna igual que un juego, para lo que el
+// detector no reconoce (un emulador, un juego sin `.desktop`, un launcher propio) o
+// simplemente no es un juego. Se guardan como subcadenas en minúsculas y se comparan
+// contra class/initialClass — mismo formato y mismo comparador que
+// `autoDndFullscreenApps` (`servicios/ventanas/coincidenciaClases.ts`), pero SIN exigir
+// pantalla completa: aquí el contrato es "mientras la ventana esté abierta", el mismo que
+// para los juegos. Cuelga del interruptor de arriba, pero NO del escáner de juegos: se
+// compara clase contra clase, así que funciona con la detección apagada. Default: vacía.
+const [pausaLuzNocturnaApps, _setPausaLuzNocturnaApps] = createState<string[]>([])
+export { pausaLuzNocturnaApps }
+
 // No molestar automático: cuando está activo, un watcher en el shell
 // (modulos/notificaciones/autoDnd) enciende notifd.dontDisturb mientras haya un
 // juego corriendo o una app de la lista de abajo en pantalla completa. Silencia
@@ -355,6 +383,14 @@ export { modoDaltonismo }
 const [botonApagado, _setBotonApagado] = createState<AccionBotonEncendido>(ACCION_BOTON_PREDETERMINADA)
 export { botonApagado }
 
+// Acciones retiradas del menú de energía (ids de modulos/menu-energia/acciones.ts).
+// Se guardan las OCULTAS y no las visibles a propósito: así una acción nueva aparece
+// sola en los perfiles que ya existen, en vez de quedarse invisible por no estar en
+// una lista escrita antes de que existiera. La lista nunca puede vaciar el menú del
+// todo (ver normalizarAccionesOcultas).
+const [accionesEnergiaOcultas, _setAccionesEnergiaOcultas] = createState<string[]>([])
+export { accionesEnergiaOcultas }
+
 // Formatea una hora según la preferencia. En 12h calculamos AM/PM a mano en vez
 // de usar %p: en locales como es_US.UTF-8 %p viene vacío y el reloj quedaría
 // ambiguo ("09:09 " sin sufijo). Así el formato es independiente del idioma.
@@ -396,6 +432,7 @@ function load() {
     if (typeof saved.brightnessOsd === "boolean") _setBrightnessOsdEnabled(saved.brightnessOsd)
     if (typeof saved.startupVolumeMuted === "boolean") _setStartupVolumeMuted(saved.startupVolumeMuted)
     if (typeof saved.startupMicMuted === "boolean") _setStartupMicMuted(saved.startupMicMuted)
+    if (typeof saved.startupBluetoothOff === "boolean") _setStartupBluetoothOff(saved.startupBluetoothOff)
     if (Array.isArray(saved.microfonoAppsIgnoradas)) {
       _setMicrofonoAppsIgnoradas(
         saved.microfonoAppsIgnoradas.filter((c: unknown): c is string => typeof c === "string" && c.length > 0),
@@ -454,6 +491,12 @@ function load() {
     }
     if (typeof saved.gamingFreeze === "boolean") _setGamingFreezeEnabled(saved.gamingFreeze)
     if (typeof saved.escanerJuegos === "boolean") _setEscanerJuegos(saved.escanerJuegos)
+    if (typeof saved.pausaLuzNocturnaJuegos === "boolean") {
+      _setPausaLuzNocturnaJuegos(saved.pausaLuzNocturnaJuegos)
+    }
+    if (Array.isArray(saved.pausaLuzNocturnaApps)) {
+      _setPausaLuzNocturnaApps(sanitizeApps(saved.pausaLuzNocturnaApps))
+    }
     if (typeof saved.autoDnd === "boolean") _setAutoDndEnabled(saved.autoDnd)
     if (Array.isArray(saved.autoDndFullscreenApps)) {
       _setAutoDndFullscreenApps(sanitizeApps(saved.autoDndFullscreenApps))
@@ -471,6 +514,7 @@ function load() {
     // Sin guarda de `typeof`: normalizar ya devuelve el valor de fábrica ante
     // cualquier cosa que no sea una acción conocida (ausente incluida).
     _setBotonApagado(normalizarAccionBotonEncendido(saved.botonApagado))
+    _setAccionesEnergiaOcultas(normalizarAccionesOcultas(saved.accionesEnergiaOcultas))
   } catch (e) { /* archivo ausente o corrupto → nos quedamos con los defaults */ }
 }
 
@@ -491,6 +535,7 @@ function save() {
       brightnessOsd: brightnessOsdEnabled.get(),
       startupVolumeMuted: startupVolumeMuted.get(),
       startupMicMuted: startupMicMuted.get(),
+      startupBluetoothOff: startupBluetoothOff.get(),
       microfonoAppsIgnoradas: microfonoAppsIgnoradas.get(),
       audioDispositivosOcultos: audioDispositivosOcultos.get(),
       trayBar: trayBarEnabled.get(),
@@ -519,6 +564,8 @@ function save() {
       updatesIntervalHours: updatesIntervalHours.get(),
       gamingFreeze: gamingFreezeEnabled.get(),
       escanerJuegos: escanerJuegos.get(),
+      pausaLuzNocturnaJuegos: pausaLuzNocturnaJuegos.get(),
+      pausaLuzNocturnaApps: pausaLuzNocturnaApps.get(),
       autoDnd: autoDndEnabled.get(),
       autoDndFullscreenApps: autoDndFullscreenApps.get(),
       popupDuracionNormalMs: popupDuracionNormalMs.get(),
@@ -527,6 +574,7 @@ function save() {
       timeFormat: timeFormat.get(),
       modoDaltonismo: modoDaltonismo.get(),
       botonApagado: botonApagado.get(),
+      accionesEnergiaOcultas: accionesEnergiaOcultas.get(),
     }
     GLib.file_set_contents(PREFS_PATH, JSON.stringify(config, null, 2))
   } catch (e) { /* no-op: un fallo de escritura no debe romper la UI */ }
@@ -584,6 +632,10 @@ export function setStartupVolumeMuted(on: boolean) {
 }
 export function setStartupMicMuted(on: boolean) {
   _setStartupMicMuted(on)
+  save()
+}
+export function setStartupBluetoothOff(on: boolean) {
+  _setStartupBluetoothOff(on)
   save()
 }
 /** Flip-flop: aparta la captura del indicador de micrófono o la devuelve a la
@@ -764,6 +816,18 @@ export function setBotonApagado(accion: AccionBotonEncendido) {
   _setBotonApagado(siguiente)
   save()
 }
+/** Muestra u oculta una acción del menú de energía. Si el cambio dejaría el menú
+ *  vacío, `normalizarAccionesOcultas` lo impide y el estado no cambia: el interruptor
+ *  de la última acción visible se pinta insensible, así que en la UI no llega a pasar. */
+export function setAccionEnergiaOculta(id: string, oculta: boolean) {
+  const actuales = accionesEnergiaOcultas.get()
+  const siguiente = normalizarAccionesOcultas(
+    oculta ? [...actuales, id] : actuales.filter((a) => a !== id),
+  )
+  if (siguiente.length === actuales.length && siguiente.every((a, i) => a === actuales[i])) return
+  _setAccionesEnergiaOcultas(siguiente)
+  save()
+}
 export function setAutoDndEnabled(on: boolean) {
   _setAutoDndEnabled(on)
   save()
@@ -782,6 +846,23 @@ export function setGamingFreezeEnabled(on: boolean) {
 export function setEscanerJuegos(on: boolean) {
   if (escanerJuegos.get() === on) return
   _setEscanerJuegos(on)
+  save()
+}
+// Tampoco relanza nada: `service.ts` está suscrito a este estado y reconcilia hyprsunset
+// en el acto, así que encenderla con un juego ya abierto apaga la luz al momento y
+// apagarla la devuelve sin esperar al tick de 60 s.
+export function setPausaLuzNocturnaJuegos(on: boolean) {
+  _setPausaLuzNocturnaJuegos(on)
+  save()
+}
+/** Añade una clase a la lista que pausa la luz nocturna. Normaliza y evita duplicados. */
+export function addPausaLuzNocturnaApp(cls: string) {
+  _setPausaLuzNocturnaApps(sanitizeApps([...pausaLuzNocturnaApps.get(), cls]))
+  save()
+}
+/** Quita una clase (comparación exacta contra el valor ya normalizado). */
+export function removePausaLuzNocturnaApp(cls: string) {
+  _setPausaLuzNocturnaApps(pausaLuzNocturnaApps.get().filter((a) => a !== cls))
   save()
 }
 /** Acota a [1 s, 60 s]: los mismos límites que aplica popup/logica.ts al pintar. */

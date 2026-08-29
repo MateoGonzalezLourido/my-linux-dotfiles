@@ -1,10 +1,11 @@
-import { createState } from "ags"
+import { For, createState } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
 import app from "ags/gtk4/app"
 import { execAsync } from "ags/process"
 import { closeAllPanels, panelAutoClose, powerMenuVisible } from "../../estado/shell"
 import { crearCicloVida } from "../../utilidades/cicloVida"
-import { ACCIONES_ENERGIA } from "./acciones"
+import { accionesVisibles, type AccionEnergia } from "./acciones"
+import { accionesEnergiaOcultas } from "../ajustes/preferences.ts"
 import BotonAccion from "./BotonAccion"
 
 export default function MenuEnergia(monitorGdk: Gdk.Monitor) {
@@ -38,10 +39,15 @@ export default function MenuEnergia(monitorGdk: Gdk.Monitor) {
         onEnter={manejarEntradaPuntero}
         onLeave={autoCierre.onLeave}
       />
+      {/* Indexado por id y no por identidad de objeto: las acciones son constantes, así
+          que ocultar una solo retira su botón y no reconstruye los demás. */}
       <box cssClasses={["power-menu-strip"]} spacing={0} valign={Gtk.Align.CENTER}>
-        {ACCIONES_ENERGIA.map((accion) => (
-          <BotonAccion accion={accion} ejecutar={ejecutarAccion} />
-        ))}
+        <For
+          each={accionesEnergiaOcultas((ocultas) => accionesVisibles(ocultas))}
+          id={(accion: AccionEnergia) => accion.claseCss}
+        >
+          {(accion: AccionEnergia) => <BotonAccion accion={accion} ejecutar={ejecutarAccion} />}
+        </For>
       </box>
     </box>
   ) as unknown as Gtk.Widget

@@ -10,6 +10,7 @@
 #   curl -sSL <url> | INSTALL_PACKAGES=0 bash         # sin instalar paquetes
 #   curl -sSL <url> | KITTY_PROFILE=desktop bash      # forzar perfil de Kitty
 #   curl -sSL <url> | FIREFOX_PROFILE=desktop bash    # forzar perfil de Firefox
+#   curl -sSL <url> | SDDM_AUTOLOGIN=0 bash           # SDDM pide contraseña en vez de entrar solo
 #
 # Opciones equivalentes cuando se ejecuta el fichero (no por pipe):
 #   --branch <rama>      --repo <url>       --no-packages
@@ -38,6 +39,7 @@
 #   KITTY_PROFILE    auto, laptop o desktop (por defecto: auto)
 #   FIREFOX_PROFILE  auto, laptop o desktop (por defecto: auto)
 #   CURSOR_THEME     tema de puntero al que añadir la mitad hyprcursor
+#   SDDM_AUTOLOGIN   1 SDDM entra solo en Hyprland con tu usuario (por defecto); 0 muestra el saludador
 #   ASSUME_YES       1 equivale a --yes
 #   SKIP_CLAMAV_DB   1 equivale a --skip-clamav-db
 #   ONLY_PACKAGES    1 equivale a --solo-paquetes
@@ -69,6 +71,7 @@ CURSOR_THEME="${CURSOR_THEME:-Bibata-Modern-Ice}"
 ASSUME_YES="${ASSUME_YES:-0}"
 SKIP_CLAMAV_DB="${SKIP_CLAMAV_DB:-0}"
 ONLY_PACKAGES="${ONLY_PACKAGES:-0}"
+SDDM_AUTOLOGIN="${SDDM_AUTOLOGIN:-1}"
 
 # Catálogo de pasos seleccionables. El orden es el de ejecución, que es también el orden
 # en que los lista `--pasos`. Añadir un paso nuevo es añadirlo aquí y envolver su bloque
@@ -83,13 +86,14 @@ declare -A DESC_PASO=(
   [css]="compilar ags/estilos/out.css con sass"
   [mime]="bases MIME y caché de aplicaciones de KDE"
   [sistema]="ficheros de /etc: udev USB, i2c-dev, botón de encendido, helpers TLP/ClamAV/limpieza"
+  [sddm]="configurar SDDM y activarlo como gestor de sesión (display-manager.service)"
   [gpu]="elegir el perfil de GPU de esta máquina (~/.config/gigios/gpu-perfil)"
   [clamav-db]="descarga de la base de firmas de ClamAV (~200 MB)"
   [cursor]="generar la mitad hyprcursor del tema de puntero"
   [shell]="poner Zsh como shell predeterminado"
   [preflight]="validación final de la instalación"
 )
-ORDEN_PASOS=(paquetes repo symlinks sistema clamav-db dolphin kitty firefox css mime gpu cursor shell preflight)
+ORDEN_PASOS=(paquetes repo symlinks sistema sddm clamav-db dolphin kitty firefox css mime gpu cursor shell preflight)
 
 SOLO_PASOS=()
 SIN_PASOS=()
@@ -206,6 +210,7 @@ esac
 case "$ASSUME_YES" in 0|1) ;; *) die "ASSUME_YES debe valer 0 o 1; recibido: '$ASSUME_YES'." ;; esac
 case "$SKIP_CLAMAV_DB" in 0|1) ;; *) die "SKIP_CLAMAV_DB debe valer 0 o 1; recibido: '$SKIP_CLAMAV_DB'." ;; esac
 case "$ONLY_PACKAGES" in 0|1) ;; *) die "ONLY_PACKAGES debe valer 0 o 1; recibido: '$ONLY_PACKAGES'." ;; esac
+case "$SDDM_AUTOLOGIN" in 0|1) ;; *) die "SDDM_AUTOLOGIN debe valer 1 (entrar solo) o 0 (pedir contraseña); recibido: '$SDDM_AUTOLOGIN'." ;; esac
 
 # Las variables de entorno se traducen al selector, igual que los alias de línea de
 # órdenes, para que exista una sola fuente de verdad sobre qué pasos corren.
@@ -512,6 +517,11 @@ install_packages() {
     # Mantén esta pila en paquetes estables. qt6ct + Breeze proporcionan el
     # tema Qt; hyprqt6engine-git no es necesario y fuerza bibliotecas -git.
     hyprland hyprlock hypridle hyprpolkitagent hyprsunset uwsm
+    # sddm: el gestor de sesión. No estaba declarado y nadie lo echaba en falta porque
+    # CachyOS lo trae de serie en su ISO — pero una instalación desde un Arch pelado
+    # terminaba "completa" y arrancaba en un TTY, sin nada que lanzara Hyprland. El paso
+    # `sddm` lo configura y lo activa; aquí sólo se garantiza que el paquete exista.
+    sddm
     # hyprcursor: Hyprland ya depende de la librería, pero el paso 10 usa el
     # BINARIO hyprcursor-util (mismo paquete) para generar la mitad hyprcursor
     # del tema de puntero. Se pide explícito para que sea una dependencia
@@ -959,6 +969,151 @@ else
   info "Omito los ficheros de /etc (udev USB, i2c-dev, botón de encendido, helpers)."
 fi
 
+if paso_activo sddm; then
+  # --- SDDM: configuración + activación como gestor de sesión ---
+  #
+  # Son DOS cosas distintas y cada una falla en silencio por su lado:
+  #
+  #   • La configuración (/etc/sddm.conf.d/99-gigios.conf): autologin en Hyprland,
+  #     tema del saludador y rango de usuarios. Sin ella SDDM arranca igual, con su
+  #     aspecto de fábrica y pidiendo contraseña — molesto, no roto.
+  #
+  #   • La ACTIVACIÓN, que en systemd ES UN SYMLINK:
+  #       /etc/systemd/system/display-manager.service -> /usr/lib/systemd/system/sddm.service
+  #     Lo crea `systemctl enable sddm.service`, porque la unidad declara
+  #     `Alias=display-manager.service`. Sin ese enlace no hay ningún error: el equipo
+  #     arranca hasta un TTY y ahí se queda. Todo lo que instalan los pasos anteriores
+  #     está bien y nada lo lanza. Por eso este paso comprueba el enlace DESPUÉS de
+  #     activar, en vez de fiarse del código de salida de systemctl.
+  #
+  # Igual que los ficheros de /etc del paso anterior, la config NO se symlinkea a
+  # ~/GiGiOS: SDDM la lee como root y antes de que exista sesión de usuario, y apuntar
+  # /etc a un directorio escribible por el usuario sería una escalada silenciosa. Se
+  # materializa desde la plantilla system/sddm/99-gigios.conf.in sustituyendo los tres
+  # campos que son de cada máquina (usuario, sesión, tema).
+  SDDM_PLANTILLA="$HOME/GiGiOS/system/sddm/99-gigios.conf.in"
+  SDDM_DESTINO=/etc/sddm.conf.d/99-gigios.conf
+
+  # Último valor no comentado de una clave en un .conf de SDDM. Vale para comprobar si
+  # /etc/sddm.conf —que tiene MÁS precedencia que todo /etc/sddm.conf.d/, ver
+  # `man 5 sddm.conf`— nos está pisando lo que acabamos de escribir.
+  sddm_valor() {
+    [[ -r "$1" ]] || return 0
+    awk -F= -v clave="$2" '
+      /^[[:space:]]*[#;]/ { next }
+      {
+        campo = $1
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", campo)
+        if (campo == clave) {
+          sub(/^[^=]*=/, "")
+          gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+          valor = $0
+        }
+      }
+      END { print valor }
+    ' "$1" 2>/dev/null
+  }
+
+  if ! command -v sudo >/dev/null; then
+    warn "Omito SDDM (falta sudo). El equipo puede arrancar en un TTY sin gestor de sesión."
+  elif [ ! -r "$SDDM_PLANTILLA" ]; then
+    warn "Falta $SDDM_PLANTILLA; no configuro SDDM."
+  elif ! pacman -Qq sddm >/dev/null 2>&1 && ! command -v sddm >/dev/null 2>&1; then
+    warn "SDDM no está instalado; no lo configuro ni lo activo (sudo pacman -S --needed sddm && bash install.sh --solo sddm)."
+  else
+    info "Configurando SDDM ..."
+    sudo_prime
+
+    # Sesión: el .desktop que SDDM le pasará a autologin. /usr/local/share tiene
+    # prioridad sobre /usr/share (es donde caen las sesiones instaladas a mano), y es el
+    # orden en que las lee el propio SDDM. Si no hay ninguna, el campo se deja VACÍO en
+    # vez de inventarse un nombre: un Session= que no existe deja el autologin fallando
+    # en bucle contra el saludador, que es peor que no tenerlo.
+    SDDM_SESION=""
+    for _dir in /usr/local/share/wayland-sessions /usr/share/wayland-sessions; do
+      if [ -r "$_dir/hyprland.desktop" ]; then SDDM_SESION=hyprland.desktop; break; fi
+    done
+    [ -n "$SDDM_SESION" ] \
+      || warn "No encontré hyprland.desktop en wayland-sessions; SDDM arrancará sin sesión predefinida."
+
+    # Tema: sólo se fija si el directorio existe DE VERDAD. El «Candy» de esta máquina lo
+    # dejó el instalador de HyDE y no pertenece a ningún paquete (`pacman -Qo` no lo
+    # reconoce), así que en un equipo nuevo no está. Un Current= apuntando a un tema
+    # ausente no da error: SDDM cae a su tema empotrado y el aspecto cambia sin más.
+    SDDM_TEMA=""
+    for _tema in Candy sugar-candy Sugar-Candy; do
+      if [ -d "/usr/share/sddm/themes/$_tema" ]; then SDDM_TEMA="$_tema"; break; fi
+    done
+    [ -n "$SDDM_TEMA" ] \
+      || info "Ningún tema conocido de SDDM instalado; el saludador usará el aspecto de fábrica."
+
+    # Autologin: reproduce el comportamiento de esta máquina (entrar directo a Hyprland).
+    # Se apaga con SDDM_AUTOLOGIN=0, y entonces el campo va vacío — que para SDDM es «no
+    # hay autologin», no «autologin del usuario ''».
+    if ((SDDM_AUTOLOGIN)) && [ -n "$SDDM_SESION" ]; then
+      SDDM_USUARIO="$(id -un)"
+    else
+      SDDM_USUARIO=""
+      ((SDDM_AUTOLOGIN)) && info "Sin sesión detectada: dejo SDDM pidiendo usuario y contraseña."
+    fi
+
+    if _sddm_tmp="$(mktemp)"; then
+      if sed -e "s/__GIGIOS_USER__/$SDDM_USUARIO/" \
+             -e "s/__GIGIOS_SESSION__/$SDDM_SESION/" \
+             -e "s/__GIGIOS_THEME__/$SDDM_TEMA/" \
+             "$SDDM_PLANTILLA" > "$_sddm_tmp" \
+         && sudo install -Dm644 "$_sddm_tmp" "$SDDM_DESTINO"; then
+        info "Escrito $SDDM_DESTINO (autologin: ${SDDM_USUARIO:-no}, tema: ${SDDM_TEMA:-por defecto})."
+        # /etc/sddm.conf gana sobre TODO el directorio conf.d pese a lo que sugiere el
+        # nombre. Si trae una de nuestras claves con otro valor, lo que acabamos de
+        # escribir no se aplica y no hay forma de notarlo mirando el fichero correcto.
+        # No se toca: es de la distribución, y borrarlo a espaldas del usuario podría
+        # llevarse ajustes que no son nuestros.
+        for _clave in User Session Current; do
+          _suyo="$(sddm_valor /etc/sddm.conf "$_clave")"
+          case "$_clave" in
+            User)    _nuestro="$SDDM_USUARIO" ;;
+            Session) _nuestro="$SDDM_SESION" ;;
+            Current) _nuestro="$SDDM_TEMA" ;;
+          esac
+          if [ -n "$_suyo" ] && [ "$_suyo" != "$_nuestro" ] && [ "$_suyo" != "${_nuestro%.desktop}" ]; then
+            warn "/etc/sddm.conf fija $_clave=$_suyo y tiene MÁS precedencia que $SDDM_DESTINO (donde vale '${_nuestro:-vacío}'): manda el suyo. Revisalo o quitá esa línea."
+          fi
+        done
+      else
+        warn "No pude escribir $SDDM_DESTINO; SDDM se queda con la configuración que hubiera."
+      fi
+      rm -f "$_sddm_tmp"
+    else
+      warn "No pude crear un temporal para la configuración de SDDM; la dejo como estaba."
+    fi
+
+    # --- Activación (el symlink display-manager.service) ---
+    # SIN `--now`: levantar SDDM desde dentro de una sesión gráfica viva le pelea la VT
+    # al compositor que ya está corriendo. Se activa para el próximo arranque.
+    _dm="$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null || true)"
+    if [ -n "$_dm" ] && [ "$(basename "$_dm")" != sddm.service ]; then
+      warn "El gestor de sesión activo es $(basename "$_dm"), no SDDM; no lo cambio. Si querés SDDM: sudo systemctl enable -f sddm.service"
+    elif [ -n "$_dm" ]; then
+      info "SDDM ya está activado (display-manager.service -> $_dm)."
+    else
+      info "Activando SDDM como gestor de sesión ..."
+      sudo systemctl enable sddm.service \
+        || warn "Falló 'systemctl enable sddm.service'."
+      # Se comprueba el ENLACE, no el código de salida: es el enlace lo que arranca el
+      # escritorio, y quedarse sin él es la diferencia entre un equipo que entra en
+      # Hyprland y uno que se para en un TTY.
+      if [ -L /etc/systemd/system/display-manager.service ]; then
+        info "OK: display-manager.service -> $(readlink /etc/systemd/system/display-manager.service)"
+      else
+        warn "SDDM no quedó activado: no existe /etc/systemd/system/display-manager.service. Sin él el equipo arranca en un TTY, sin escritorio y sin error. Activalo con: sudo systemctl enable sddm.service"
+      fi
+    fi
+  fi
+else
+  info "Omito SDDM: ni la configuración del saludador ni su activación como gestor de sesión."
+fi
+
 if paso_activo dolphin; then
   # --- 4. Aplicar el perfil ligero de Dolphin ---
   DOLPHIN_CONFIGURATOR="$HOME/GiGiOS/bin/configurar-dolphin.sh"
@@ -1217,6 +1372,19 @@ EOF
 paso_activo firefox && cat <<'EOF'
   • Firefox:  el perfil se eligió según FIREFOX_PROFILE; reiniciá Firefox tras cambiarlo.
 EOF
+if paso_activo sddm; then
+  if [ -L /etc/systemd/system/display-manager.service ]; then
+    printf '  • SDDM:     activado (display-manager.service -> %s)%s.\n' \
+      "$(basename "$(readlink -f /etc/systemd/system/display-manager.service)")" \
+      "$( ((SDDM_AUTOLOGIN)) && printf ', entra solo en Hyprland' || printf ', pedirá contraseña')"
+  else
+    cat <<'EOF'
+  • SDDM:     NO quedó activado: sin /etc/systemd/system/display-manager.service el
+              equipo arranca en un TTY, sin escritorio y sin ningún error a la vista.
+              Activalo con: sudo systemctl enable sddm.service
+EOF
+  fi
+fi
 paso_activo repo && cat <<'EOF'
   • Push:     el remoto quedó en HTTPS; para pushear, cambialo a SSH:
               dotfiles remote set-url origin git@github.com:mglourido/my-linux-dotfiles.git

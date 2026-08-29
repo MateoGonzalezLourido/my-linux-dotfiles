@@ -3,35 +3,65 @@ import { With, createState } from "ags"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import ProfileAvatar from "../ProfileAvatar"
-import { AVATAR_PATH, refreshAvatar } from "./avatar"
+import { withPrivilegedPrompt } from "../../../estado/shell"
+import { importarFotoPerfil, refreshAvatar } from "./avatar"
 import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloSeccion } from "../componentes"
 import textos from "../../../textos/ajustes/cuenta.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
 
 type Notice = { kind: "idle" | "working" | "ok" | "error"; text: string }
 
-function adminCommand(argv: string[], input: string): Promise<string> {
+// Los tres cambios de cuenta (nombre completo, contraseña, login) van en UNA sola
+// escalada de privilegios. Antes había un campo "Autorización administrativa" en la
+// propia sección y cada orden salía por `sudo -S` con esa contraseña por stdin: un
+// segundo sitio donde teclear la contraseña de root, cuando polkit ya abre su propio
+// diálogo. Ahora es `pkexec`, como el resto de Ajustes (fechaHora.ts, printers.ts,
+// disco/limpieza.ts).
+//
+// Dos detalles que no son opcionales:
+//   - Los valores viajan como ARGUMENTOS ("$1", "$2"…), nunca interpolados en el
+//     script: un nombre completo con comillas o `$(...)` sería inyección de shell
+//     ejecutada como root. pkexec además limpia el entorno, así que por variables
+//     tampoco valdría.
+//   - La contraseña nueva viaja por STDIN y no por argv, donde cualquiera la vería
+//     en `ps`. `chpasswd` la lee de la misma línea.
+const GUION_CUENTA = `
+set -e
+usuario="$1"; nombre="$2"; nuevo_login="$3"; cambiar_pass="$4"
+if [ -n "$nombre" ]; then usermod -c "$nombre" "$usuario"; fi
+if [ "$cambiar_pass" = "1" ]; then
+  IFS= read -r pass
+  printf '%s:%s\\n' "$usuario" "$pass" | chpasswd
+fi
+if [ "$nuevo_login" != "$usuario" ]; then usermod -l "$nuevo_login" "$usuario"; fi
+exit 0
+`
+
+function ejecutarComoAdministrador(argumentos: string[], entrada: string): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       const flags = Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-      // -k obliga a que sudo consuma exactamente la primera línea de este stdin.
-      // Así, si el comando es chpasswd, sólo recibe las líneas posteriores.
-      const process = Gio.Subprocess.new(["sudo", "-k", "-S", "-p", "", ...argv], flags)
-      process.communicate_utf8_async(input, null, (proc, result) => {
+      // El "bash" repetido es $0: pkexec lo pasa tal cual y sin él el primer valor
+      // real se perdería como nombre del programa en vez de llegar como "$1".
+      const proceso = Gio.Subprocess.new(["pkexec", "bash", "-c", GUION_CUENTA, "bash", ...argumentos], flags)
+      proceso.communicate_utf8_async(entrada, null, (proc, result) => {
         try {
           const [, stdout, stderr] = proc.communicate_utf8_finish(result)
-          if (proc.get_successful()) resolve((stdout ?? "").trim())
-          else reject(new Error((stderr ?? textos.avisos.operacionFallida).trim()))
+          if (proc.get_successful()) return resolve((stdout ?? "").trim())
+          // 126 = el usuario cerró el diálogo o falló la autenticación;
+          // 127 = polkit no le autoriza. Ninguno de los dos deja stderr útil.
+          const codigo = proc.get_exit_status()
+          if (codigo === 126 || codigo === 127) return reject(new Error(textos.avisos.autorizacionCancelada))
+          reject(new Error((stderr ?? "").trim() || textos.avisos.operacionFallida))
         } catch (error) { reject(error) }
       })
     } catch (error) { reject(error) }
   })
 }
 
-function cleanAdminError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error)
-  if (/incorrect password|authentication failure|try again/i.test(message)) return textos.avisos.contrasenaAdministradorIncorrecta
-  return message.replace(/^sudo:\s*/i, "") || textos.avisos.operacionFallida
+function limpiarErrorAdministrador(error: unknown): string {
+  const mensaje = error instanceof Error ? error.message : String(error)
+  return mensaje.replace(/^(usermod|chpasswd|pkexec):\s*/i, "").trim() || textos.avisos.operacionFallida
 }
 
 export default function SeccionCuenta() {
@@ -40,7 +70,6 @@ export default function SeccionCuenta() {
   const [fullName, setFullName] = createState("")
   const [newPassword, setNewPassword] = createState("")
   const [confirmPassword, setConfirmPassword] = createState("")
-  const [adminPassword, setAdminPassword] = createState("")
   const [avatarInput, setAvatarInput] = createState("")
   const [passwordExpanded, setPasswordExpanded] = createState(false)
   const [notice, setNotice] = createState<Notice>({ kind: "idle", text: "" })
@@ -54,8 +83,8 @@ export default function SeccionCuenta() {
     try {
       if (!GLib.path_is_absolute(path)) throw new Error(textos.avisos.rutaInvalida)
       if (!GLib.file_test(path, GLib.FileTest.IS_REGULAR)) throw new Error(textos.avisos.imagenAusente)
-      GLib.mkdir_with_parents(GLib.path_get_dirname(AVATAR_PATH), 0o700)
-      Gio.File.new_for_path(path).copy(Gio.File.new_for_path(AVATAR_PATH), Gio.FileCopyFlags.OVERWRITE, null, null)
+      // No es una copia del original: se recorta cuadrado y se reduce (ver avatar.ts).
+      importarFotoPerfil(path)
       refreshAvatar()
       setAvatarInput("")
       setNotice({ kind: "ok", text: textos.avisos.fotoActualizada })
@@ -68,8 +97,6 @@ export default function SeccionCuenta() {
     const nextLogin = loginName.get().trim()
     const realName = fullName.get().trim()
     const password = newPassword.get()
-    const admin = adminPassword.get()
-    if (!admin) return setNotice({ kind: "error", text: textos.avisos.autorizacionRequerida })
     if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(nextLogin)) return setNotice({ kind: "error", text: textos.avisos.usuarioInvalido })
     if (password && password !== confirmPassword.get()) return setNotice({ kind: "error", text: textos.avisos.contrasenasNoCoinciden })
     if (password && password.length < 8) return setNotice({ kind: "error", text: textos.avisos.contrasenaCorta })
@@ -77,19 +104,18 @@ export default function SeccionCuenta() {
 
     setNotice({ kind: "working", text: textos.avisos.aplicando })
     try {
-      // Validación explícita; cada orden vuelve a autenticar para mantener separado
-      // el stdin de sudo del stdin destinado a chpasswd.
-      await adminCommand(["-v"], `${admin}\n`)
-      if (realName) await adminCommand(["usermod", "-c", realName, currentUser], `${admin}\n`)
-      if (password) await adminCommand(["chpasswd"], `${admin}\n${currentUser}:${password}\n`)
-      if (nextLogin !== currentUser) await adminCommand(["usermod", "-l", nextLogin, currentUser], `${admin}\n`)
-      setAdminPassword("")
+      // withPrivilegedPrompt aparta la ventana de Ajustes mientras polkit pide la
+      // contraseña: es una capa OVERLAY y taparía el diálogo, que es un toplevel
+      // normal. Mismo envoltorio que fechaHora.ts y printers.ts.
+      await withPrivilegedPrompt(() => ejecutarComoAdministrador(
+        [currentUser, realName, nextLogin, password ? "1" : "0"],
+        password ? `${password}\n` : "",
+      ))
       setNewPassword("")
       setConfirmPassword("")
       setNotice({ kind: "ok", text: nextLogin !== currentUser ? textos.avisos.cuentaActualizadaReinicio : textos.avisos.cuentaActualizada })
     } catch (error) {
-      setAdminPassword("")
-      setNotice({ kind: "error", text: cleanAdminError(error) })
+      setNotice({ kind: "error", text: limpiarErrorAdministrador(error) })
     }
   }
 
@@ -166,10 +192,6 @@ export default function SeccionCuenta() {
             <box cssClasses={["account-controls"]}>{passwordEntry(textos.seguridad.confirmarContrasena.placeholder, setConfirmPassword)}</box>
           </FilaAjuste>
         </box>
-        <FilaAjuste titulo={textos.seguridad.autorizacion.titulo} informacion={textos.seguridad.autorizacion.descripcion}
-          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
-          <box cssClasses={["account-controls"]}>{passwordEntry(textos.seguridad.autorizacion.placeholder, setAdminPassword)}</box>
-        </FilaAjuste>
       </TarjetaAjustes>
 
       <box cssClasses={["account-actions"]} spacing={12} valign={Gtk.Align.CENTER}>

@@ -5,23 +5,35 @@
 import { Gtk } from "ags/gtk4"
 import Pango from "gi://Pango"
 import type Gio from "gi://Gio"
+import { esIconoUtilizable } from "../../../../servicios/aplicaciones/iconos"
+
+/** Lo que se pinta cuando el `.desktop` no deja nada que GTK pueda cargar. */
+const ICONO_GENERICO = "application-x-executable"
 
 /**
  * Icono de una app: prioriza el `Gio.Icon` nativo (resuelve tema e
  * ilustraciones embebidas correctamente) y cae al nombre de icono simbólico
  * cuando no hay uno.
+ *
+ * El `Gio.Icon` se valida antes de usarlo (`esIconoUtilizable`): un `.desktop` puede traer
+ * un `Icon=` con ruta absoluta a un fichero que no existe —`hp-uiscan.desktop` de HPLIP
+ * apunta a `/usr/share/icons/Humanity/…/printer.svg`, un tema de Ubuntu— y GTK entonces no
+ * pinta nada y suelta un aviso («Failed to load icon …») cada vez que la fila se dibuja.
+ * Por lo mismo el nombre de respaldo se descarta si es una ruta: `iconName` sale de
+ * `Gio.Icon.to_string()`, así que en ese caso trae la misma ruta rota disfrazada de nombre.
  */
 export function crearIconoApp(
   gicon: Gio.Icon | null | undefined,
   iconName: string,
   size: number,
 ): Gtk.Image {
-  if (gicon) {
+  if (gicon && esIconoUtilizable(gicon)) {
     const imagen = Gtk.Image.new_from_gicon(gicon)
     imagen.pixel_size = size
     return imagen
   }
-  return new Gtk.Image({ iconName, pixelSize: size })
+  const nombre = iconName && !iconName.startsWith("/") ? iconName : ICONO_GENERICO
+  return new Gtk.Image({ iconName: nombre, pixelSize: size })
 }
 
 /**

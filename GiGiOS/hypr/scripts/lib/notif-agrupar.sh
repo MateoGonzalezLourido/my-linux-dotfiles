@@ -46,7 +46,7 @@
 # y sustituir el `read` del bucle por `notif_leer`, que es quien implementa la ventana:
 #
 #     source .../lib/notif-agrupar.sh
-#     notif_grupo gpu gpu.error critical 15000 "🖥️ Error GPU" "errores de GPU"
+#     notif_grupo gpu gpu.error critical 15000 "Error GPU" "errores de GPU"
 #     productor_de_eventos | while :; do
 #         notif_leer linea; rc=$?
 #         if (( rc != 0 )); then          # 2 = ventana vencida, 1 = fin del stream

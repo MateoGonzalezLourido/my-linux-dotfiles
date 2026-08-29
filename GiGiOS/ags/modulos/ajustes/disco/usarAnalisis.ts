@@ -29,6 +29,7 @@ import { createState, onCleanup, type Accessor } from "ags"
 import { analisisCaducado } from "../../../servicios/disco/catalogo"
 import { revisionLimpieza } from "../../../servicios/disco/preferencias"
 import { ANALISIS_VACIO, analizar, leerCache, type Analisis } from "../../../servicios/disco/analisis"
+import { revisarDiscos } from "../../../servicios/disco/alerta"
 
 const [analisis, setAnalisis] = createState<Analisis>(ANALISIS_VACIO)
 const [analizando, setAnalizando] = createState(false)
@@ -73,6 +74,14 @@ export function refrescar(): void {
   setAnalizando(true)
   enVuelo = analizar()
     .then(nuevo => {
+      // El aviso de "disco casi lleno" se decide AQUÍ y no dentro de `analizar()`: medir no debe
+      // notificar (ver la cabecera de `servicios/disco/alerta.ts`). Va ANTES del `if`, y a
+      // propósito: la medida es igual de válida con Ajustes cerrado —una limpieza larga puede
+      // terminar después— y llenar el disco es justo lo que hay que contar aunque ya no haya nadie
+      // mirando la sección. Es lo que convierte el `df` que esta sección ya pagaba en la vigilancia
+      // de toda la sesión que antes solo existía al iniciarla (`hypr/scripts/disk-monitor.sh`):
+      // sin proceso residente, sin temporizador y sin un solo fork de más.
+      revisarDiscos(nuevo.discos)
       // Con Ajustes ya cerrado el resultado se tira: `analizar` YA lo dejó en la caché de disco,
       // así que no se pierde nada y no se retiene el catálogo entero sin nadie que lo mire.
       if (referencias > 0) {

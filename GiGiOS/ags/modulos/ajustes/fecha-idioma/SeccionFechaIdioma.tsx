@@ -122,22 +122,28 @@ export default function SeccionFechaIdioma({ vista }: { vista: VistaFechaIdioma 
       })
   }
 
+  // `vexpand` en el overlay + `valign START` en su hijo: la LISTA del select se dibuja
+  // como overlay de ESTE widget, así que su alto útil es el del overlay menos lo que baja
+  // el desplegable. En una sección corta (Idioma es un título y una tarjeta) el overlay
+  // medía lo que medía el contenido y al desplegable le quedaban ~40 px: cabía una opción
+  // y media de las 68 del idioma. Ahora el overlay se estira con el ScrolledWindow del
+  // panel y el contenido se queda arriba, así que la lista tiene alto por debajo.
   return (
-    <overlay cssClasses={["display-select-host"]}>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
+    <overlay cssClasses={["display-select-host"]} vexpand>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand valign={Gtk.Align.START}>
         <TituloSeccion titulo={textos.vistas[vista]} />
 
         {/* ── Idioma ─────────────────────────────────────────────────── */}
         {vista === "idioma" && <TarjetaAjustes titulo={textos.tarjetas.idioma} icono="󰗊">
           <box cssClasses={["dev-row"]} orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <TituloAjuste label={textos.idioma.sistema.titulo} />
-            <box
-              cssClasses={["sp-field"]}
-              widthRequest={560}
-              hexpand={false}
-              halign={Gtk.Align.START}
-            >
+            {/* Sin `widthRequest` y sin `.sp-field`: los dos fijaban 560 px, o sea
+                un ancho mayor que el hueco de contenido del panel en cuanto se le
+                sumaba el relleno de la fila — de ahí el desplazamiento horizontal.
+                Con `hexpand` el select ocupa lo que haya y encoge donde no lo hay. */}
+            <box hexpand>
               <DisplaySelect
+                compact={false}
                 current={createComputed(() => localeLabel(snapshot().locale))}
                 options={opcionesIdiomas}
                 onSelect={(idioma) => applyLocale(idioma)}
@@ -171,13 +177,9 @@ export default function SeccionFechaIdioma({ vista }: { vista: VistaFechaIdioma 
             {(auto: boolean) => auto ? <box /> : (
               <box cssClasses={["dev-row"]} orientation={Gtk.Orientation.VERTICAL} spacing={2}>
                 <TituloAjuste label={textos.fechaHora.zonaManual.titulo} />
-                <box
-                  cssClasses={["sp-field"]}
-                  widthRequest={560}
-                  hexpand={false}
-                  halign={Gtk.Align.START}
-                >
+                <box hexpand>
                   <DisplaySelect
+                    compact={false}
                     current={createComputed(() => snapshot().timezone || "—")}
                     options={opcionesZonasHorarias}
                     onSelect={(zona) => applyTimezone(zona)}
@@ -217,64 +219,65 @@ export default function SeccionFechaIdioma({ vista }: { vista: VistaFechaIdioma 
             <Interruptor activo={snapshot(s => !s.geoclueBlocked)} alAlternar={() => setLocationBlocked(!snapshot.get().geoclueBlocked)} />
           </FilaAjuste>
 
-          {/* Todo lo que hay debajo del interruptor solo existe si la ubicación
-              está permitida. Antes seguía ahí, mostrando la ciudad guardada y
-              dejando buscar otra con el bloqueo puesto: la UI se contradecía. */}
-          <With value={snapshot(s => s.geoclueBlocked)}>
-            {(bloqueada: boolean) => bloqueada ? (
-              <box cssClasses={["dev-row"]}>
-                <label cssClasses={["account-notice"]} label={textos.ubicacion.bloqueada}
-                  halign={Gtk.Align.START} wrap xalign={0} maxWidthChars={52} />
-              </box>
-            ) : (
-              <box orientation={Gtk.Orientation.VERTICAL} spacing={14}>
-              <FilaAjuste titulo={textos.ubicacion.origen.titulo} informacion={textos.ubicacion.origen.descripcion}>
-                <Segmented
-                  options={[{ value: "auto", label: textos.ubicacion.origen.opciones.automatica }, { value: "manual", label: textos.ubicacion.origen.opciones.manual }]}
-                  current={prefs(p => p.source)}
-                  onSelect={(v) => setLocationSource(v as any)}
-                />
-              </FilaAjuste>
+          {/* Con el permiso quitado, lo de debajo del interruptor se SIGUE VIENDO y
+              se queda INSENSIBLE. Hubo una versión que lo ocultaba entero: dejaba la
+              sección con un interruptor y un renglón, sin forma de mirar —ni de
+              preparar— la ciudad guardada o el origen antes de volver a dar permiso.
+              Y hubo otra anterior que lo dejaba plenamente usable, que era el bug
+              contrario: la UI ofrecía buscar una ciudad con el bloqueo puesto. Lo
+              insensible dice las dos cosas a la vez: está aquí, y ahora no aplica. */}
+          <box cssClasses={["dev-row"]} visible={snapshot(s => s.geoclueBlocked)}>
+            <label cssClasses={["account-notice"]} label={textos.ubicacion.bloqueada}
+              halign={Gtk.Align.START} wrap xalign={0} maxWidthChars={52} />
+          </box>
 
-              <box cssClasses={["dev-row"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-                <box spacing={10} valign={Gtk.Align.CENTER}>
-                  <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
-                    <TituloAjuste label={textos.ubicacion.actual.titulo} halign={Gtk.Align.START} />
-                    <TextoInformativo label={textos.ubicacion.actual.descripcion} />
-                    <label cssClasses={["account-notice"]} label={prefs(p => p.location.name || textos.ubicacion.actual.sinDeterminar)} halign={Gtk.Align.START} wrap xalign={0} maxWidthChars={48} />
-                  </box>
-                  <With value={prefs(p => p.source)}>
-                    {(src: string) => src === "auto"
-                      ? <BotonAjustes label={busy(b => b ? textos.ubicacion.actual.actualizando : textos.ubicacion.actual.actualizar)} onClicked={() => refreshAutoLocation()} />
-                      : <box />}
-                  </With>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={14}
+            sensitive={snapshot(s => !s.geoclueBlocked)}>
+            <FilaAjuste titulo={textos.ubicacion.origen.titulo} informacion={textos.ubicacion.origen.descripcion}>
+              <Segmented
+                options={[{ value: "auto", label: textos.ubicacion.origen.opciones.automatica }, { value: "manual", label: textos.ubicacion.origen.opciones.manual }]}
+                current={prefs(p => p.source)}
+                onSelect={(v) => setLocationSource(v as any)}
+              />
+            </FilaAjuste>
+
+            <box cssClasses={["dev-row"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+              <box spacing={10} valign={Gtk.Align.CENTER}>
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
+                  <TituloAjuste label={textos.ubicacion.actual.titulo} halign={Gtk.Align.START} />
+                  <TextoInformativo label={textos.ubicacion.actual.descripcion} />
+                  <label cssClasses={["account-notice"]} label={prefs(p => p.location.name || textos.ubicacion.actual.sinDeterminar)} halign={Gtk.Align.START} wrap xalign={0} maxWidthChars={48} />
                 </box>
-
                 <With value={prefs(p => p.source)}>
-                  {(src: string) => src !== "manual" ? <box /> : (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
-                      <box spacing={8}>
-                        <EntradaTextoAjustes placeholderText={textos.ubicacion.busqueda.placeholder} hexpand
-                          onChanged={(e: Gtk.Entry) => setCityQuery(e.get_text())}
-                          onActivate={doSearch} />
-                        <BotonAjustes label={textos.ubicacion.busqueda.boton} onClicked={doSearch} />
-                      </box>
-                      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-                        <For each={results}>
-                          {(r: CityResult) => (
-                            <button cssClasses={["dl-city-result"]} onClicked={() => { setManualLocation(r); setResults([]) }}>
-                              <label label={r.name} halign={Gtk.Align.START} hexpand xalign={0} />
-                            </button>
-                          )}
-                        </For>
-                      </box>
-                    </box>
-                  )}
+                  {(src: string) => src === "auto"
+                    ? <BotonAjustes label={busy(b => b ? textos.ubicacion.actual.actualizando : textos.ubicacion.actual.actualizar)} onClicked={() => refreshAutoLocation()} />
+                    : <box />}
                 </With>
               </box>
-              </box>
-            )}
-          </With>
+
+              <With value={prefs(p => p.source)}>
+                {(src: string) => src !== "manual" ? <box /> : (
+                  <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+                    <box spacing={8}>
+                      <EntradaTextoAjustes placeholderText={textos.ubicacion.busqueda.placeholder} hexpand
+                        onChanged={(e: Gtk.Entry) => setCityQuery(e.get_text())}
+                        onActivate={doSearch} />
+                      <BotonAjustes label={textos.ubicacion.busqueda.boton} onClicked={doSearch} />
+                    </box>
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+                      <For each={results}>
+                        {(r: CityResult) => (
+                          <button cssClasses={["dl-city-result"]} onClicked={() => { setManualLocation(r); setResults([]) }}>
+                            <label label={r.name} halign={Gtk.Align.START} hexpand xalign={0} />
+                          </button>
+                        )}
+                      </For>
+                    </box>
+                  </box>
+                )}
+              </With>
+            </box>
+          </box>
         </TarjetaAjustes>}
       </box>
     </overlay>

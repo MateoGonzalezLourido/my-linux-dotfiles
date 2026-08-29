@@ -954,6 +954,7 @@ function QsHeader() {
   const [time, setTime] = createState(getTime())
   const [date, setDate] = createState(getDate())
   const notifs = createBinding(notifd, "notifications")
+  const dnd = createBinding(notifd, "dontDisturb")
 
   // Reloj alineado al minuto y COMPARTIDO con el de la barra
   // (`servicios/sistema/reloj.ts`): `getTime()` no enseña segundos, así que el
@@ -977,9 +978,6 @@ function QsHeader() {
             interruptor de Ajustes > Energía. A la izquierda del modo juego. */}
         <button
           cssClasses={["bar-pill", "nb-pill"]}
-          tooltipText={forcePowerSave((a) => a
-            ? "Modo ahorro forzado activo · toca para desactivar"
-            : "Modo ahorro · forzar el ahorro de energía")}
           onClicked={() => setForcePowerSave(!forcePowerSave.get())}
         >
           <label
@@ -992,9 +990,6 @@ function QsHeader() {
         <button
           visible={gamemodeAvailable}
           cssClasses={["bar-pill", "nb-pill"]}
-          tooltipText={gamemodeActive((a) => a
-            ? "Modo juego activo · GameMode prioriza el sistema para jugar"
-            : "Modo juego · activar GameMode")}
           onClicked={toggleGamemode}
         >
           <label
@@ -1002,13 +997,22 @@ function QsHeader() {
             label={GAME_GLYPH}
           />
         </button>
+        {/* Clic: abre el panel. Clic DERECHO: alterna el "no molestar" del
+            daemon, igual que el botón de notificaciones de la barra
+            (`modulos/barra/indicadores/notificaciones/BotonNotificaciones.tsx`).
+            El icono refleja el estado para que el silencio no sea invisible. */}
         <button
           cssClasses={["bar-pill", "nb-pill"]}
           onClicked={alternarPanelNotificaciones}
         >
+          <Gtk.GestureClick
+            button={3}
+            onPressed={() => { notifd.dontDisturb = !notifd.dontDisturb }}
+          />
           <label
-            cssClasses={notifs((n) => n.length > 0 ? ["nb-icon", "has-notifs"] : ["nb-icon"])}
-            label="󰂚"
+            cssClasses={createComputed([dnd, notifs], (d, n) =>
+              d ? ["nb-icon", "dnd"] : n.length > 0 ? ["nb-icon", "has-notifs"] : ["nb-icon"])}
+            label={dnd((d) => d ? "󰪑" : "󰂚")}
           />
         </button>
       </box>
@@ -2959,8 +2963,8 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
   // armada. El caso real: apartas los cascos USB sin querer, luego los
   // desenchufas, el default se va al HDMI y los cascos ya no aparecen en la
   // lista justo cuando los vuelves a enchufar para elegirlos. Se rechaza en el
-  // origen (y el tooltip de la tarjeta lo dice) en vez de aceptar un clic que
-  // no hace nada visible hoy y muerde dentro de una semana.
+  // origen en vez de aceptar un clic que no hace nada visible hoy y muerde
+  // dentro de una semana.
   const alternarOculto = (ep: AstalWp.Endpoint) => {
     if (idActivo.get() === ep.id) return
     alternarDispositivoAudioOculto(claveEndpoint(tipoClave, infoEndpoint(ep)))
@@ -2976,7 +2980,6 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
             // detiene el sondeo según corresponda.
             setAudioMode(audioMode.get() === "devices" ? "apps" : "devices")
           }}
-          tooltipText={audioMode((m) => m === "devices" ? "Mezcla de aplicaciones" : (isSpk ? "Dispositivos de salida" : "Dispositivos de entrada"))}
         ><label label={audioMode((m) => m === "devices" ? "󰓃" : "󰋎")} /></button>
       </QsMenuHeader>
 
@@ -3082,10 +3085,7 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   }
 
                   return (
-                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={activeClasses}
-                      tooltipText={idActivo((id) => id === ep.id
-                        ? (isSpk ? "Salida en uso: no se puede ocultar" : "Entrada en uso: no se puede ocultar")
-                        : (isSpk ? "Clic derecho: ocultar esta salida" : "Clic derecho: ocultar esta entrada"))}>
+                    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={activeClasses}>
                       {/* Clic derecho = apartar. Va en la tarjeta ENTERA y no en un
                           botón porque cualquier botón aquí competiría con el clic
                           izquierdo, que ya está tomado por "elegir este dispositivo"
@@ -3113,7 +3113,7 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                         </box>
                       </box>
                       <box spacing={5} valign={Gtk.Align.CENTER}>
-                        <button cssClasses={["qs-audio-card-btn"]} onClicked={toggleMute} tooltipText={mute((m) => m ? "Activar sonido" : "Silenciar")}>
+                        <button cssClasses={["qs-audio-card-btn"]} onClicked={toggleMute}>
                           <label cssClasses={["qs-audio-icon"]} label={createComputed(() => deviceIcon(vol(), mute()))} />
                         </button>
                         <box spacing={5} valign={Gtk.Align.CENTER} hexpand>
@@ -3136,7 +3136,7 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                             }}
                             min={0} max={VOLUMEN_MAX * 100}
                             labelClass="qs-audio-vol-pct"
-                            tooltip="Editar volumen · hasta 200 % (amplificado)"
+                            tooltip=""
                             widthRequest={26}
                           />
                         </box>
@@ -3155,7 +3155,6 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
               <button
                 cssClasses={["qs-audio-ocultos-cab"]}
                 onClicked={() => setOcultosAbiertos(!ocultosAbiertos.get())}
-                tooltipText="Dispositivos que has apartado con el clic derecho"
               >
                 <box spacing={6}>
                   <label cssClasses={["qs-audio-ocultos-flecha"]} label={ocultosAbiertos((a) => a ? "󰅀" : "󰅂")} />
@@ -3175,7 +3174,7 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                     const etiqueta = endpointLabel(ep)
                     const restaurar = () => alternarOculto(ep)
                     return (
-                      <box cssClasses={["qs-audio-oculto"]} spacing={6} tooltipText="Volver a mostrarlo">
+                      <box cssClasses={["qs-audio-oculto"]} spacing={6}>
                         {/* Los dos botones, por simetría con la tarjeta: el clic
                             derecho es el mismo flip-flop, y el ojo lo hace
                             descubrible para quien no sepa que existe. */}
@@ -3194,7 +3193,6 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                           cssClasses={["qs-audio-card-btn"]}
                           onClicked={restaurar}
                           valign={Gtk.Align.CENTER}
-                          tooltipText="Volver a mostrarlo"
                         ><label cssClasses={["qs-audio-icon"]} label="󰈈" /></button>
                       </box>
                     )
@@ -3316,13 +3314,13 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                           }}
                           min={0} max={VOLUMEN_MAX * 100}
                           labelClass={enSilencio ? ["qs-section-pct", "is-silent"] : ["qs-section-pct"]}
-                          tooltip="Editar volumen · hasta 200 % (amplificado)"
+                          tooltip=""
                           widthRequest={26}
                         />
                       </box>
                       <box spacing={6}>
                         {streamScale}
-                        {enSilencio && <label label={isSpk ? "󰝟" : "󰍭"} cssClasses={["qs-audio-silent-icon"]} tooltipText="Aplicación en silencio/espera" />}
+                        {enSilencio && <label label={isSpk ? "󰝟" : "󰍭"} cssClasses={["qs-audio-silent-icon"]} />}
                       </box>
                     </box>
                   )
@@ -3618,7 +3616,6 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
               cssClasses={["qs-inline-value-btn"]}
               visible={editingBrightness((editing) => !editing)}
               onClicked={editBrightness}
-              tooltipText="Editar brillo"
             >
               <label cssClasses={["qs-section-pct"]} label={brightness((v) => `${Math.round(v * 100)}`)} />
             </button>
@@ -3651,7 +3648,6 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
               cssClasses={["qs-inline-value-btn"]}
               visible={editingTemp((editing) => !editing)}
               onClicked={editTemp}
-              tooltipText="Editar temperatura"
             >
               <label cssClasses={["qs-section-pct"]} label={nightLightTemp((t) => `${t}K`)} />
             </button>
@@ -3787,24 +3783,80 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
     setDevices(lista)
   }
 
-  // Timers del escaneo, a nivel de componente para poder cancelarlos al cerrar.
-  // Los dos que quedan acotan el discovery en el tiempo (cuándo empieza a
-  // mostrarse, cuándo se corta la radio); el refresco de la lista ya no es un
-  // temporizador, lo llevan las señales de wireDevices().
+  // ── El discovery vive lo que dura la VISTA, no un contador ──────────────────
+  // Antes el escaneo era una RÁFAGA con `duration` (5 s al entrar, 15 s desde el
+  // botón) y al agotarse se llamaba a `stop_discovery()`. Sin discovery activo
+  // BlueZ no vuelve a oír a nadie: a partir de ese segundo 5 la lista quedaba
+  // CONGELADA mientras el usuario seguía mirándola, y poner un aparato en modo
+  // visible después de entrar en la sección no aparecía nunca — había que pulsar
+  // refrescar a mano, que es exactamente el síntoma reportado. Ahora el discovery
+  // se arranca al entrar en la vista (o al encender el BT dentro de ella) y solo
+  // se corta donde ya se cortaba: al salir de la sección o al cerrar el panel
+  // (`stopScan`, que sigue siendo el único que apaga la radio de búsqueda).
+  //
+  // Queda un solo temporizador, el de `buffering`: los 2 s iniciales en los que la
+  // lista no se recompone mientras BlueZ vuelca de golpe su caché.
   let scanStartTimer: number | null = null
-  let scanStopTimer: number | null = null
+  // Reintento del vigilante de abajo; no acota nada, solo espacia los reintentos.
+  let scanRetryTimer: number | null = null
+  let discoveringId: { adapter: any, id: number } | null = null
+  // Con tres caídas seguidas se deja de insistir: si BlueZ no sostiene el
+  // discovery (adaptador que desaparece, rfkill a medias), reintentar cada 2 s
+  // sería un bucle invisible. El botón de refrescar rearma la cuenta.
+  const MAX_REINTENTOS_DISCOVERY = 3
+  let reintentosDiscovery = 0
+
+  const clearScanRetry = () => {
+    if (scanRetryTimer !== null) { clearTimeout(scanRetryTimer); scanRetryTimer = null }
+  }
+
+  const desvigilarDiscovery = () => {
+    if (!discoveringId) return
+    try { discoveringId.adapter.disconnect(discoveringId.id) } catch {}
+    discoveringId = null
+  }
+
+  // BlueZ puede dar de baja el discovery por su cuenta (el adaptador se reinicia,
+  // otro cliente D-Bus llama a StopDiscovery, un bloqueo de rfkill). Eso no emite
+  // ningún error para nosotros: `scanning` se quedaría en `true` con la radio
+  // parada, o sea el bug de antes disfrazado de icono encendido. Se vigila
+  // `notify::discovering` del adaptador y se rearranca mientras la vista siga
+  // abierta. El handler se cuelga del adaptador CONCRETO y se suelta al cambiarlo,
+  // porque el objeto muere y renace con cada reenumeración del dongle.
+  const vigilarDiscovery = (adapter: any) => {
+    if (discoveringId?.adapter === adapter) return
+    desvigilarDiscovery()
+    try {
+      const id = adapter.connect("notify::discovering", () => {
+        if (adapter.discovering || !scanning.get()) return
+        // Caída ajena: la vista sigue abierta y nosotros creíamos estar escaneando.
+        setScanning(false)
+        setBuffering(false)
+        if (!inBtView() || !bt.isPowered) return
+        if (reintentosDiscovery >= MAX_REINTENTOS_DISCOVERY) return
+        reintentosDiscovery++
+        clearScanRetry()
+        scanRetryTimer = setTimeout(() => { scanRetryTimer = null; scan() }, 2000)
+      })
+      discoveringId = { adapter, id }
+    } catch {}
+  }
 
   const stopScan = () => {
     if (scanStartTimer !== null) { clearTimeout(scanStartTimer); scanStartTimer = null }
-    if (scanStopTimer !== null) { clearTimeout(scanStopTimer); scanStopTimer = null }
+    clearScanRetry()
+    reintentosDiscovery = 0
     if (scanning.get()) {
-      try { bt.adapter?.stop_discovery() } catch {}
+      // Las banderas se bajan ANTES de parar: `notify::discovering` llega después
+      // del viaje por D-Bus y el vigilante de arriba lo leería como caída ajena.
       setBuffering(false)
       setScanning(false)
+      try { bt.adapter?.stop_discovery() } catch {}
     }
+    desvigilarDiscovery()
   }
 
-  const scan = (duration: number = 15000) => {
+  const scan = () => {
     if (scanning.get() || !btSupported.get() || !bt.isPowered) return
     const adapter = bt.adapter
     if (!adapter) return
@@ -3819,20 +3871,24 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
       setBuffering(false)
       return
     }
+    vigilarDiscovery(adapter)
 
+    if (scanStartTimer !== null) clearTimeout(scanStartTimer)
     scanStartTimer = setTimeout(() => {
       scanStartTimer = null
       setBuffering(false)
       update()
-
-      const remaining = Math.max(0, duration - 2000)
-      scanStopTimer = setTimeout(() => {
-        scanStopTimer = null
-        try { adapter.stop_discovery() } catch {}
-        setScanning(false)
-        update()
-      }, remaining)
     }, 2000)
+  }
+
+  // El botón de refrescar ya no "enciende" el escaneo (ahora está siempre en
+  // marcha dentro de la vista): reinicia el ciclo de inquiry y rearma la cuenta de
+  // reintentos, que es lo único que puede hacer un usuario cuando la lista se ha
+  // quedado a medias.
+  const rescan = () => {
+    reintentosDiscovery = 0
+    stopScan()
+    scan()
   }
 
   // A diferencia de NetworkManager (que reescanea solo al encender la radio WiFi),
@@ -3847,12 +3903,12 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   }
   const autoScan = () => {
     if (!btSupported.get() || !bt.isPowered || scanning.get()) return
-    if (bt.adapter) { scan(5000); return }
+    if (bt.adapter) { scan(); return }
     // Adaptador aún no listo tras el power-on: reintenta una vez cuando aparezca.
     clearPowerOnTimer()
     powerOnTimer = setTimeout(() => {
       powerOnTimer = null
-      if (inBtView() && bt.isPowered && bt.adapter && !scanning.get()) scan(5000)
+      if (inBtView() && bt.isPowered && bt.adapter && !scanning.get()) scan()
     }, 600)
   }
 
@@ -4021,7 +4077,7 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
           cssClasses={scanning((s) => s ? ["qs-icon-btn", "scanning"] : ["qs-icon-btn"])}
           visible={btSupported}
           sensitive={createComputed(() => btSupported() && btPowered())}
-          onClicked={() => scan()}
+          onClicked={() => rescan()}
         ><label label="󰑐" /></button>
         <Interruptor
           activo={btPowered}
@@ -4139,7 +4195,6 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
         <QsMenuHeader title="Ethernet" onBack={onBack}>
           <button
             cssClasses={["qs-icon-btn"]}
-            tooltipText="Ajustes de red"
             onClicked={() => execAsync("nm-connection-editor")}
           ><label label="󰒓" /></button>
         </QsMenuHeader>
@@ -4329,10 +4384,10 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                         onChanged={(self) => setPasswordStr(self.text)}
                         onActivate={connectWithPassword}
                       />
-                      <button cssClasses={["qs-icon-btn"]} onClicked={connectWithPassword} tooltipText="Conectar">
+                      <button cssClasses={["qs-icon-btn"]} onClicked={connectWithPassword}>
                         <label label="󰄬" />
                       </button>
-                      <button cssClasses={["qs-icon-btn"]} onClicked={() => setPasswordTarget(null)} tooltipText="Cancelar">
+                      <button cssClasses={["qs-icon-btn"]} onClicked={() => setPasswordTarget(null)}>
                         <label label="󰅖" />
                       </button>
                     </box>
@@ -4410,11 +4465,6 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                         if (active && network.connectivity === AstalNetwork.Connectivity.PORTAL) return ["qs-wifi-portal-icon"]
                         if (isSecure && !active) return ["qs-wifi-lock"]
                         return []
-                      })}
-                      tooltipText={wifiState((s) => {
-                        const active = s.ssid === ap.ssid
-                        if (active && network.connectivity === AstalNetwork.Connectivity.PORTAL) return "Abrir portal cautivo"
-                        return ""
                       })}
                       visible={wifiState((s) => {
                         const active = s.ssid === ap.ssid

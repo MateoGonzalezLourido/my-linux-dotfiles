@@ -1,4 +1,5 @@
 import { Gtk } from "ags/gtk4"
+import Pango from "gi://Pango"
 
 type PropiedadesTituloSubseccion = {
   label: any
@@ -17,6 +18,9 @@ export default function TituloSubseccion({
     <label
       cssClasses={["sp-subsection-title", ...cssClasses]}
       halign={halign}
+      wrap
+      wrapMode={Pango.WrapMode.WORD_CHAR}
+      xalign={0}
       {...propiedades}
     />
   )

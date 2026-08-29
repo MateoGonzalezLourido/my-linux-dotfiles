@@ -9,6 +9,11 @@
 // `freezeBackground`. Por eso nace APAGADA de fábrica: bajar el brillo se ve, y una medida
 // que se ve tiene que pedirse.
 //
+// Cuánto se baja lo decide `brilloAhorroCalculo.ts` (dos modos: apuntar a un brillo fijo o
+// restar puntos al que haya). Aquí solo interesa que el objetivo se calcula desde el brillo
+// APUNTADO, nunca desde el vivo, y que puede salir `null` = no hay nada que bajar, en cuyo
+// caso no se escribe: el modo fijo no sube el brillo jamás.
+//
 // ─────────────────────────────────────────────────────────────────────────────────────
 // CÓMO SE DISTINGUE "LO BAJÉ YO" DE "LO SUBIÓ EL USUARIO"
 // -------------------------------------------------------
@@ -40,10 +45,13 @@ import { brightness, brightnessSupported, applyBrightness } from "../pantalla/br
 import {
   powerSaveActive,
   reduceBrightnessInPowerSave,
+  powerSaveBrightnessMode,
   powerSaveBrightnessPct,
+  powerSaveBrightnessDropPct,
   leerBrilloAntesDelAhorro,
   guardarBrilloAntesDelAhorro,
 } from "./powerState"
+import { objetivoBrilloAhorro } from "./brilloAhorroCalculo"
 
 /** Ver el bloque de arriba: cubre el redondeo del ida y vuelta hardware→udev→compuesto. */
 const TOLERANCIA = 0.03
@@ -54,10 +62,17 @@ let reducido = false
 /** Último valor que escribimos, para reconocer nuestro propio eco. */
 let ultimoAplicado: number | null = null
 
-const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
-
-function objetivoActual(): number {
-  return clamp01(powerSaveBrightnessPct.get() / 100)
+/** El objetivo, calculado SIEMPRE desde `base` —el brillo de antes de que bajáramos nada—
+ *  y no desde el valor vivo: en modo relativo, partir de lo ya bajado restaría otra vez en
+ *  cada reconciliación y la pantalla se apagaría sola a base de eventos. `null` = no hay
+ *  nada que bajar (ver `objetivoBrilloAhorro`). */
+function objetivoActual(base: number): number | null {
+  return objetivoBrilloAhorro(
+    base,
+    powerSaveBrightnessMode.get(),
+    powerSaveBrightnessPct.get(),
+    powerSaveBrightnessDropPct.get(),
+  )
 }
 
 function aplicar(valor: number): void {
@@ -88,8 +103,13 @@ function reconciliar(): void {
     }
     // Con el apunte ya tirado (el usuario tomó el mando durante el ahorro) no se vuelve a
     // imponer nada: la reducción sigue "vigente" solo para no re-armarse sola.
-    if (leerBrilloAntesDelAhorro() === null) return
-    const objetivo = objetivoActual()
+    const base = leerBrilloAntesDelAhorro()
+    if (base === null) return
+    const objetivo = objetivoActual(base)
+    // Sin margen para bajar (ya se está en el suelo, o el objetivo fijo subiría y la
+    // reducción relativa tampoco llega): no se escribe nada. El apunte se queda puesto y
+    // la salida del ahorro repone el mismo valor, que es inofensivo.
+    if (objetivo === null) return
     if (ultimoAplicado !== null && Math.abs(ultimoAplicado - objetivo) < 0.001) return
     aplicar(objetivo)
     return
@@ -124,7 +144,9 @@ export function initBrilloAhorro(): void {
 
   powerSaveActive.subscribe(reconciliar)
   reduceBrightnessInPowerSave.subscribe(reconciliar)
+  powerSaveBrightnessMode.subscribe(reconciliar)
   powerSaveBrightnessPct.subscribe(reconciliar)
+  powerSaveBrightnessDropPct.subscribe(reconciliar)
   // El backend puede confirmarse DESPUÉS de esto (DDC tarda ~1 s): sin esta suscripción,
   // arrancar ya dentro del ahorro no bajaría el brillo nunca, y un apunte huérfano de un
   // AGS muerto no se recuperaría hasta el siguiente cambio de estado.

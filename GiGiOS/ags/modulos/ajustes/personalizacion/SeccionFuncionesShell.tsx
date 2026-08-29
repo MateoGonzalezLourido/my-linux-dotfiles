@@ -6,6 +6,7 @@ import {
   acentoAdaptativoEnabled, setAcentoAdaptativoEnabled,
   startupVolumeMuted, setStartupVolumeMuted,
   startupMicMuted, setStartupMicMuted,
+  startupBluetoothOff, setStartupBluetoothOff,
   volumeOsdEnabled, setVolumeOsdEnabled,
   micOsdEnabled, setMicOsdEnabled,
   brightnessOsdEnabled, setBrightnessOsdEnabled,
@@ -35,6 +36,10 @@ export default function SeccionFuncionesShell({ vista }: { vista: VistaFunciones
       {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.sonidoInicio} icono="󰍃">
         <AjusteInterruptor titulo={textos.inicioAudio.volumen.titulo} informacion={textos.inicioAudio.volumen.descripcion} activo={startupVolumeMuted} alAlternar={() => setStartupVolumeMuted(!startupVolumeMuted.get())} />
         <AjusteInterruptor titulo={textos.inicioAudio.microfono.titulo} informacion={textos.inicioAudio.microfono.descripcion} activo={startupMicMuted} alAlternar={() => setStartupMicMuted(!startupMicMuted.get())} />
+      </TarjetaAjustes>}
+
+      {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.conectividadInicio} icono="󰂯">
+        <AjusteInterruptor titulo={textos.inicioConectividad.bluetooth.titulo} informacion={textos.inicioConectividad.bluetooth.descripcion} activo={startupBluetoothOff} alAlternar={() => setStartupBluetoothOff(!startupBluetoothOff.get())} />
       </TarjetaAjustes>}
 
       {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.indicadores} icono="󰕾">

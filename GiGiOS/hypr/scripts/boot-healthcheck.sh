@@ -95,7 +95,7 @@ flush_problems() {
     done
     cuerpo+="Detalle y remedio de cada uno en $LOG"
     notificar arranque.resumen --urgency="$urg" --expire-time=0 \
-        "⚠️ $n problemas en el arranque" "$cuerpo" 2>/dev/null
+        "$n problemas en el arranque" "$cuerpo" 2>/dev/null
 }
 
 log "=== Boot healthcheck START ==="

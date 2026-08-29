@@ -38,6 +38,7 @@
     "bateria.modo-ahorro": "Modo ahorro activado",
     "energia.perfil-tlp": "Cambio de perfil TLP",
     "juegos.modo-juego": "Modo juego (GameMode)",
+    "energia.wake-up-fin": "Fin del plazo de Wake up",
 
     "temperatura.cpu-alta": "CPU sobrecalentada",
     "temperatura.cpu-normal": "CPU enfriada",

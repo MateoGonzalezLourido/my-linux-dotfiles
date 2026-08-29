@@ -13,6 +13,7 @@ import { execAsync } from "ags/process"
 import { panelAutoClose } from "../../../../estado/shell"
 import { datosActualizaciones } from "../../../../servicios/sistema/actualizaciones"
 import { crearControlPopoverAnclado } from "../../componentes/controlPopoverAnclado"
+import { ESLABON, SensorCadena, type CadenaEstado } from "../../componentes/cadenaEstado"
 import type { ControlVisibilidadBarra } from "../../../../estado/visibilidadBarra"
 
 // Abre la actualización en la primera terminal disponible (kitty = $terminal del
@@ -41,7 +42,18 @@ const METADATOS_TIPO: Record<TipoActualizacion, { icon: string; title: string; n
   gpu: { icon: "󰢮", title: "Actualización de drivers de GPU", noun: "drivers de GPU" },
 }
 
-export default function Actualizaciones({ visibilidad }: { visibilidad: ControlVisibilidadBarra }) {
+const INDICE_ESLABON: Record<TipoActualizacion, number> = {
+  kernel: ESLABON.actualizacionesKernel,
+  gpu: ESLABON.actualizacionesGpu,
+}
+
+export default function Actualizaciones({
+  visibilidad,
+  cadena,
+}: {
+  visibilidad: ControlVisibilidadBarra
+  cadena: CadenaEstado
+}) {
   const data = datosActualizaciones
 
   // Construye uno de los dos iconos. Cada uno tiene su propio popover, anclado a sí
@@ -49,6 +61,7 @@ export default function Actualizaciones({ visibilidad }: { visibilidad: ControlV
   const crearIcono = (kind: TipoActualizacion) => {
     const meta = METADATOS_TIPO[kind]
     const list = data((d) => d[kind])
+    const indice = INDICE_ESLABON[kind]
 
     let activePopover: Gtk.Popover | null = null
     let btnRef: Gtk.Widget | null = null
@@ -160,9 +173,14 @@ export default function Actualizaciones({ visibilidad }: { visibilidad: ControlV
         })}
       >
         <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
+        <SensorCadena cadena={cadena} indice={indice} />
         {/* Solo el icono: el número sobraba. El detalle (qué paquetes, de qué
             versión a cuál) está en el tooltip y en el popover. */}
-        <box cssClasses={["bar-pill", "upd-pill", kind]} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}>
+        <box
+          cssClasses={cadena.clases(indice, ["bar-pill", "upd-pill", kind])}
+          halign={Gtk.Align.CENTER}
+          valign={Gtk.Align.CENTER}
+        >
           <label cssClasses={["upd-icon"]} label={meta.icon} />
         </box>
       </button>

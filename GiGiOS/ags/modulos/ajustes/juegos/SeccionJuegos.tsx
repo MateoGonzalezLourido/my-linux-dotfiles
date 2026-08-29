@@ -1,11 +1,22 @@
 import { Gtk } from "ags/gtk4"
-import { AjusteInterruptor, TarjetaAjustes, TituloSeccion } from "../componentes"
+import {
+  AjusteInterruptor,
+  ListaClasesVentana,
+  TarjetaAjustes,
+  TextoInformativo,
+  TituloSeccion,
+} from "../componentes"
 import { allowTearing, applyAllowTearing } from "../../../servicios/pantalla/service"
 import {
+  addPausaLuzNocturnaApp,
   escanerJuegos,
   gamingFreezeEnabled,
+  pausaLuzNocturnaApps,
+  pausaLuzNocturnaJuegos,
+  removePausaLuzNocturnaApp,
   setEscanerJuegos,
   setGamingFreezeEnabled,
+  setPausaLuzNocturnaJuegos,
 } from "../preferences"
 import textos from "../../../textos/ajustes/juegos.json" with { type: "json" }
 
@@ -40,6 +51,44 @@ export default function SeccionJuegos() {
           informacion={textos.congelarTareas.descripcion}
           activo={gamingFreezeEnabled}
           alAlternar={() => setGamingFreezeEnabled(!gamingFreezeEnabled.get())}
+        />
+      </TarjetaAjustes>
+      {/* Esta tarjeta NO se retira sin escáner, al contrario que la de congelar tareas, y
+          su interruptor tampoco: la mitad manual compara clase contra clase y sigue
+          funcionando con la detección apagada, así que el ajuste no queda sordo — solo se
+          queda sin su mitad automática, y eso se dice en vez de esconderlo. El ajuste vive
+          aquí y no en Pantalla porque es una de las cosas que cambian "al jugar"; el
+          efecto se ve además en el resumen del horario de Ajustes > Pantallas. */}
+      <TarjetaAjustes titulo={textos.grupos.pantalla} icono="󰃝">
+        <AjusteInterruptor
+          titulo={textos.pausaLuzNocturna.titulo}
+          informacion={textos.pausaLuzNocturna.descripcion}
+          activo={pausaLuzNocturnaJuegos}
+          alAlternar={() => setPausaLuzNocturnaJuegos(!pausaLuzNocturnaJuegos.get())}
+        />
+        <TextoInformativo
+          label={textos.pausaLuzNocturna.sinDeteccion}
+          halign={Gtk.Align.START}
+          wrap
+          maxWidthChars={62}
+          xalign={0}
+          visible={escanerJuegos((activo: boolean) => !activo)}
+        />
+        <ListaClasesVentana
+          clases={pausaLuzNocturnaApps}
+          alAnadir={addPausaLuzNocturnaApp}
+          alQuitar={removePausaLuzNocturnaApp}
+          visible={pausaLuzNocturnaJuegos((activo: boolean) => activo)}
+          textos={{
+            titulo: textos.pausaLuzNocturna.lista.titulo,
+            ayuda: textos.pausaLuzNocturna.lista.ayuda,
+            vacia: textos.pausaLuzNocturna.lista.vacia,
+            placeholder: textos.pausaLuzNocturna.lista.placeholder,
+            anadir: textos.pausaLuzNocturna.lista.anadir,
+            quitar: textos.pausaLuzNocturna.lista.quitar,
+            ventana: textos.pausaLuzNocturna.lista.ventana,
+            anadirVentana: textos.pausaLuzNocturna.lista.anadirVentana,
+          }}
         />
       </TarjetaAjustes>
     </box>

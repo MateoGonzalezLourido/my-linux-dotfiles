@@ -8,7 +8,7 @@
 # extraerlo.
 #
 # Uso: scan-file.sh /ruta/al/archivo
-#   - lo invoca el botón "🔍 Escanear" del aviso de archivo grande, y
+#   - lo invoca el botón "Escanear" del aviso de archivo grande, y
 #   - el campo de ruta de Ajustes › Seguridad.
 
 set -u
@@ -48,7 +48,7 @@ notify_sin_firmas() {   # $1 = título, $2 = cuerpo
 f="${1:-}"
 f="$(realpath -- "$f" 2>/dev/null || echo "$f")"
 name="$(basename -- "$f")"
-[[ -n "$f" && -e "$f" ]] || { notificar analisis.sin-archivo -u critical "🔍 $APP" "No existe: $f" -t 8000; exit 1; }
+[[ -n "$f" && -e "$f" ]] || { notificar analisis.sin-archivo -u critical "$APP" "No existe: $f" -t 8000; exit 1; }
 
 # Motor: preferimos clamscan (standalone, funciona con solo tener las firmas).
 # clamdscan necesita el daemon clamd; si el binario está pero el daemon no corre,
@@ -61,7 +61,7 @@ if command -v clamscan >/dev/null 2>&1; then
 elif command -v clamdscan >/dev/null 2>&1; then
     clam=(clamdscan --fdpass --no-summary --multiscan)
 else
-    notificar analisis.sin-clamav -u critical "🔍 $APP" \
+    notificar analisis.sin-clamav -u critical "$APP" \
         "ClamAV no instalado (sudo pacman -S clamav && sudo freshclam)." -t 0
     exit 3
 fi
@@ -71,18 +71,18 @@ lowprio=()
 command -v nice   >/dev/null 2>&1 && lowprio+=(nice -n 19)
 command -v ionice >/dev/null 2>&1 && lowprio+=(ionice -c 3)
 
-notificar analisis.analizando -u low "🔍 Analizando…" "$name — puede tardar en archivos grandes." -t 6000
+notificar analisis.analizando -u low "Analizando…" "$name — puede tardar en archivos grandes." -t 6000
 
 out=$("${lowprio[@]}" "${clam[@]}" "$f" 2>/dev/null); rc=$?
 
 if grep -q "FOUND" <<< "$out"; then
     hits=$(grep -c "FOUND" <<< "$out")
     first=$(grep "FOUND" <<< "$out" | head -1)
-    notificar analisis.malware -u critical "🦠 Malware detectado ($hits)" \
+    notificar analisis.malware -u critical "Malware detectado ($hits)" \
         "$name → ${first##*: } — NO lo ejecutes." -t 0
 elif (( rc >= 2 )); then
     # rc=0 limpio · rc=1 virus (ya cazado) · rc≥2 no se pudo analizar
-    notify_sin_firmas "🔍 $APP" "No se pudo analizar $name (¿sin base de firmas?)."
+    notify_sin_firmas "$APP" "No se pudo analizar $name (¿sin base de firmas?)."
 else
-    notificar analisis.limpio -u normal "✓ Limpio" "$name: ClamAV no detectó amenazas." -t 8000
+    notificar analisis.limpio -u normal "Sin amenazas" "$name: ClamAV no detectó amenazas." -t 8000
 fi

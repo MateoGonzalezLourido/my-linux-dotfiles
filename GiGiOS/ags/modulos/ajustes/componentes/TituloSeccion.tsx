@@ -1,4 +1,5 @@
 import { Gtk } from "ags/gtk4"
+import Pango from "gi://Pango"
 
 type PropiedadesTituloSeccion = {
   titulo: string
@@ -19,6 +20,9 @@ export default function TituloSeccion({
       cssClasses={["sp-section-title", ...cssClasses]}
       label={`✦ ${titulo}`}
       halign={halign}
+      wrap
+      wrapMode={Pango.WrapMode.WORD_CHAR}
+      xalign={0}
       {...propiedades}
     />
   )

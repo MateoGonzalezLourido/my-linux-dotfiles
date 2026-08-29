@@ -15,6 +15,7 @@
 // lectura y escritura de los JSON del shell — nada que ver con el espacio en disco. Dos cosas con
 // el mismo nombre a dos niveles distintos del árbol es una trampa para el siguiente que grepee.
 import { Gtk } from "ags/gtk4"
+import Pango from "gi://Pango"
 import { For, With, createComputed, createState, onCleanup, type Accessor } from "ags"
 import {
   AjusteInterruptor, BotonAjustes, FilaAjuste, TarjetaAjustes,
@@ -228,6 +229,7 @@ function CatalogoApps({ apps }: { apps: Accessor<App[]> }) {
         <label
           cssClasses={["alm-totales"]}
           halign={Gtk.Align.START}
+          wrap wrapMode={Pango.WrapMode.WORD_CHAR} xalign={0}
           label={filtradas((lista: App[]) => formatearTexto(textos.apps.totales, {
             numero: lista.length,
             tamano: formatearBytes(lista.reduce((suma, app) => suma + app.bytes, 0)),
@@ -260,7 +262,8 @@ function CatalogoApps({ apps }: { apps: Accessor<App[]> }) {
             <box spacing={10} cssClasses={["dev-row", "alm-app"]} valign={Gtk.Align.CENTER}>
               <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
                 <box spacing={6}>
-                  <label cssClasses={["sp-field-label"]} label={app.nombre} halign={Gtk.Align.START} />
+                  <label cssClasses={["sp-field-label"]} label={app.nombre} halign={Gtk.Align.START}
+                    ellipsize={Pango.EllipsizeMode.END} maxWidthChars={40} />
                   <label
                     cssClasses={["alm-etiqueta", app.origen]}
                     label={app.origen === "aur" ? textos.apps.origenAur : textos.apps.origenRepo}
@@ -308,6 +311,7 @@ function VistaUso() {
           cssClasses={["sp-field-hint"]}
           hexpand
           halign={Gtk.Align.START}
+          wrap wrapMode={Pango.WrapMode.WORD_CHAR} xalign={0}
           label={analisis((a: Analisis) => a.epoch
             ? formatearTexto(textos.seccion.ultimoAnalisis, { fecha: formatearFecha(a.epoch) })
             : textos.seccion.sinAnalisis)}

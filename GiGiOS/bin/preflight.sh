@@ -571,6 +571,28 @@ EOF
     fi
   fi
 
+  # SDDM. Lo que se comprueba es el SYMLINK de activación, no que el paquete esté: sin
+  # /etc/systemd/system/display-manager.service el arranque se para en un TTY, con todo
+  # lo demás perfectamente instalado y sin un solo error que lo explique. Es el fallo más
+  # caro de diagnosticar de la lista, porque no deja rastro en ningún log del escritorio.
+  if command -v sddm >/dev/null 2>&1 || pacman -Qq sddm >/dev/null 2>&1; then
+    gestor_sesion="$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null || true)"
+    if [[ -z "$gestor_sesion" ]]; then
+      fail "ningún gestor de sesión activado: el equipo arrancará en un TTY (sudo systemctl enable sddm.service)"
+    elif [[ "$(basename "$gestor_sesion")" != sddm.service ]]; then
+      warn "el gestor de sesión es $(basename "$gestor_sesion"), no SDDM (bash install.sh --solo sddm si lo querés cambiar)"
+    else
+      ok "SDDM activado (display-manager.service -> sddm.service)"
+    fi
+    if [[ -r /etc/sddm.conf.d/99-gigios.conf ]]; then
+      ok "configuración de SDDM de GiGiOS en /etc/sddm.conf.d/99-gigios.conf"
+    else
+      warn "falta /etc/sddm.conf.d/99-gigios.conf: SDDM usará su configuración de fábrica (bash install.sh --solo sddm)"
+    fi
+  else
+    fail "SDDM no está instalado: nada lanzará Hyprland al arrancar (sudo pacman -S --needed sddm && bash install.sh --solo sddm)"
+  fi
+
   "$GIGIOS/bin/link.sh" --check || fail "symlinks incompletos"
 fi
 

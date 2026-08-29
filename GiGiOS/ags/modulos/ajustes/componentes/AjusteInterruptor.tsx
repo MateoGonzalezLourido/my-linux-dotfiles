@@ -7,6 +7,7 @@ type PropiedadesAjusteInterruptor = {
   activo: any
   alAlternar: () => void
   visible?: any
+  sensible?: any
 }
 
 /** Fila reutilizable para una preferencia booleana dentro de una tarjeta. */
@@ -16,10 +17,11 @@ export default function AjusteInterruptor({
   activo,
   alAlternar,
   visible,
+  sensible,
 }: PropiedadesAjusteInterruptor) {
   return (
     <FilaAjuste titulo={titulo} informacion={informacion} visible={visible}>
-      <Interruptor activo={activo} alAlternar={alAlternar} />
+      <Interruptor activo={activo} alAlternar={alAlternar} sensible={sensible ?? true} />
     </FilaAjuste>
   )
 }

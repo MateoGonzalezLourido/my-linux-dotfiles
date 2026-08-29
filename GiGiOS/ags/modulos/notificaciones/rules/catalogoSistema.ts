@@ -83,6 +83,7 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("bateria.modo-ahorro", "energia", "battery-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("energia.perfil-tlp", "energia", "servicios/energia/tlp.ts", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("juegos.modo-juego", "energia", "servicios/energia/gamemode.ts", { clearOnBoot: true, popupMs: BREVE_MS }),
+  ev("energia.wake-up-fin", "energia", "servicios/energia/mantenerDespierto.ts", { clearOnBoot: true, popupMs: BREVE_MS }),
 
   // ── Hardware ───────────────────────────────────────────────────────────────────────────
   ev("temperatura.cpu-alta", "hardware", "temp-monitor.sh"),
@@ -100,7 +101,12 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("kernel.modulo-sin-firmar", "hardware", "oom-monitor.sh"),
 
   // ── Almacenamiento ─────────────────────────────────────────────────────────────────────
-  ev("disco.casi-lleno", "almacenamiento", "disk-monitor.sh"),
+  // DOS emisores para el mismo aviso, y por eso el origen los nombra a los dos: `disk-monitor.sh`
+  // al iniciar sesión, y `servicios/disco/alerta.ts` cada vez que Ajustes > Almacenamiento mide
+  // (reaprovechando su `df`, sin sondeo propio — el espacio libre no tiene fuente de eventos en
+  // Linux; ver la cabecera de `servicios/disco/vigilancia.ts`). Comparten umbrales, texto y una
+  // marca en `~/.cache/gigios/disco-avisos` para no avisar dos veces de lo mismo.
+  ev("disco.casi-lleno", "almacenamiento", "disk-monitor.sh + servicios/disco/alerta.ts"),
   // `clearOnBoot`: informa de algo que ya pasó y no requiere ninguna acción; arrastrarlo al
   // siguiente arranque solo ensucia el panel.
   ev("limpieza.completada", "almacenamiento", "limpiar-almacenamiento.sh", { clearOnBoot: true, popupMs: BREVE_MS }),

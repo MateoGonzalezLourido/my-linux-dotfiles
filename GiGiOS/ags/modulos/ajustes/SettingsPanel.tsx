@@ -33,6 +33,34 @@ import { medidasLamina, seguirTamanoLamina } from "../../utilidades/tamanoLamina
 // el panel a ~855, así que 820 dejaba el contenido más estrecho de lo que estaba.
 const DISENO = { ancho: 860, alto: 700 }
 
+/**
+ * Apaga el `scroll-to-focus` del `GtkViewport` que `Gtk.ScrolledWindow` crea para su hijo.
+ *
+ * **Es el salto del scroll de Ajustes.** Con esa propiedad —activa de fábrica en GTK4— el
+ * viewport desplaza el contenido para dejar A LA VISTA el widget que acaba de recibir el
+ * foco, y en este panel todo lo pulsable (botones, interruptores, deslizadores, entradas)
+ * toma el foco al hacer clic. Basta con pulsar un control que quede medio tapado por el
+ * borde para que la vista pegue un tirón, y si el foco cae en algo de arriba —una entrada
+ * que aparece al reconstruirse una tarjeta— el panel se va del todo al principio. Medido:
+ * con el contenido en 600 px, enfocar el último hijo lo manda a 1049 y enfocar el primero
+ * a 0; con `scroll_to_focus` en false se queda donde estaba.
+ *
+ * Se pierde el desplazamiento automático al tabular, que aquí no es la forma de navegar
+ * (el panel es de ratón; el teclado solo se usa para escribir en las entradas ya visibles
+ * y para el Escape que cierra la ventana).
+ *
+ * `notify::child` además del intento inmediato: el viewport no existe hasta que el hijo se
+ * añade, y `$` puede correr antes.
+ */
+function desactivarDesplazarAlFoco(desplazable: Gtk.ScrolledWindow) {
+  const aplicar = () => {
+    const hijo = desplazable.get_child()
+    if (hijo instanceof Gtk.Viewport) hijo.set_scroll_to_focus(false)
+  }
+  aplicar()
+  desplazable.connect("notify::child", aplicar)
+}
+
 export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
   const [seccion, establecerSeccion] = createState<IdSeccion>("account")
@@ -75,7 +103,10 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
             la nav (ver el comentario de `DISENO`). */}
       <Gtk.ScrolledWindow
         cssClasses={["sp-content"]}
-        $={(self: Gtk.ScrolledWindow) => { contenidoDesplazable = self }}
+        $={(self: Gtk.ScrolledWindow) => {
+          contenidoDesplazable = self
+          desactivarDesplazarAlFoco(self)
+        }}
         hexpand
         vexpand
         propagateNaturalWidth={false}
@@ -83,7 +114,13 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
         hscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
         vscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
       >
-        <box orientation={Gtk.Orientation.VERTICAL} hexpand>
+        {/* `vexpand`: la sección se estira hasta el alto del ScrolledWindow en vez de
+            quedarse en su alto natural. No cambia nada de lo que se ve (las secciones
+            alinean su contenido arriba), pero es lo que le da alto al `Gtk.Overlay` de
+            `display-select-host`, donde se dibuja la lista desplegable de `DisplaySelect`
+            — en una sección corta el desplegable se quedaba en ~40 px. Ojo: NO toca el
+            tamaño del panel, que sigue sin propagar ni mínimo ni natural (ver arriba). */}
+        <box orientation={Gtk.Orientation.VERTICAL} hexpand vexpand>
           {/* UN SOLO <With>, sobre `vistaActiva` (= sección, o null con el panel cerrado).
               Gatea por VISIBILIDAD, no solo por sección: sin eso la sección por defecto
               (Cuenta) se construía al arrancar el shell —una vez por monitor— y seguía

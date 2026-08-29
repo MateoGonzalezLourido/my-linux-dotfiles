@@ -8,7 +8,8 @@
     "tlp": "Perfil de energía TLP",
     "brilloAhorro": "Brillo durante el ahorro",
     "inactividadAhorro": "Inactividad durante el ahorro",
-    "botonEncendido": "Botón de encendido"
+    "botonEncendido": "Botón de encendido",
+    "menuEnergia": "Menú de energía"
   },
   "estado": {
     "sinBateria": "Sin batería detectada",
@@ -40,6 +41,14 @@
   "brillo": {
     "titulo": "Reducir el brillo de la pantalla",
     "descripcion": "Baja el brillo al entrar en modo ahorro y lo devuelve al salir. La pantalla es el mayor consumidor de un portátil, muy por encima de los procesos en segundo plano. Si cambias el brillo a mano mientras dura el ahorro, manda tu valor y ya no se restaura nada.",
+    "modo": "Cómo se baja",
+    "modoFijo": "Hasta un nivel",
+    "modoRelativo": "Reducción relativa",
+    "modoDescripcionFija": "Al entrar en ahorro, la pantalla se pone en el nivel que elijas. Si ya estaba más baja que ese nivel no se sube: en ese caso se aplica la reducción relativa que hay debajo.",
+    "modoDescripcionRelativa": "Al entrar en ahorro se restan puntos al brillo que tengas en ese momento: con una reducción de 10, un brillo del 30 % pasa al 20 %. Así siempre baja, vengas del brillo que vengas.",
+    "reduccion": "Reducir el brillo en",
+    "tooltipReduccion": "Editar la reducción del modo ahorro",
+    "suelo": "El brillo nunca baja del 5 %.",
     "nivel": "Bajar el brillo hasta",
     "tooltip": "Editar el brillo del modo ahorro",
     "sinSoporte": "En este equipo no se ha detectado ningún control de brillo (ni panel interno ni DDC/CI), así que este ajuste no puede aplicarse."
@@ -65,6 +74,11 @@
       "reiniciar": "Reiniciar",
       "nada": "No hacer nada"
     }
+  },
+  "menuEnergia": {
+    "titulo": "Acciones que se muestran",
+    "descripcion": "Elige qué botones aparecen en el menú de energía, el que abre el icono de encendido de la barra. Las que quites siguen disponibles desde el botón físico de encendido y desde la terminal.",
+    "ultima": "Siempre queda al menos una acción en el menú: no se puede apagar la última."
   },
   "notificaciones": {
     "titulo": "Pausar limpieza de notificaciones",

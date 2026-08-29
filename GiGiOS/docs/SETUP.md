@@ -740,7 +740,12 @@ Los fondos están dentro de GiGiOS, por lo que viajan con un clon completo del r
 
 La foto de perfil es opcional y privada. Vive en **una sola ruta**,
 `~/.local/share/gigios/face.png`, fuera del repo y sin versionar: no viaja a otro PC.
-La forma normal de ponerla es **Ajustes > Cuenta**, que escribe ahí directamente.
+La forma normal de ponerla es **Ajustes > Cuenta**, que **no copia el original tal cual**:
+lo endereza por su orientación EXIF, lo recorta al cuadrado centrado más grande que quepa y
+lo reduce a 512x512 PNG (`ags/modulos/ajustes/cuenta/avatar.ts`). Los tres sitios donde se ve
+pintan un círculo pequeño —30 y 46 px en AGS, 130 px en hyprlock—, así que 512 sobra incluso a
+escala 2x; guardar la foto de móvil entera solo significaba decodificar 12 MP en cada
+redibujado y que el encuadre saliera distinto en el escritorio y en el bloqueo.
 
 Está en `XDG_DATA_HOME` y **no** en `~/.cache` a propósito: no hay master del que
 regenerarla, así que un limpiador de caché (o un `rm -rf ~/.cache`) te la borraría para
@@ -760,6 +765,8 @@ Para cambiarla desde una terminal, en vez de por Ajustes:
 mkdir -p ~/.local/share/gigios
 cp /ruta/a/tu/foto.png ~/.local/share/gigios/face.png
 ```
+Por esta vía **no hay recorte ni reducción**: la copia queda tal cual, y si no es cuadrada cada
+consumidor la encuadra a su manera. Para el tratamiento, pásala por Ajustes > Cuenta.
 AGS la recarga al reiniciar el shell (Ajustes > Cuenta la refresca en el acto).
 
 ## 14. Inventario de rutas — qué es tuyo y qué no

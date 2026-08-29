@@ -1,0 +1,44 @@
+# GiGiOS — configuración de SDDM (plantilla).
+#
+# NO se copia tal cual: la materializa `install.sh` (paso `sddm`) en
+# /etc/sddm.conf.d/99-gigios.conf sustituyendo los tres campos que son
+# PROPIOS DE CADA MÁQUINA y por eso no pueden vivir versionados:
+#
+#   __GIGIOS_USER__     usuario del autologin (el que corre el instalador).
+#                       Vacío = sin autologin; se controla con SDDM_AUTOLOGIN=0.
+#   __GIGIOS_SESSION__  fichero .desktop de la sesión (hyprland.desktop).
+#   __GIGIOS_THEME__    tema del saludador, sólo si existe en el equipo.
+#                       Vacío = el tema empotrado de SDDM (que siempre funciona).
+#
+# Un valor VACÍO es "no lo fijes", no "ponlo en blanco": así lo trata SDDM y así
+# lo trata el instalador cuando no encuentra sesión o tema.
+#
+# POR QUÉ 99-: /etc/sddm.conf.d/ se lee en orden alfabético y gana el último. En
+# esta máquina conviven los restos del instalador de HyDE
+# (the_hyde_project.conf), que fija [Theme] Current: cualquier nombre por debajo
+# de la "t" quedaría pisado sin dar un solo error. El 99 nos deja los últimos.
+#
+# Y OJO CON /etc/sddm.conf: pese al nombre, el fichero suelto tiene MÁS
+# precedencia que todo el directorio (ver `man 5 sddm.conf`). Si define una clave
+# que también está aquí, gana él y esto no se nota. El instalador lo comprueba y
+# avisa; no lo toca, porque es de la distribución.
+
+[Autologin]
+# Relogin=false: al cerrar sesión se vuelve al saludador en vez de reentrar solo,
+# que si no deja la sesión imposible de abandonar sin apagar.
+Relogin=false
+Session=__GIGIOS_SESSION__
+User=__GIGIOS_USER__
+
+[General]
+HaltCommand=/usr/bin/systemctl poweroff
+RebootCommand=/usr/bin/systemctl reboot
+
+[Theme]
+Current=__GIGIOS_THEME__
+
+[Users]
+# Rango de UID que se ofrece en la lista de usuarios: por debajo de 1000 son
+# cuentas de sistema y no deben aparecer.
+MaximumUid=60513
+MinimumUid=1000

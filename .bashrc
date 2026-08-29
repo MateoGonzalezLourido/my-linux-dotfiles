@@ -225,4 +225,6 @@ if [[ $- == *i* ]]; then
     # Ejecutar primero para capturar $?, y armar el DEBUG trap al final del prompt completo.
     PROMPT_COMMAND="_lc_prompt_cmd${PROMPT_COMMAND:+; $PROMPT_COMMAND}; _lc_arm"
 fi
-. "$HOME/.cargo/env"
+if [ -f "$HOME/.cargo/env" ]; then
+    . "$HOME/.cargo/env"
+fi

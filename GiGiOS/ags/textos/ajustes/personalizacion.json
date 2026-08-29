@@ -15,7 +15,8 @@
       "indicadores": "Respuesta a las teclas multimedia",
       "ventanas": "Ventanas y escritorios",
       "orion": "Comportamiento de Orion",
-      "portapapeles": "Historial de copias"
+      "portapapeles": "Historial de copias",
+      "conectividadInicio": "Conectividad al iniciar sesión"
     },
     "sistema": {
       "supervision": "Supervisión",
@@ -66,6 +67,12 @@
     },
     "microfono": {
       "titulo": "Iniciar el micrófono silenciado",
+      "descripcion": "Se aplica al comenzar la próxima sesión."
+    }
+  },
+  "inicioConectividad": {
+    "bluetooth": {
+      "titulo": "Iniciar con el bluetooth desactivado",
       "descripcion": "Se aplica al comenzar la próxima sesión."
     }
   },

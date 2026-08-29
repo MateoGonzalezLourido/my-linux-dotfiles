@@ -12,12 +12,30 @@ interface ProfileAvatarProps {
   borderRgba: [number, number, number, number]
 }
 
+/**
+ * Decodifica la foto a la medida en la que se va a pintar.
+ *
+ * El fichero se guarda a 1024 px (`avatar.ts`) para no depender del tamaño que
+ * pidan los consumidores de hoy, pero aquí cabe en un círculo de 30 o 46 px: leerlo
+ * entero son ~4 MB de pixbuf por avatar vivo, y se rehace en cada cambio de foto.
+ * El triple del lado cubre cualquier escala de monitor razonable. Se comprueba el
+ * tamaño real antes: con `preserve_aspect_ratio` la caja AMPLIARÍA una foto puesta a
+ * mano más pequeña que el objetivo, que es emborronarla para luego reducirla otra vez.
+ */
+function cargarAjustado(size: number): GdkPixbuf.Pixbuf {
+  const objetivo = size * 3
+  const [, ancho, alto] = GdkPixbuf.Pixbuf.get_file_info(AVATAR_PATH)
+  return ancho && alto && Math.min(ancho, alto) > objetivo
+    ? GdkPixbuf.Pixbuf.new_from_file_at_scale(AVATAR_PATH, objetivo, objetivo, true)
+    : GdkPixbuf.Pixbuf.new_from_file(AVATAR_PATH)
+}
+
 function CircularAvatarImage({
   size,
   borderWidth,
   borderRgba,
 }: Pick<ProfileAvatarProps, "size" | "borderWidth" | "borderRgba">): Gtk.DrawingArea {
-  const pixbuf = GdkPixbuf.Pixbuf.new_from_file(AVATAR_PATH)
+  const pixbuf = cargarAjustado(size)
   const area = new Gtk.DrawingArea({
     widthRequest: size,
     heightRequest: size,

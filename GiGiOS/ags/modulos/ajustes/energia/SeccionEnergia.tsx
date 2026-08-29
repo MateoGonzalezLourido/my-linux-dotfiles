@@ -1,6 +1,7 @@
 // modulos/ajustes/energia/SeccionEnergia.tsx
 // Sección de energía: umbral y funciones que se suspenden durante el ahorro.
 import { Gtk } from "ags/gtk4"
+import Pango from "gi://Pango"
 import { createComputed, onCleanup } from "ags"
 import { InlineEditableValue } from "../../../componentes/InlineEditableValue"
 import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
@@ -19,14 +20,17 @@ import {
   opaquePanelsInPowerSave, setOpaquePanelsInPowerSave,
   opaqueWindowsInPowerSave, setOpaqueWindowsInPowerSave,
   reduceBrightnessInPowerSave, setReduceBrightnessInPowerSave,
+  powerSaveBrightnessMode, setPowerSaveBrightnessMode,
   powerSaveBrightnessPct, setPowerSaveBrightnessPct,
+  powerSaveBrightnessDropPct, setPowerSaveBrightnessDropPct,
   tlpAutoInPowerSave, setTlpAutoInPowerSave,
   powerSaveActive, batteryStatusText,
 } from "../../../servicios/energia/powerState.ts"
 import { brightnessSupported } from "../../../servicios/pantalla/brightness.ts"
 import InactividadAhorro from "./InactividadAhorro"
 import { tlpAvailable, tlpMode, tlpBusy, setTlpMode } from "../../../servicios/energia/tlp.ts"
-import { botonApagado, setBotonApagado } from "../preferences.ts"
+import { accionesEnergiaOcultas, botonApagado, setAccionEnergiaOculta, setBotonApagado } from "../preferences.ts"
+import { ACCIONES_ENERGIA, accionesVisibles } from "../../menu-energia/acciones"
 import {
   ACCIONES_BOTON_ENCENDIDO,
   comprobarBotonEncendido,
@@ -126,6 +130,62 @@ function TarjetaBotonEncendido() {
   )
 }
 
+/**
+ * Qué botones se pintan en el menú de energía. Se guarda la lista de OCULTAS, así que
+ * una acción nueva aparece sola sin tener que tocar nada.
+ *
+ * El interruptor de la última acción visible se deja insensible en vez de dejar que el
+ * setter rechace el cambio en silencio: un interruptor que vuelve solo a su sitio se lee
+ * como un fallo del shell, y aquí el motivo es una regla — un menú de energía vacío no
+ * tendría desde dónde volver a llenarse salvo editando preferences.json a mano.
+ */
+function TarjetaMenuEnergia() {
+  const ultimaVisible = accionesEnergiaOcultas((ocultas) => {
+    const visibles = accionesVisibles(ocultas)
+    return visibles.length === 1 ? visibles[0].claseCss : null
+  })
+
+  return (
+    <TarjetaAjustes titulo={textos.grupos.menuEnergia} icono="󰤄">
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand>
+        <TituloAjuste label={textos.menuEnergia.titulo} halign={Gtk.Align.START} />
+        <TextoInformativo label={textos.menuEnergia.descripcion} halign={Gtk.Align.START} wrap />
+      </box>
+      {/* La etiqueta sale de la propia acción, no de textos/: así el nombre del ajuste y
+          el del botón del menú no pueden acabar diciendo cosas distintas.
+
+          El `.map` va DENTRO de una caja, igual que en `disco/SeccionAlmacenamiento.tsx`.
+          `TarjetaAjustes` es un componente de función que vuelca su `children` como UN
+          hijo de su caja, y el JSX de gnim solo aplana UN nivel: con el array suelto
+          junto a otros hermanos llegaba anidado a dos niveles y reventaba con «Object …
+          is not a subclass of GObject_Object, it's a Array», que tumba la construcción de
+          la sección entera — Ajustes > Energía salía en blanco. Con el array como hijo
+          ÚNICO (que es el caso de Vigilancia o del catálogo de limpiezas) no pasa, y por
+          eso el fallo parece caprichoso.
+
+          El renglón de «la última no se puede quitar» entra en la MISMA caja a propósito:
+          `.dev-row:last-child` quita el borde inferior al último hermano, así que dejarlo
+          fuera habría movido ese borde de sitio. */}
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        {ACCIONES_ENERGIA.map((accion) => (
+          <AjusteInterruptor
+            titulo={accion.etiqueta}
+            activo={accionesEnergiaOcultas((ocultas) => !ocultas.includes(accion.claseCss))}
+            sensible={ultimaVisible((ultima) => ultima !== accion.claseCss)}
+            alAlternar={() => setAccionEnergiaOculta(
+              accion.claseCss,
+              !accionesEnergiaOcultas.get().includes(accion.claseCss),
+            )}
+          />
+        ))}
+        <box cssClasses={["dev-row"]}>
+          <TextoInformativo label={textos.menuEnergia.ultima} halign={Gtk.Align.START} wrap />
+        </box>
+      </box>
+    </TarjetaAjustes>
+  )
+}
+
 export default function SeccionEnergia() {
   const summaryClass = powerSaveActive((active) =>
     active ? ["sp-energy-summary", "active"] : ["sp-energy-summary"]
@@ -136,18 +196,25 @@ export default function SeccionEnergia() {
 
   // El overlay es el ancla que DisplaySelect busca para desplegar su lista sin
   // crear otra superficie (ver servicios/pantalla/controls.tsx).
+  // `vexpand` en el overlay + `valign START` en su hijo: la LISTA del select se dibuja
+  // como overlay de ESTE widget, así que su alto útil es el del overlay menos lo que baja
+  // el desplegable. En una sección corta (Idioma es un título y una tarjeta) el overlay
+  // medía lo que medía el contenido y al desplegable le quedaban ~40 px: cabía una opción
+  // y media de las 68 del idioma. Ahora el overlay se estira con el ScrolledWindow del
+  // panel y el contenido se queda arriba, así que la lista tiene alto por debajo.
   return (
-    <overlay cssClasses={["display-select-host"]}>
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand>
+    <overlay cssClasses={["display-select-host"]} vexpand>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand valign={Gtk.Align.START}>
       <TituloSeccion titulo={textos.seccion.titulo} />
 
       {/* estado actual */}
       <box spacing={6} halign={Gtk.Align.START}>
-        <label cssClasses={summaryClass} label={batteryStatusText} />
+        <label cssClasses={summaryClass} label={batteryStatusText} wrap wrapMode={Pango.WrapMode.WORD_CHAR} xalign={0} />
         <label cssClasses={["sp-energy-separator"]} label="·" />
         <label
           cssClasses={modeClass}
           label={powerSaveActive((active) => active ? textos.estado.ahorroActivo : textos.estado.ahorroDesactivado)}
+          wrap wrapMode={Pango.WrapMode.WORD_CHAR} xalign={0}
         />
       </box>
 
@@ -210,22 +277,61 @@ export default function SeccionEnergia() {
           activo={reduceBrightnessInPowerSave}
           alAlternar={() => setReduceBrightnessInPowerSave(!reduceBrightnessInPowerSave.get())}
         />
+        {/* El deslizador de la REDUCCIÓN se pinta en los dos modos a propósito: en
+            "relativo" es el ajuste, y en "fijo" es el fallback que entra cuando el brillo
+            ya está por debajo del nivel elegido (ver `brilloAhorroCalculo.ts`), así que
+            esconderlo dejaría un valor que sí se aplica sin nada donde editarlo. */}
         <box
           orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand
           visible={createComputed(() => reduceBrightnessInPowerSave() && brightnessSupported())}
         >
           <box spacing={8} valign={Gtk.Align.CENTER}>
-            <TituloAjuste label={textos.brillo.nivel} hexpand halign={Gtk.Align.START} />
-            <InlineEditableValue
-              display={powerSaveBrightnessPct((v) => `${Math.round(v)} %`)}
-              getValue={() => powerSaveBrightnessPct.get()}
-              onCommit={setPowerSaveBrightnessPct}
-              min={5} max={100}
-              labelClass="sp-field-value"
-              tooltip={textos.brillo.tooltip}
+            <TituloAjuste label={textos.brillo.modo} hexpand halign={Gtk.Align.START} />
+            <Segmentado
+              current={powerSaveBrightnessMode}
+              onSelect={(v) => setPowerSaveBrightnessMode(v as any)}
+              options={[
+                { value: "fijo", label: textos.brillo.modoFijo },
+                { value: "relativo", label: textos.brillo.modoRelativo },
+              ]}
             />
           </box>
-          {DeslizadorPorcentaje(powerSaveBrightnessPct, setPowerSaveBrightnessPct, 5) as unknown as any}
+          <TextoInformativo
+            label={powerSaveBrightnessMode((m) => m === "relativo"
+              ? textos.brillo.modoDescripcionRelativa
+              : textos.brillo.modoDescripcionFija)}
+            halign={Gtk.Align.START} wrap
+          />
+          <box
+            orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand
+            visible={powerSaveBrightnessMode((m) => m === "fijo")}
+          >
+            <box spacing={8} valign={Gtk.Align.CENTER}>
+              <TituloAjuste label={textos.brillo.nivel} hexpand halign={Gtk.Align.START} />
+              <InlineEditableValue
+                display={powerSaveBrightnessPct((v) => `${Math.round(v)} %`)}
+                getValue={() => powerSaveBrightnessPct.get()}
+                onCommit={setPowerSaveBrightnessPct}
+                min={5} max={100}
+                labelClass="sp-field-value"
+                tooltip={textos.brillo.tooltip}
+              />
+            </box>
+            {DeslizadorPorcentaje(powerSaveBrightnessPct, setPowerSaveBrightnessPct, 5) as unknown as any}
+          </box>
+          <box spacing={8} valign={Gtk.Align.CENTER}>
+            <TituloAjuste label={textos.brillo.reduccion} hexpand halign={Gtk.Align.START} />
+            <InlineEditableValue
+              display={powerSaveBrightnessDropPct((v) => `${Math.round(v)} %`)}
+              getValue={() => powerSaveBrightnessDropPct.get()}
+              onCommit={setPowerSaveBrightnessDropPct}
+              min={1} max={100}
+              labelClass="sp-field-value"
+              tooltip={textos.brillo.tooltipReduccion}
+            />
+          </box>
+          {DeslizadorPorcentaje(powerSaveBrightnessDropPct, setPowerSaveBrightnessDropPct, 1) as unknown as any}
+          <TextoInformativo label={textos.brillo.suelo} halign={Gtk.Align.START} wrap />
         </box>
         <box cssClasses={["dev-row"]} visible={brightnessSupported((s) => !s)}>
           <TextoInformativo
@@ -237,6 +343,8 @@ export default function SeccionEnergia() {
       </TarjetaAjustes>
 
       <TarjetaBotonEncendido />
+
+      <TarjetaMenuEnergia />
 
       <Inactividad />
 

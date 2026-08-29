@@ -60,4 +60,4 @@ JSON=$(python3 -c 'import json,sys; print(json.dumps({"client_id":sys.argv[1],"c
 mkdir -p "$(dirname "$CREDS_FILE")"
 printf '%s\n' "$JSON" > "$CREDS_FILE"
 chmod 600 "$CREDS_FILE"
-echo "✓ Credenciales guardadas en ${CREDS_FILE} (texto plano, chmod 600)."
+echo "Credenciales guardadas en ${CREDS_FILE} (texto plano, chmod 600)."

@@ -13,6 +13,10 @@ import { formatearTexto } from "../../textos/formatear.ts"
 
 const POWER_CONFIG_PATH = `${GLib.get_user_config_dir()}/power-save/config.json`
 
+/** Cómo se calcula el brillo objetivo del ahorro: apuntar a un valor fijo o restar
+ *  puntos al que haya en ese momento. */
+export type BrilloAhorroModo = "fijo" | "relativo"
+
 /** Un tiempo de inactividad del modo ahorro: minutos + si ese listener se usa. */
 export interface TiempoAhorro { min: number; on: boolean }
 
@@ -27,8 +31,15 @@ interface PowerConfig {
   hideMascota: boolean         // when true, the desktop pet window is unmounted during power-save
   opaquePanels: boolean        // when true, the shell's translucent surfaces turn fully opaque during power-save
   opaqueWindows: boolean       // when true, Hyprland's window opacity is forced to 1.0 during power-save
-  reduceBrightness: boolean    // when true, screen brightness drops to `brightnessPct` during power-save
-  brightnessPct: number        // target brightness (0..100) while power-save is on
+  reduceBrightness: boolean    // when true, screen brightness drops during power-save
+  /** Cómo se calcula el brillo del ahorro. "fijo" apunta a `brightnessPct`; "relativo" resta
+   *  `brightnessDropPct` PUNTOS al brillo que hubiera puesto (30 % con 10 → 20 %). El modo
+   *  fijo NUNCA sube el brillo: si ya se está por debajo del objetivo, cae al cálculo
+   *  relativo (ver `brilloAhorro.ts`), que es la razón de que los dos valores convivan
+   *  aunque solo se edite uno. */
+  brightnessMode: BrilloAhorroModo
+  brightnessPct: number        // target brightness (0..100) while power-save is on, modo "fijo"
+  brightnessDropPct: number    // puntos porcentuales que se restan al brillo actual, modo "relativo"
   tlpAuto: boolean             // when true, the TLP profile switches to "ahorro" during power-save
   idleOverride: boolean        // when true, hypridle timeouts are replaced by the three below
   idleDpms: TiempoAhorro       // screen off
@@ -63,7 +74,11 @@ const DEFAULTS: PowerConfig = {
   // medida que se ve tiene que pedirse.
   opaqueWindows: false,
   reduceBrightness: false,
+  // "fijo" por compatibilidad con lo que ya había: es el único modo que existía y el que
+  // describen los ajustes guardados de cualquier instalación anterior a este campo.
+  brightnessMode: "fijo",
   brightnessPct: 40,
+  brightnessDropPct: 20,
   tlpAuto: false,
   idleOverride: false,
   idleDpms: { min: 2, on: true },
@@ -91,7 +106,11 @@ function loadConfig(): PowerConfig {
         opaquePanels: typeof data.opaquePanels === "boolean" ? data.opaquePanels : DEFAULTS.opaquePanels,
         opaqueWindows: typeof data.opaqueWindows === "boolean" ? data.opaqueWindows : DEFAULTS.opaqueWindows,
         reduceBrightness: typeof data.reduceBrightness === "boolean" ? data.reduceBrightness : DEFAULTS.reduceBrightness,
+        brightnessMode: data.brightnessMode === "relativo" || data.brightnessMode === "fijo"
+          ? data.brightnessMode : DEFAULTS.brightnessMode,
         brightnessPct: typeof data.brightnessPct === "number" ? clampPct(data.brightnessPct) : DEFAULTS.brightnessPct,
+        brightnessDropPct: typeof data.brightnessDropPct === "number"
+          ? clampPct(data.brightnessDropPct) : DEFAULTS.brightnessDropPct,
         tlpAuto: typeof data.tlpAuto === "boolean" ? data.tlpAuto : DEFAULTS.tlpAuto,
         idleOverride: typeof data.idleOverride === "boolean" ? data.idleOverride : DEFAULTS.idleOverride,
         idleDpms: leerTiempo(data.idleDpms, DEFAULTS.idleDpms),
@@ -132,7 +151,9 @@ export const [hideMascotaInPowerSave, _setHideMascota] = createState(initial.hid
 export const [opaquePanelsInPowerSave, _setOpaquePanels] = createState(initial.opaquePanels)
 export const [opaqueWindowsInPowerSave, _setOpaqueWindows] = createState(initial.opaqueWindows)
 export const [reduceBrightnessInPowerSave, _setReduceBrightness] = createState(initial.reduceBrightness)
+export const [powerSaveBrightnessMode, _setBrightnessMode] = createState(initial.brightnessMode)
 export const [powerSaveBrightnessPct, _setBrightnessPct] = createState(initial.brightnessPct)
+export const [powerSaveBrightnessDropPct, _setBrightnessDropPct] = createState(initial.brightnessDropPct)
 export const [tlpAutoInPowerSave, _setTlpAuto] = createState(initial.tlpAuto)
 export const [idleOverrideInPowerSave, _setIdleOverride] = createState(initial.idleOverride)
 export const [idleDpmsAhorro, _setIdleDpms] = createState(initial.idleDpms)
@@ -177,7 +198,9 @@ function persistAhora() {
       opaquePanels: opaquePanelsInPowerSave.get(),
       opaqueWindows: opaqueWindowsInPowerSave.get(),
       reduceBrightness: reduceBrightnessInPowerSave.get(),
+      brightnessMode: powerSaveBrightnessMode.get(),
       brightnessPct: powerSaveBrightnessPct.get(),
+      brightnessDropPct: powerSaveBrightnessDropPct.get(),
       tlpAuto: tlpAutoInPowerSave.get(),
       idleOverride: idleOverrideInPowerSave.get(),
       idleDpms: idleDpmsAhorro.get(),
@@ -245,8 +268,18 @@ export function setReduceBrightnessInPowerSave(v: boolean) {
   recompute()
   persist()
 }
+export function setPowerSaveBrightnessMode(v: BrilloAhorroModo) {
+  _setBrightnessMode(v === "relativo" ? "relativo" : "fijo")
+  recompute()
+  persist()
+}
 export function setPowerSaveBrightnessPct(v: number) {
   _setBrightnessPct(clampPct(v))
+  recompute()
+  persist()
+}
+export function setPowerSaveBrightnessDropPct(v: number) {
+  _setBrightnessDropPct(clampPct(v))
   recompute()
   persist()
 }

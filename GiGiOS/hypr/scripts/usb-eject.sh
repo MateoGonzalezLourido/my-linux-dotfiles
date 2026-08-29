@@ -56,7 +56,7 @@ done < <(lsblk -lno NAME "/dev/$disk" 2>/dev/null | tail -n +2)
 
 if [[ -n "$failed" ]]; then
     busy=$(lsof +D /run/media 2>/dev/null | awk 'NR>1{print $1}' | sort -u | paste -sd', ')
-    notificar usb.expulsar-fallo -u critical -t 15000 "⏏️ No se pudo expulsar" \
+    notificar usb.expulsar-fallo -u critical -t 15000 "No se pudo expulsar" \
         "${failed}${busy:+\nEn uso por: $busy}\nCierra lo que esté usando el disco y reintenta."
     exit 1
 fi
@@ -65,8 +65,8 @@ fi
 # Si power-off falla (hubs que no lo soportan) NO es un error grave: ya está todo
 # desmontado y volcado, que es lo que protege los datos. Lo decimos sin alarmar.
 if err=$(udisksctl power-off -b "/dev/$disk" --no-user-interaction 2>&1); then
-    notificar usb.expulsado -u normal -t 8000 "⏏️ Expulsado" "$label — ya puedes retirarlo con seguridad."
+    notificar usb.expulsado -u normal -t 8000 "Expulsado" "$label — ya puedes retirarlo con seguridad."
 else
-    notificar usb.desmontado -u normal -t 10000 "⏏️ Desmontado" \
+    notificar usb.desmontado -u normal -t 10000 "Desmontado" \
         "$label — datos volcados, es seguro retirarlo. (No se pudo cortar la alimentación: ${err##*: })"
 fi

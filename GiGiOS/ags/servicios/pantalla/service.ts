@@ -18,6 +18,10 @@ import {
   nightLightActive, setNightLightActive,
   nightLightTemp, setNightLightTemp,
 } from "../../estado/shell"
+import AstalHyprland from "gi://AstalHyprland"
+import { clientesJuego, revisionVentanas } from "../juegos/registro"
+import { algunaVentanaCoincide } from "../ventanas/coincidenciaClases"
+import { pausaLuzNocturnaApps, pausaLuzNocturnaJuegos } from "../../modulos/ajustes/preferences"
 
 const DISPLAY_CONFIG_PATH = `${GLib.get_user_config_dir()}/gigios/display.json`
 
@@ -301,6 +305,68 @@ function rulesOn(): boolean { return nightRulesEnabled.get() && nightRules.get()
 // maestro de QuickSettings (refleja la fuente real: manual O programada).
 export const [nightOn, setNightOn] = createState(false)
 
+// ── Pausa por juego (Ajustes > Juegos > "Pausar la luz nocturna al jugar") ────
+// Con la preferencia activa, mientras haya una ventana que retenga la luz nocturna esta
+// no se enciende, venga de donde venga la orden: ni la franja horaria que entra a mitad
+// de partida, ni el interruptor manual que quedó encendido de antes. Al cerrarla se
+// reconcilia y vuelve lo que tocara — no hay que volver a encender nada a mano.
+//
+// Retienen DOS cosas, y la segunda no depende de la primera: los juegos que reconoce el
+// registro de `servicios/juegos/` (`hayJuegoAbierto`) y las clases que el usuario apunte
+// a mano (`hayAppQuePausa`), para lo que el detector no ve como juego. Con `escanerJuegos`
+// en false la primera mitad queda muerta —`clientesJuego` está vacío para siempre— pero la
+// segunda sigue entera, así que en Ajustes solo se retira la fila del interruptor de
+// juegos, no la lista.
+//
+// Se mira que la ventana EXISTA, no que tenga el FOCO, al contrario que el gate de bash
+// (lib/gaming-gate.sh) que sí distingue "juego abierto" de "juego atendido". Aquí la
+// distinción sería un parpadeo: teñir la pantalla de naranja cada vez que haces alt-tab
+// al navegador y quitarlo al volver al juego es peor que las dos alternativas. El
+// usuario pidió "hasta que salga del juego" y eso es literalmente la vida de la ventana.
+// Es también lo que hace que la lista manual sea un arma cargada —apuntar ahí el
+// navegador deja la luz nocturna apagada el día entero— y por eso la UI lo dice.
+export const [luzPausadaPorJuego, setLuzPausadaPorJuego] = createState(false)
+
+// Escotilla: si el usuario toca la luz A MANO con la pausa vigente, gana él y la pausa
+// se retira hasta que cierre el juego. Sin esto, el interruptor de Quick Settings y el
+// slider de temperatura no harían nada durante una partida — el mismo bug que
+// `nightOverrideKey` arregló para las franjas horarias, y por eso comparten disparador
+// (`claimNightOverride`). No se persiste: caduca con la partida.
+let pausaJuegoIgnorada = false
+
+function hayJuegoAbierto(): boolean {
+  return clientesJuego.get().length > 0
+}
+
+// La mitad MANUAL: clases apuntadas a mano en Ajustes (`pausaLuzNocturnaApps`), para lo
+// que el detector no reconoce como juego —un emulador, un juego sin `.desktop`, un
+// launcher propio— o directamente no lo es. Se compara clase contra clase con el
+// comparador compartido, así que **no depende del escáner de juegos**: sigue funcionando
+// con la detección apagada, y por eso su parte de la UI no se retira con ella.
+//
+// La lista vacía —el caso normal— sale sin pedirle los clientes al compositor: esto se
+// evalúa desde `revisionVentanas`, que emite también en cada cambio de foco (con
+// `follow_mouse = 1`, cada vez que el puntero cruza de una ventana a otra).
+function hayAppQuePausa(): boolean {
+  const apps = pausaLuzNocturnaApps.get()
+  if (apps.length === 0) return false
+  try {
+    return algunaVentanaCoincide(AstalHyprland.get_default().get_clients?.() ?? [], apps)
+  } catch (e) {
+    return false   // sin compositor al que preguntar, no se retiene nada
+  }
+}
+
+/** ¿Hay abierta una ventana que retenga la luz: un juego detectado o una app de la lista? */
+function hayVentanaQuePausa(): boolean {
+  return hayJuegoAbierto() || hayAppQuePausa()
+}
+
+/** ¿Está la luz nocturna retenida ahora mismo? */
+function pausadaPorJuego(): boolean {
+  return pausaLuzNocturnaJuegos.get() && !pausaJuegoIgnorada && hayVentanaQuePausa()
+}
+
 // Override manual DENTRO de una franja. Sin esto, el horario ganaba SIEMPRE mientras
 // estuviera vigente (`baseTemp`), así que con una regla activa el interruptor y el slider
 // de temperatura no hacían nada: tocabas, se guardaba en disco, y la siguiente
@@ -317,7 +383,12 @@ let nightOverrideKey: string | null = null
 function overrideActive(): boolean {
   return nightOverrideKey !== null && nightOverrideKey === scheduleKey()
 }
-function claimNightOverride() { nightOverrideKey = scheduleKey() }
+function claimNightOverride() {
+  nightOverrideKey = scheduleKey()
+  // Tocar la luz durante una partida es decir "esta vez la quiero yo": se levanta la
+  // pausa hasta que el juego cierre (applyNight la repone).
+  if (pausadaPorJuego()) pausaJuegoIgnorada = true
+}
 
 // Identidad de la franja de LUZ NOCTURNA vigente (para detectar la transición que caduca
 // el override manual). Solo cuentan las reglas que hablan de la luz: entrar en una franja de solo
@@ -333,6 +404,9 @@ function scheduleKey(): string {
 // Temperatura que "quieren" horario/manual. Dentro de una franja que programe la luz manda
 // el horario; fuera de toda franja —o con override manual vigente—, el manual.
 function baseTemp(): number | null {
+  // La pausa por juego va PRIMERO: no es una fuente más de temperatura, es un veto sobre
+  // todas ellas (franja, manual y el "apagar" de una regla dan igual mientras dure).
+  if (pausadaPorJuego()) return null
   if (!overrideActive() && rulesOn()) {
     const t = activeSetpoint(nowHM(), nightRules.get(), "temp")
     // Dentro de la franja manda el horario, TAMBIÉN cuando lo que pide es apagar (0): ahí
@@ -422,6 +496,9 @@ function applyRules() {
 // publica `nightOn`. El descarte se limpia al cambiar de franja de horario.
 function applyNight() {
   if (nightOverrideKey !== null && nightOverrideKey !== scheduleKey()) nightOverrideKey = null
+  // Cerrada la ventana que retenía, la escotilla manual caduca: la próxima vuelve a pausar.
+  if (!hayVentanaQuePausa()) pausaJuegoIgnorada = false
+  setLuzPausadaPorJuego(pausadaPorJuego())
   const temp = baseTemp()
   // `nightOn` sigue colgando SOLO de la temperatura: atenuar por software no es luz
   // nocturna, y encender su interruptor por bajar el brillo confundiría dos ajustes.
@@ -513,6 +590,36 @@ export function initDisplayService() {
   applyRules()
   brightness.subscribe(saveDisplayConfig)
   brightnessSupported.subscribe(applyScheduledBrightness)   // backend DDC: llega ~1 s tarde
+
+  // Pausa por juego. NO se llama a `iniciarRegistroJuegos()` desde aquí a propósito:
+  // initDisplayService corre al importar QuickSettings (t=0) y arrancar el registro ahí
+  // metería en el pintado inicial el parseo de los ~161 .desktop del sistema, que es justo
+  // lo que app.ts aparta a los 4 s (ver su comentario). Basta con suscribirse: el registro
+  // lo arrancan initAutoDnd/initGamingState y su primera publicación llega aquí. El único
+  // hueco es iniciar sesión con un juego YA abierto —imposible en la práctica— y se cierra
+  // solo a los 4 s.
+  clientesJuego.subscribe(() => applyNight())
+  pausaLuzNocturnaJuegos.subscribe(() => applyNight())
+  // La mitad manual necesita otro disparador: una app de la lista que no sea un juego no
+  // mueve `clientesJuego`. `revisionVentanas` sí (el registro lo emite en cada alta, baja,
+  // fullscreen y cambio de foco, TAMBIÉN con el escáner apagado), pero por eso mismo es
+  // ruidoso: con `follow_mouse = 1` salta cada vez que el puntero cruza de una ventana a
+  // otra. Se reconcilia solo cuando el resultado CAMBIA — el resto de las veces es una
+  // comparación de cadenas, o ni eso con la lista vacía.
+  let ultimaAppQuePausa = false
+  const revisarAppsQuePausan = () => {
+    const hay = hayAppQuePausa()
+    if (hay === ultimaAppQuePausa) return
+    ultimaAppQuePausa = hay
+    applyNight()
+  }
+  revisionVentanas.subscribe(revisarAppsQuePausan)
+  // Editar la lista reconcilia siempre y refresca el espejo: el usuario acaba de tocar el
+  // ajuste y espera verlo aplicado, así que aquí no se ahorra la llamada.
+  pausaLuzNocturnaApps.subscribe(() => {
+    ultimaAppQuePausa = hayAppQuePausa()
+    applyNight()
+  })
 
   // El tramo software se reconcilia como la temperatura, pero CON DEBOUNCE: arrastrar el
   // slider por la zona baja emite un cambio por píxel, y cada uno es un `hyprctl`.

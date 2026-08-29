@@ -22,15 +22,20 @@ import Actualizaciones from "./indicadores/sistema/Actualizaciones"
 import BotonMenuEnergia from "./controles/BotonMenuEnergia"
 import ReproduccionSpotify from "./multimedia/spotify/ReproduccionSpotify"
 import RanuraCondicionalBarra from "./componentes/RanuraCondicionalBarra"
+import { crearCadenaEstado, JuntaCadena } from "./componentes/cadenaEstado"
 import { obtenerControlVisibilidadBarra } from "../../estado/visibilidadBarra"
 import { suscribirPantallaCompleta } from "../../servicios/escritorios/pantallaCompleta"
 import { spotifyBarSuspended } from "../../servicios/energia/powerState"
 import { barAutoHideEnabled, batteryBarEnabled, fondoShell, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "../ajustes/preferences"
 import { anyPanelVisible, alternarQuickSettings, solicitudAlternarBar } from "../../estado/shell"
+import { notifPanelVisible } from "../notificaciones/store"
 
 export default function Barra(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
   const visibilidad = obtenerControlVisibilidadBarra(gdkmonitor)
+  // Realce encadenado de los indicadores de estado. Uno POR BARRA: compartirlo
+  // encendería también la cadena del monitor donde no está el puntero.
+  const cadena = crearCadenaEstado()
   const mostrarSpotify = createComputed(() => spotifyBarEnabled() && !spotifyBarSuspended())
   const { visible, fijarVisible: setVisible, fijarRefrescar: setWidgetsRefresh } = visibilidad
   const [isHovered, setIsHovered] = createState(false)
@@ -310,27 +315,31 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
         <box cssClasses={["bar-status-pair"]} spacing={0}>
           <RanuraCondicionalBarra
             estado={updatesMonitorEnabled}
-            construir={() => <Actualizaciones visibilidad={visibilidad} />}
+            construir={() => <Actualizaciones visibilidad={visibilidad} cadena={cadena} />}
           />
           {/* La ranura conserva esta posición al montar y desmontar el indicador
               desde Ajustes, entre Actualizaciones y Notificaciones. */}
           <RanuraCondicionalBarra
             estado={screencastIndicatorEnabled}
-            construir={() => <CapturaPantalla />}
+            construir={() => <CapturaPantalla cadena={cadena} />}
           />
-          {/* Wake up: montado siempre y escondido con `visible`, no con un <With>.
-              No es una preferencia que se pueda apagar, así que no hay remontaje en
-              caliente del que protegerse con una caja propia. */}
-          <IndicadorMantenerDespierto />
           <RanuraCondicionalBarra
             estado={notificationBarEnabled}
-            construir={() => <BotonNotificaciones />}
+            construir={() => <BotonNotificaciones cadena={cadena} />}
           />
+          {/* Cierre de la cadena: cose la banda del realce con las esquinas
+              redondeadas de quick settings. Ver `componentes/cadenaEstado.tsx`. */}
+          <JuntaCadena cadena={cadena} forzado={notifPanelVisible} />
           <button
             cssClasses={["bar-pill-btn"]}
             onClicked={alternarQuickSettings}
           >
             <box cssClasses={["bar-pill", "qs-system-pill"]}>
+              {/* Wake up: montado siempre y escondido con `visible`, no con un <With>.
+                  No es una preferencia que se pueda apagar, así que no hay remontaje en
+                  caliente del que protegerse con una caja propia. Vive DENTRO de la
+                  pastilla del sistema, como el resto de indicadores de estado. */}
+              <IndicadorMantenerDespierto />
               <Bluetooth />
               <RanuraCondicionalBarra estado={micIndicatorEnabled} construir={() => <Microfono />} />
               <RanuraCondicionalBarra

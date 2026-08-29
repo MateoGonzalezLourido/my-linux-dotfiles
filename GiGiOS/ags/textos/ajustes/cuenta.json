@@ -8,7 +8,7 @@
     "equipo": "Equipo: {{nombre}}",
     "foto": {
       "titulo": "Foto de perfil",
-      "descripcion": "Copia una imagen local para usarla en AGS y en la pantalla de bloqueo.",
+      "descripcion": "Copia una imagen local, recortada en cuadrado, para AGS y la pantalla de bloqueo.",
       "placeholder": "~/Imágenes/perfil.png",
       "boton": "Cambiar foto"
     }
@@ -26,7 +26,7 @@
     }
   },
   "seguridad": {
-    "titulo": "Contraseña y autorización",
+    "titulo": "Contraseña",
     "contrasena": {
       "titulo": "Contraseña",
       "descripcion": "Cambia la contraseña de la cuenta actual.",
@@ -41,11 +41,6 @@
     "confirmarContrasena": {
       "titulo": "Confirmar contraseña",
       "placeholder": "Repetir nueva contraseña"
-    },
-    "autorizacion": {
-      "titulo": "Autorización administrativa",
-      "descripcion": "Autoriza los cambios de la cuenta y no se guarda.",
-      "placeholder": "Contraseña de administrador"
     }
   },
   "acciones": {
@@ -56,8 +51,8 @@
     "rutaVacia": "Escribe la ruta de una imagen.",
     "rutaInvalida": "La ruta debe ser absoluta o empezar por ~/.",
     "imagenAusente": "No existe una imagen en esa ruta.",
+    "imagenInvalida": "Ese archivo no es una imagen que se pueda leer.",
     "fotoActualizada": "Foto de perfil actualizada.",
-    "autorizacionRequerida": "Introduce la contraseña de administrador.",
     "usuarioInvalido": "El usuario debe usar minúsculas, números, _ o - y empezar por una letra.",
     "contrasenasNoCoinciden": "Las contraseñas nuevas no coinciden.",
     "contrasenaCorta": "La contraseña nueva debe tener al menos 8 caracteres.",
@@ -65,7 +60,7 @@
     "aplicando": "Aplicando cambios…",
     "cuentaActualizadaReinicio": "Cuenta actualizada. Cierra sesión para usar el nuevo nombre.",
     "cuentaActualizada": "Cuenta actualizada correctamente.",
-    "contrasenaAdministradorIncorrecta": "La contraseña de administrador no es correcta.",
+    "autorizacionCancelada": "Se canceló la autorización de administrador.",
     "operacionFallida": "No se pudo completar la operación."
   }
 }

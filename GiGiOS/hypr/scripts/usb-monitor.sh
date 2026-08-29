@@ -481,7 +481,7 @@ check_volume() {
       fi
 
       act=$(notificar usb.volumen-con-errores --wait -t 30000 \
-              -u critical -A "repair=🔧 Reparar" \
+              -u critical -A "repair=Reparar" \
               "Volumen con errores" \
               "«$name» ($fs) no está limpio y ya está montado — repáralo cuando dejes de usarlo.")
       [[ "$act" == "repair" ]] && [[ -x "$REPAIR" ]] && "$REPAIR" "/dev/$part" ) &

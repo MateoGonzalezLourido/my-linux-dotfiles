@@ -28,8 +28,26 @@ alarma muda sin dar ningún error; ver `audio/README.md`),
 `bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
 `system/` (ficheros que van a `/etc` y `/usr/local/bin`, **no** se symlinkean: se instalan con `sudo` —
 la regla udev de escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP, el helper de
-firmas de ClamAV, el helper de limpieza de disco y la cesión del botón de encendido a Hyprland; ver
-las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento y del botón de encendido).
+firmas de ClamAV, el helper de limpieza de disco, la cesión del botón de encendido a Hyprland y la
+configuración de SDDM; ver las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento y
+del botón de encendido).
+
+`system/sddm/99-gigios.conf.in` es la única pieza de `system/` que **no se copia tal cual**: es una
+plantilla que `install.sh` (paso `sddm`) materializa en `/etc/sddm.conf.d/99-gigios.conf`
+sustituyendo lo que es de cada máquina — el usuario del autologin, el `.desktop` de la sesión y el
+tema, que sólo se fija si existe en el equipo. Tres trampas que ya costaron su tiempo:
+
+- **Activar SDDM es crear un SYMLINK**: `systemctl enable sddm.service` deja
+  `/etc/systemd/system/display-manager.service -> /usr/lib/systemd/system/sddm.service` (la unidad
+  declara `Alias=display-manager.service`). Sin ese enlace **no hay ningún error**: el equipo
+  arranca hasta un TTY con todo el escritorio bien instalado y nada que lo lance. Por eso el paso
+  comprueba el enlace después de activar, en vez de fiarse del código de salida, y `preflight.sh` lo
+  da como ERROR.
+- **`/etc/sddm.conf` gana sobre TODO `/etc/sddm.conf.d/`**, pese al nombre (`man 5 sddm.conf`). Si
+  define una clave que también fijamos, manda la suya y editar el drop-in no se nota. El instalador
+  compara las claves y avisa; no toca ese fichero, que es de la distribución.
+- El prefijo **`99-`** no es decorativo: `conf.d` se lee en orden alfabético y gana el último, y en
+  esta máquina conviven los restos de HyDE (`the_hyde_project.conf`), que fija `[Theme] Current`.
 
 `mime/`, `qt6ct/`, `menus/`, `kdeglobals`, `mimeapps.list` en la raíz no son un componente
 propio: son fragmentos sueltos de integración de escritorio (tema Qt, asociación de apps, menú
@@ -68,6 +86,8 @@ bin/link.sh --force  # back up whatever is in the way (to ~/.dotfiles-backup-<da
 `link.sh` is idempotent and data-safe. Beyond symlinking it also: migrates the profile photo
 from its old home (`~/.cache/gigios/face.png`) to `~/.local/share/gigios/face.png` — the single
 copy, read by both AGS and hyprlock, set from Ajustes > Cuenta and never versioned (it's personal).
+Ajustes no copia el original: lo endereza por EXIF, lo recorta cuadrado y lo reduce a 512x512 PNG
+(`ags/modulos/ajustes/cuenta/avatar.ts`), que es lo que necesitan los tres círculos donde se ve.
 It lives in `XDG_DATA_HOME`, **not** the cache, because nothing regenerates it: there is no master
 in the repo, so a cache cleaner would delete it for good. It also
 migrates leftover AGS JSON from the old `~/.config/ags/config/` into `~/.config/gigios/`;

@@ -299,15 +299,15 @@ monitor_kernel() {
     # agonizando no aporta nada nuevo cada 200 ms), la agrupación decide CÓMO se
     # presenta lo encolado. Sin cooldown, agrupar solo cambiaría "40 popups" por
     # "un popup cada NOTIF_TOPE segundos, para siempre".
-    notif_grupo koom      kernel.oom               critical 10000 "💀 OOM Killer"                  "procesos matados por OOM"   "Proceso: "
-    notif_grupo khung     kernel.tarea-colgada     critical 15000 "⚠️ Proceso colgado"             "procesos colgados"
-    notif_grupo kdisk     disco.error-es           critical 15000 "💾 Error de disco"              "errores de disco"
-    notif_grupo kusb      usb.extraccion-insegura  normal   12000 "⏏️ Extracción insegura"         "extracciones inseguras" \
+    notif_grupo koom      kernel.oom               critical 10000 "OOM Killer"                     "procesos matados por OOM"   "Proceso: "
+    notif_grupo khung     kernel.tarea-colgada     critical 15000 "Proceso colgado"                "procesos colgados"
+    notif_grupo kdisk     disco.error-es           critical 15000 "Error de disco"                 "errores de disco"
+    notif_grupo kusb      usb.extraccion-insegura  normal   12000 "Extracción insegura"            "extracciones inseguras" \
         "Se quitó " " con escrituras pendientes. Puede haber archivos incompletos o el sistema de ficheros marcado como sucio. Expúlsalo antes de retirarlo."
-    notif_grupo khw       hardware.error           critical 15000 "🧠 Error de hardware"           "errores de hardware"
-    notif_grupo kmod      kernel.modulo-sin-firmar critical 15000 "🧩 Módulo de kernel sin firmar" "módulos de kernel sin firmar"
-    notif_grupo kgpu      gpu.error                critical 15000 "🖥️ Error GPU"                   "errores de GPU"
-    notif_grupo kthrottle cpu.throttling           normal   10000 "🌡️ CPU Throttling"              "avisos de CPU throttling"
+    notif_grupo khw       hardware.error           critical 15000 "Error de hardware"              "errores de hardware"
+    notif_grupo kmod      kernel.modulo-sin-firmar critical 15000 "Módulo de kernel sin firmar"    "módulos de kernel sin firmar"
+    notif_grupo kgpu      gpu.error                critical 15000 "Error GPU"                      "errores de GPU"
+    notif_grupo kthrottle cpu.throttling           normal   10000 "CPU Throttling"                 "avisos de CPU throttling"
     notif_grupo kseg      app.crash                critical 15000 "App crasheada"                  "apps crasheadas"            "Proceso: "
 
     # ¿Este evento es ruido garantizado de una actualización, y no un fallo? Vale para
@@ -328,7 +328,7 @@ monitor_kernel() {
         pkg_sesion_desincronizada || return 1
         if [[ "$aviso_reinicio" == false ]]; then
             aviso_reinicio=true
-            notificar sistema.reinicio-pendiente -u normal "🔄 Reinicio pendiente" \
+            notificar sistema.reinicio-pendiente -u normal "Reinicio pendiente" \
                 "Se actualizaron el kernel o los drivers y la sesión sigue con los antiguos. Los errores de GPU y de módulos quedan silenciados hasta que reinicies." \
                 -t 20000
         fi
@@ -378,7 +378,7 @@ monitor_kernel() {
             #     ventana de calma de 4 s puede ser más de lo que le queda de vida a la
             #     sesión. Además un panic no llega en ráfaga — llega una vez y ya.
             elif [[ "$sec_kernelPanic" != false ]] && [[ "$lower" == *"kernel panic"* ]]; then
-                notificar kernel.panic -u critical "💥 Kernel Panic" "El sistema va a reiniciar" -t 0
+                notificar kernel.panic -u critical "Kernel Panic" "El sistema va a reiniciar" -t 0
 
             # --- Hung task ---
             elif [[ "$sec_hungTask" != false ]] && \
@@ -389,7 +389,7 @@ monitor_kernel() {
             #     OJO: no todo "i/o error" es un disco enfermo. Arrancar un pendrive sin
             #     expulsarlo, con escrituras aún en la caché, hace que el kernel escupa un
             #     "Buffer I/O error on dev sdb1 … lost async page write" por cada página que
-            #     no llegó — antes cada una de ellas era una crítica "💾 Error de disco".
+            #     no llegó — antes cada una de ellas era una crítica "Error de disco".
             #     (Por eso solo pasaba al MOVER archivos: sin nada sucio pendiente, no hay
             #     writeback que fallar y el kernel no loguea nada.) Clasificamos por
             #     dispositivo antes de alarmar.
@@ -474,10 +474,10 @@ monitor_system() {
     # minuto y un `systemd` con una unidad rota reintenta cada pocos segundos. El
     # aviso de sudo NO lleva dato variable a propósito (no se filtra la línea del
     # journal), así que encola texto vacío y lo que informa es el recuento.
-    notif_grupo ssvc     servicio.fallo-arranque      normal   10000 "⚙️ Servicio fallido"           "servicios fallidos"
-    notif_grupo ssudo    sudo.fallo-autenticacion     critical 15000 "🔐 Fallo sudo"                 "fallos de sudo" "Intento fallido de sudo"
-    notif_grupo spriv    seguridad.escalada-privilegios critical 15000 "🔓 Escalada de privilegios"    "escaladas de privilegios"
-    notif_grupo sssh     ssh.evento                   normal   15000 "🌐 SSH"                        "eventos SSH"
+    notif_grupo ssvc     servicio.fallo-arranque      normal   10000 "Servicio fallido"              "servicios fallidos"
+    notif_grupo ssudo    sudo.fallo-autenticacion     critical 15000 "Fallo sudo"                    "fallos de sudo" "Intento fallido de sudo"
+    notif_grupo spriv    seguridad.escalada-privilegios critical 15000 "Escalada de privilegios"       "escaladas de privilegios"
+    notif_grupo sssh     ssh.evento                   normal   15000 "SSH"                           "eventos SSH"
     notif_grupo score    app.crash                    critical 15000 "App crasheada"                 "apps crasheadas" "Proceso: "
 
     # -t restringe a los identificadores que nos interesan → menos volumen y sin
@@ -578,7 +578,7 @@ monitor_system() {
                     _coredump_times=("${pruned[@]}")
                     if (( ${#_coredump_times[@]} >= 3 )) && (( _now - _storm_last >= 60 )); then
                         _storm_last=$_now
-                        notificar app.tormenta-crashes -u critical "🌩️ Tormenta de crashes" \
+                        notificar app.tormenta-crashes -u critical "Tormenta de crashes" \
                             "${#_coredump_times[@]} volcados de core en <60s. Algo va muy mal." -t 0
                     fi
                 fi
@@ -595,7 +595,7 @@ monitor_system() {
 # `.pacnew` en /etc/pam.d, reinstala units en /etc/systemd/system, toca /etc/passwd
 # vía sysusers y renueva kernel+initramfs en /boot. Eso no es persistencia de un
 # atacante: es el gestor de paquetes haciendo su trabajo, autenticado por el propio
-# usuario segundos antes. Avisarlo como "🚨 Posible persistencia" con `-t 0` durante
+# usuario segundos antes. Avisarlo como "Posible persistencia" con `-t 0` durante
 # una actualización larga entierra la pantalla en tarjetas críticas que el usuario
 # aprende a cerrar sin leer — y el día que una SÍ importe, la cerrará igual.
 #
@@ -717,14 +717,14 @@ monitor_files() {
 
     # Un mismo cambio genera DOS eventos (create + close_write) sobre la misma
     # ruta: la deduplicación de la librería los colapsa en uno.
-    notif_grupo fcrit    archivos.critico-modificado critical 0     "🚨 Archivo crítico modificado"      "archivos críticos modificados"   "Archivo: "
-    notif_grupo fpersist archivos.persistencia       critical 0     "🚨 Posible persistencia"            "cambios de posible persistencia" "Nuevo/modificado: "
-    notif_grupo fssh     archivos.clave-ssh          critical 0     "🔑 Clave SSH autorizada modificada" "cambios en claves SSH autorizadas" "Archivo: "
-    notif_grupo fboot    archivos.boot               normal   15000 "🥾 Cambio en /boot"                 "cambios en /boot"                "Archivo: " " (kernel/initramfs)"
+    notif_grupo fcrit    archivos.critico-modificado critical 0     "Archivo crítico modificado"         "archivos críticos modificados"   "Archivo: "
+    notif_grupo fpersist archivos.persistencia       critical 0     "Posible persistencia"               "cambios de posible persistencia" "Nuevo/modificado: "
+    notif_grupo fssh     archivos.clave-ssh          critical 0     "Clave SSH autorizada modificada"    "cambios en claves SSH autorizadas" "Archivo: "
+    notif_grupo fboot    archivos.boot               normal   15000 "Cambio en /boot"                    "cambios en /boot"                "Archivo: " " (kernel/initramfs)"
     # Durante una actualización de paquetes los tres grupos de arriba se desvían a
     # este, que es informativo y se autocierra (ver pkg_tx_activa). No se callan del
     # todo a propósito: si algo tocó /etc mientras actualizabas, sigue constando.
-    notif_grupo fpkg     archivos.actualizacion      low      15000 "📦 Actualización del sistema"       "archivos de sistema actualizados" "Archivo: "
+    notif_grupo fpkg     archivos.actualizacion      low      15000 "Actualización del sistema"          "archivos de sistema actualizados" "Archivo: "
     # Un cambio = create + close_write: la misma ruta dos veces es UN cambio, no dos.
     notif_grupo_unico fcrit; notif_grupo_unico fpersist
     notif_grupo_unico fssh;  notif_grupo_unico fboot
@@ -845,7 +845,7 @@ monitor_smart() {
             if [[ -z "$report" ]]; then
                 if [[ "$warned_perm" == false ]]; then
                     warned_perm=true
-                    notificar disco.smart-sin-permisos -u normal "💽 Salud de disco" \
+                    notificar disco.smart-sin-permisos -u normal "Salud de disco" \
                         "smartctl no puede leer SMART (¿faltan privilegios?)." -t 10000
                 fi
                 continue
@@ -853,7 +853,7 @@ monitor_smart() {
             if grep -qiE 'result:[[:space:]]*FAILED|FAILING_NOW' <<< "$report"; then
                 if [[ -z "${_smart_notified[$dev]:-}" ]]; then
                     _smart_notified[$dev]=1
-                    notificar disco.smart-fallo -u critical "💽 Disco a punto de fallar" \
+                    notificar disco.smart-fallo -u critical "Disco a punto de fallar" \
                         "$dev: SMART reporta fallo inminente. Haz copia de seguridad YA." -t 0
                 fi
             fi
@@ -883,7 +883,7 @@ monitor_units() {
     # apagón sucio o una actualización caen varias unidades a la vez y `systemctl
     # --failed` las devuelve todas en el mismo barrido, así que se encolan durante
     # la pasada y se vuelcan al terminarla — sin retrasar nada ni un segundo.
-    notif_grupo unit servicio.en-fallo critical 15000 "⚙️ Servicio en fallo" "servicios en fallo" "Unidad: "
+    notif_grupo unit servicio.en-fallo critical 15000 "Servicio en fallo"    "servicios en fallo" "Unidad: "
 
     while :; do
         # Se congela mientras juegas, pero SOLO una vez sembrado, y esa condición no
@@ -984,12 +984,12 @@ download_alert() {
     if [[ "$sec_sandboxLaunch" != false && -x "$RUN_UNTRUSTED" ]]; then
         # notify-send --wait -A bloquea hasta el clic/cierre → subshell en 2º plano.
         ( act=$(notificar descargas.ejecutable-nuevo -a "Seguridad" --wait -t 45000 \
-            -A "launch=🛡️ Lanzar aislado" -u normal \
-            "⬇️ Ejecutable nuevo en Descargas" \
+            -A "launch=Lanzar aislado" -u normal \
+            "Ejecutable nuevo en Descargas" \
             "$(basename "$f") — verifícalo antes de lanzarlo.")
           [[ "$act" == "launch" ]] && "$RUN_UNTRUSTED" "$f" ) &
     else
-        notificar descargas.ejecutable-nuevo -u normal "⬇️ Ejecutable nuevo en Descargas" \
+        notificar descargas.ejecutable-nuevo -u normal "Ejecutable nuevo en Descargas" \
             "$(basename "$f") — verifícalo antes de lanzarlo." -t 12000
     fi
 }
@@ -1020,7 +1020,7 @@ monitor_downloads() {
 
     # Un `-t 0` por cada firma encontrada no escala a un archivo comprimido lleno de
     # muestras; se agrupan por lote de clamscan (ver la llamada a notif_volcar).
-    notif_grupo malware descargas.malware critical 0 "🦠 Malware detectado en Descargas" \
+    notif_grupo malware descargas.malware critical 0 "Malware detectado en Descargas"    \
         "amenazas detectadas en Descargas" "" " — NO lo ejecutes."
 
     # Motor antivirus. Preferimos clamscan (standalone, funciona con solo tener la
@@ -1214,19 +1214,19 @@ monitor_downloads() {
         # eso son seis popups con botón que nadie va a pulsar uno por uno.
         if (( ${#big_files[@]} > 4 )); then
             notificar descargas.archivo-grande -u normal \
-                "⬇️ ${#big_files[@]} archivos grandes sin analizar" \
+                "${#big_files[@]} archivos grandes sin analizar" \
                 "Superan el tope de auto-análisis. Escanéalos desde Ajustes › Seguridad." -t 15000
         else
             for f in "${big_files[@]}"; do
                 mb=$(( $(stat -c%s "$f" 2>/dev/null || echo 0) / 1048576 ))
                 if [[ -x "$SCAN_FILE" ]]; then
                     ( act=$(notificar descargas.archivo-grande -a "Seguridad" --wait -t 45000 \
-                        -A "scan=🔍 Escanear igualmente" -u normal \
-                        "⬇️ Archivo grande sin analizar" \
+                        -A "scan=Escanear igualmente" -u normal \
+                        "Archivo grande sin analizar" \
                         "$(basename "$f") (${mb} MB) supera el tope de auto-análisis. Escanéalo aquí o en Ajustes › Seguridad.")
                       [[ "$act" == "scan" ]] && "$SCAN_FILE" "$f" ) &
                 else
-                    notificar descargas.archivo-grande -u normal "⬇️ Archivo grande sin analizar" \
+                    notificar descargas.archivo-grande -u normal "Archivo grande sin analizar" \
                         "$(basename "$f") (${mb} MB) — escanéalo desde Ajustes › Seguridad." -t 12000
                 fi
             done
@@ -1237,7 +1237,7 @@ monitor_downloads() {
             if (( ${#new_exec[@]} <= 4 )); then
                 for f in "${new_exec[@]}"; do download_alert "$f"; done
             else
-                notificar descargas.ejecutable-nuevo -u normal "⬇️ ${#new_exec[@]} ejecutables nuevos en Descargas" \
+                notificar descargas.ejecutable-nuevo -u normal "${#new_exec[@]} ejecutables nuevos en Descargas" \
                     "En $(basename "$(dirname "${new_exec[0]}")")/ y otros. Revísalos antes de ejecutarlos (juego, instalador o crack)." -t 15000
             fi
         fi
@@ -1296,11 +1296,11 @@ monitor_downloads() {
                     # freno sería una notificación por descarga.
                     if [[ -x "$UPDATE_SIGS" ]]; then
                         ( firmas_aviso_con_boton antivirus.sin-firmas critical \
-                            "🛡️ Antivirus sin base de firmas" \
+                            "Antivirus sin base de firmas" \
                             "ClamAV no puede analizar las descargas. Hasta que se actualicen las firmas NO se dan por analizadas." ) &
                     else
                         notificar antivirus.sin-firmas -u critical \
-                            "🛡️ Antivirus sin base de firmas" \
+                            "Antivirus sin base de firmas" \
                             "ClamAV no puede analizar las descargas. Ejecuta 'sudo freshclam'. Hasta entonces NO se dan por analizadas." -t 0
                     fi
                 fi

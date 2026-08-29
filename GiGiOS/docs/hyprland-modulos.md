@@ -324,7 +324,7 @@ con el mismo patrón que `lib/gaming-gate.sh`, con un respaldo inline que emite 
 la librería se pierde la identidad del aviso, nunca el aviso.
 
 **El `event` existe porque el `source` no bastaba para configurarlas por separado.** Con solo el
-origen, «USB desconectado», «Disco casi lleno» y «🔓 Escalada de privilegios» eran indistinguibles
+origen, «USB desconectado», «Disco casi lleno» y «Escalada de privilegios» eran indistinguibles
 para el motor de reglas: mismo hint, y en 44 de las llamadas mismo `app_name` («notify-send»,
 porque no pasaban `-a`). El único gancho que quedaba era el **título**, que cambia con el contenido
 (`"RAM muy baja: 812MB disponibles"`, `"CPU sobrecalentada: 91°C"`) y con cualquier retoque de
@@ -354,8 +354,8 @@ diseño normal**, sin error ni aviso — es el único modo de fallo aquí.
 acepta `low`, `normal` y `critical`; ante cualquier otra cosa `notify-send` escribe *«Unknown
 urgency warning specified»* por **stderr** y sale con **rc=1 sin enviar nada** (medido en 0.8.8).
 Como todas estas llamadas salen de daemons de fondo cuyo stderr no lo lee nadie, el fallo era
-**mudo y total**: "⬇️ Ejecutable nuevo en Descargas", "🛡️ No se pudo analizar", "💽 Salud de disco",
-"🥾 Cambio en /boot", "⚙️ Servicio fallido", "🌡️ CPU Throttling" y "🌐 SSH" llevaban desde siempre
+**mudo y total**: "Ejecutable nuevo en Descargas", "No se pudo analizar", "Salud de disco",
+"Cambio en /boot", "Servicio fallido", "CPU Throttling" y "SSH" llevaban desde siempre
 sin aparecer — el escáner de descargas avisaba de un ejecutable nuevo y no se veía. Todas están ya
 en `normal` (el escalón intermedio no existe: o es rutina o es crítico). Al añadir una notificación,
 **pruébala ejecutándola**: no basta con leerla, porque la línea parece correcta.
@@ -1658,12 +1658,12 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   **`diskError` clasifica el dispositivo antes de alarmar.** Casaba `*"i/o error"*` a pelo contra
   cualquier línea del kernel, así que arrancar un pendrive sin expulsarlo (que suelta un
   `Buffer I/O error on dev sdb1 … lost async page write` por cada página no volcada) disparaba una
-  **crítica "💾 Error de disco" por línea** — un disco sano denunciado como moribundo. Ahora se saca
+  **crítica "Error de disco" por línea** — un disco sano denunciado como moribundo. Ahora se saca
   el dispositivo de la línea (`_io_dev`), se resuelve a su disco padre (`_disk_base`; las particiones
   no tienen `bdi`/`removable` propios) y solo es "Error de disco" si `_disk_is_internal`: el nodo
   **sigue existiendo** y `removable=0`. No basta con mirar si existe — el nodo sobrevive unos ms al
   desconecte, y el flag `removable` cubre esa carrera. Si es extraíble o ya desapareció, sale un
-  aviso normal **"⏏️ Extracción insegura"** (datos, no hardware). Una línea que no nombre dispositivo
+  aviso normal **"Extracción insegura"** (datos, no hardware). Una línea que no nombre dispositivo
   **sí** alarma (fail-safe). Además hay cooldown de 30 s **por dispositivo**: un disco muriéndose de
   verdad suelta decenas de líneas por segundo. Ver la sección de USB para la causa raíz y la cura.
 - `monitor_system` — `journalctl -f` filtered by `-t` identifier (sudo, sshd, su, pkexec,
@@ -1685,7 +1685,7 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   (`PRIVESC_ALLOW`) para silenciar solo a GameMode, que escala por pkexec **cada vez que un juego
   arranca y otra vez al cerrarse** (`/usr/lib/gamemode/cpugovctl set performance`,
   `procsysctl split_lock_mitigate`, `gpuclockctl`) y convertía jugar en una lluvia de avisos
-  críticos "🔓 Escalada de privilegios" que enseñaba a ignorar la categoría entera; se generalizó a
+  críticos "Escalada de privilegios" que enseñaba a ignorar la categoría entera; se generalizó a
   *todo* `COMMAND=` porque cualquier pkexec autenticado con contraseña tiene el mismo problema, no
   solo el de GameMode. Lo que **sigue** avisando es la escalada que NO pasó por una contraseña
   válida: un pkexec **denegado** no abre sesión PAM ni loguea `COMMAND=`, pero sí `Not authorized`,
@@ -1711,7 +1711,7 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   **Una actualización de paquetes NO es persistencia, y por eso se desvía entera a un aviso
   informativo.** Agrupar bajó el volumen pero no arregló el fondo: `pacman -Syu` deja `.pacnew` en
   `/etc/pam.d`, reinstala units en `/etc/systemd/system`, toca `/etc/passwd` vía sysusers y renueva
-  kernel+initramfs, así que cada actualización disparaba "🚨 Posible persistencia" con `-t 0`
+  kernel+initramfs, así que cada actualización disparaba "Posible persistencia" con `-t 0`
   hablando de cambios que el propio usuario acababa de autorizar con su contraseña. Dos filtros:
 
   1. Los **artefactos del gestor** (`*.pacnew`, `*.pacsave`, `*.pacorig`, sus equivalentes
@@ -1721,7 +1721,7 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
      (`/etc/pam.d/chpasswd.pacnew`).
   2. Mientras hay **transacción de paquetes en curso** (`pkg_tx_activa`), `fcrit`/`fpersist`/`fboot`
      se encolan en `fpkg` → `archivos.actualizacion`, urgencia `low` y autocierre a 15 s: un solo
-     "📦 Actualización del sistema · N archivos" en vez de decenas de críticas. **No se callan del
+     "Actualización del sistema · N archivos" en vez de decenas de críticas. **No se callan del
      todo a propósito**: si algo tocó `/etc` mientras actualizabas, sigue constando. `~/.ssh/authorized_keys`
      es la excepción que **nunca** se desvía — ningún paquete la escribe.
 
@@ -1850,7 +1850,7 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   resume (FOUND lines already printed before the kill still alert). **In-progress downloads**
   are skipped: browser/manager temp markers (`.part`/`.crdownload`/`.aria2`/`.!qB`/… *and their base
   name*) plus anything modified in the last 15s (still being written); a file moved out of Downloads
-  mid-scan is skipped by a per-file existence recheck. Files over the cap raise a "🔍 Escanear"
+  mid-scan is skipped by a per-file existence recheck. Files over the cap raise a "Escanear"
   notification (wired to `scan-file.sh`). `scan-downloads.sh` is the **forced** full scan (Settings
   button) that ignores the master toggle, the pauses and the cap — it resolves the dir and delegates
   to `scan-file.sh` (now also `nice`/`ionice`-wrapped).
@@ -1885,7 +1885,7 @@ preguntarle al gestor de paquetes — `/usr/lib/modules/$(uname -r)` desaparecid
 ejecución ya no está instalado), o `/sys/module/nvidia/version` (en ejecución) ≠ `modinfo -F version
 nvidia` (en disco) — y a partir de ahí calla GPU y módulos hasta el reinicio. Una vez da positivo no
 se vuelve a comprobar: sin reiniciar no puede dejar de ser cierto. **No calla en silencio**: la
-primera vez emite `sistema.reinicio-pendiente` ("🔄 Reinicio pendiente", `normal`, autocierre),
+primera vez emite `sistema.reinicio-pendiente` ("Reinicio pendiente", `normal`, autocierre),
 que es a la vez la explicación del silencio y la acción que lo arregla.
 
 **Apagado limpio: matar el monitor dejaba un `inotifywait -m` vivo PARA SIEMPRE.** Los seis
@@ -1939,7 +1939,7 @@ new-executable notifications carry a `notify-send -A` action button that invokes
 refuses to launch rather than running unsandboxed.
 
 **`hypr/scripts/scan-file.sh`** — on-demand ClamAV scan of a single path (no size cap; `clamscan -r`
-so it descends into archives), notifying clean / infected / couldn't-scan. Invoked by the "🔍 Escanear"
+so it descends into archives), notifying clean / infected / couldn't-scan. Invoked by the "Escanear"
 button on the oversized-file notification and by the "Analizar un archivo con ClamAV" path field in
 `ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`. Both `run-untrusted.sh` and `scan-file.sh` prefer `clamscan` and fall back
 across engines, and both surface a clear "run `sudo freshclam`" hint when the signature DB is missing.
@@ -2045,7 +2045,7 @@ familia con una cura de un solo gesto, y un popup que dice "ejecuta `sudo freshc
 minuto le pide al usuario que se acuerde de algo cuando ya esté en una terminal. Las tres
 notificaciones que lo reportan —el `rc == 2` del barrido de descargas (`oom-monitor.sh`), y el "no
 se pudo analizar" de `scan-file.sh` y `run-untrusted.sh`— llevan ahora
-`-A "update=🛡️ Actualizar firmas"` → **`hypr/scripts/actualizar-firmas.sh`**, el lado de usuario
+`-A "update=Actualizar firmas"` → **`hypr/scripts/actualizar-firmas.sh`**, el lado de usuario
 del helper. Se pulsa con **clic derecho** sobre el popup (ver `ags/CLAUDE.md`, "Acciones D-Bus en el
 popup"), y `calcularDuracionPopup()` lo acota a 60 s.
 
@@ -2192,7 +2192,7 @@ suelta tras un `ok`, y por qué `externo` **descarta** la foto en vez de olvidar
 
 **Cada desinstalación pasa por pkexec, y `oom-monitor.sh` NO avisa de ello.** `pkexec` loguea su
 `COMMAND=`, y desde que esa rama calla todo pkexec autenticado con contraseña (ver la sección de
-`monitor_system` → `privEsc`), una desinstalación no genera «🔓 Escalada de privilegios»: el usuario
+`monitor_system` → `privEsc`), una desinstalación no genera «Escalada de privilegios»: el usuario
 acaba de autorizarla a mano, así que no hay nada que señalar.
 
 ### Almacenamiento y autolimpieza (`analizar-almacenamiento.sh`, `limpiar-almacenamiento.sh`, `limpieza-arranque.sh` + `system/limpieza/`)
@@ -2271,9 +2271,13 @@ hubiera siete. Se deduplica por **dispositivo**, quedándose con el punto de mon
 es el mismo problema resuelto dos veces porque las dos piezas leen `df` por su cuenta.
 
 **El color de la barra NO usa los umbrales de `disk-monitor.sh`.** La barra corta en 75/90 % de
-*uso*; el monitor avisa por espacio libre **absoluto** (menos de 5 GB). Que no coincidan es
+*uso*; el monitor avisa por espacio libre **absoluto** (menos de 5 GiB). Que no coincidan es
 correcto: un 10 % libre son 100 GB en un disco de 1 TB y 5 GB en uno de 50. El color es una pista
-de lectura del reparto, la notificación es la alarma.
+de lectura del reparto, la notificación es la alarma. **Y sí, la alarma también la dispara esta
+sección**: el mismo `df` que pinta la barra pasa por `servicios/disco/alerta.ts` (ver
+`disk-monitor.sh` en «Monitores de recursos restantes»), que es lo que extiende el aviso a toda la
+sesión sin añadir ningún sondeo. Lo que NO comparten es el criterio: el color sigue siendo el
+porcentaje, el aviso sigue siendo el espacio absoluto.
 
 **Contar instantáneas es de root, y snapper miente con rc=0.** `snapper --machine-readable csv list`
 sin privilegios responde «Sin permisos» y **sale con 0**, así que el `grep -c` daba 0 y la fila
@@ -2966,7 +2970,58 @@ largo con margen de sobra) para reducir despertares. Los tres leen su interrupto
   del fichero para cortar el bucle en cuanto aparece.
 - **`disk-monitor.sh`** — **no es un daemon**: corre una vez al login y sale. El espacio libre no
   tiene fuente de eventos y quedarse sin él es raro, así que una sola comprobación al arrancar es el
-  compromiso correcto — coste cero el resto de la sesión. Deduplica por dispositivo (los subvolúmenes
+  compromiso correcto — coste cero el resto de la sesión.
+
+  **«No tiene fuente de eventos» está comprobado, no supuesto** (verificado sobre esta máquina;
+  léelo antes de volver a buscarla, que es el impulso natural). El **kernel** no publica nada:
+  inotify/fanotify vigilan sucesos de *fichero*, y `FAN_FS_ERROR` (5.16+) reporta **corrupción**
+  del sistema de ficheros, no un ENOSPC inminente. **udisks2** solo señaliza montajes y cambios de
+  medio, nunca capacidad. **systemd** no tiene nada equivalente (`systemd-tmpfiles` limpia, no
+  avisa). **CachyOS no trae ningún demonio para esto** (`pacman -Qs`: nada). Lo único en Linux que
+  *sí* empuja un evento por espacio es el **netlink de cuotas** (`quota_nl`, `QUOTA_NL_BSOFTWARN`
+  al pasar el límite blando, que es lo que consume `quota_nld`), pero es **por usuario**, exige
+  `quotaon`, y **btrfs no implementa cuotas de usuario** — solo qgroups, que no emiten netlink —,
+  así que en este equipo (todo btrfs sobre un solo NVMe) no existe. Que nadie escuche no es una
+  laguna nuestra: **GNOME (`gsd-housekeeping`) y KDE (`kded freespacenotifier`) sondean cada 60 s**.
+
+  **La cobertura del resto de la sesión NO sale de un sondeo nuevo, sale de reaprovechar un `df`
+  que ya se pagaba.** `ags/servicios/disco/alerta.ts` emite **este mismo aviso** a partir del
+  análisis de Ajustes > Almacenamiento, que ya corría `analizar-almacenamiento.sh discos` en cada
+  apertura de la sección. Coste marginal: **cero procesos residentes, cero temporizadores, cero
+  forks de más**. Lo que se decide es puro y está testeado (`servicios/disco/vigilancia.ts` +
+  `vigilancia.test.ts`); el efecto —marca, `notify-send`— vive en `alerta.ts`, y la llamada se
+  hace desde `usarAnalisis.ts` y **no** desde `analizar()`, porque medir no debe notificar.
+
+  **Tres cosas tienen que seguir coincidiendo entre los dos emisores, y ninguna da error si
+  divergen** — solo dos versiones del mismo aviso que no cuadran:
+
+  1. **Los umbrales.** `WARN_GB=5` / `MIN_GB=6` en el script ↔ `AVISO_LIBRE_BYTES` /
+     `AVISO_MIN_TOTAL_BYTES` en `vigilancia.ts`. Están duplicados a propósito (el script es bash
+     sin dependencias, el módulo TS es puro: compartir fichero obligaría a uno a forkear un
+     parser) y los dos sitios se avisan mutuamente por comentario.
+  2. **El texto.** Idéntico al que produce `lib/notif-agrupar.sh` para el grupo `lleno`, singular
+     y plural. De paso se corrigió una discrepancia vieja: `bytes_to_human` calculaba en GiB
+     (÷1024³) pero rotulaba **«GB»** con punto decimal, mientras AGS rotula «GiB» con coma
+     (`formato.ts`) — «4.8 GB» al iniciar sesión y «4,8 GiB» al abrir Ajustes parecerían dos
+     medidas que no cuadran, así que el script pasó a la etiqueta binaria y a la coma.
+  3. **La espera, y su fichero.** `~/.cache/gigios/disco-avisos`, `<epoch>\t<punto>` por línea,
+     ventana de 6 h por punto de montaje. **Texto plano y no JSON a propósito**: así
+     `disk-monitor.sh` lo lee con un `read` de bash y sigue sin forkear nada más que su `df` —
+     meterle un `jq` por un contador de dos columnas sería pagar el arranque de sesión por nada.
+     El epoch va **primero** porque un punto de montaje puede llevar espacios: tras el primer
+     tabulador, todo es la ruta. Sin esta marca compartida el aviso se volvía ruido —el análisis
+     corre en **cada** apertura de Ajustes, así que entrar tres veces a mirar cuánto queda daba
+     tres avisos diciendo lo que ya tenías en pantalla— y además el arranque y la primera apertura
+     avisaban seguidos de lo mismo. La marca se reescribe **siempre**, también vacía: borrar la de
+     un disco que ya no está al límite es la mitad que hace que un disco liberado y vuelto a
+     llenar avise **en el acto** en vez de esperar las 6 h. Una marca del **futuro** (reloj
+     cambiado, caché de otro equipo) no silencia nada, o el aviso quedaría mudo durante años.
+
+  **No hay ajuste nuevo para esto, y es deliberado**: el aviso es `disco.casi-lleno`, el mismo id
+  que ya se configura en Ajustes > Notificaciones > Sistema. Un interruptor «avisar también desde
+  el análisis» daría dos sitios donde apagar la misma cosa.
+
+  Deduplica por dispositivo (los subvolúmenes
   btrfs reportan el mismo dispositivo bajo varios puntos de montaje) e ignora particiones por debajo
   de 6 GB (EFI, boot) por no valer la pena vigilarlas. Con **dos o tres sistemas de ficheros al
   límite** (típico con `/` y `/home` separados) salía un popup por cada uno: el barrido de `df` es

@@ -501,5 +501,5 @@ printf '%s' "$resultados" | jq -R -s '
 # propio panel, y notificar además lo que acabas de pulsar es ruido.
 if [[ "${GIGIOS_LIMPIEZA_NOTIFICAR:-0}" == 1 && $total -gt 0 ]]; then
     legible=$(_legible "$total")
-    notificar limpieza.completada -u low -t 8000 "🧹 Limpieza automática" "Se han liberado $legible."
+    notificar limpieza.completada -u low -t 8000 "Limpieza automática" "Se han liberado $legible."
 fi

@@ -38,7 +38,7 @@ if [[ -z "$dir" ]]; then
 fi
 
 if [[ -z "$dir" ]]; then
-    notificar analisis.sin-carpeta -u critical "🔍 $APP" "No encuentro la carpeta de descargas." -t 8000
+    notificar analisis.sin-carpeta -u critical "$APP" "No encuentro la carpeta de descargas." -t 8000
     exit 1
 fi
 

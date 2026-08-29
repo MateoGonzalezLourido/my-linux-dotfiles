@@ -4,6 +4,7 @@
 // (servicios/pantalla/service.ts). Patrón visual sp-section/sp-field como
 // las demás secciones de Ajustes.
 import { Gtk } from "ags/gtk4"
+import Pango from "gi://Pango"
 import { createState, createComputed, For, onCleanup } from "ags"
 import { DisplaySelect } from "../../../servicios/pantalla/controls"
 import Interruptor from "../../../componentes/Interruptor"
@@ -12,6 +13,7 @@ import {
   monitors, monitorPrefs, monitorCaps, applyPatch, acquirePoll, releasePoll,
   globalVrrMode, applyGlobalVrr,
   nightRules, setNightRulesAndSave, nightRulesEnabled, setNightRulesEnabled,
+  luzPausadaPorJuego,
 } from "../../../servicios/pantalla/service"
 import type { NightRule } from "../../../servicios/pantalla/schedule"
 import { activeSetpoint } from "../../../servicios/pantalla/schedule"
@@ -139,9 +141,15 @@ export default function SeccionPantalla() {
   const admiteColor = createComputed(() => admiteDiezBits() || admiteHdr())
   const anyVrr = createComputed(() => Object.values(monitorCaps()).some((c) => c.vrr))
 
+  // `vexpand` en el overlay + `valign START` en su hijo: la LISTA del select se dibuja
+  // como overlay de ESTE widget, así que su alto útil es el del overlay menos lo que baja
+  // el desplegable. En una sección corta (Idioma es un título y una tarjeta) el overlay
+  // medía lo que medía el contenido y al desplegable le quedaban ~40 px: cabía una opción
+  // y media de las 68 del idioma. Ahora el overlay se estira con el ScrolledWindow del
+  // panel y el contenido se queda arriba, así que la lista tiene alto por debajo.
   return (
-    <overlay cssClasses={["display-select-host"]}>
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section"]} hexpand>
+    <overlay cssClasses={["display-select-host"]} vexpand>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section"]} hexpand valign={Gtk.Align.START}>
       <TituloSeccion titulo={textos.seccion.titulo} />
 
       {/* Selector de monitor */}
@@ -328,6 +336,19 @@ export default function SeccionPantalla() {
           label={scheduleSummary}
           visible={nightRulesEnabled}
           halign={Gtk.Align.START} xalign={0}
+          wrap wrapMode={Pango.WrapMode.WORD_CHAR}
+        />
+        {/* La otra mitad de la respuesta a "¿por qué NO se ha encendido?": con un juego
+            abierto y la pausa activa, el resumen de arriba sigue diciendo la verdad sobre
+            qué regla rige, pero nada de eso llega a la pantalla. Sin este renglón la
+            función sería invisible justo cuando actúa. Va fuera del `visible` del horario:
+            la pausa también retiene la luz encendida a mano, sin ninguna regla de por medio. */}
+        <label
+          cssClasses={["sp-schedule-now"]}
+          label={textos.reglas.horario.pausadaPorJuego}
+          visible={luzPausadaPorJuego}
+          halign={Gtk.Align.START} xalign={0}
+          wrap wrapMode={Pango.WrapMode.WORD_CHAR}
         />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={nightRulesEnabled}>
           {/* La regla que se añade nace SIN final ("en adelante"): añadir una es decir "a esta

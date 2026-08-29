@@ -1,12 +1,14 @@
-import { createState } from "ags"
+import { createComputed, createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import AstalNotifd from "gi://AstalNotifd"
 import { notifications, notifPanelVisible } from "../../../notificaciones/store"
 import { alternarPanelNotificaciones } from "../../../../estado/shell"
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
+import { ESLABON, SensorCadena, type CadenaEstado } from "../../componentes/cadenaEstado"
 
-export default function BotonNotificaciones() {
+export default function BotonNotificaciones({ cadena }: { cadena: CadenaEstado }) {
   const cicloVida = crearCicloVida()
+  const indice = ESLABON.notificaciones
   const notifd = AstalNotifd.get_default()
 
   const getUnread    = () => notifications.get().filter(n => !n.read).length
@@ -35,6 +37,16 @@ export default function BotonNotificaciones() {
   cicloVida.suscribir(notifications, update)
   cicloVida.suscribir(notifPanelVisible, update)
 
+  // `panel-open` deja la pastilla realzada aunque el cursor esté lejos; se compone
+  // con el realce de la cadena en vez de encadenar transformaciones, porque una
+  // transformación solo reacciona al accessor del que cuelga.
+  const clasesPastilla = createComputed(
+    [cadena.clases(indice, ["bar-pill", "nb-pill"]), panelOpen],
+    // Parte de las clases QUE DA LA CADENA, no de una lista propia: así llegan también
+    // las que decide ella (`cadena-continua`) sin tener que enumerarlas aquí.
+    (clases, abierto) => (abierto ? [...clases, "panel-open"] : clases),
+  )
+
   return (
     <button
       visible={hasNotifs((hn) => hn)}
@@ -46,8 +58,9 @@ export default function BotonNotificaciones() {
         button={3}
         onPressed={() => { notifd.dontDisturb = !notifd.dontDisturb }}
       />
+      <SensorCadena cadena={cadena} indice={indice} />
       <box
-        cssClasses={panelOpen((p) => p ? ["bar-pill", "nb-pill", "panel-open"] : ["bar-pill", "nb-pill"])}
+        cssClasses={clasesPastilla}
         halign={Gtk.Align.CENTER}
         valign={Gtk.Align.CENTER}
       >

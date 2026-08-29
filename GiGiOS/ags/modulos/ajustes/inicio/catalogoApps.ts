@@ -17,6 +17,7 @@
 import Gio from "gi://Gio"
 import { getAppInfos } from "../../orion/data/appsInfo"
 import { sanearComando } from "../../../servicios/aplicaciones/appsInicio"
+import { esIconoUtilizable } from "../../../servicios/aplicaciones/iconos"
 
 export interface AppInstalada {
   /** Id del `.desktop`; solo se usa como clave del <For> del buscador. */
@@ -72,11 +73,21 @@ export function filtrarAppsInstaladas(
   return encontradas
 }
 
-/** `Gio.Icon` a partir de lo guardado, o `null` si la cadena ya no resuelve. */
+/**
+ * `Gio.Icon` a partir de lo guardado, o `null` si la cadena ya no resuelve.
+ *
+ * El `esIconoUtilizable` no sobra: `Gio.Icon.new_for_string()` acepta felizmente una ruta
+ * absoluta a un fichero que no existe, y de ahí sale un hueco vacío en la lista **más un
+ * aviso de GTK por cada vez que se pinta** («Failed to load icon …: No existe el fichero»).
+ * No es hipotético: `hp-uiscan.desktop` (HPLIP) trae `Icon=/usr/share/icons/Humanity/devices/
+ * 48/printer.svg`, una ruta del tema de iconos de Ubuntu que en Arch no está instalado.
+ * Devolviendo `null` el llamante pinta su glifo genérico y GTK no llega a abrir nada.
+ */
 export function iconoDesdeCadena(cadena: string): Gio.Icon | null {
   if (!cadena) return null
   try {
-    return Gio.Icon.new_for_string(cadena)
+    const icono = Gio.Icon.new_for_string(cadena)
+    return esIconoUtilizable(icono) ? icono : null
   } catch (_) {
     return null
   }

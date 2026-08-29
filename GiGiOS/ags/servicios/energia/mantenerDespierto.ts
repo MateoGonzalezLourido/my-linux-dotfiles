@@ -46,6 +46,24 @@ function escribirEstado(activo: boolean) {
   }
 }
 
+/**
+ * Avisa de que el plazo se ha agotado. Solo se emite en la CADUCIDAD, nunca cuando el usuario
+ * apaga la función a mano: ahí ya sabe lo que ha hecho y el aviso sobra. Va con identidad
+ * (`x-gigios-event`) para que sea configurable desde Ajustes > Notificaciones > Sistema.
+ */
+function notificarFin() {
+  try {
+    Gio.Subprocess.new(
+      ["notify-send", "-a", "Wake up", "-h", "string:x-gigios-source:system",
+       "-h", "string:x-gigios-event:energia.wake-up-fin",
+       "Wake up", "Se acabó el plazo: el equipo vuelve a suspenderse con normalidad."],
+      Gio.SubprocessFlags.NONE,
+    )
+  } catch (error) {
+    console.error("[mantener-despierto] no se pudo notificar el fin:", error)
+  }
+}
+
 function detenerTemporizador() {
   if (temporizador === null) return
   try { GLib.source_remove(temporizador) } catch (_) {}
@@ -64,6 +82,7 @@ function iniciarTemporizador() {
     if (restante <= 0) {
       temporizador = null
       fijarMantenerDespiertoActivo(false)
+      notificarFin()
       return GLib.SOURCE_REMOVE
     }
     establecerTiempoRestanteMantenerDespierto(restante)
