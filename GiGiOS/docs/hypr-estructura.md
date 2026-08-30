@@ -142,7 +142,7 @@ completo en la cabecera de ese módulo y en `CLAUDE.md`):
 | t= | Script | Por qué ahí |
 | --- | --- | --- |
 | 0 | `wallpaper.sh`, `limpiar-portapapeles.sh` + `clipboard-history.sh start`, `oom-monitor.sh` | se ve, o no puede perder eventos |
-| 3–6 | `bt-monitor.sh`, `usb-monitor.sh`, `wifi-monitor.sh`, `screencast-monitor.sh` | dirigidos por eventos, compiten con el servicio al que se enganchan |
+| 3–6,5 | `bt-monitor.sh`, `usb-monitor.sh`, `wifi-monitor.sh`, `screencast-monitor.sh`, `camara-monitor.sh` | dirigidos por eventos, compiten con el servicio al que se enganchan |
 | 8–15 | `ram-monitor.sh`, `temp-monitor.sh`, `battery-monitor.sh`, `disk-monitor.sh` | sondeos de estado, nada urgente al segundo 0 |
 | 20–30 | `updates-monitor.sh`, `boot-healthcheck.sh` | lo caro (red, journal completo, SMART) |
 | 45 | `limpieza-arranque.sh` | el único que puede borrar decenas de miles de ficheros; **no es un daemon**: lee un JSON, decide y sale (2,9 ms si no toca) |

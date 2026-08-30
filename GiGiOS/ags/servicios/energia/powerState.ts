@@ -55,7 +55,39 @@ interface PowerConfig {
    *  igual: con el apunte en disco, la restauración pendiente se cobra en el arranque
    *  siguiente. Va en este fichero y no en uno propio porque se reescribe entero de una vez. */
   brightnessBefore: number | null
+
+  // ── Suspensión falsa (docs/suspension-falsa.md) ─────────────────────────────
+  // Viven aquí, y no en `suspension-falsa.json`, porque eso es ESTADO VIVO con guarda de
+  // pid y esto son AJUSTES de usuario. Un fichero con dos ciclos de vida distintos acaba
+  // borrándose entero cuando alguien limpia el que caduca.
+  sfLock: boolean            // bloquear con hyprlock al entrar (es la puerta de salida)
+  sfDnd: boolean             // No molestar mientras dure
+  sfMuteNotis: boolean       // callar el sonido de las notificaciones normales
+  /** Callar también alarmas / temporizador / cronómetro. Nace en FALSE a propósito: bajo el
+   *  DND normal ya estarían mudas (`decidirSonido` corta el sonido con No molestar y una
+   *  crítica NO se lo salta), así que si este ajuste no las dejara sonar por defecto no
+   *  tendría nada que silenciar y el despertador no sonaría sin un solo aviso. Ver la
+   *  sección «Alarmas, temporizador y No molestar» del documento. */
+  sfMuteReloj: boolean
+  sfLeds: boolean            // retroiluminación de teclado y LEDs a 0
+  sfTlp: SfTlp               // perfil TLP mientras dure ("no-tocar" = no se toca ni se restaura)
+  sfFreezeApps: string[]     // allowlist EXPLÍCITO de apps a congelar; nace vacío
+  sfSuspendMin: number       // suspender de verdad tras N minutos; 0 = nunca
+  /** SUSTITUIR la suspensión real por la falsa en todo el sistema. No es un ajuste más de
+   *  la suspensión falsa: cambia lo que hacen la inactividad de hypridle, el menú de energía
+   *  y el botón físico de encendido. Existe porque hay equipos cuyo S3 no vuelve bien —el
+   *  caso típico son los drivers de la GPU—, y ahí una suspensión que no gasta tan poco pero
+   *  siempre vuelve es mejor que una que a veces deja el equipo colgado. Ver la sección
+   *  «Sustituir la suspensión real» de docs/suspension-falsa.md. */
+  sfSustituirReal: boolean
+  sfBluetooth: boolean       // apagar el BT mientras dure
+  sfMuteAudio: boolean       // silenciar el audio del sistema mientras dure
 }
+
+/** Perfil TLP durante la suspensión falsa. Solo hay tres valores porque `tlp.ts` solo
+ *  conoce dos perfiles (`TlpMode`), y el tercero es no tocar nada — que es distinto de
+ *  "normal": lo que no se impone tampoco se restaura al salir. */
+export type SfTlp = "no-tocar" | "ahorro" | "normal"
 const DEFAULTS: PowerConfig = {
   thresholdPct: 15,
   forcePowerSave: false,
@@ -87,6 +119,23 @@ const DEFAULTS: PowerConfig = {
   idleLock: { min: 3, on: false },
   idleSuspend: { min: 5, on: true },
   brightnessBefore: null,
+  // Regla heredada de esta sección: lo que SE VE o puede perder datos nace apagado
+  // (`opaquePanels`, `opaqueWindows`, `reduceBrightness`, `tlpAuto`). El bloqueo es la
+  // excepción justificada: es la puerta de salida de la función, no un adorno.
+  sfLock: true,
+  sfDnd: true,
+  sfMuteNotis: true,
+  sfMuteReloj: false,
+  sfLeds: true,
+  sfTlp: "no-tocar",
+  sfFreezeApps: [],
+  sfSuspendMin: 0,
+  // Apagado por defecto y no puede ser otra cosa: cambia el comportamiento del botón de
+  // encendido y de la inactividad para TODO el sistema. Es de las poquísimas opciones del
+  // shell que quien la enciende tiene que saber exactamente lo que hace.
+  sfSustituirReal: false,
+  sfBluetooth: false,
+  sfMuteAudio: false,
 }
 
 function loadConfig(): PowerConfig {
@@ -119,6 +168,20 @@ function loadConfig(): PowerConfig {
         brightnessBefore: typeof data.brightnessBefore === "number"
           ? Math.max(0, Math.min(1, data.brightnessBefore))
           : null,
+        sfLock: typeof data.sfLock === "boolean" ? data.sfLock : DEFAULTS.sfLock,
+        sfDnd: typeof data.sfDnd === "boolean" ? data.sfDnd : DEFAULTS.sfDnd,
+        sfMuteNotis: typeof data.sfMuteNotis === "boolean" ? data.sfMuteNotis : DEFAULTS.sfMuteNotis,
+        sfMuteReloj: typeof data.sfMuteReloj === "boolean" ? data.sfMuteReloj : DEFAULTS.sfMuteReloj,
+        sfLeds: typeof data.sfLeds === "boolean" ? data.sfLeds : DEFAULTS.sfLeds,
+        sfTlp: data.sfTlp === "ahorro" || data.sfTlp === "normal" || data.sfTlp === "no-tocar"
+          ? data.sfTlp : DEFAULTS.sfTlp,
+        sfFreezeApps: leerListaApps(data.sfFreezeApps),
+        sfSuspendMin: typeof data.sfSuspendMin === "number" && data.sfSuspendMin > 0
+          ? Math.min(1440, Math.round(data.sfSuspendMin)) : 0,
+        sfSustituirReal: typeof data.sfSustituirReal === "boolean"
+          ? data.sfSustituirReal : DEFAULTS.sfSustituirReal,
+        sfBluetooth: typeof data.sfBluetooth === "boolean" ? data.sfBluetooth : DEFAULTS.sfBluetooth,
+        sfMuteAudio: typeof data.sfMuteAudio === "boolean" ? data.sfMuteAudio : DEFAULTS.sfMuteAudio,
       }
     }
   } catch (_) {}
@@ -135,6 +198,21 @@ function leerTiempo(bruto: any, porDefecto: TiempoAhorro): TiempoAhorro {
     min: typeof bruto.min === "number" && bruto.min >= 1 ? Math.round(bruto.min) : porDefecto.min,
     on: typeof bruto.on === "boolean" ? bruto.on : porDefecto.on,
   }
+}
+
+/** El allowlist de apps a congelar, saneado. Cualquier cosa que no sea una cadena no
+ *  vacía se descarta en vez de invalidar la lista entera: una entrada rota no puede
+ *  hacer que se pierdan las demás, y aquí "perderse" significa que una app que el
+ *  usuario quería congelada se queda corriendo (visible) — nunca al revés. */
+function leerListaApps(bruto: any): string[] {
+  if (!Array.isArray(bruto)) return []
+  const vistas = new Set<string>()
+  for (const v of bruto) {
+    if (typeof v !== "string") continue
+    const nombre = v.trim()
+    if (nombre) vistas.add(nombre)
+  }
+  return [...vistas]
 }
 
 const initial = loadConfig()
@@ -159,6 +237,22 @@ export const [idleOverrideInPowerSave, _setIdleOverride] = createState(initial.i
 export const [idleDpmsAhorro, _setIdleDpms] = createState(initial.idleDpms)
 export const [idleLockAhorro, _setIdleLock] = createState(initial.idleLock)
 export const [idleSuspendAhorro, _setIdleSuspend] = createState(initial.idleSuspend)
+
+// ── Ajustes de la suspensión falsa ─────────────────────────────────────────────
+// Solo AJUSTES. El estado vivo (activa/no, plazo, pid) es de `suspensionFalsa.ts` y no
+// pasa por este fichero ni por el disco de aquí: un crash de AGS tiene que devolver el
+// escritorio a su sitio, y para eso el estado tiene que morirse con el proceso.
+export const [sfBloquear, _setSfLock] = createState(initial.sfLock)
+export const [sfNoMolestar, _setSfDnd] = createState(initial.sfDnd)
+export const [sfSilenciarNotificaciones, _setSfMuteNotis] = createState(initial.sfMuteNotis)
+export const [sfSilenciarReloj, _setSfMuteReloj] = createState(initial.sfMuteReloj)
+export const [sfApagarLeds, _setSfLeds] = createState(initial.sfLeds)
+export const [sfPerfilTlp, _setSfTlp] = createState<SfTlp>(initial.sfTlp)
+export const [sfAppsCongeladas, _setSfFreezeApps] = createState<string[]>(initial.sfFreezeApps)
+export const [sfMinutosSuspensionReal, _setSfSuspendMin] = createState(initial.sfSuspendMin)
+export const [sfSustituirReal, _setSfSustituirReal] = createState(initial.sfSustituirReal)
+export const [sfApagarBluetooth, _setSfBluetooth] = createState(initial.sfBluetooth)
+export const [sfSilenciarAudio, _setSfMuteAudio] = createState(initial.sfMuteAudio)
 
 // El apunte del brillo previo (ver `brightnessBefore` arriba). No es reactivo: su único
 // consumidor es `brilloAhorro.ts`, que lo lee al arrancar y lo reescribe en las dos
@@ -207,6 +301,17 @@ function persistAhora() {
       idleLock: idleLockAhorro.get(),
       idleSuspend: idleSuspendAhorro.get(),
       brightnessBefore: brilloAntesDelAhorro,
+      sfLock: sfBloquear.get(),
+      sfDnd: sfNoMolestar.get(),
+      sfMuteNotis: sfSilenciarNotificaciones.get(),
+      sfMuteReloj: sfSilenciarReloj.get(),
+      sfLeds: sfApagarLeds.get(),
+      sfTlp: sfPerfilTlp.get(),
+      sfFreezeApps: sfAppsCongeladas.get(),
+      sfSuspendMin: sfMinutosSuspensionReal.get(),
+      sfSustituirReal: sfSustituirReal.get(),
+      sfBluetooth: sfApagarBluetooth.get(),
+      sfMuteAudio: sfSilenciarAudio.get(),
     }))
   } catch (e) {
     console.error("[power] save failed:", e)
@@ -309,6 +414,36 @@ export function setIdleSuspendAhorro(v: TiempoAhorro) {
   persist()
 }
 
+// Los ajustes de la suspensión falsa NO llaman a `recompute()`: no entran en ninguno de
+// los derivados de la batería. Solo se persisten (y `suspensionFalsa.ts` los lee al
+// entrar y al salir, que es cuando importan).
+export function setSfBloquear(v: boolean) { _setSfLock(v); persist() }
+export function setSfNoMolestar(v: boolean) { _setSfDnd(v); persist() }
+export function setSfSilenciarNotificaciones(v: boolean) { _setSfMuteNotis(v); persist() }
+export function setSfSilenciarReloj(v: boolean) { _setSfMuteReloj(v); persist() }
+export function setSfApagarLeds(v: boolean) { _setSfLeds(v); persist() }
+export function setSfPerfilTlp(v: SfTlp) {
+  _setSfTlp(v === "ahorro" || v === "normal" ? v : "no-tocar")
+  persist()
+}
+/** Tope de 24 h y suelo de 0 (= desactivado). El tope no es paranoia: el campo es un
+ *  número que teclea una persona y un plazo absurdo se guarda igual de bien que uno
+ *  bueno, pero luego no hay forma de distinguir "se me fue un dígito" de "lo quiso así"
+ *  mirando el chip de la barra. */
+export function setSfMinutosSuspensionReal(v: number) {
+  const n = Math.round(v)
+  _setSfSuspendMin(Number.isFinite(n) && n > 0 ? Math.min(1440, n) : 0)
+  persist()
+}
+export function setSfSustituirReal(v: boolean) { _setSfSustituirReal(v); persist() }
+export function setSfApagarBluetooth(v: boolean) { _setSfBluetooth(v); persist() }
+export function setSfSilenciarAudio(v: boolean) { _setSfMuteAudio(v); persist() }
+/** Reemplaza el allowlist entero (la UI edita la lista completa, no entradas sueltas). */
+export function setSfAppsCongeladas(v: string[]) {
+  _setSfFreezeApps(leerListaApps(v))
+  persist()
+}
+
 // ── Derived power state ─────────────────────────────────────────────────────────
 // powerSaveActive: on battery and at/under the threshold.
 // notifProcessingSuspended: powerSaveActive AND the user opted in to suspending notif filters.
@@ -368,6 +503,20 @@ export const [batteryStatusText, _setBatteryStatusText] = createState(textos.est
 
 const bat = (() => { try { return AstalBattery.get_default() } catch { return null } })()
 
+// Segundo motivo de las suspensiones del shell, además del ahorro: la SUSPENSIÓN FALSA.
+// Es una variable suelta y no un `createState` importado de `suspensionFalsa.ts` para no
+// cerrar un ciclo de importación (aquel módulo lee los ajustes `sf*` de este). Vive en
+// RAM y solo en RAM, que es el diseño: ver «NO reusar forcePowerSave» en
+// docs/suspension-falsa.md — un crash de AGS tiene que devolver el escritorio a su sitio,
+// y un ajuste persistido dejaría al usuario en ahorro forzado permanente sin UI donde
+// apagarlo.
+let motivoSuspensionFalsa = false
+export function fijarMotivoSuspensionFalsa(v: boolean): void {
+  if (motivoSuspensionFalsa === v) return
+  motivoSuspensionFalsa = v
+  recompute()
+}
+
 function recompute() {
   const present = !!(bat && bat.isPresent)
   const charging = present ? bat!.charging : false
@@ -382,13 +531,24 @@ function recompute() {
   const active = forcePowerSave.get() || (present && !charging && pct > 0 && pct <= powerSaveThreshold.get())
   _setPowerSaveActive(active)
   _setSuspended(active && suspendNotifFilters.get())
-  _setWsPreviewSuspended(active && pauseWsPreviewInPowerSave.get())
-  _setSpotifyBarSuspended(active && hideSpotifyBarInPowerSave.get())
-  _setBackgroundJobsSuspended(active && freezeBackgroundInPowerSave.get())
-  _setSpectrumSuspended(active && fallbackWaveInPowerSave.get())
-  _setMascotaSuspended(active && hideMascotaInPowerSave.get())
-  _setTransparenciaSuspendida(active && opaquePanelsInPowerSave.get())
-  _setOpacidadVentanasForzada(active && opaqueWindowsInPowerSave.get())
+  // La suspensión falsa enciende TODAS estas sin mirar los interruptores del ahorro, y no
+  // es un descuido: allí cada uno existe porque la medida se ve o cuesta algo mientras el
+  // usuario está delante. Aquí no hay nadie delante y la pantalla está apagada, así que la
+  // pregunta que responden esos interruptores no se plantea. `powerSaveActive` en cambio NO
+  // se toca: sigue significando "batería baja", y falsearlo haría mentir al indicador de
+  // batería y a todo lo que lo lee.
+  const sf = motivoSuspensionFalsa
+  // notifProcessingSuspended se queda FUERA a propósito: no es una medida de gasto sino un
+  // cambio en cómo se procesan las notificaciones, y la suspensión falsa ya tiene su propio
+  // trato para ellas (DND + los dos ajustes de silencio). Que además se pausaran los filtros
+  // cambiaría el historial que el usuario se encuentra al volver.
+  _setWsPreviewSuspended(sf || (active && pauseWsPreviewInPowerSave.get()))
+  _setSpotifyBarSuspended(sf || (active && hideSpotifyBarInPowerSave.get()))
+  _setBackgroundJobsSuspended(sf || (active && freezeBackgroundInPowerSave.get()))
+  _setSpectrumSuspended(sf || (active && fallbackWaveInPowerSave.get()))
+  _setMascotaSuspended(sf || (active && hideMascotaInPowerSave.get()))
+  _setTransparenciaSuspendida(sf || (active && opaquePanelsInPowerSave.get()))
+  _setOpacidadVentanasForzada(sf || (active && opaqueWindowsInPowerSave.get()))
 }
 
 if (bat) {

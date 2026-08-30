@@ -90,6 +90,34 @@ hl.window_rule({
     center = true,
 })
 
+-- Vista previa de la cámara ("Probar cámara" en Ajustes / Quick Settings). Es un
+-- `mpv` lanzado por `ags/servicios/camara/vistaPrevia.ts` con una clase propia,
+-- justo para NO atrapar el mpv con el que el usuario esté viendo una película:
+-- la clase la fija ese fichero en `CLASE_VISTA_PREVIA` y las dos deben coincidir
+-- literalmente — si se cambia allí y no aquí, la regla no falla, simplemente
+-- deja de casar y la vista previa nace tiled reordenando el escritorio entero.
+--
+-- UNA SOLA REGLA, y la clase propia está MEDIDA, no supuesta. `--x11-name` solo
+-- fija la clase bajo XWayland; en una sesión Wayland nativa —la nuestra— mpv se
+-- anuncia con el `app_id` de `--wayland-app-id`, que por defecto es "mpv" a
+-- secas. `servicios/camara/vistaPrevia.ts` pasa las DOS opciones, y con la
+-- ventana abierta `hyprctl clients` devuelve `class: gigios-camara-preview`, así
+-- que esta regla casa por sí sola. Se descartó una segunda de reserva por
+-- título (`class ^mpv$` + "vista previa"): sin nada que hacer, y capaz de sacar
+-- flotante a 640x480 una película que el usuario tuviera abierta con ese texto
+-- en el nombre del archivo.
+--
+-- 640x480 es el tamaño típico de una webcam y evita la interpolación; `center`
+-- la deja donde se está mirando. Sin `size` mpv la abriría al tamaño del stream
+-- y una cámara 1080p ocuparía media pantalla para encuadrarse la cara.
+hl.window_rule({
+    name  = "camara-vista-previa",
+    match = { class = "gigios-camara-preview" },
+    float  = true,
+    center = true,
+    size   = "640 480",
+})
+
 -- Diálogo de extracción de Dolphin (KIO). Título fijo "Extraer — Dolphin", sin
 -- el nombre del archivo, así que el match por título no varía entre usos.
 -- Solo class hubiera flotado también la ventana principal de Dolphin.

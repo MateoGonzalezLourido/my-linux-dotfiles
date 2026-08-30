@@ -1,10 +1,9 @@
 # Suspensión falsa
 
-> **Estado: PROPUESTA. Nada de esto está implementado todavía.** Este documento fija el diseño
-> antes de escribir código: qué se reutiliza, qué es nuevo, qué se descartó y qué falla en
-> silencio si se hace de otra forma. Cuando se implemente, lo que quede vivo de aquí se resume en
-> [`hyprland-modulos.md`](hyprland-modulos.md) (una sección más) y este fichero se queda como el
-> porqué largo.
+> **Estado: IMPLEMENTADO (las 8 fases).** Este documento sigue siendo el porqué largo: qué se
+> reutiliza, qué es nuevo, qué se descartó y qué falla en silencio si se hace de otra forma. El
+> mapa de ficheros está al final, en «Dónde vive cada cosa». Pendiente de probar en vivo la lista
+> de «Cómo probar cada pieza», y de resumirlo en [`hyprland-modulos.md`](hyprland-modulos.md).
 
 ## El problema
 
@@ -41,10 +40,12 @@ añadir mecanismo nuevo, comprobar que no esté aquí.
 | Congelar el sondeo de fondo (updates, smartctl, unidades, clamscan) | `powerSaveFreeze` en `runtime-state.json` → `hypr/scripts/lib/gaming-gate.sh` |
 | Apagar cava, preview de escritorios (grim), mascota, píldora de Spotify | `spectrumSuspended`, `wsPreviewSuspended`, `mascotaSuspended`, `spotifyBarSuspended` (`servicios/energia/powerState.ts`) |
 | Opacar paneles y ventanas (mata blur y transparencias) | `transparenciaSuspendida`, `opacidadVentanasForzada` |
-| Bajar el brillo con apunte en disco para no perderlo si AGS muere | `servicios/energia/brilloAhorro.ts` + `brightnessBefore` |
-| TLP a perfil `ahorro` | `tlpAutoInPowerSave` + `/usr/local/bin/gigios-tlp-apply` |
-| Bloquear la sesión | `pidof hyprlock \|\| hyprlock` (la guarda de instancia única, que hyprlock NO tiene) |
+| Cambiar el perfil TLP | `servicios/energia/tlp.ts` → `/usr/local/bin/gigios-tlp-apply` (root helper, sudoers fijo) |
+| Bloquear la sesión — no cerrarla: solo pedir contraseña al volver, para que nadie de fuera entre | `pidof hyprlock \|\| hyprlock` (la guarda de instancia única, que hyprlock NO tiene) |
 | Silenciar popups sin perder notificaciones | `notifd.dontDisturb` con la disciplina `autoOwned` de `modulos/notificaciones/autoDnd/watcher.ts` |
+| Silenciar el **sonido** de notificaciones y alarmas | `decidirSonido()` en `modulos/notificaciones/sonido/decision.ts` — es el único punto por el que suena algo en todo el shell (ver «Alarmas y No molestar») |
+| Parar los procesos de fondo de GiGiOS que no hacen falta mientras nadie mira | **no hace falta nada nuevo**: el sondeo caro lo congela el mismo `gaming-gate.sh` de la fila 3, y los timers de los widgets se paran solos al ocultar las ventanas de AGS (ver «El lever más grande») |
+| Punto de entrada scriptable (menú de energía, atajos, cron) | `requestHandler` de `ags/app.ts` → `ags request toggle-suspension-falsa`, como `toggle-bar` o `toggle-power-menu` |
 
 ### El lever más grande, y es gratis
 
@@ -73,23 +74,27 @@ En este orden, y el orden importa:
 5. **Suspensiones del shell**: los flags de `powerState.ts` ya existentes se activan por OR con el
    estado de suspensión falsa (cava, preview, mascota, Spotify, opacidad, sondeo de fondo).
 6. **Ocultar las ventanas de AGS.**
-7. **Brillo a 0** por el camino de `brilloAhorro.ts`, con su apunte en disco. Con DPMS off no se ve
-   nada, pero el apunte evita que al volver el panel encienda a pleno brillo en una habitación a
-   oscuras.
-8. **Retroiluminación de teclado y LEDs a 0** (ver «Qué más se apaga»).
-9. **TLP a `ahorro`**, si procede (ver «Ajustes»).
-10. **Congelar las apps del allowlist**, si hay alguna. Lo último porque es lo único
-    potencialmente destructivo.
+7. **Retroiluminación de teclado y LEDs a 0** (ver «Qué más se apaga»).
+8. **Perfil TLP** al que diga el ajuste, si es distinto de «no tocar» (ver «Ajustes»).
+9. **Congelar las apps del allowlist**, si hay alguna. Lo último porque es lo único
+   potencialmente destructivo.
+
+**El brillo NO se toca**, y no por olvido: se implementó, se probó y se retiró. Ver «El brillo: lo
+que se intentó y por qué se retiró».
 
 ## Secuencia de salida
 
 Exactamente la inversa, y con una regla: **restaurar solo lo que impusimos nosotros.** Es la misma
 disciplina que ya aplican `brilloAhorro.ts` (compara contra `ultimoAplicado`) y el watcher de
-auto-DND (`autoOwned` / `userOptedOut`). Si el usuario tocó el brillo, el DND o el perfil TLP
-durante la suspensión falsa, **manda lo suyo y no se restaura nada de eso**.
+auto-DND (`autoOwned` / `userOptedOut`). Si el usuario tocó el DND o el perfil TLP durante la
+suspensión falsa, **manda lo suyo y no se restaura nada de eso**.
 
 El deshielo de las apps congeladas va **primero**, no último: una app congelada que recibe eventos
 de entrada antes de descongelarse llega al escritorio con una cola de basura.
+
+Y al final, **reiniciar hypridle** (`servicios/pantalla/reinicioHypridle.ts`): hypridle no repite
+un `on-timeout` ya disparado, así que sin eso los contadores se quedan vencidos. Es exactamente lo
+que ya hace el Wake up al apagarse.
 
 ## Contrato del estado en disco
 
@@ -109,6 +114,9 @@ puesta. Contrato, calcado del de `wakeup.json`:
   `runtime-state.json`.
 - `thenSuspend`: qué hacer al vencer `until` (ver «Salir a suspensión real»).
 
+Los **ajustes** no viajan aquí. Este fichero es estado vivo con guarda de pid; los ajustes son
+persistencia de usuario y van con los demás (ver «Ajustes»).
+
 ### Dónde vive: cuidado con el fichero compartido
 
 `runtime-state.json` lo reescribe **entero** `servicios/energia/gamingState.ts` en cada cambio.
@@ -119,6 +127,12 @@ una mala:
 - ✅ Extender el escritor de `gamingState.ts` con las claves nuevas.
 - ✅ Fichero propio, `~/.config/gigios/suspension-falsa.json`, con su propio escritor único.
 - ❌ Escribir en `runtime-state.json` desde un segundo módulo.
+
+**Decidido: fichero propio.** El ciclo de vida no tiene nada que ver con el de las partidas y el
+contrato con bash es el de `wakeup.json`, no el del gate. La única clave que sí se cuela en
+`runtime-state.json` es la que ya existe: `powerSaveFreeze`, que pasa a calcularse
+`backgroundJobsSuspended || suspensionFalsaActiva` — porque el gate ya está escrito para tener
+varios motivos y ese es su tercero.
 
 ### ⚠️ NO reusar `forcePowerSave`
 
@@ -131,10 +145,11 @@ Lo correcto es un estado **en RAM** que se OR-ea con `powerSaveActive` en los co
 existen — igual que `backgroundJobsSuspended` combina hoy dos motivos. Un crash devuelve el
 escritorio a su sitio, que es el modo de fallo que se quiere.
 
-El residuo físico es la excepción: **el brillo y el perfil TLP sí sobreviven al proceso** (el
-brillo por DDC se graba en la firmware del monitor; TLP escribe `/etc/tlp.conf`). Esos dos ya
-tienen su mecanismo de apunte en disco y restauración diferida en `brilloAhorro.ts` — reutilizarlo,
-no inventar otro.
+El residuo físico es la excepción: **el perfil TLP sí sobrevive al proceso** (escribe
+`/etc/tlp.conf`), así que su efector apunta lo que impuso y solo restaura eso. El brillo sería el
+otro caso —por DDC se graba en la firmware del monitor— pero esta función ya no lo toca; el
+mecanismo de apunte y restauración diferida sigue existiendo en `brilloAhorro.ts` para el modo
+ahorro, y es el que hay que reutilizar si alguna vez hace falta, no inventar otro.
 
 ## El veto de la suspensión real
 
@@ -154,9 +169,36 @@ conservando literalmente sus dos reglas actuales:
 Alcance: veta `suspend`. **No veta `dpms-off` ni `lock`** — ya estamos apagados y bloqueados, y
 dejarlos pasar no hace daño. `dpms-on` no se veta nunca, como hoy.
 
-Y lo de siempre: hypridle **no repite un `on-timeout` ya disparado**, así que al salir de la
-suspensión falsa hay que **reiniciar hypridle** para rearmar los contadores desde cero. Eso ya lo
-hace `servicios/pantalla/reinicioHypridle.ts` para el Wake up; se llama igual.
+Implementación: dos ficheros, una función. `blocked()` pasa a consultar `wakeup.json` **y**
+`suspension-falsa.json` con la misma rutina (leer → `jq` con `now` → guarda de pid) y veta si
+cualquiera de los dos está vivo. No duplicar el bloque: sacarlo a un helper que reciba la ruta y el
+alcance, porque si no la regla de fail-open acaba escrita dos veces y divergiendo.
+
+## Wake up y suspensión falsa: cómo conviven
+
+Son la misma familia (las dos vetan la suspensión real) y hay que tratarlas como un sistema, no
+como dos interruptores sueltos. Tres reglas:
+
+1. **Entrada manual**: la función de la barra (y `ags request toggle-suspension-falsa`, y el atajo)
+   entra **al instante**, sin esperar a ninguna inactividad. Es lo que se pide al pulsarla: me voy.
+2. **Entrada delegada desde Wake up**: opción nueva dentro del Wake up, *«al vencer la inactividad,
+   entrar en suspensión falsa»*. Con ella el Wake up deja de limitarse a vetar: cuando hypridle
+   quiere suspender, en vez de tragarse la acción y no hacer nada, se **entra en suspensión falsa**.
+   El equipo queda apagado de cara al usuario y el Wake up sigue cumpliendo su promesa (nada se
+   detiene). Mecánicamente: `idle-action.sh suspend` sigue vetando el `systemctl suspend`, y AGS —
+   que es quien conoce la opción — es el que decide entrar; el script no aprende reglas nuevas.
+3. **El plazo de suspensión REAL de la suspensión falsa queda suspendido mientras haya un Wake up
+   vivo.** El ajuste «suspender de verdad tras N minutos» y el `thenSuspend` del fichero se ignoran
+   con `wakeup.json` activo, se entrara como se entrara y en el orden que fuera (primero el Wake up
+   y luego la suspensión falsa a mano, o al revés). Es la única lectura coherente: el Wake up
+   promete que el equipo **no se suspende**, y dejar que un temporizador de otra función lo
+   suspendiera sería exactamente el fallo que el Wake up existe para impedir.
+   - En la UI tiene que **verse**, no adivinarse: con Wake up puesto, el chip de la suspensión falsa
+     dice «sin suspender (Wake up)» en vez de la cuenta atrás. Un plazo que calladamente no va a
+     saltar es peor que no ofrecerlo.
+   - Al **apagarse el Wake up** con la suspensión falsa todavía puesta, el plazo se **rearma desde
+     ese instante** (`until = now + N·60`), no se recupera el tiempo transcurrido. Suspender de
+     golpe en cuanto se suelta el Wake up sorprende; empezar a contar es lo que el usuario espera.
 
 ## Congelar apps del usuario
 
@@ -195,6 +237,11 @@ Y esto no es prudencia decorativa:
 El scope lleva el PID en el nombre (`app-discord-17743.scope`), así que la lista se guarda por
 **nombre de app** y el scope se resuelve en el momento con `systemctl --user list-units --type=scope`.
 
+**Deshielo incondicional al arrancar el shell.** Junto a la reescritura del fichero de estado (ver
+trampa 7), `initSuspensionFalsa()` descongela todo scope que figure en el allowlist. Un AGS que
+muere con apps congeladas las deja congeladas para siempre: el freezer es del cgroup, no del
+proceso que lo pidió, y la app simplemente "no responde" sin un solo error en ningún log.
+
 ## Cómo se sale — el punto de diseño que más fácil se rompe
 
 Con la pantalla apagada **por nuestra mano**, el `on-resume` del listener de DPMS de
@@ -209,10 +256,29 @@ La salida robusta es **hyprlock como puerta**:
 2. Aparece hyprlock. El usuario desbloquea.
 3. El desbloqueo dispara la secuencia de salida.
 
-Además, y sin excepción, **un atajo de escape directo** (`SUPER + …`) que salga de la suspensión
-falsa sin pasar por nada. Es la red de seguridad: si el paso 3 falla, el atajo sigue estando ahí.
-Registrarlo con el envoltorio `bind()` de `gigios/keybinds.lua`, nunca con `hl.bind` directo — si
-no, no da error, solo deja un bind sordo (ver `gigios/nop-binds.lua`).
+Además, y sin excepción, **un atajo de escape directo** que salga de la suspensión falsa sin pasar
+por nada. Es la red de seguridad: si el paso 3 falla, el atajo sigue estando ahí.
+
+### El atajo tiene que ser `locked = true`, o no existe cuando más falta hace
+
+Con hyprlock delante, la sesión está bloqueada y **un bind normal no llega a dispararse**. La red de
+seguridad se caería justo en el escenario para el que se puso (bloqueo activo + paso 3 roto). El
+flag `locked` de Hyprland es exactamente eso — «funciona también con un inhibidor de entrada
+delante» — y en este repo ya se usa para las teclas de volumen, brillo y multimedia
+(`gigios/keybinds.lua`). Así que:
+
+```lua
+bind(mod .. " + SHIFT + D", hl.dsp.exec_cmd("ags request toggle-suspension-falsa"),
+     { locked = true })
+```
+
+Registrarlo con el envoltorio `bind()` de `gigios/keybinds.lua`, **nunca** con `hl.bind` directo —
+si no, no da error, solo deja un bind sordo (ver `gigios/nop-binds.lua`). `SUPER + SHIFT + D` está
+libre hoy; comprobarlo con `hyprctl binds` antes de fijarlo, no de memoria.
+
+Y que quede claro en la UI: **el atajo sale de la suspensión falsa, no desbloquea**. Restaura la
+opacidad, el DND, el perfil TLP y descongela las apps; hyprlock sigue delante pidiendo la contraseña, que es
+justo lo que se quiere de una función que asume que el usuario no está.
 
 Con la opción de bloqueo desactivada, la salida es solo el atajo. Conviene decirlo en la UI.
 
@@ -221,7 +287,8 @@ Con la opción de bloqueo desactivada, la salida es solo el atajo. Conviene deci
 La adición que convierte esto de parche en **espera**: `thenSuspend`. Cuando la razón para no
 suspender deja de existir, se suspende de verdad, sin que el usuario tenga que volver.
 
-- **Por tiempo**: «suspensión falsa 40 min, luego suspender».
+- **Por tiempo**: «suspensión falsa 40 min, luego suspender». El ajuste es un número de minutos con
+  **0 = desactivado**, no un interruptor aparte.
 - **Por condición**: «suspender de verdad cuando no queden descargas activas». La vigilancia de la
   carpeta de descargas ya existe en `oom-monitor.sh` (`monitor_downloads`, con la carpeta resuelta
   por `xdg-user-dir DOWNLOAD` — aquí es `~/Descargas`, no `~/Downloads`).
@@ -229,6 +296,59 @@ suspender deja de existir, se suspende de verdad, sin que el usuario tenga que v
 Ojo: al llegar el momento hay que **salir primero de la suspensión falsa** (deshelar apps,
 restaurar TLP, quitar el veto) y solo entonces `systemctl suspend`. Suspender con apps congeladas
 deja el freezer puesto al despertar.
+
+Y recordar la regla 3 de «Wake up y suspensión falsa»: con un Wake up vivo, este plazo **no salta**.
+
+## Alarmas, temporizador y No molestar — la inversión que hay que mirar
+
+Aquí hay un choque real entre dos cosas que el diseño quiere a la vez, y no se ve hasta leer
+`decidirSonido()`:
+
+- Las alarmas, el temporizador y el cronómetro **no reproducen nada por su cuenta**: emiten una
+  notificación normal con los hints de sonido y decide el subsistema de notificaciones. Está
+  documentado como decisión de diseño en `modulos/notificaciones/sonido/decision.ts`.
+- En ese mismo fichero, **No molestar silencia el sonido**, y una notificación crítica **no** se
+  salta el No molestar (también deliberado: quien activa DND está pidiendo silencio).
+
+Consecuencia: con el DND por defecto de la suspensión falsa, **las alarmas no suenan** — y el ajuste
+«silenciar alarmas» no tendría nada que silenciar, porque ya estaban mudas. Un despertador que no
+suena porque el equipo estaba en suspensión falsa es el peor fallo posible de esta función, y es
+silencioso.
+
+Resolución, que es también lo que hace que los dos ajustes del usuario sean distintos entre sí:
+
+- El DND de la suspensión falsa entra como un motivo **propio**, distinguible del DND manual, en la
+  entrada de `decidirSonido()` (p. ej. `dndSuspensionFalsa` junto a `noMolestar`). Sigue tapando los
+  popups igual.
+- Con ese motivo, el sonido lo gobiernan los dos ajustes nuevos, no el DND:
+  - **Silenciar audio de notificaciones** (por defecto **sí**): calla las notificaciones normales.
+  - **Silenciar alarmas, temporizador y cronómetro** (por defecto **no**): las alertas del reloj
+    **suenan** durante la suspensión falsa salvo que se pida lo contrario. Es la única lectura que
+    hace útil al ajuste.
+- El DND **manual** del usuario no cambia de comportamiento en absoluto: si estaba puesto antes de
+  entrar, sigue callando todo, alarmas incluidas. No lo tocamos y no lo levantamos.
+
+Las alarmas se distinguen por lo que ya emiten: `x-gigios-source` / los nombres de tema
+`SONIDO_ALARMA` y `SONIDO_TEMPORIZADOR`. No inventar un canal nuevo.
+
+## El brillo: lo que se intentó y por qué se retiró
+
+El diseño original bajaba el brillo a 0 al entrar, por el camino de `brilloAhorro.ts` y su apunte en
+disco, con el argumento de que así el panel no encendería a pleno brillo en una habitación a oscuras.
+**Se implementó, se probó y se quitó.** Dos motivos independientes, y cualquiera de los dos basta:
+
+1. **No ahorraba nada.** El paso 2 de la secuencia es `dpms off`: el panel ya está APAGADO cuando le
+   tocaría el turno al brillo. Bajar el brillo de una pantalla apagada no ahorra un vatio.
+2. **Se veía, y se veía mal.** La salida la dispara el DESBLOQUEO de hyprlock, pero la pantalla la
+   enciende antes cualquier tecla. En esa ventana —de la primera tecla a la contraseña— el usuario se
+   encontraba el panel al mínimo, y solo volvía a su brillo al desbloquear. Reportado en vivo.
+
+Y en un equipo con el brillo por DDC dejaba además residuo FÍSICO en la firmware del monitor.
+
+Para volver a intentarlo habría que restaurar el brillo **al encenderse la pantalla**, no al
+desbloquear — y no hay ninguna señal fiable de eso: hypridle no emite `on-resume` de un DPMS que
+apagamos nosotros, que es el mismo agujero que documenta «Cómo se sale». El aviso está también en la
+cabecera de `brilloAhorro.ts`, que es donde lo leería quien fuera a reintroducirlo.
 
 ## Qué más se apaga
 
@@ -253,43 +373,130 @@ deja el freezer puesto al despertar.
 - **Apagar la Wi-Fi**: contradice el motivo de existir de la función.
 - **`systemctl --user stop` de servicios**: parar no es congelar. Un servicio parado pierde estado
   y puede no volver; el freezer conserva el proceso intacto.
+- **Un servicio o script propio de fondo para GiGiOS**: no hay nada que parar que no pare ya el
+  gate o el ocultar las ventanas (ver la última fila de la tabla de reutilización).
 
-## Ajustes nuevos
+## Ajustes
 
-En Ajustes > Energía, sección propia. Todo lo que **se ve o puede perder datos** nace apagado, que
-es la regla que ya siguen `opaquePanels`, `opaqueWindows`, `reduceBrightness` y `tlpAuto`.
+En **Ajustes > Energía**, sección propia (`modulos/ajustes/energia/SeccionEnergia.tsx`), y
+persistidos donde ya viven los del modo ahorro — `~/.config/power-save/config.json`, por el mismo
+escritor único de `powerState.ts` — bajo claves con prefijo propio. **No** en
+`suspension-falsa.json`, que es estado vivo con guarda de pid.
 
-| Ajuste | Por defecto |
+Regla heredada: todo lo que **se ve o puede perder datos** nace apagado, igual que `opaquePanels`,
+`opaqueWindows`, `reduceBrightness` y `tlpAuto`.
+
+| Ajuste | Clave | Por defecto |
+|---|---|---|
+| Bloquear al entrar | `sfLock` | **sí** (es la puerta de salida) |
+| No molestar mientras dure | `sfDnd` | sí |
+| Silenciar audio de notificaciones | `sfMuteNotis` | sí |
+| Silenciar alarmas, temporizador y cronómetro | `sfMuteReloj` | **no** (ver «Alarmas y No molestar») |
+| Apagar retroiluminación de teclado / LEDs | `sfLeds` | sí |
+| Perfil TLP mientras dure | `sfTlp` | `"no-tocar"` |
+| Apps a congelar | `sfFreezeApps` | **lista vacía** |
+| Suspender de verdad tras N minutos (0 = nunca) | `sfSuspendMin` | 0 |
+| **Usar la suspensión falsa en lugar de la real** | `sfSustituirReal` | **no** |
+| Apagar Bluetooth | `sfBluetooth` | no |
+| Silenciar audio del sistema | `sfMuteAudio` | no |
+
+### El perfil TLP: un selector, no un segundo interruptor
+
+`tlpAuto` ya existe y ya responde a la pregunta «¿quieres que el perfil TLP baje a ahorro *cuando
+la batería esté baja*?». La suspensión falsa hace una pregunta distinta —«¿y mientras estoy
+fuera?»— así que **no** se reutiliza aquel booleano ni se clona: el ajuste propio es un
+**selector**, que es la salida que ya recomendaba la versión anterior de este documento cuando se
+quisieran desacoplar los dos casos.
+
+Valores, y son solo tres porque `servicios/energia/tlp.ts` solo conoce dos perfiles
+(`TlpMode = "normal" | "ahorro"`):
+
+- `"no-tocar"` (por defecto): la suspensión falsa no toca TLP. Lo que hubiera puesto el usuario o
+  el modo ahorro sigue tal cual, y al salir no se restaura nada porque no se impuso nada.
+- `"ahorro"` / `"normal"`: se aplica al entrar y se restaura al salir **solo si al salir sigue
+  puesto el que pusimos nosotros** (misma disciplina de `ultimoAplicado` que el brillo).
+
+La tarjeta se **oculta entera** donde `tlpAvailable` es falso —hace falta `tlp` instalado, el helper
+`/usr/local/bin/gigios-tlp-apply` y una batería real—, exactamente como hace ya el selector manual.
+En el sobremesa no aparece.
+
+## Sustituir la suspensión real por la falsa
+
+El ajuste `sfSustituirReal` no es «un ajuste más»: cambia lo que hace **todo el sistema** al
+suspender. Existe para los equipos cuyo S3 no vuelve bien —el caso típico son los drivers de la
+GPU—, donde una suspensión que gasta más pero siempre despierta le gana a una que a veces deja el
+equipo colgado.
+
+### Los cuatro caminos que suspendían de verdad
+
+Un interruptor que solo cubriera uno sería peor que no tenerlo, porque el usuario creería que está
+protegido. Son estos, y los cuatro están cubiertos:
+
+| Camino | Cómo se sustituye |
 |---|---|
-| Bloquear al entrar | **sí** (es la puerta de salida) |
-| Apagar retroiluminación de teclado / LEDs | sí |
-| No molestar mientras dure | sí |
-| Apps a congelar | **lista vacía** |
-| Apagar Bluetooth | no |
-| Silenciar audio | no |
-| Al vencer el plazo: nada / suspender de verdad | nada |
+| Inactividad (`hypridle` → `idle-action.sh suspend`) | `sustituye_suspension()` veta, y el aviso del veto hace que AGS entre en suspensión falsa |
+| Menú de energía → «Suspender» | su `comando` pasa a `sh -c 'ags request suspend \|\| systemctl suspend'` |
+| Botón físico de encendido (`gigios/boton-apagado.lua`) | el mismo comando |
+| El plazo de la propia suspensión falsa (`thenSuspend`) | deja de existir (ver abajo) |
 
-### El TLP ya tiene su ajuste — no añadas un segundo
+**Lo que NO cubre, y hay que saberlo:** cerrar la tapa. Eso lo decide `logind`
+(`HandleLidSwitch`), que no pasa por hypridle ni por este script. Para taparlo haría falta
+cambiar `logind.conf`, que es configuración del sistema y no de este repo.
 
-`tlpAuto` (`~/.config/power-save/config.json`, Ajustes > Energía) ya existe, ya nace apagado y ya
-es exactamente la pregunta «¿quieres que el perfil TLP baje a ahorro?». La suspensión falsa debe
-**respetarlo**, no duplicarlo. Un segundo interruptor con la misma pregunta obliga al usuario a
-mantener dos ajustes coherentes y garantiza que algún día no lo estén.
+### El punto único, y por qué
 
-Si de verdad se quiere desacoplar (ahorro sin TLP pero suspensión falsa con TLP), la forma es un
-tercer valor en el ajuste existente, no un interruptor paralelo.
+El menú de energía y el botón de encendido no llaman ya a `systemctl suspend`: van a `ags request
+suspend`, que es quien conoce el ajuste. Sin ese punto único, encender el sustituto arreglaría la
+inactividad y dejaría el **botón de encendido** suspendiendo de verdad — el camino más fácil de
+pulsar sin pensar y justo el que se quería evitar.
+
+Los dos llevan `|| systemctl suspend` de reserva. No es cosmético: sin AGS no hay nadie capaz de
+hacer una suspensión falsa, así que la real es la degradación correcta. Es la misma REGLA DE ORO
+que el resto: `sustituye_suspension()` comprueba el pid y, con AGS caído, **deja pasar la
+suspensión real**. Un equipo que no se suspende jamás y se come la batería en silencio es peor que
+un S3 que quizá no vuelva, porque aquello se ve y esto no.
+
+### `substitute` viaja con `active: false`
+
+Es la única clave de `suspension-falsa.json` que se mira aunque no haya ninguna suspensión falsa
+puesta, y tiene que ser así: el ajuste dice «en este equipo la suspensión real no se usa», luego
+tiene que vetar ya la **primera** inactividad del día. Por eso `suspensionFalsa.ts` se suscribe al
+ajuste y reescribe el fichero al cambiarlo, sin esperar a la próxima entrada — que podría no llegar
+en horas.
+
+### Lo que el sustituto ANULA, que es la parte que no es un interruptor
+
+- **El plazo «suspender de verdad tras N minutos» deja de existir.** No se pospone como con el Wake
+  up: se contradice de raíz. Cumplirlo dejaría colgado justo el equipo cuyo dueño encendió el
+  ajuste para que eso no pasara. En la UI el control se **deshabilita** y se dice por qué; en
+  `replanificarPlazo()` no se arma el temporizador, y `suspenderDeVerdad()` comprueba el ajuste otra
+  vez antes de llamar a `systemctl suspend` — el ajuste puede encenderse DESPUÉS de armar el
+  temporizador, y entre el `timeout_add` y su vencimiento pasan minutos.
+- **La opción del Wake up «entrar en suspensión falsa al vencer» se vuelve redundante**, porque ya
+  pasa siempre. La fila se deshabilita y el tooltip lo explica, en vez de dejar un interruptor que
+  se puede apagar y no cambia nada. El valor guardado no se toca: al apagar el sustituto vuelve a
+  mandar lo que el usuario tuviera ahí.
+- **El puente atiende las dos razones.** `wakeUpSuspensionFalsa.ts` convierte el veto en suspensión
+  falsa si el sustituto está puesto **o** si hay un Wake up con su opción. El aviso que llega de
+  bash es el mismo; lo que cambia es quién lo reclama.
 
 ## Superficie de UI
 
 - **Función conmutable en el menú de la barra**, junto a «Wake up»: `FUNCIONES_BARRA` en
-  `modulos/barra/funciones/registro.ts`, con `estado` (chip con el tiempo restante, como
-  `textoChipMantenerDespierto`) y `expandir` para el plazo y el destino final.
-- **Atajo de teclado** para entrar y para salir (ver «Cómo se sale»).
-- **Menú de energía**: encaja conceptualmente, pero ojo — `ACCIONES_ENERGIA`
+  `modulos/barra/funciones/registro.ts`, con `estado` (chip: tiempo restante, o «sin suspender
+  (Wake up)» según la regla 3) y `expandir` para el plazo y el destino final. Pulsarla entra **al
+  instante**.
+- **Opción dentro del Wake up** (`OpcionesMantenerDespierto.tsx`): «al vencer la inactividad, entrar
+  en suspensión falsa». Ver «Wake up y suspensión falsa».
+- **Atajo de teclado** para entrar y para salir, con `locked = true` (ver «Cómo se sale»).
+- **Menú de energía**: encaja, y el obstáculo tiene salida barata. `ACCIONES_ENERGIA`
   (`modulos/menu-energia/acciones.ts`) es una lista de **comandos de shell** (`comando: string`)
-  que se ejecutan con `execAsync`. Una acción interna del shell no cabe en ese tipo sin cambiarlo.
-  Las dos salidas: ampliar el tipo con una acción opcional, o exponer la entrada como un comando
-  (un script, o `astal`/IPC). La segunda es más barata y además da un punto de entrada scriptable.
+  que se ejecutan con `execAsync`, y una acción interna del shell no cabe en ese tipo sin cambiarlo.
+  Solución: exponer la entrada como comando —`ags request toggle-suspension-falsa`, registrado en el
+  `requestHandler` de `app.ts` igual que `toggle-bar`, `toggle-orion` o `toggle-power-menu`—, que
+  además da de regalo el punto de entrada scriptable para el atajo y para cualquier automatismo.
+  Recordar que `claseCss` es la clave con la que se guarda en `preferences.json`: elegirla bien a la
+  primera, renombrarla luego obliga a migrar la preferencia.
 
 ## Trampas conocidas, antes de escribir una línea
 
@@ -304,28 +511,63 @@ tercer valor en el ajuste existente, no un interruptor paralelo.
    `idle-action.sh` exista.
 3. **hyprlock no tiene guarda de instancia única.** Lanzarlo con uno ya puesto arranca un segundo
    proceso de verdad. Siempre `pidof hyprlock || hyprlock`.
-4. **Editar un `*-monitor.sh` no afecta al que ya está corriendo.** Hace falta `pkill -f <script>`
+4. **Un bind sin `locked = true` no existe con hyprlock delante.** Ver «El atajo tiene que ser
+   `locked = true`». Y todo bind pasa por el envoltorio `bind()`, nunca por `hl.bind`.
+5. **Editar un `*-monitor.sh` no afecta al que ya está corriendo.** Hace falta `pkill -f <script>`
    + relanzar, o `hyprctl reload full-reset` (un `hyprctl reload` normal **no** re-ejecuta el
    autostart).
-5. **`jq '.clave // true'` trata un `false` literal como ausente** y siempre resuelve a `true`. Para
+6. **`jq '.clave // true'` trata un `false` literal como ausente** y siempre resuelve a `true`. Para
    los ajustes booleanos nuevos, la forma es `if has("clave") then … else … end` (mismo tropiezo ya
    documentado en `battery-monitor.sh`, `temp-monitor.sh` y `gaming-gate.sh`).
-6. **Nada bloqueante en un callback de Hyprland**: `hl.on` y los binds con función tienen **timeout
+7. **Nada bloqueante en un callback de Hyprland**: `hl.on` y los binds con función tienen **timeout
    de 100 ms**.
-7. **Los PID se reciclan.** La guarda de pid necesita su otra mitad: reescribir el fichero de
-   estado al arrancar el shell, como hacen `initGamingState()` e `initWakeUp()`.
+8. **Los PID se reciclan.** La guarda de pid necesita su otra mitad: reescribir el fichero de
+   estado al arrancar el shell, como hacen `initGamingState()` e `initWakeUp()`. En el mismo sitio
+   va el deshielo incondicional de las apps del allowlist.
+9. **Una crítica no se salta el No molestar** (`decidirSonido`, deliberado). De ahí la sección de
+   alarmas: no basta con marcar la alarma como urgente.
 
 ## Plan de implementación
 
-Por fases, cada una útil por sí sola y probable de forma aislada:
+Por fases, cada una útil por sí sola y probable de forma aislada. **Las ocho están hechas**; el
+orden se conserva porque explica por qué cada pieza depende de la anterior:
 
-1. **Núcleo**: estado en RAM + fichero + entrada/salida con DPMS, bloqueo, DND, flags de
-   `powerState`, ocultar ventanas de AGS. Atajo de escape **desde el primer commit**.
-2. **Veto**: `blocked()` en `idle-action.sh` + reinicio de hypridle al salir.
-3. **UI**: función de la barra con chip de tiempo, sección de Ajustes > Energía.
-4. **Brillo, LEDs y TLP**, reutilizando los caminos de apunte/restauración existentes.
-5. **`thenSuspend`** por tiempo, y luego por condición (descargas).
-6. **Congelar apps.** La última a propósito: es lo único que puede perder datos del usuario.
+1. **Núcleo**: estado en RAM + `suspension-falsa.json` + entrada/salida con DPMS, bloqueo, DND,
+   flags de `powerState`, ocultar ventanas de AGS. `ags request toggle-suspension-falsa` y atajo de
+   escape `locked = true` **desde el primer commit**, más el `init…()` con reescritura de estado.
+2. **Veto**: `blocked()` en `idle-action.sh` leyendo los dos ficheros con un helper común, +
+   reinicio de hypridle al salir.
+3. **UI**: función de la barra con chip de tiempo, sección de Ajustes > Energía, acción del menú de
+   energía.
+4. **Sonido**: motivo `dndSuspensionFalsa` en `decidirSonido` + los dos ajustes de silencio.
+5. **LEDs y TLP**, reutilizando los caminos de apunte/restauración existentes. (El brillo entró en
+   esta fase y se retiró después de probarlo; ver su sección.)
+6. **Wake up**: opción de entrada delegada + supresión del plazo real mientras el Wake up viva.
+7. **`thenSuspend`** por tiempo, y luego por condición (descargas).
+8. **Congelar apps.** La última a propósito: es lo único que puede perder datos del usuario.
+
+## Dónde vive cada cosa
+
+| Pieza | Fichero |
+|---|---|
+| Orquestador: estado, secuencias, plazo, puerta de salida | `ags/servicios/energia/suspensionFalsa.ts` |
+| Contrato de los efectores y su ORDEN (entrada; la salida lo recorre al revés) | `ags/servicios/energia/suspensionFalsa/efectores.ts` |
+| Efectores | `suspensionFalsa/{dnd,leds,tlp,bluetooth,audio,congelarApps}.ts` |
+| Los diez ajustes `sf*` (carga, validación, persistencia) y el OR con las suspensiones del shell | `ags/servicios/energia/powerState.ts` |
+| Puente «Wake up → suspensión falsa al vencer» | `ags/servicios/energia/wakeUpSuspensionFalsa.ts` |
+| Veto + aviso del veto + sustituto | `hypr/scripts/idle-action.sh` (`alcance_vigente`, `sustituye_suspension`, `blocked`, `SIGNAL_VETO`) |
+| «Suspender» del sistema, con el sustituto aplicado | `ags/app.ts` → `ags request suspend`; lo llaman `menu-energia/acciones.ts` y `hypr/gigios/boton-apagado.lua` |
+| Atajo `SUPER + SHIFT + D`, con `locked = true` | `hypr/gigios/keybinds.lua` |
+| UI: función de la barra y sus opciones | `ags/modulos/barra/funciones/{registro.ts,OpcionesSuspensionFalsa.tsx}` |
+| UI: Ajustes > Energía | `ags/modulos/ajustes/energia/{SuspensionFalsa,AppsCongeladas}.tsx` |
+| Resolución nombre de app → scope de systemd (UNA sola, la comparten UI y efector) | `ags/modulos/ajustes/energia/scopesApps.ts` |
+| Sonido: el motivo distinguible del DND manual | `ags/modulos/notificaciones/sonido/decision.ts` |
+| Punto de entrada scriptable | `ags/app.ts` → `ags request toggle-suspension-falsa` |
+
+Ficheros de estado en `~/.config/gigios/`: `suspension-falsa.json` (estado vivo con guarda de pid,
+lo lee bash), `idle-suspend-vetado` (el epoch del último veto, lo lee el puente),
+`wakeup-opciones.json` (la opción nueva del Wake up). Los ajustes van con los del modo ahorro, en
+`~/.config/power-save/config.json`.
 
 ### Cómo probar cada pieza
 
@@ -334,7 +576,15 @@ Por fases, cada una útil por sí sola y probable de forma aislada:
   suspenderse (fail-open).
 - Que la salida funciona con la pantalla apagada por nuestra mano y **sin** que ningún listener de
   hypridle haya vencido. Es el caso que rompe el diseño ingenuo.
+- Que el atajo de escape funciona **con hyprlock delante** (sin él, la red de seguridad no existe).
 - Que un crash de AGS a mitad devuelve el escritorio a su sitio: `pkill ags` con todo puesto y
-  mirar brillo, opacidad, DND, TLP y apps congeladas.
+  mirar opacidad, DND, TLP y apps congeladas (y que el arranque siguiente las descongela).
+- Que una alarma programada para dentro de 2 min SUENA con la suspensión falsa puesta y los ajustes
+  por defecto. Es la comprobación de la sección de alarmas y el fallo más caro de todos.
+- Que con Wake up activo el plazo de suspensión real **no** salta, y que al apagar el Wake up el
+  plazo empieza a contar desde ese momento.
+- Con el **sustituto** puesto: que la inactividad entra en suspensión falsa en vez de suspender,
+  que «Suspender» del menú de energía y el botón físico hacen lo mismo, y que el plazo aparece
+  deshabilitado. Repetir matando AGS: los tres deben volver a suspender de verdad (fail-open).
 - Que una descarga larga sobrevive a un ciclo completo de entrada y salida. Es el motivo de existir
   de la función y debería ser el primer test que se escribe.

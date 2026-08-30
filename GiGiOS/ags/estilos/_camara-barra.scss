@@ -1,0 +1,25 @@
+// Estilos de la cámara — barra.
+//
+// Parcial propio (y no un bloque más dentro de `style.scss`) porque las tres
+// piezas de la cámara se escribieron en paralelo y comparten paleta pero no
+// fichero. Se consume desde `style.scss` con `@use`, que lo emite una sola vez.
+@use 'colores' as *;
+
+// Indicador de "cámara en uso" (`modulos/barra/indicadores/sistema/Camara.tsx`).
+//
+// Casi todo lo hereda de `.recording`, que ya define en `style.scss` el rojo y el
+// `animation: pulse 1s infinite` que comparten el micro y la captura de pantalla:
+// las tres cosas significan lo mismo —algo te está captando ahora— y deben verse
+// iguales. Duplicar aquí el color sería crear una segunda verdad sobre ese rojo,
+// que además `.bar-hidden` apaga por su nombre de clase (con la barra retraída la
+// animación seguiría repintando a 240 Hz fuera de pantalla; ver esa regla).
+//
+// Lo único propio es la MÉTRICA del glifo, que es la misma de `.mic-indicator`
+// para que los dos iconos de la pastilla del sistema queden alineados y del mismo
+// tamaño. Sin fijar la familia, GTK resuelve el glifo Nerd Font con la fuente de
+// texto del shell, que no lo tiene: no da ningún error, pinta el rectángulo del
+// carácter ausente — y en un icono de privacidad eso es un aviso ilegible.
+.camara-indicador .icon {
+  font-family: $font-icon;
+  font-size: 16px;
+}

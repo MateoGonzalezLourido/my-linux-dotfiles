@@ -58,7 +58,7 @@ export async function withPrivilegedPrompt<T>(fn: () => Promise<T>): Promise<T> 
   }
 }
 
-export const [qsView, setQsView] = createState<"main" | "wifi" | "bluetooth" | "display" | "audio" | "mic">("main")
+export const [qsView, setQsView] = createState<"main" | "wifi" | "bluetooth" | "display" | "audio" | "mic" | "camara">("main")
 export const [infoSsid, setInfoSsid] = createState<string | null>(null)
 
 // anyPanelVisible = true si CUALQUIER panel está abierto.

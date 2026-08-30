@@ -85,7 +85,7 @@ declare -A DESC_PASO=(
   [firefox]="perfil de rendimiento de Firefox"
   [css]="compilar ags/estilos/out.css con sass"
   [mime]="bases MIME y caché de aplicaciones de KDE"
-  [sistema]="ficheros de /etc: udev USB, i2c-dev, botón de encendido, helpers TLP/ClamAV/limpieza"
+  [sistema]="ficheros de /etc: udev USB, i2c-dev, botón de encendido, helpers TLP/ClamAV/limpieza/cámara"
   [sddm]="configurar SDDM y activarlo como gestor de sesión (display-manager.service)"
   [gpu]="elegir el perfil de GPU de esta máquina (~/.config/gigios/gpu-perfil)"
   [clamav-db]="descarga de la base de firmas de ClamAV (~200 MB)"
@@ -544,6 +544,19 @@ install_packages() {
     # libcanberra: reproduce el `sound-name` de las notificaciones (alarmas y temporizador del
     # panel de reloj). Sin él la alerta se ve pero no suena, sin error visible.
     libcanberra
+    # sound-theme-freedesktop: los ficheros que libcanberra resuelve por NOMBRE
+    # (`alarm-clock-elapsed`, `complete`). Llegaba siempre como dependencia transitiva y por
+    # eso nunca se notó que no estaba declarado, pero su ausencia es el fallo mudo perfecto:
+    # canberra-gtk-play no encuentra la entrada, no imprime nada, y la alarma simplemente NO
+    # SUENA. Un `sound-name` se resuelve primero contra ~/GiGiOS/audio (ver audio/README.md) y
+    # solo se delega en el tema cuando allí falta, así que el agujero depende de qué sonidos
+    # tenga el usuario en esa carpeta.
+    #
+    # Se declara ahora porque la SUSPENSIÓN FALSA depende de ello: sus ajustes por defecto
+    # prometen que las alarmas siguen sonando con el equipo "dormido"
+    # (docs/suspension-falsa.md, «Alarmas, temporizador y No molestar»), y un despertador que
+    # no suena porque falta un paquete que nadie declaró es el peor fallo de esa función.
+    sound-theme-freedesktop
     # cava: la FFT de la onda de Spotify de la barra. Sin él la onda no falla, cae a su
     # animación procedimental — así que es una mejora, no un requisito.
     cava
@@ -909,6 +922,15 @@ if paso_activo sistema; then
     else
       info "TLP no está instalado; omito los perfiles conmutables de energía (se activarán al instalar 'tlp')."
     fi
+    # Cámara: interruptor "Cámara bloqueada" de QuickSettings y de Ajustes > Cámara. Mismo
+    # esquema que TLP y ClamAV (helper root-owned + regla sudoers acotada a los verbos exactos)
+    # porque los nodos /dev/video* son de root:video y quien decide sus permisos es udev. Sin
+    # esto el interruptor no se pinta; el resto de la sección de cámara (controles, vista previa,
+    # detector de uso) funciona igual, que por eso no va condicionado a ningún paquete.
+    sudo install -Dm755 "$SYSTEM_DIR/camara/gigios-camara.sh" /usr/local/bin/gigios-camara \
+      || warn "No pude instalar el helper de cámara; el interruptor de bloqueo no aparecerá."
+    instalar_sudoers "$SYSTEM_DIR/camara/sudoers-gigios-camara" /etc/sudoers.d/gigios-camara \
+      "bloquear la cámara pedirá contraseña."
     # ClamAV: botón "Actualizar firmas" de Ajustes > Seguridad > Antivirus. Mismo esquema que TLP
     # (helper root-owned + regla sudoers acotada al comando exacto) porque /var/lib/clamav es de
     # `clamav` y habilitar el servicio de actualización es de root. Sin esto el botón no se pinta;

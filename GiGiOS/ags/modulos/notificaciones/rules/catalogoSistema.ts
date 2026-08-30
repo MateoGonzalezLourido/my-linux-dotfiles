@@ -154,6 +154,20 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("archivos.actualizacion", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
   ev("sistema.reinicio-pendiente", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
   ev("monitor.sin-inotify", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
+  // Cámara en uso. Va en Seguridad y no en Hardware porque no informa de un
+  // dispositivo sino de una PRIVACIDAD: alguien acaba de encender la cámara, y
+  // eso es lo mismo que vigilan los avisos de esta categoría.
+  //
+  // Deliberadamente SIN `popupMs: BREVE_MS`: los 3 s son para confirmaciones de
+  // algo que el usuario acaba de pedir ("USB conectado", "Wi-Fi reconectado").
+  // Esto es lo contrario — puede saltar sin que el usuario haya hecho nada, y
+  // ese es justo el caso en que hay que llegar a leerlo. El script ya lo emite
+  // con `-u low` y `-t 4000`, que es todo el recorte de ruido que merece.
+  //
+  // `clearOnBoot` sí: describe un instante concreto de la sesión anterior, y
+  // arrastrar "Cámara en uso" al arranque siguiente es exactamente el falso
+  // positivo que más asusta de un aviso de este tipo.
+  ev("camara.en-uso", "seguridad", "camara-monitor.sh", { clearOnBoot: true }),
 
   // ── Antivirus y descargas ──────────────────────────────────────────────────────────────
   ev("descargas.malware", "antivirus", "oom-monitor.sh"),

@@ -17,6 +17,7 @@ import Recursos from "./indicadores/sistema/Recursos"
 import CapturaPantalla from "./indicadores/sistema/CapturaPantalla"
 import IndicadorMantenerDespierto from "./funciones/IndicadorMantenerDespierto"
 import Microfono from "./indicadores/audio/Microfono"
+import Camara from "./indicadores/sistema/Camara"
 import BotonNotificaciones from "./indicadores/notificaciones/BotonNotificaciones"
 import Actualizaciones from "./indicadores/sistema/Actualizaciones"
 import BotonMenuEnergia from "./controles/BotonMenuEnergia"
@@ -27,8 +28,10 @@ import { obtenerControlVisibilidadBarra } from "../../estado/visibilidadBarra"
 import { suscribirPantallaCompleta } from "../../servicios/escritorios/pantallaCompleta"
 import { spotifyBarSuspended } from "../../servicios/energia/powerState"
 import { barAutoHideEnabled, batteryBarEnabled, fondoShell, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "../ajustes/preferences"
+import { camaraEnUso } from "../../servicios/camara/uso"
 import { anyPanelVisible, alternarQuickSettings, solicitudAlternarBar } from "../../estado/shell"
 import { notifPanelVisible } from "../notificaciones/store"
+import { suspensionFalsaActiva } from "../../servicios/energia/suspensionFalsa"
 
 export default function Barra(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
@@ -221,7 +224,10 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
   // La franja para revelar la barra al pasar el ratón por arriba aparece cuando está
   // retraída, PERO no durante una pantalla completa: ahí la barra se queda abajo a
   // propósito (la ventana en pantalla completa manda) y no debe reaparecer al rozar.
-  const mostrarHotzone = createComputed([visible, barTapada], (v, tapada) => !v && !tapada)
+  const mostrarHotzone = createComputed(
+    [visible, barTapada, suspensionFalsaActiva],
+    (v, tapada, dormido) => !v && !tapada && !dormido,
+  )
 
   const hotzone = <window
     name="bar-hotzone"
@@ -244,7 +250,14 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
 
   const bar = <window
     name="bar"
-    visible={true}
+    // DESMAPEADA durante la suspensión falsa, no solo retraída con `marginTop`. La
+    // diferencia no es cosmética —con DPMS off no se ve nada de todas formas—: una ventana
+    // meramente fuera de pantalla sigue ejecutando los `GLib.timeout_add` de repintado de
+    // sus widgets (el reloj, los chips, los medidores de CPU/RAM/red), y eso es justo lo
+    // que la suspensión falsa viene a quitar. El ahorro aquí es de timers y de wakeups de
+    // CPU; el de GPU ya lo dio gratis el `dpms off`. Ver «El lever más grande, y es gratis»
+    // en docs/suspension-falsa.md.
+    visible={suspensionFalsaActiva((dormido: boolean) => !dormido)}
     gdkmonitor={gdkmonitor}
     layer={Astal.Layer.TOP}
     // Con auto-ocultado el bar flota sobre las ventanas (NORMAL): reservar zona
@@ -342,6 +355,14 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
               <IndicadorMantenerDespierto />
               <Bluetooth />
               <RanuraCondicionalBarra estado={micIndicatorEnabled} construir={() => <Microfono />} />
+              {/* Cámara en uso: mismo sitio y mismo trato que el micro, porque
+                  responde a la misma pregunta ("¿me está captando algo?") y se
+                  lee de un vistazo al tenerlos juntos. La ranura NO es aquí un
+                  interruptor de Ajustes sino la propia condición de uso: un
+                  aviso de privacidad no se puede apagar, y así el indicador se
+                  monta solo mientras hay algo que avisar y desaparece sin
+                  descolocar al resto de la pastilla. */}
+              <RanuraCondicionalBarra estado={camaraEnUso} construir={() => <Camara />} />
               <RanuraCondicionalBarra
                 estado={networkBarEnabled}
                 construir={() => <Red visibilidad={visibilidad} />}

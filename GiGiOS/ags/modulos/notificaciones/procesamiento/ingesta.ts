@@ -11,6 +11,13 @@ import { getCondition } from "../rules/conditions.ts"
 import type { NotifInput } from "../rules/types.ts"
 import { recordNotification } from "../history/historyStore.ts"
 import { reproducirSonidoNotificacion } from "../sonido/reproductor.ts"
+// El estado de la suspensión falsa entra por la puerta más estrecha posible: una función del
+// EFECTOR (`servicios/energia/suspensionFalsa/dnd.ts`), no el orquestador. Importar
+// `suspensionFalsa.ts` desde aquí arrastraría `estado/shell` —que monta los paneles, y algunos
+// de ellos acaban volviendo a este módulo— y el ciclo de imports resultante no falla al
+// compilar: deja un `undefined` en el sitio menos esperado, en tiempo de ejecución.
+import { silencioDeSuspensionFalsa } from "../../../servicios/energia/suspensionFalsa/dnd.ts"
+import { sfSilenciarNotificaciones, sfSilenciarReloj } from "../../../servicios/energia/powerState.ts"
 
 /** Unpack a notification's D-Bus hints (a{sv}) into a flat string map for rewrite placeholders.
  *  Only string/number/boolean hint values are kept; complex values (images, byte arrays) skipped. */
@@ -172,6 +179,16 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
     // sonar una notificación que no pedía sonido, y de cambiar el que pedía.
     sonidoRegla,
     noMolestar: noMolestarActivo(),
+    // Suspensión falsa: el DND que pone al entrar dejaría MUDAS las alarmas —No molestar calla
+    // el sonido y una crítica no se lo salta—, así que se marca como motivo propio y el sonido
+    // pasa a gobernarlo los dos ajustes. Con el DND manual del usuario esto viene a false y no
+    // cambia nada. Ver `sonido/decision.ts` y la cabecera de `suspensionFalsa/dnd.ts`.
+    dndSuspensionFalsa: silencioDeSuspensionFalsa(),
+    sfSilenciarNotificaciones: sfSilenciarNotificaciones.get(),
+    sfSilenciarReloj: sfSilenciarReloj.get(),
+    // El hint de origen ya se leyó arriba para las reglas; aquí sirve para reconocer las
+    // alertas del reloj sin inventarles un canal propio (`esAlertaReloj`).
+    origen: source,
     muteAudio: meta.muteAudio,
     urgencia: input.urgency,
   })

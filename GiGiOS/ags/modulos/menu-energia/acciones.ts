@@ -13,7 +13,37 @@ export const ACCIONES_ENERGIA: readonly AccionEnergia[] = [
   // no existe). Las comillas sobreviven: execAsync con string parsea con
   // GLib.shell_parse_argv, así que llega como un solo argumento.
   { claseCss: "logout", icono: "󰍃", etiqueta: "Salir", comando: 'hyprctl dispatch "hl.dsp.exit()"' },
-  { claseCss: "suspend", icono: "󰏤", etiqueta: "Suspender", comando: "systemctl suspend" },
+  // "Suspender" NO llama a `systemctl suspend` directamente, y el rodeo tiene un motivo: el
+  // ajuste «sustituir la suspensión real por la falsa» (Ajustes > Energía). Quien decide es
+  // AGS, en el `requestHandler` de app.ts. El `||` de reserva cubre el único caso en que ese
+  // request no contesta —AGS caído—, y ahí la suspensión real es la respuesta correcta: sin
+  // AGS no hay nadie capaz de hacer una suspensión falsa.
+  //
+  // La cadena la parte `GLib.shell_parse_argv`, que NO entiende `||`, así que hace falta el
+  // `sh -c` explícito con el comando entre comillas simples.
+  {
+    claseCss: "suspend",
+    icono: "󰏤",
+    etiqueta: "Suspender",
+    comando: "sh -c 'ags request suspend || systemctl suspend'",
+  },
+  // Suspensión falsa: apagar el escritorio SIN detener el kernel (docs/suspension-falsa.md).
+  //
+  // El comando es un `ags request` y no una llamada interna a propósito: este tipo solo sabe
+  // de cadenas que se ejecutan con execAsync, y ese request existe justamente para dar a la
+  // función un punto de entrada scriptable (lo comparten el atajo `locked = true` y cualquier
+  // automatismo). Es un ALTERNAR, no una entrada: pulsarlo con la suspensión falsa puesta
+  // sale de ella.
+  //
+  // ⚠️ `claseCss` es la clave con la que la acción se guarda en `preferences.json`
+  // (`accionesEnergiaOcultas`). Renombrar "fake-suspend" más adelante obliga a migrar la
+  // preferencia de todo el que ya la hubiera ocultado, así que no se toca.
+  {
+    claseCss: "fake-suspend",
+    icono: "󰤄",
+    etiqueta: "Suspensión falsa",
+    comando: "ags request toggle-suspension-falsa",
+  },
   { claseCss: "shutdown", icono: "󰐥", etiqueta: "Apagar", comando: "systemctl poweroff" },
   { claseCss: "hibernate", icono: "󰒲", etiqueta: "Hibernar", comando: "systemctl hibernate" },
   { claseCss: "reboot", icono: "󰜉", etiqueta: "Reiniciar", comando: "systemctl reboot" },

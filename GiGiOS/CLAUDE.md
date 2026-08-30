@@ -28,9 +28,9 @@ alarma muda sin dar ningún error; ver `audio/README.md`),
 `bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
 `system/` (ficheros que van a `/etc` y `/usr/local/bin`, **no** se symlinkean: se instalan con `sudo` —
 la regla udev de escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP, el helper de
-firmas de ClamAV, el helper de limpieza de disco, la cesión del botón de encendido a Hyprland y la
-configuración de SDDM; ver las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento y
-del botón de encendido).
+firmas de ClamAV, el helper de limpieza de disco, el helper de bloqueo de la cámara, la cesión del
+botón de encendido a Hyprland y la configuración de SDDM; ver las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento, de
+cámara y del botón de encendido).
 
 `system/sddm/99-gigios.conf.in` es la única pieza de `system/` que **no se copia tal cual**: es una
 plantilla que `install.sh` (paso `sddm`) materializa en `/etc/sddm.conf.d/99-gigios.conf`
@@ -120,7 +120,9 @@ User/runtime state is **not** versioned. It lives in `~/.config/gigios/` (`displ
 `system_state.json`, `notifications.json`, `preferences.json`, `almacenamiento.json` —la
 autolimpieza de disco, que además leen `hypr/scripts/limpiar-almacenamiento.sh` y
 `limpieza-arranque.sh` con `jq`—, `apps-inicio.json` —las apps que se abren al iniciar sesión, que
-lee `inicializador/apps-inicio.sh`—, …), plus `~/.config/jarvis/`
+lee `inicializador/apps-inicio.sh`—, `camara.json` —los controles V4L2 guardados por aparato, que
+se reponen solos porque el kernel los pierde al desenchufar o reiniciar— y `camara-uso.json` —lo
+que escribe `hypr/scripts/camara-monitor.sh` cuando una app abre la cámara—, …), plus `~/.config/jarvis/`
 and `~/.local/share/jarvis/` for the Orion launcher, `~/.config/power-save/config.json`
 (umbral y filtros de modo ahorro) and `~/.local/share/orion/favorites.json` (favoritos del
 launcher — ver "What this is" para por qué estos dos últimos dejaron de vivir dentro del repo).
@@ -181,7 +183,8 @@ Para el directorio, el orden de carga de módulos y qué script se dispara desde
 [`docs/hypr-estructura.md`](docs/hypr-estructura.md). Para el detalle y el porqué de cada módulo
 individual (GPU/pantalla/idioma por máquina, Wake up, congelar tareas al jugar, USB, brillo DDC,
 puntero/hyprcursor, TLP, security monitor, ClamAV, desinstalar apps, almacenamiento y autolimpieza,
-boot-healthcheck, apps al inicio, grabar pantalla, portapapeles, franjas horarias de fondos,
+boot-healthcheck, apps al inicio, grabar pantalla, portapapeles, cámara (ajustes V4L2 y
+detector de uso), franjas horarias de fondos,
 monitores de batería/temperatura/RAM/disco/BT, y una decena más), ver
 **[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) — léelo antes de
 tocar el script o módulo que nombra su título**, porque casi todos documentan un fallo silencioso

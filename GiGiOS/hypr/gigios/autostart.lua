@@ -170,6 +170,28 @@ hl.on("hyprland.start", function()
   -- Screencast: necesita que PipeWire haya publicado sus nodos para que
   -- `pw-dump` vea algo.
   hl.exec_cmd("sleep 6 && ~/.config/hypr/scripts/screencast-monitor.sh")
+  -- Cámara en uso (el indicador de privacidad de la barra). Encaja en esta
+  -- franja por lo mismo que sus vecinos: se BLOQUEA en inotify sobre los
+  -- `/dev/videoN` y en reposo no cuesta nada —ni sondeo, ni timer, ni forks—,
+  -- pero al nacer enumera los nodos preguntándole a `udevadm` por cada uno, y
+  -- eso sí compite con el arranque. No se puede adelantar a t=0 gratis, además,
+  -- porque una webcam USB puede no haber terminado de registrar sus nodos
+  -- mientras udev procesa la avalancha del arranque.
+  --
+  -- Retrasarlo no abre ninguna ventana ciega, que es lo que decidiría lo
+  -- contrario: el script no cuenta eventos, siembra su primer estado con un
+  -- `fuser` sobre los nodos vivos (ver su cabecera), así que una cámara ya
+  -- abierta al entrar la ve igual aunque el OPEN se emitiera antes.
+  --
+  -- En un equipo SIN cámara —este sobremesa— no aparece en `ps` y ES lo
+  -- correcto: escribe el estado "libre" y sale. Mismo caso que wifi-monitor sin
+  -- antena; no lo busques como si fuera un fallo.
+  --
+  -- El medio segundo no es un capricho: el 6 ya es de screencast y el 7 de las
+  -- apps de inicio, y la regla de este calendario es que cada arranque tenga su
+  -- hueco (darles a todos el mismo sleep solo mueve la avalancha de sitio).
+  -- `sleep` de coreutils acepta decimales.
+  hl.exec_cmd("sleep 6.5 && ~/.config/hypr/scripts/camara-monitor.sh")
 
   -- Apps de inicio del usuario (Ajustes > Apps al inicio). La LISTA es dato en
   -- ~/.config/gigios/apps-inicio.json; aquí solo vive el momento en que se

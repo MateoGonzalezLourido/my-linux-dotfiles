@@ -68,7 +68,13 @@ M.acciones = {
     -- Solo una tecla la vuelve a encender: mouse_move_enables_dpms = false.
     hl.dispatch(hl.dsp.dpms({ action = "off" }))
   end,
-  suspender = function() hl.exec_cmd("systemctl suspend") end,
+  -- Pasa por AGS, que es quien conoce el ajuste «sustituir la suspensión real por la
+  -- falsa» (Ajustes > Energía). Sin este rodeo, encender ese ajuste arreglaría la
+  -- inactividad y dejaría el BOTÓN FÍSICO suspendiendo de verdad — el camino más fácil de
+  -- pulsar sin pensar y justo el que el usuario quiere evitar en un equipo cuyo S3 no
+  -- vuelve. El `||` es la reserva para AGS caído: allí no hay quien haga una suspensión
+  -- falsa, así que la real es la degradación correcta.
+  suspender = function() hl.exec_cmd("sh -c 'ags request suspend || systemctl suspend'") end,
   hibernar = function() hl.exec_cmd("systemctl hibernate") end,
   cerrarSesion = function() hl.dispatch(hl.dsp.exit()) end,
   reiniciar = function() hl.exec_cmd("systemctl reboot") end,

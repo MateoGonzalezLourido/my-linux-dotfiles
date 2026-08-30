@@ -128,6 +128,35 @@ Palette: `#08080c` bar bg; `#cba6f7` violet, `#89b4fa` blue, `#f38ba8` red, `#fa
     2. **`id={(escritorio) => escritorio.id}` en el `<For>`**, para que abrir una ventana actualice el botón afectado en vez de rehacer los nueve (verificado: aparecer un escritorio nuevo construye **1** botón, no N).
     **Consecuencia para quien toque `BotonEscritorio`**: se construye UNA vez por escritorio y su prop `escritorio` ya no vuelve a llegar. De ahí solo puede leerse lo que no cambia en toda su vida (`id` —la clave— y `enfocar`); **los clientes entran por el accessor `clientes`**, no por `escritorio.clientes`. El `const clientes = idEnfocado(() => escritorio.clientes)` que había era justo el síntoma: un valor constante que solo re-emitía porque el componente se rehacía entero. Por lo mismo `indiceClienteActivo` depende de **las dos** fuentes (la lista puede reordenarse sin que cambie el foco).
   - **El mismo error estaba en `juegos/IndicadorJuegos.tsx`**, y ahí lo dispara el **título**: el registro republica la lista entera en cada `notify::title` de un juego, así que sin `id` un cambio de título de UNO reconstruía el botón de TODOS (medido). Va indexado por `direccion`, y como el botón ya no se rehace, nombre e icono llegan por accessor — incluida la **forma** del icono, que pasó de un ternario (`iconoGio ? … : nombreIcono ? … : glifo`) a tres ranuras alternadas con `visible`, el mismo patrón que `botonIcono`. Con el ternario, la forma quedaba atada al primer valor: un juego que arranca sin icono de tema y lo resuelve después se quedaba con el glifo genérico para siempre.
+- `servicios/camara/` + `modulos/ajustes-rapidos` (tile y `QsCamaraMenu`), `modulos/ajustes/camara/` y
+  `modulos/barra/indicadores/sistema/Camara.tsx` — **la cámara**. Toda la parte de sistema vive en el
+  servicio y ninguna de las tres vistas enumera, parsea o persiste por su cuenta. Lo que hay que saber
+  antes de tocar cualquiera de ellas está en la sección «Cámara» de
+  [`../docs/hyprland-modulos.md`](../docs/hyprland-modulos.md); en corto:
+  - **La UI se GENERA de lo que publique el firmware**, nunca sliders fijos. Los rangos cambian por
+    modelo (`brightness` es 0..255 en unas cámaras y -64..64 en otras) y `v4l2-ctl --set-ctrl`
+    **acota en silencio**: un slider 0..100 mandando el valor tal cual movería la imagen en el primer
+    tramo y no haría nada en el resto, sin un solo error.
+  - **`flags=inactive`** (un control encadenado a un automático encendido) acepta la escritura,
+    devuelve 0 y no cambia nada. El mando se deshabilita, y **toda escritura se relee**: encender un
+    automático cambia el `inactivo` de OTROS controles.
+  - **Una webcam registra 2-3 `/dev/videoN`**; el de metadatos contesta a `--list-ctrls` con la lista
+    vacía y sin error. El filtro es `ID_V4L_CAPABILITIES` de udev, no el nombre.
+  - **El uso de la cámara NO se detecta desde aquí.** Las apps abren V4L2 directamente, sin pasar por
+    PipeWire, así que no hay señal a la que suscribirse como con el micro; y barrer `/proc/*/fd` se
+    midió en **28 ms con 435 procesos**. Lo detecta `hypr/scripts/camara-monitor.sh` con inotify
+    (`IN_OPEN`/`IN_CLOSE` funcionan sobre nodos de dispositivo) y `uso.ts` solo lee su JSON.
+  - **No existe «cámara por defecto» en Linux**: la preferida vale dentro de GiGiOS y la UI lo dice.
+    La resolución la negocia la app al abrir el stream, así que los formatos son una ficha
+    informativa, nunca un desplegable que se aplique.
+  - **El killswitch («Cámara bloqueada») lo aplica un helper root**, no AGS: `servicios/camara/
+    bloqueo.ts` solo llama a `/usr/local/bin/gigios-camara` por una regla sudoers acotada a sus dos
+    verbos, y sin helper instalado el interruptor **no se pinta** en vez de fallar al pulsarlo. Lo
+    que sostiene todo es el número de la regla udev que instala —`71-`, entre el `70-uaccess` que
+    etiqueta y el `73-seat-late` que concede la ACL—: en `99-` no bloquearía nada y no daría ningún
+    error. Bloquear impide ABRIR la cámara, no corta una captura en marcha, y las dos vistas lo
+    dicen. Ojo al efecto lateral: bloqueada, `v4l2-ctl` falla por permisos y la lista de controles
+    sale vacía — hay que distinguir eso de «no expone controles» y releer al desbloquear.
 - `modulos/ajustes-rapidos/QuickSettings.tsx` — large control panel (Wi-Fi, Bluetooth, audio, display). Al importarse instala el **switch-on-connect de audio**: al conectar un dispositivo, pasa a ser la salida/entrada por defecto. **`speaker-added` NO significa "alguien ha enchufado algo"**, y creerlo costó dos bugs distintos; los dos dejaban el sonido en el **HDMI de la GPU**, que en esta máquina no tiene nada conectado (es una salida interna), y como el default así fijado **se persiste** (`default.configured.audio.sink` en `~/.local/state/wireplumber/default-nodes`), el estropicio sobrevivía al reinicio y pisaba lo que WirePlumber ya había restaurado bien:
   1. **Ráfaga de enumeración.** AstalWp emite `speaker-added`/`microphone-added` también por cada endpoint que **ya existía** al arrancar el shell (medido: HDMI y analógico, ~8 ms entre medias) → se lanzaba un `set-default` por cada sink, en `execAsync` concurrentes donde ganaba el último en *terminar*: moneda al aire en cada arranque de Hyprland. Remedio: **gate de asentamiento** (`AUDIO_SETTLE_MS` de silencio antes de conmutar nada), anclado **a que WirePlumber haya publicado algún endpoint**, no al arranque de AGS — en el boot los dos se levantan a la vez y el shell puede ganar la carrera, así que una gracia contada desde AGS expiraría justo antes de que llegue la ráfaga.
   2. **Recreación de nodos.** La señal se emite otra vez cada vez que un nodo se recrea, y el nodo HDMI/DP se destruye y se recrea al reconfigurar los monitores (**`hyprctl reload`**, DPMS, apagar la pantalla) — llega indistinguible de unos cascos recién puestos, y el id cambia (visto: 86 → 71 → 86). Remedio: **una salida de pantalla nunca es destino** (`isDisplayOutput`). El gate de (1) no cubre esto (la recreación llega mucho después de arrancar) ni al revés: hacen falta los dos.

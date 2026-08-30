@@ -1,6 +1,9 @@
 @use 'sass:color';
 @use 'colores' as *;
 @use '../modulos/orion/orion';
+@use 'camara-qs';
+@use 'camara-barra';
+@use 'camara-ajustes';
 
 // Quita el fondo/borde/sombra por defecto del tema GTK de un nodo (botón,
 // popover, scrollbar...) para que solo se vea lo que defina la regla concreta.
@@ -2885,6 +2888,10 @@ button.qs-user-settings-btn {
 
 .qs-wifi-password-label {
   font-size: 0.9em;
+
+  &.error {
+    color: #ff6b6b;
+  }
 }
 
 .qs-wifi-info-section {

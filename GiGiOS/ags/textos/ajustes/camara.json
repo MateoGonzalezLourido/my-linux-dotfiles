@@ -1,0 +1,43 @@
+{
+  "seccion": {
+    "titulo": "Cámara"
+  },
+  "grupos": {
+    "camaras": "Cámaras",
+    "controles": "Ajustes de imagen"
+  },
+  "lista": {
+    "vacia": "No hay ninguna cámara conectada ni ajustes guardados de ninguna.",
+    "integrada": "Integrada",
+    "usb": "USB",
+    "desconectada": "Desconectada",
+    "guardados": "{{numero}} ajuste(s) guardado(s)",
+    "sinFormatos": "Sin información de formatos.",
+    "cargandoFormatos": "Leyendo formatos…",
+    "seleccionar": "Ver y ajustar esta cámara",
+    "preferida": "Preferida",
+    "hacerPreferida": "Marcarla como preferida de GiGiOS",
+    "quitarPreferida": "Dejar de marcarla como preferida",
+    "probar": "Probar",
+    "probarDescripcion": "Abre una ventana con lo que ve la cámara",
+    "olvidar": "Olvidar ajustes guardados",
+    "avisoPreferida": "La cámara preferida solo vale dentro de GiGiOS: la vista previa, esta sección y el indicador de la barra. NO cambia la que eligen Firefox, Chrome, Zoom u OBS — en Linux no existe ninguna «cámara predeterminada» del sistema (al contrario que en el audio) y cada aplicación usa su propio selector."
+  },
+  "controles": {
+    "para": "Controles de {{nombre}}",
+    "ausente": "Esta cámara no está conectada. Sus ajustes guardados se volverán a aplicar en cuanto la enchufes.",
+    "cargando": "Leyendo los controles de la cámara…",
+    "sinControles": "Esta cámara no publica ningún control ajustable: su firmware no expone brillo, contraste ni ningún otro parámetro por V4L2.",
+    "inactivo": "Lo gobierna un automático que está encendido; apágalo para poder ajustarlo.",
+    "restablecer": "Restablecer",
+    "restablecerDescripcion": "Devuelve todos los controles a los valores de fábrica de la cámara y borra lo guardado.",
+    "persistencia": "Los controles de una cámara no viven en la cámara: viven en el driver del kernel y se pierden al desenchufarla, al suspender o al reiniciar. GiGiOS guarda lo que ajustes aquí y lo vuelve a aplicar al iniciar sesión y cada vez que la conectas."
+  },
+  "bloqueo": {
+    "titulo": "Cámara bloqueada",
+    "descripcion": "Impide que cualquier aplicación abra la cámara. El bloqueo lo aplica udev sobre los nodos /dev/video*, así que sobrevive a desenchufar la webcam y a reiniciar.",
+    "limitacion": "Impide ABRIR la cámara; no corta una captura ya en marcha. Una aplicación que la tuviera abierta al bloquear seguirá viéndola hasta que la cierre.",
+    "enUso": "Ahora mismo hay una aplicación con la cámara abierta: seguirá viéndola hasta que la cierre.",
+    "grupo": "Privacidad"
+  }
+}

@@ -1,0 +1,179 @@
+// Estilos de la cámara — qs.
+//
+// Parcial propio (y no un bloque más dentro de `style.scss`) porque las tres
+// piezas de la cámara se escribieron en paralelo y comparten paleta pero no
+// fichero. Se consume desde `style.scss` con `@use`, que lo emite una sola vez.
+@use 'colores' as *;
+
+// ⚠️ Esto es un MÓDULO aparte (`@use 'camara-qs'` en la primera línea de
+// `style.scss`), así que aquí NO existen `$qs-bg-opaco`, `$qs-text`,
+// `$qs-accent` ni `fondo-qs-opaco()`: se declaran dentro de `style.scss` y un
+// módulo de Sass no ve las variables de quien lo usa. Lo único compartido es
+// `_colores.scss`. Los tonos de abajo se escriben, por eso, con la paleta y con
+// las funciones de acento, no con aquellas variables.
+
+// ── El tile de la rejilla ────────────────────────────────────────────────────
+//
+// Solo cuando alguien está MIRANDO. El `.active` de los demás tiles significa
+// "encendido" y se pinta de cian; aquí significa "hay una app con la cámara
+// abierta", que es un aviso de privacidad y no un estado normal — de ahí el
+// rojo. La clase la añade `QsTile` desde la misma derivación que el resto de
+// clases (`claseActiva`), no desde un segundo cómputo.
+.qs-tile.active.qs-tile-camara-uso {
+  background: rgba($red, 0.14);
+  border-color: rgba($red, 0.45);
+  box-shadow: inset 0 1px 0 rgba($red, 0.12), 0 0 12px rgba($red, 0.08);
+
+  &:hover { background: rgba($red, 0.2); }
+
+  .qs-tile-icon {
+    color: $red;
+    text-shadow: 0 0 8px rgba($red, 0.5);
+  }
+
+  .qs-tile-sub { color: rgba($red, 0.9); }
+  .qs-tile-arrow { color: rgba($red, 0.62); }
+}
+
+// ── El submenú ───────────────────────────────────────────────────────────────
+.qs-camara-menu {
+  background: transparent;
+  border-radius: 12px;
+  padding: 2px;
+}
+
+// Aviso de privacidad. Discreto a propósito: informa de quién tiene la cámara,
+// no es una alarma que haya que atender.
+.qs-camara-aviso {
+  background: rgba($red, 0.1);
+  border: 1px solid rgba($red, 0.28);
+  border-radius: 10px;
+  padding: 5px 8px;
+  margin: 2px 4px 0;
+}
+
+.qs-camara-aviso-icono {
+  font-family: $font-icon;
+  font-size: 12px;
+  color: $red;
+}
+
+.qs-camara-aviso-texto {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba($red, 0.92);
+}
+
+.qs-camara-selector,
+.qs-camara-panel {
+  padding: 0 4px;
+}
+
+// El alto máximo lo fija `maxContentHeight` en el widget, no el CSS: una C920
+// publica ~15 controles y el panel de Quick Settings acabaría más alto que la
+// pantalla. Aquí solo se le quita el marco.
+.qs-camara-scroll {
+  background: transparent;
+  border: none;
+}
+
+// Una fila = un control. El fondo tenue las separa entre sí sin necesitar
+// separadores, que con quince filas ensucian bastante.
+.qs-camara-control {
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  padding: 5px 8px;
+
+  // Control encadenado a un automático encendido (`flags=inactive`): el mando ya
+  // está insensible por el `sensitive` del contenedor, pero GTK no lo pinta de
+  // ninguna forma especial y quedaba indistinguible de uno normal.
+  &:disabled {
+    background: rgba(255, 255, 255, 0.012);
+    border-color: transparent;
+  }
+}
+
+// La etiqueta que dice POR QUÉ el mando está muerto.
+.qs-camara-inactivo {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: rgba($orange, 0.75);
+  border: 1px solid rgba($orange, 0.3);
+  border-radius: 999px;
+  padding: 0 6px;
+}
+
+.qs-camara-slider {
+  margin-top: 2px;
+}
+
+// Ni sección vacía ni sliders muertos: una cámara puede no exponer un solo
+// control ajustable y eso hay que decirlo.
+.qs-camara-vacio {
+  font-size: 10px;
+  color: rgba($text, 0.4);
+  padding: 14px 10px;
+}
+
+.qs-camara-acciones {
+  margin: 6px 4px 2px;
+}
+
+.qs-camara-btn {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: $text;
+  transition: background-color 160ms ease, border-color 160ms ease;
+
+  &:hover {
+    background: acento-cian(0.14);
+    border-color: acento-cian(0.4);
+  }
+
+  &:disabled {
+    color: rgba($text, 0.3);
+    border-color: transparent;
+  }
+
+  &.restablecer:hover {
+    background: rgba($orange, 0.14);
+    border-color: rgba($orange, 0.4);
+  }
+}
+
+.qs-camara-btn-icono {
+  font-family: $font-icon;
+  font-size: 12px;
+  color: acento-cian();
+}
+
+.qs-camara-btn.restablecer .qs-camara-btn-icono { color: $orange; }
+
+// ── Killswitch ───────────────────────────────────────────────────────────────
+// Fila de "Cámara bloqueada". Comparte la caja de `.qs-section` con el resto del
+// menú; lo propio es el icono en rojo cuando está bloqueada y la nota de debajo.
+.qs-camara-bloqueo {
+  padding: 8px 10px;
+
+  // Rojo SOLO bloqueada. Es el mismo rojo del aviso de "en uso" y de
+  // `.recording` en la barra, y esa repetición es intencionada: en este
+  // escritorio el rojo significa siempre "la cámara importa ahora mismo".
+  .qs-section-icon.bloqueada {
+    color: $red;
+  }
+}
+
+// La letra pequeña que dice qué NO hace el interruptor (no corta una captura ya
+// en marcha). Atenuada porque es una aclaración permanente, no una alerta: en
+// rojo competiría con el aviso de cámara en uso, que sí lo es.
+.qs-camara-bloqueo-nota {
+  font-size: 9px;
+  color: rgba($text, 0.55);
+  margin-top: 1px;
+}

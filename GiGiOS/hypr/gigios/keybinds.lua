@@ -315,6 +315,28 @@ end)
 -- toggle de la barra (muestra/oculta; se auto-oculta al pasar el mouse)
 bind(mod .. " + B", hl.dsp.exec_cmd("ags request toggle-bar"))
 
+-- Suspensión falsa: entrar y salir (el mismo atajo hace las dos cosas, como el
+-- resto de los toggles de aquí). El punto de entrada es el `requestHandler` de
+-- ags/app.ts, no un script: la lógica —DPMS, bloqueo, DND, brillo, TLP,
+-- deshielo— vive entera en AGS y este bind solo la llama.
+--
+-- `locked = true` NO ES OPCIONAL, y es el motivo por el que este atajo existe.
+-- La suspensión falsa bloquea la sesión al entrar (es su puerta de salida
+-- normal: desbloquear dispara la secuencia de salida), así que cuando hace
+-- falta la red de seguridad hay un hyprlock delante — y un bind SIN `locked`
+-- sencillamente no llega a dispararse con un inhibidor de entrada puesto. Sin
+-- el flag, el atajo funcionaría en todos los escenarios menos en el único para
+-- el que se puso, sin dar ningún error: parecería que la combinación no está
+-- asignada. Mismo flag y mismo motivo que las teclas de volumen, brillo,
+-- multimedia y el botón de encendido de más arriba.
+--
+-- OJO con lo que hace y lo que no: salir de la suspensión falsa NO DESBLOQUEA.
+-- Restaura brillo, opacidad, DND, perfil TLP y descongela las apps, pero
+-- hyprlock sigue delante pidiendo la contraseña — que es justo lo que se quiere
+-- de una función que asume que el usuario no está delante.
+bind(mod .. " + SHIFT + D", hl.dsp.exec_cmd("ags request toggle-suspension-falsa"),
+  { locked = true })
+
 ---------------------------------------------------------------------------------
 -- GiGiOS.toggle_gaps() — inline de scripts/toggle-gaps-borders.sh.
 --

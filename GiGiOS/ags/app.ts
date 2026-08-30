@@ -21,10 +21,15 @@ import { initNotifDaemonCheck } from "./modulos/notificaciones/daemon/comprobaci
 import { initTrayApps } from "./modulos/ajustes/trayApps"
 import { initGamingState } from "./servicios/energia/gamingState"
 import { initBrilloAhorro } from "./servicios/energia/brilloAhorro"
+import { inicializarCamara } from "./servicios/camara/init.ts"
 import { initTlpAuto } from "./servicios/energia/tlpAuto"
 import { initInactividadAhorro } from "./servicios/pantalla/inactividadAhorro"
 import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
 import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
+import { alternarSuspensionFalsa, entrarSuspensionFalsa, initSuspensionFalsa } from "./servicios/energia/suspensionFalsa"
+import { sfSustituirReal } from "./servicios/energia/powerState"
+import { execAsync } from "ags/process"
+import { initPuenteWakeUp } from "./servicios/energia/wakeUpSuspensionFalsa"
 import { initOpacidadAhorro } from "./servicios/energia/opacidadAhorro"
 import { initOpacidadVentanas } from "./servicios/energia/opacidadVentanas"
 import { iniciarCierreAjustesAlCambiarEscritorio } from "./servicios/escritorios/cierreAlCambiarEscritorio"
@@ -69,6 +74,33 @@ app.start({
     // se quiere una tecla. La respuesta dice en qué estado queda.
     if (argv.includes("toggle-gamemode")) {
       response(toggleGamemode() ? "on" : "off")
+      return
+    }
+    // Suspensión falsa. Se expone como `request` y no solo como botón porque es el punto
+    // de entrada que necesitan las otras tres superficies: el atajo de teclado (que además
+    // tiene que ser `locked = true` para existir con hyprlock delante), el menú de energía
+    // —cuyas acciones son COMANDOS de shell, `comando: string`, y no admiten una llamada
+    // interna sin cambiar el tipo— y cualquier automatismo del usuario.
+    // "Suspender" de todo el sistema pasa por aquí —el menú de energía y el botón físico de
+    // encendido— en vez de llamar a `systemctl suspend` cada uno por su cuenta. El motivo es
+    // el ajuste «sustituir la suspensión real por la falsa»: sin un punto único, encenderlo
+    // arreglaría la inactividad y dejaría el botón de encendido suspendiendo de verdad, que
+    // es exactamente el caso que el usuario quiere evitar y encima el más fácil de pulsar sin
+    // pensar. Quien llama tiene un `|| systemctl suspend` de reserva por si AGS no responde:
+    // sin AGS no hay nadie que pueda hacer una suspensión falsa, así que la real es la
+    // degradación correcta (misma REGLA DE ORO que idle-action.sh).
+    if (argv.includes("suspend")) {
+      if (sfSustituirReal.get()) {
+        entrarSuspensionFalsa().catch((e) => console.error("[suspend] suspensión falsa falló:", e))
+        response("falsa")
+      } else {
+        execAsync(["systemctl", "suspend"]).catch((e) => console.error("[suspend] falló:", e))
+        response("real")
+      }
+      return
+    }
+    if (argv.includes("toggle-suspension-falsa")) {
+      response(alternarSuspensionFalsa() ? "on" : "off")
       return
     }
     if (argv.includes("toggle-orion")) {
@@ -153,6 +185,11 @@ app.start({
     // dejaría el gobernador de CPU en `performance` sin UI donde apagarlo. Es un
     // `pkill` acotado a nuestro argv0, así que tampoco tiene sentido apartarlo.
     initGamemode()
+    // Y por tercera vez la misma razón: un `suspension-falsa.json` heredado de un AGS
+    // muerto lleva un pid que el kernel pudo reciclar, y con el pid vivo la guarda de
+    // `blocked()` da el veto por bueno — el equipo dejaría de suspenderse para siempre sin
+    // que nada lo diga. Además descongela las apps que aquel AGS dejara congeladas.
+    initSuspensionFalsa()
     // Quita la transparencia de los paneles si el ahorro ya está activo al arrancar.
     // A t=0 y no con los init* de abajo porque SE VE: apartarlo cuatro segundos serían
     // cuatro segundos de paneles translúcidos que luego cambian solos a la vista. Es un
@@ -210,6 +247,12 @@ app.start({
       // eventos ocurridos mientras esperan, así que cuatro segundos no les pierden nada.
       // Su primera pasada es además la recuperación de un apunte huérfano que pudiera
       // haber dejado un AGS muerto con el ahorro puesto (brillo bajo, tiempos cortos).
+      // Cámaras: enumeración por udev y reposición de los controles guardados.
+      // Mismo criterio que los anteriores — siembra de lo VIVO (le pregunta a udev
+      // qué hay), no de eventos ocurridos mientras espera, así que a los 4 s ve un
+      // superconjunto de lo que habría visto a t=0. Sin cámara enchufada no deja
+      // absolutamente nada corriendo.
+      inicializarCamara()
       initBrilloAhorro()
       initTlpAuto()
       initInactividadAhorro()
@@ -220,6 +263,11 @@ app.start({
       // su barrido inicial atiende a lo que ya estuviera sonando, así que cuatro
       // segundos no le pierden ningún stream, solo lo atienden un poco más tarde.
       initPresetsApps()
+      // El puente «Wake up + al vencer la inactividad, entrar en suspensión falsa». Aquí y
+      // no a t=0 porque no limpia nada peligroso: solo pone un Gio.FileMonitor sobre el
+      // aviso que deja idle-action.sh al vetar, y los avisos que pudieran caer en estos
+      // cuatro segundos son de la sesión anterior y los descarta su ventana de validez.
+      initPuenteWakeUp()
     }, 4000)
   },
 })

@@ -60,6 +60,12 @@ export default function NavegacionAjustes({
             <button
               cssClasses={seccion((actual) =>
                 actual === destino.id ? ["sp-nav-item", "active"] : ["sp-nav-item"])}
+              // Destinos que solo existen en algunas máquinas (ver `visible` en
+              // `secciones.tsx`). Se ocultan, NO se filtran de la lista: un
+              // botón invisible en GTK4 no ocupa sitio ni se puede pulsar, y
+              // así el accessor puede encenderlo en caliente —enchufar una
+              // webcam con Ajustes abierto— sin reconstruir la nav entera.
+              visible={destino.visible ?? true}
               onClicked={() => seleccionar(destino.id)}
               valign={Gtk.Align.CENTER}
               overflow={Gtk.Overflow.VISIBLE}

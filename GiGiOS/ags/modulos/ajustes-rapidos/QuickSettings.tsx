@@ -97,6 +97,35 @@ import {
   reproductoresMultimedia,
   revisionMultimedia,
 } from "../../servicios/multimedia/mpris"
+// Cámara. La capa de servicio (udev, v4l2-ctl, persistencia, vista previa) ya
+// existe entera en `servicios/camara/`; aquí solo se consume.
+import { camaras, hayCamara, type Camara } from "../../servicios/camara/dispositivos"
+import {
+  etiquetaControl,
+  fijarControl,
+  leerControles,
+  restablecerControles,
+  type Control,
+} from "../../servicios/camara/controles"
+import {
+  estadoCamara,
+  fijarPreferida,
+  olvidarCamara,
+  recordarControl,
+} from "../../servicios/camara/persistencia"
+import { camaraEnUso, descripcionUso, usoCamara } from "../../servicios/camara/uso"
+import {
+  alternarBloqueo, bloqueoDisponible, bloqueoOcupado, camaraBloqueada,
+} from "../../servicios/camara/bloqueo"
+import { abrirVistaPrevia, cerrarVistaPrevia } from "../../servicios/camara/vistaPrevia"
+import {
+  componerFilas,
+  geometriaControl,
+  resolverCamaraVisible,
+  resumenTileCamara,
+  type FilaControlCamara,
+} from "./camaraQsDatos"
+import { crearCicloVida } from "../../utilidades/cicloVida"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -1085,14 +1114,22 @@ quickSettingsVisible.subscribe(() => {
   }
 })
 
-function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onRightClick, subtitleWidthRequest }: {
-  icon: any, iconWidget?: any, label: any, subtitle: any, active: any, onToggle: () => void, onRightClick?: () => void, subtitleWidthRequest?: number
+function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onRightClick, subtitleWidthRequest, claseActiva, visible = true }: {
+  icon: any, iconWidget?: any, label: any, subtitle: any, active: any, onToggle: () => void, onRightClick?: () => void, subtitleWidthRequest?: number,
+  /** Clase EXTRA mientras `active` es cierto. La usa la cámara, donde "activo"
+   *  no significa "encendido" sino "alguien está mirando" y merece otro color
+   *  que el azul de Wi-Fi o Bluetooth. Sale de la misma derivación que el resto
+   *  de clases para no acabar con dos fuentes de verdad del mismo hecho, que es
+   *  justo lo que le pasó al tile de Bluetooth (ver arriba). */
+  claseActiva?: string,
+  visible?: any,
 }) {
-  const classes = typeof active === "function"
-    ? active((a: boolean) => a ? ["qs-tile", "active"] : ["qs-tile"])
-    : (active ? ["qs-tile", "active"] : ["qs-tile"])
+  const construir = (a: boolean) => a
+    ? ["qs-tile", "active", ...(claseActiva ? [claseActiva] : [])]
+    : ["qs-tile"]
+  const classes = typeof active === "function" ? active(construir) : construir(!!active)
   return (
-    <button cssClasses={classes} onClicked={onToggle} hexpand>
+    <button cssClasses={classes} onClicked={onToggle} hexpand visible={visible}>
       <Gtk.GestureClick
         button={Gdk.BUTTON_SECONDARY}
         onPressed={onRightClick}
@@ -1151,12 +1188,13 @@ function QsRowLabel({ icon, title, titleClass = "qs-wifi-name", subtitle, spacin
   )
 }
 
-function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, onMicClick }: {
+function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, onMicClick, onCamaraClick }: {
   onWifiClick: () => void,
   onBluetoothClick: () => void,
   onDisplayClick: () => void,
   onAudioClick: () => void,
-  onMicClick: () => void
+  onMicClick: () => void,
+  onCamaraClick: () => void
 }) {
   const network = AstalNetwork.get_default()
   const wifi = network.wifi
@@ -1254,6 +1292,16 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   const micVol = mic ? createBinding(mic, "volume") : null
   const micMute = mic ? createBinding(mic, "mute") : null
 
+  // Icono, subtítulo y resaltado del tile de cámara, del MISMO objeto y el mismo
+  // cómputo (la lección del tile de Bluetooth). Las tres dependencias van en la
+  // forma de ARRAY: con la forma de función y un `&&` por medio, `createComputed`
+  // solo se suscribe a lo que leyó en la primera pasada — ver el comentario largo
+  // de `indicadores/audio/Microfono.tsx`.
+  const infoCamara = createComputed(
+    [camaras, estadoCamara, usoCamara],
+    (lista, estado, uso) => resumenTileCamara(lista, estado.preferida, uso),
+  )
+
   function volIcon(v: number, m: boolean) {
     if (m || v === 0) return "󰝟"
     if (v < 0.33) return "󰕿"
@@ -1328,6 +1376,20 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           active={micMute ? micMute((m) => !m) : true}
           onToggle={onMicClick}
           onRightClick={() => { if (mic) mic.mute = !mic.mute }}
+        />
+        {/* Cámara. `visible` atado a `hayCamara`: en un sobremesa sin webcam el
+            tile NO existe (GTK no asigna ni reserva espacio a un hijo invisible,
+            así que tampoco deja el hueco ni el `spacing` de la columna). Aparece
+            y desaparece en caliente al enchufar o quitar una USB, porque
+            `hayCamara` cuelga de los `uevent` de udev. */}
+        <QsTile
+          visible={hayCamara}
+          icon={infoCamara((i) => i.icono)}
+          label="Cámara"
+          subtitle={infoCamara((i) => i.subtitulo)}
+          active={infoCamara((i) => i.activo)}
+          claseActiva="qs-tile-camara-uso"
+          onToggle={onCamaraClick}
         />
       </box>
     </box>
@@ -3678,6 +3740,445 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
   )
 }
 
+// ── Section 5b: Cámara ────────────────────────────────────────────────────────
+//
+// Hermano de `QsDisplayMenu`: cabecera + `qs-section`, y los mismos mandos
+// (`makeScale`, `InlineEditableValue`, `Interruptor`, `DisplaySelect`).
+//
+// Lo que NO se parece a los demás submenús: aquí la lista de mandos se GENERA
+// de lo que publica el aparato. El juego de controles lo decide el firmware —
+// una C920 publica ~15 y una webcam integrada barata dos—, así que una lista
+// fija de sliders estaría medio muerta en la mitad de las máquinas sin dar
+// ningún error. Ver la cabecera de `servicios/camara/controlesDatos.ts`.
+
+function QsCamaraMenu({ onBack }: { onBack: () => void }) {
+  const ciclo = crearCicloVida()
+  const [claveSel, setClaveSel] = createState<string>("")
+  const [filas, setFilas] = createState<FilaControlCamara[]>([])
+  const [cargando, setCargando] = createState(false)
+
+  // Las tres dependencias en la forma de ARRAY, no un `() => a() && b()`:
+  // `createComputed` con función solo se suscribe a lo que llegó a LEER en la
+  // primera pasada, así que un `&&` que cortocircuite deja fuera para siempre a
+  // la dependencia que no se evaluó (comentario largo en
+  // `modulos/barra/indicadores/audio/Microfono.tsx`).
+  const camaraSel = createComputed(
+    [camaras, claveSel, estadoCamara],
+    (lista, clave, estado) => resolverCamaraVisible(lista, clave, estado.preferida),
+  )
+
+  // Una lectura en vuelo puede terminar DESPUÉS de que la cámara haya cambiado
+  // (un hotplug, o el usuario tocando el selector): publicar esa lista tardía
+  // dejaría los mandos con los valores y los rangos de OTRO aparato, sin un solo
+  // error por medio. El contador descarta lo que llega fuera de tiempo.
+  let generacion = 0
+
+  const recargar = async () => {
+    const camara = camaraSel.get()
+    const gen = ++generacion
+    if (!camara) {
+      setFilas([])
+      setCargando(false)
+      return
+    }
+    setCargando(true)
+    const lista = await leerControles(camara.nodo)
+    if (gen !== generacion) return
+    setFilas(componerFilas(camara.clave, lista))
+    setCargando(false)
+  }
+
+  // Escritura "de una vez" (interruptor, desplegable, número tecleado).
+  //
+  // RELEER después no es opcional: encender o apagar un automático cambia el
+  // `inactive` de los controles que gobierna —`white_balance_temperature` mientras
+  // `white_balance_automatic` está puesto, `exposure_time_absolute` mientras
+  // `auto_exposure` es automático— y V4L2 no emite nada al respecto. Sin la
+  // relectura, el mando dependiente se queda deshabilitado (o habilitado)
+  // MINTIENDO hasta que se cierra y se reabre el panel.
+  const escribir = (nombre: string, valor: number) => {
+    const camara = camaraSel.get()
+    if (!camara) return
+    void fijarControl(camara.nodo, nombre, valor).then((ok) => {
+      if (!ok) return
+      recordarControl(camara, nombre, valor)
+      return recargar()
+    })
+  }
+
+  // Igual que el menú de Pantalla adquiere y suelta su poller: aquí no hay
+  // sondeo, pero sí procesos (`v4l2-ctl`) y una ventana de mpv que no pueden
+  // quedarse vivos con el panel cerrado.
+  let vistaActiva = false
+  const evaluarVista = () => {
+    const ahora = quickSettingsVisible.get() && qsView.get() === "camara"
+    if (ahora === vistaActiva) return
+    vistaActiva = ahora
+    // Al ENTRAR se relee siempre. Los controles no viven en la cámara sino en el
+    // driver, y pueden haber cambiado por fuera mientras el panel estaba cerrado
+    // (otra app, `v4l2-ctl` a mano, un desenchufe que los devolvió a fábrica);
+    // no existe ninguna señal que avise de eso.
+    if (ahora) void recargar()
+    else cerrarVistaPrevia()
+  }
+  ciclo.suscribir(quickSettingsVisible, evaluarVista)
+  ciclo.suscribir(qsView, evaluarVista)
+  // Y al desmontarse el panel, por si se destruye sin pasar por "main".
+  ciclo.registrar(() => cerrarVistaPrevia())
+
+  // Bloquear o desbloquear cambia lo que `v4l2-ctl` puede LEER, no solo lo que las apps pueden
+  // abrir: con la cámara bloqueada los nodos quedan en modo 000 y `--list-ctrls-menus` falla por
+  // permisos. Sin releer aquí, desbloquear dejaría la vista con el cartel de "bloqueada" y sin un
+  // solo mando hasta salir y volver a entrar.
+  ciclo.suscribir(camaraBloqueada, () => { if (vistaActiva) void recargar() })
+
+  // Hotplug. `camaras` cambia en caliente con los `uevent` de udev.
+  ciclo.suscribir(camaras, (lista) => {
+    if (!lista.length) {
+      // La última cámara se ha ido: el tile ya se ha ocultado solo y quedarse
+      // aquí sería una vista sin nada que ajustar y con sliders apuntando a un
+      // `/dev/videoN` que ya no existe (escribir ahí falla en un `execAsync` que
+      // nadie mira, o sea sin más síntoma que "no hace nada").
+      generacion++
+      setFilas([])
+      setCargando(false)
+      cerrarVistaPrevia()
+      if (qsView.get() === "camara") onBack()
+      return
+    }
+    const elegida = resolverCamaraVisible(lista, claveSel.get(), estadoCamara.get().preferida)
+    if (elegida && elegida.clave !== claveSel.get()) setClaveSel(elegida.clave)
+    // Se relee aunque la clave no cambie: reenchufar la misma cámara la renumera
+    // (`/dev/video2` → `/dev/video0`) y el nodo capturado sería el viejo.
+    if (vistaActiva) void recargar()
+  })
+
+  const seleccionar = (clave: string) => {
+    setClaveSel(clave)
+    // Se recuerda como preferida, que en este shell significa "la que nombra el
+    // tile y la que abre la vista previa" — y NADA más: en Linux no existe una
+    // cámara por defecto del sistema (ver `camaraPreferida` en `persistencia.ts`).
+    fijarPreferida(clave)
+    void recargar()
+  }
+
+  const restablecer = () => {
+    const camara = camaraSel.get()
+    if (!camara) return
+    const gen = ++generacion
+    setCargando(true)
+    void restablecerControles(camara.nodo).then((lista) => {
+      // Las DOS cosas. Devolver el aparato a los valores de fábrica sin olvidar
+      // lo guardado haría que el siguiente arranque (`restaurarControles`)
+      // volviera a imponer los viejos, y el botón parecería no haber servido de
+      // nada un rato después, ya sin nadie mirando.
+      olvidarCamara(camara.clave)
+      if (gen !== generacion) return
+      setFilas(componerFilas(camara.clave, lista))
+      setCargando(false)
+    })
+  }
+
+  // ── Una fila por control ──────────────────────────────────────────────────
+  //
+  // El `<For>` va indexado por `fila.clave`, que lleva la cámara delante del
+  // nombre del control: la fila se construye UNA vez y su geometría (min, max,
+  // step) se congela ahí, así que reutilizarla para otra cámara dejaría el
+  // deslizador con la escala equivocada. Todo lo que sí cambia —valor, inactivo,
+  // opciones— se lee del accessor `vivo`, nunca del objeto capturado.
+  const FilaControl = (fila: FilaControlCamara) => {
+    const cicloFila = crearCicloVida()
+    const nombre = fila.control.nombre
+    const vivo = createComputed(
+      [filas],
+      (lista) => lista.find((f) => f.clave === fila.clave)?.control ?? fila.control,
+    )
+    // `inactivo` = encadenado a un automático encendido. Escribir en él NO da
+    // error y NO hace nada (`v4l2-ctl` devuelve 0 tan contento), así que el mando
+    // tiene que quedarse muerto en vez de dejar arrastrar algo que no mueve la
+    // imagen. Un contenedor insensible arrastra a sus hijos en GTK4.
+    const sensible = vivo((c) => !c.inactivo)
+
+    const cabecera = (clases: string[]) => (
+      <box spacing={6} hexpand>
+        <label
+          cssClasses={clases}
+          label={etiquetaControl(nombre)}
+          hexpand
+          halign={Gtk.Align.START}
+          ellipsize={3}
+        />
+        {/* Por qué está apagado, dicho donde se ve. Sin esto el mando parece roto. */}
+        <label
+          cssClasses={["qs-camara-inactivo"]}
+          label="automático"
+          visible={vivo((c) => c.inactivo)}
+        />
+      </box>
+    )
+
+    if (fila.control.tipo === "int") {
+      const geo = geometriaControl(fila.control)
+      // Valor local mientras se arrastra: sin él, la relectura que llega al
+      // soltar (o la que dispara un control vecino) reescribiría `adj.value` en
+      // mitad del gesto y daría un tirón al deslizador.
+      let pendiente: number | null = null
+      let temporizador: number | null = null
+
+      // `v4l2-ctl` es un PROCESO por llamada y `change-value` se dispara en cada
+      // píxel del arrastre: sin estrangular, medio segundo de gesto son decenas
+      // de procesos. Mismo throttle que el volumen (60 ms, último valor gana).
+      const aplicar = makeVolThrottle((valor: number) => {
+        const camara = camaraSel.get()
+        if (camara) void fijarControl(camara.nodo, nombre, valor)
+      })
+
+      // Persistir y releer SOLO al soltar. `conectarCambioDeslizador` no expone
+      // un evento de soltado —`change-value` es lo único que llega, y llega
+      // igual con el ratón que con las flechas—, así que "soltar" se aproxima
+      // con 300 ms de silencio. Escribir el JSON y lanzar otro `v4l2-ctl` por
+      // píxel no aporta nada y despierta a cualquiera que vigile el fichero.
+      const asentar = (valor: number) => {
+        if (temporizador !== null) GLib.source_remove(temporizador)
+        temporizador = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+          temporizador = null
+          const camara = camaraSel.get()
+          if (camara) recordarControl(camara, nombre, valor)
+          void recargar().then(() => {
+            pendiente = null
+            // La relectura ya publicó `filas` con `pendiente` todavía puesto, así
+            // que el deslizador no se enteró: se encaja aquí con lo que el
+            // aparato dice de verdad (que puede no ser lo pedido — `v4l2-ctl`
+            // acota en silencio).
+            escala.adjustment.value = geo.aPosicion(vivo.get().valor)
+          })
+          return GLib.SOURCE_REMOVE
+        })
+      }
+      cicloFila.registrar(() => {
+        if (temporizador !== null) GLib.source_remove(temporizador)
+      })
+
+      const escala = makeScale(
+        ["qs-slider", "qs-camara-slider"],
+        () => pendiente ?? geo.aPosicion(vivo.get().valor),
+        (posicion) => {
+          pendiente = posicion
+          const valor = geo.aValor(posicion)
+          aplicar(valor)
+          asentar(valor)
+        },
+        (cb) => { cicloFila.suscribir(filas, () => cb()) },
+        // El deslizador se mueve en PASOS, no en el valor crudo: hay controles
+        // con `step=16` o `step=64` y escribir fuera de esa rejilla se redondea
+        // en silencio. Ver `geometriaControl`.
+        { max: geo.pasos, ajustar: (p: number) => Math.round(p) },
+      )
+
+      return (
+        <box
+          cssClasses={["qs-camara-control"]}
+          orientation={Gtk.Orientation.VERTICAL}
+          spacing={0}
+          sensitive={sensible}
+        >
+          <box spacing={6}>
+            {cabecera(["qs-section-label"])}
+            <InlineEditableValue
+              display={vivo((c) => `${c.valor}`)}
+              getValue={() => vivo.get().valor}
+              onCommit={(valor: number) => {
+                // El componente ya acota a min..max; falta imantar al `step` del
+                // aparato, o el número tecleado no sería el que acaba puesto.
+                pendiente = null
+                escribir(nombre, geo.aValor(geo.aPosicion(valor)))
+              }}
+              min={fila.control.min}
+              max={fila.control.max}
+              labelClass="qs-section-pct"
+              maxLength={5}
+              widthRequest={40}
+            />
+          </box>
+          {escala}
+        </box>
+      )
+    }
+
+    if (fila.control.tipo === "bool") {
+      return (
+        <box cssClasses={["qs-camara-control"]} spacing={6} sensitive={sensible}>
+          {cabecera(["qs-section-label"])}
+          <Interruptor
+            activo={vivo((c) => c.valor !== 0)}
+            sensible={sensible}
+            alAlternar={() => escribir(nombre, vivo.get().valor !== 0 ? 0 : 1)}
+          />
+        </box>
+      )
+    }
+
+    // `menu`: las opciones las publica el aparato (`--list-ctrls-menus`), no una
+    // tabla nuestra — "50 Hz"/"60 Hz" en `power_line_frequency`, los cuatro modos
+    // de `auto_exposure`…
+    return (
+      <box
+        cssClasses={["qs-camara-control", "qs-display-compact-field"]}
+        orientation={Gtk.Orientation.VERTICAL}
+        spacing={0}
+        sensitive={sensible}
+      >
+        {cabecera(["qs-dropdown-header"])}
+        <DisplaySelect
+          compact
+          current={vivo((c) => c.opciones.find((o) => o.valor === c.valor)?.etiqueta ?? String(c.valor))}
+          options={vivo((c) => c.opciones.map((o) => ({
+            label: o.etiqueta,
+            value: String(o.valor),
+            active: o.valor === c.valor,
+          })))}
+          onSelect={(value: string) => escribir(nombre, Number(value))}
+        />
+      </box>
+    )
+  }
+
+  return (
+    // El overlay con `display-select-host` es obligatorio: es donde `DisplaySelect`
+    // cuelga su lista desplegada (no usa un Gtk.Popover para no robarle el foco al
+    // panel). Sin él, los desplegables de menú no se abren y no avisan.
+    <overlay cssClasses={["display-select-host"]} hexpand>
+    <box cssClasses={["qs-camara-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={5} hexpand>
+      <QsMenuHeader title="Cámara" onBack={onBack} />
+
+      {/* Aviso discreto de privacidad: quién la tiene abierta. */}
+      <box cssClasses={["qs-camara-aviso"]} spacing={6} visible={camaraEnUso}>
+        <label cssClasses={["qs-camara-aviso-icono"]} label="󰄉" />
+        <label
+          cssClasses={["qs-camara-aviso-texto"]}
+          label={usoCamara((u) => descripcionUso(u))}
+          hexpand
+          halign={Gtk.Align.START}
+          ellipsize={3}
+        />
+      </box>
+
+      {/* Killswitch. `visible` atado a `bloqueoDisponible`: en un equipo donde el paso
+          `sistema` del instalador no llegó a correr no existe el helper root-owned, y un
+          interruptor que fallara con "command not found" al pulsarlo es peor que no tenerlo.
+          El resto de esta vista no depende de él.
+
+          Insensible mientras hay una orden en vuelo: `udevadm settle` tarda un instante y dos
+          pulsaciones seguidas se pisarían, dejando el interruptor y el sistema en desacuerdo. */}
+      <box
+        cssClasses={["qs-section", "qs-camara-bloqueo"]}
+        spacing={8}
+        visible={bloqueoDisponible}
+      >
+        <label
+          cssClasses={camaraBloqueada((b) =>
+            b ? ["qs-section-icon", "bloqueada"] : ["qs-section-icon"])}
+          label={camaraBloqueada((b) => (b ? "󰄚" : "󰄀"))}
+        />
+        <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.START}>
+          <label cssClasses={["qs-section-label"]} label="Cámara bloqueada" halign={Gtk.Align.START} />
+          {/* Lo que el interruptor NO hace, dicho donde se decide. Bloquear impide ABRIR la
+              cámara; no cierra un descriptor ya abierto, así que una videollamada en curso
+              sigue viendo imagen hasta que suelte el dispositivo. Callarlo dejaría al usuario
+              creyendo que ha cortado algo que sigue emitiendo. */}
+          <label
+            cssClasses={["qs-camara-bloqueo-nota"]}
+            label={createComputed([camaraBloqueada, camaraEnUso], (bloqueada, enUso) =>
+              bloqueada && enUso
+                ? "Una app la tenía abierta: seguirá viéndola hasta que la cierre"
+                : "Impide que las apps la abran")}
+            wrap
+            halign={Gtk.Align.START}
+          />
+        </box>
+        <Interruptor
+          activo={camaraBloqueada}
+          alAlternar={alternarBloqueo}
+          sensible={bloqueoOcupado((ocupado) => !ocupado)}
+        />
+      </box>
+
+      {/* Selector — no se pinta con una sola cámara, igual que el de monitores. */}
+      <box
+        cssClasses={["qs-section", "qs-camara-selector"]}
+        orientation={Gtk.Orientation.VERTICAL}
+        spacing={0}
+        visible={createComputed([camaras], (lista) => lista.length > 1)}
+      >
+        <label cssClasses={["qs-dropdown-header"]} label="CÁMARA" halign={Gtk.Align.START} />
+        <DisplaySelect
+          compact
+          current={camaraSel((c: Camara | null) => c?.nombre ?? "—")}
+          options={createComputed([camaras, camaraSel], (lista, actual) =>
+            lista.map((c) => ({ label: c.nombre, value: c.clave, active: c.clave === actual?.clave })))}
+          onSelect={seleccionar}
+        />
+      </box>
+
+      <box cssClasses={["qs-section", "qs-camara-panel"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+        {/* Ni sección vacía ni sliders muertos: lo que hay es lo que se dice. */}
+        {/* Con la cámara BLOQUEADA, `v4l2-ctl` falla por permisos y la lista sale vacía: el
+            texto de "no expone controles" sería falso y mandaría a buscar un problema en el
+            aparato. La causa se dice tal cual. */}
+        <label
+          cssClasses={["qs-camara-vacio"]}
+          label={camaraBloqueada((b) => b
+            ? "Cámara bloqueada: desbloquéala para ajustarla"
+            : "Esta cámara no expone controles ajustables")}
+          wrap
+          halign={Gtk.Align.CENTER}
+          visible={createComputed([filas, cargando], (lista, ocupado) => !ocupado && lista.length === 0)}
+        />
+        <Gtk.ScrolledWindow
+          cssClasses={["qs-camara-scroll"]}
+          hscrollbarPolicy={Gtk.PolicyType.NEVER}
+          vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+          propagateNaturalHeight
+          maxContentHeight={340}
+        >
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+            <For each={filas} id={(fila: FilaControlCamara) => fila.clave}>
+              {(fila: FilaControlCamara) => FilaControl(fila)}
+            </For>
+          </box>
+        </Gtk.ScrolledWindow>
+      </box>
+
+      <box cssClasses={["qs-camara-acciones"]} spacing={6} homogeneous>
+        <button
+          cssClasses={["qs-camara-btn"]}
+          sensitive={hayCamara}
+          onClicked={() => {
+            const camara = camaraSel.get()
+            if (camara) abrirVistaPrevia(camara)
+          }}
+        >
+          <box spacing={6} halign={Gtk.Align.CENTER}>
+            <label cssClasses={["qs-camara-btn-icono"]} label="󰄀" />
+            <label label="Probar" />
+          </box>
+        </button>
+        <button
+          cssClasses={["qs-camara-btn", "restablecer"]}
+          sensitive={hayCamara}
+          onClicked={restablecer}
+        >
+          <box spacing={6} halign={Gtk.Align.CENTER}>
+            <label cssClasses={["qs-camara-btn-icono"]} label="󰑐" />
+            <label label="Restablecer" />
+          </box>
+        </button>
+      </box>
+    </box>
+    </overlay>
+  )
+}
+
 // ── Section 6: Footer ─────────────────────────────────────────────────────────
 
 function QsFooter() {
@@ -4211,6 +4712,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   const [apsVar, setApsVar] = createState<any[]>(wifi.get_access_points())
   const [passwordTarget, setPasswordTarget] = createState<string | null>(null)
   const [passwordStr, setPasswordStr] = createState("")
+  const [passwordError, setPasswordError] = createState(false)
   const [wifiState, setWifiState] = createState({ ssid: wifi.ssid || "", connecting: null as string | null })
   const [savedSsids, setSavedSsids] = createState<string[]>([])
   const [search, setSearch] = createState("")
@@ -4359,43 +4861,89 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
               else if (ap.wpaFlags > 0) secType = "WPA"
               else if (ap.flags > 0) secType = "WEP"
 
-              if (passwordTarget() === ap.ssid) {
-                const connectWithPassword = () => {
-                  setWifiState({ ...wifiState(), connecting: ap.ssid })
-                  setPasswordTarget(null)
-                  execAsync(["bash", "-c", `timeout 10 nmcli device wifi connect "${ap.ssid}" password "${passwordStr()}"`])
-                    .then(() => setWifiState({ ...wifiState(), connecting: null }))
-                    .catch(e => {
-                      console.error(e)
-                      setWifiState({ ...wifiState(), connecting: null })
-                      setPasswordTarget(ap.ssid) // prompt again
-                    })
-                }
+              // El formulario de contraseña se monta/desmonta de forma REACTIVA. Antes se
+              // decidía con un `if (passwordTarget() === ap.ssid)` evaluado al CONSTRUIR la
+              // fila, y `For` sólo reconstruye hijos cuando cambia la lista de APs: al enviar
+              // la contraseña, `setPasswordTarget(null)` no reconstruía nada y el formulario
+              // se quedaba en pantalla hasta el siguiente escaneo (efecto sin ningún error).
+              const pidiendoPassword = passwordTarget((t) => t === ap.ssid)
 
-                return (
-                  <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["qs-wifi-item", "password-prompt"]} spacing={6}>
-                    <label label={`Contraseña para ${ap.ssid}`} halign={Gtk.Align.START} cssClasses={["qs-wifi-password-label"]} />
-                    <box spacing={6}>
-                      <Gtk.Entry
-                        placeholderText="Escribe y presiona Enter"
-                        visibility={false}
-                        hexpand
-                        text={passwordStr()}
-                        onChanged={(self) => setPasswordStr(self.text)}
-                        onActivate={connectWithPassword}
-                      />
-                      <button cssClasses={["qs-icon-btn"]} onClicked={connectWithPassword}>
-                        <label label="󰄬" />
-                      </button>
-                      <button cssClasses={["qs-icon-btn"]} onClicked={() => setPasswordTarget(null)}>
-                        <label label="󰅖" />
-                      </button>
-                    </box>
-                  </box>
-                )
+              const connectWithPassword = () => {
+                const pass = passwordStr()
+                if (!pass) return
+                setWifiState({ ...wifiState(), connecting: ap.ssid })
+                setPasswordTarget(null)
+                setPasswordError(false)
+                execAsync(["bash", "-c", `timeout 20 nmcli device wifi connect "${ap.ssid}" password "${pass}"`])
+                  .then(() => {
+                    setPasswordStr("")
+                    setWifiState({ ...wifiState(), connecting: null })
+                    updateSaved()
+                  })
+                  .catch(e => {
+                    console.error("WiFi Connect Error:", e)
+                    setWifiState({ ...wifiState(), connecting: null })
+                    setPasswordStr("")
+                    setPasswordError(true)
+                    setPasswordTarget(ap.ssid)   // contraseña incorrecta: volver a pedirla
+                  })
               }
+
+              const cerrarPassword = () => {
+                setPasswordTarget(null)
+                setPasswordStr("")
+                setPasswordError(false)
+              }
+
+              const formularioPassword = () => (
+                <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["qs-wifi-item", "password-prompt"]} spacing={6}>
+                  <label
+                    label={passwordError((err) => err
+                      ? `Contraseña incorrecta · ${ap.ssid}`
+                      : `Contraseña para ${ap.ssid}`)}
+                    halign={Gtk.Align.START}
+                    cssClasses={passwordError((err) => err
+                      ? ["qs-wifi-password-label", "error"]
+                      : ["qs-wifi-password-label"])}
+                  />
+                  <box spacing={6}>
+                    <Gtk.Entry
+                      $={(self: Gtk.Entry) => {
+                        // grab_focus() en el `$` es prematuro: el widget todavía no está
+                        // insertado en la lista, así que no toma el foco y tampoco da error.
+                        // Se pide en un idle, ya montado.
+                        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                          if (self.get_root()) self.grab_focus()
+                          return GLib.SOURCE_REMOVE
+                        })
+                      }}
+                      placeholderText="Escribe y presiona Enter"
+                      visibility={false}
+                      hexpand
+                      text={passwordStr()}
+                      onChanged={(self) => setPasswordStr(self.text)}
+                      onActivate={connectWithPassword}
+                    />
+                    <button cssClasses={["qs-icon-btn"]} onClicked={connectWithPassword}>
+                      <label label="󰄬" />
+                    </button>
+                    <button cssClasses={["qs-icon-btn"]} onClicked={cerrarPassword}>
+                      <label label="󰅖" />
+                    </button>
+                  </box>
+                </box>
+              )
+
               return (
                 <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+                  <With value={pidiendoPassword}>
+                    {(pidiendo: boolean) => pidiendo && formularioPassword()}
+                  </With>
+                  <box
+                    orientation={Gtk.Orientation.VERTICAL}
+                    spacing={0}
+                    visible={passwordTarget((t) => t !== ap.ssid)}
+                  >
                   <button
                     cssClasses={wifiState((s) => {
                     const active = s.ssid === ap.ssid
@@ -4418,8 +4966,9 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                         console.error("WiFi Connect Error:", e)
                         setWifiState({ ...wifiState(), connecting: null })
                         if (isSecure) {
-                          setPasswordTarget(ap.ssid)
                           setPasswordStr("")
+                          setPasswordError(false)
+                          setPasswordTarget(ap.ssid)
                         }
                       })
                   }}
@@ -4495,6 +5044,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                     </box>
                   </box>
                 </revealer>
+                  </box>
               </box>
             )
             }}
@@ -4803,6 +5353,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
             onDisplayClick={() => setQsView("display")}
             onAudioClick={() => setQsView("audio")}
             onMicClick={() => setQsView("mic")}
+            onCamaraClick={() => setQsView("camara")}
           />
           <QsMedia />
           <QsFooter />
@@ -4831,6 +5382,18 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
 
         <box orientation={Gtk.Orientation.VERTICAL} visible={qsView((v) => v === "mic")}>
           <QsMicMenu onBack={() => setQsView("main")} />
+        </box>
+
+        {/* Cámara. Se construye siempre (como el resto de submenús) pero no lee
+            nada hasta que la vista está delante: los procesos de `v4l2-ctl` solo
+            se lanzan con el panel abierto y en esta vista. */}
+        <box
+          orientation={Gtk.Orientation.VERTICAL}
+          visible={qsView((v) => v === "camara")}
+          widthRequest={PANEL_PANEL_WIDTH - 10}
+          hexpand
+        >
+          <QsCamaraMenu onBack={() => setQsView("main")} />
         </box>
       </box>
       </box>

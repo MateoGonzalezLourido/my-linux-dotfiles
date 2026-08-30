@@ -1,68 +1,158 @@
 #!/usr/bin/env bash
 # idle-action.sh — la puerta de los listeners de hypridle.
 #
-# hypridle no sabe de "Wake up": cuando vence un timeout dispara su on-timeout y
-# punto. Este script se interpone entre el listener y la acción real (apagar
-# pantalla / bloquear / suspender) y la deja pasar SALVO que la función "Wake up"
-# del menú de la barra (el logo Arch) la esté vetando.
+# hypridle no sabe de "Wake up" ni de "suspensión falsa": cuando vence un
+# timeout dispara su on-timeout y punto. Este script se interpone entre el
+# listener y la acción real (apagar pantalla / bloquear / suspender) y la deja
+# pasar SALVO que alguna de las dos funciones del shell la esté vetando.
 #
-# Estado: ~/.config/gigios/wakeup.json, escrito por AGS
-# (ags/servicios/energia/mantenerDespierto.ts):
-#   { "active": bool, "until": <epoch seg|null>, "screen": bool, "pid": <pid de AGS> }
-#   until = null  → sin límite (el campo de minutos vacío)
-#   screen = true → el Wake up también protege la pantalla (no se apaga ni bloquea)
+# Son DOS ficheros de estado, los dos escritos por AGS, los dos con el mismo
+# contrato (active / until absoluto / pid) y la misma guarda:
+#
+#   ~/.config/gigios/wakeup.json  (ags/servicios/energia/mantenerDespierto.ts)
+#     { "active": bool, "until": <epoch seg|null>, "screen": bool, "pid": <pid de AGS> }
+#     until = null  → sin límite (el campo de minutos vacío)
+#     screen = true → el Wake up también protege la pantalla (no se apaga ni bloquea)
+#
+#   ~/.config/gigios/suspension-falsa.json  (ags/servicios/energia/suspensionFalsa.ts)
+#     { "active": bool, "until": <epoch seg|null>, "pid": <pid de AGS>, "thenSuspend": bool }
+#     Sin `screen`: la suspensión falsa APAGA la pantalla ella misma como primer
+#     paso de su secuencia de entrada, así que no tiene nada que proteger de
+#     hypridle por ese lado (ver el alcance, abajo). `thenSuspend` lo resuelve
+#     AGS al vencer el plazo, no este script: aquí solo se responde "¿veto sí o
+#     no?".
 #
 # Alcances:
 #   Wake up a secas          → veta SOLO la suspensión. La pantalla se apaga y
-#                              bloquea como siempre (decisión del usuario: Wake up
-#                              promete "no suspender", no "no bloquear").
+#                              bloquea como siempre (decisión del usuario: Wake
+#                              up promete "no suspender", no "no bloquear").
 #   Wake up + Pantalla       → veta además dpms-off y lock. El bloqueo va con la
-#                              pantalla porque hyprlock la taparía, que es justo lo
-#                              que la opción trata de evitar.
+#                              pantalla porque hyprlock la taparía, que es justo
+#                              lo que la opción trata de evitar.
+#   Suspensión falsa         → veta SOLO la suspensión, nunca dpms-off ni lock.
+#                              Y no es un descuido: cuando está puesta la
+#                              pantalla YA está apagada y la sesión YA está
+#                              bloqueada por su propia secuencia de entrada, así
+#                              que dejar pasar esas dos acciones no hace daño —
+#                              son idempotentes— y evita tener que razonar sobre
+#                              quién apagó qué. Lo único intolerable es el S3,
+#                              que es exactamente lo que la función existe para
+#                              impedir (la descarga a medias, la compilación
+#                              larga, el SSH abierto).
+#   dpms-on                  → no lo veta NADIE, nunca. Ver dpms_on().
 #
-# REGLA DE ORO: ante CUALQUIER duda se EJECUTA la acción (fail-open). Solo se veta
-# cuando se puede confirmar un Wake up vivo. Un fallo aquí debe degradar a "el Wake
-# up no funciona" (visible, molesto, arreglable), nunca a "el PC no se suspende
-# jamás" — que es silencioso, permanente y se come la batería sin que nada lo diga.
+# Vetan por OR: basta con que UNO de los dos esté vivo para no suspender.
+#
+# REGLA DE ORO: ante CUALQUIER duda se EJECUTA la acción (fail-open). Solo se
+# veta cuando se puede confirmar un estado vivo. Un fallo aquí debe degradar a
+# "el Wake up / la suspensión falsa no funciona" (visible, molesto, arreglable),
+# nunca a "el PC no se suspende jamás" — que es silencioso, permanente y se come
+# la batería sin que nada lo diga. Por eso la lectura de un fichero vive en UNA
+# sola función (alcance_vigente) y no copiada por cada estado: dos copias de la
+# regla de oro son dos copias que acaban divergiendo, y la que diverja fallará
+# hacia el lado cerrado sin que nadie lo note.
 #
 # Ojo: no vetamos "hasta que expire", solo respondemos a la pregunta de ahora.
 # hypridle no repite un on-timeout ya disparado, así que quien apaga el Wake up
-# (wakeup.ts) reinicia hypridle para volver a armar los contadores desde cero.
+# (wakeup.ts) o sale de la suspensión falsa reinicia hypridle para volver a
+# armar los contadores desde cero.
 
 set -uo pipefail
 
-STATE="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/wakeup.json"
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}/gigios"
+STATE="$CFG/wakeup.json"
+STATE_SF="$CFG/suspension-falsa.json"
+# Aviso de "hypridle ha querido suspender y se le ha vetado". No es estado: es un epoch
+# suelto que solo lee ags/servicios/energia/wakeUpSuspensionFalsa.ts. Ver el `case` de abajo.
+SIGNAL_VETO="$CFG/idle-suspend-vetado"
 
-# ¿Veta el Wake up la acción "$1"?  0 = sí (no ejecutar), 1 = no (ejecutar).
-blocked() {
-  local action=$1 scope pid
+# Alcance vigente del fichero de estado "$1", por stdout:
+#   "off"     → no veta nada (incluido TODO fallo: ver la REGLA DE ORO)
+#   "suspend" → veta la suspensión
+#   "screen"  → veta además dpms-off y lock (solo lo pide el Wake up)
+#
+# Nunca devuelve error ni escribe en stderr: quien llama compara la cadena. Un
+# `return 1` aquí se confundiría con "no veta" en unos sitios y se propagaría
+# en otros; la cadena "off" solo se puede leer de una forma.
+alcance_vigente() {
+  local estado=$1 scope pid
 
-  [[ -r $STATE ]] || return 1
-  command -v jq >/dev/null 2>&1 || return 1
+  [[ -r $estado ]] || { echo off; return; }
+  command -v jq >/dev/null 2>&1 || { echo off; return; }
 
-  # Una sola llamada a jq: alcance vigente + pid de quien lo pidió.
-  # scope: "off" | "suspend" (solo suspensión) | "screen" (suspensión + pantalla).
-  # La caducidad se resuelve aquí contra el reloj de pared (`now`), no confiando en
-  # que alguien venga a reescribir el fichero: si AGS muere con un Wake up de 30
-  # min puesto, a los 30 min deja de vetar solo.
+  # Una sola llamada a jq: alcance vigente, con la caducidad resuelta AQUÍ
+  # contra el reloj de pared (`now`) y no confiando en que alguien venga a
+  # reescribir el fichero — si AGS muere con un Wake up (o una suspensión
+  # falsa) de 30 min puesto, a los 30 min deja de vetar solo.
+  # Un fichero sin `.screen` —el de la suspensión falsa— cae en la rama
+  # "suspend", que es justo su alcance; aun así quien llama lo recorta, para
+  # que el alcance de cada función se lea en blocked() y no dependa de una
+  # clave ausente.
   scope=$(jq -r '
       if (.active == true) and ((.until == null) or (.until > now))
       then (if .screen == true then "screen" else "suspend" end)
       else "off" end
-    ' "$STATE" 2>/dev/null) || return 1
-  [[ $scope == "suspend" || $scope == "screen" ]] || return 1
+    ' "$estado" 2>/dev/null) || { echo off; return; }
+  [[ $scope == "suspend" || $scope == "screen" ]] || { echo off; return; }
 
   # AGS caído = estado huérfano. Sin esta comprobación, un cuelgue de AGS con un
-  # Wake up SIN límite dejaría el PC sin suspenderse para siempre, y encima sin
-  # ninguna UI donde apagarlo (la UI se fue con AGS): habría que saber que existe
-  # este JSON y borrarlo a mano. El pid lo resuelve en dos líneas.
-  pid=$(jq -r '.pid // empty' "$STATE" 2>/dev/null) || return 1
+  # Wake up (o una suspensión falsa) SIN límite dejaría el PC sin suspenderse
+  # para siempre, y encima sin ninguna UI donde apagarlo (la UI se fue con AGS):
+  # habría que saber que existe este JSON y borrarlo a mano. El pid lo resuelve
+  # en dos líneas.
+  pid=$(jq -r '.pid // empty' "$estado" 2>/dev/null) || { echo off; return; }
+  [[ $pid =~ ^[1-9][0-9]*$ ]] || { echo off; return; }
+  kill -0 "$pid" 2>/dev/null || { echo off; return; }
+
+  echo "$scope"
+}
+
+# ¿Está puesto el ajuste "sustituir la suspensión real por la falsa"?
+# 0 = sí (no suspender de verdad), 1 = no.
+#
+# Es la ÚNICA clave de suspension-falsa.json que se mira con `active` en FALSE, y no es una
+# excepción caprichosa: el ajuste dice «en este equipo la suspensión real no se usa», así que
+# tiene que vetar ya la primera inactividad del día, cuando todavía no hay ninguna suspensión
+# falsa puesta. Quien la convierte en una suspensión falsa es AGS, avisado por $SIGNAL_VETO —
+# este script sigue sin saber qué es una suspensión falsa.
+#
+# Misma REGLA DE ORO que todo lo demás de aquí: ante cualquier duda (sin fichero, sin jq,
+# JSON roto, pid muerto) NO se sustituye nada y el equipo se suspende de verdad. Con AGS
+# caído no hay nadie que pueda entrar en suspensión falsa, así que vetar dejaría un equipo
+# que no se suspende JAMÁS y se come la batería en silencio — peor que un S3 que quizá no
+# vuelva, porque aquello se ve y esto no.
+sustituye_suspension() {
+  local pid
+
+  [[ -r $STATE_SF ]] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  jq -e '.substitute == true' "$STATE_SF" >/dev/null 2>&1 || return 1
+
+  pid=$(jq -r '.pid // empty' "$STATE_SF" 2>/dev/null) || return 1
   [[ $pid =~ ^[1-9][0-9]*$ ]] || return 1
   kill -0 "$pid" 2>/dev/null || return 1
+  return 0
+}
+
+# ¿Veta alguien la acción "$1"?  0 = sí (no ejecutar), 1 = no (ejecutar).
+blocked() {
+  local action=$1 wakeup sf
+
+  wakeup=$(alcance_vigente "$STATE")
+  sf=$(alcance_vigente "$STATE_SF")
+
+  # Recorte explícito del alcance de la suspensión falsa a "suspend": su fichero
+  # no lleva `screen` hoy, pero si mañana alguien añadiera esa clave por
+  # cualquier motivo, el recorte impide que empiece a vetar dpms-off y lock por
+  # accidente — y con la pantalla apagada eso se vería como "hypridle dejó de
+  # funcionar", sin un solo error.
+  [[ $sf == off ]] || sf=suspend
 
   case $action in
-    suspend)       return 0 ;;
-    dpms-off|lock) [[ $scope == "screen" ]] && return 0; return 1 ;;
+    suspend)       [[ $wakeup != off || $sf != off ]] && return 0
+                   sustituye_suspension && return 0
+                   return 1 ;;
+    dpms-off|lock) [[ $wakeup == "screen" ]] && return 0; return 1 ;;
     *)             return 1 ;;
   esac
 }
@@ -121,7 +211,22 @@ case ${1:-} in
   dpms-off) blocked dpms-off || dpms_off ;;
   dpms-on)  dpms_on ;;
   lock)     blocked lock     || lock_screen ;;
-  suspend)  blocked suspend  || systemctl suspend ;;
+  suspend)
+    # Al VETAR se deja un aviso con el epoch del veto. No es una regla nueva y no toca la
+    # REGLA DE ORO: el veto se decide exactamente igual que antes y este script sigue sin
+    # saber qué es una suspensión falsa. Es solo que este es el único momento en que alguien
+    # sabe que "hypridle ha querido suspender", y AGS no tiene forma de enterarse por su
+    # cuenta — no hay listener de ext-idle-notify en el shell, hypridle no publica nada en
+    # D-Bus y el IdleHint de logind no es fiable en una sesión Wayland. Lo lee el puente
+    # ags/servicios/energia/wakeUpSuspensionFalsa.ts, que decide si con este Wake up toca
+    # entrar en suspensión falsa. Si el fichero no se puede escribir no pasa nada: esa
+    # opción del Wake up deja de actuar, que es el fallo visible, no el silencioso.
+    if blocked suspend; then
+      printf '%s' "$(date +%s)" > "$SIGNAL_VETO" 2>/dev/null || true
+    else
+      systemctl suspend
+    fi
+    ;;
   *)
     echo "uso: ${0##*/} {dpms-off|dpms-on|lock|suspend}" >&2
     exit 2

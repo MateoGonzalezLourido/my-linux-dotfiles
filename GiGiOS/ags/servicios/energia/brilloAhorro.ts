@@ -62,6 +62,25 @@ let reducido = false
 /** Último valor que escribimos, para reconocer nuestro propio eco. */
 let ultimoAplicado: number | null = null
 
+// ─────────────────────────────────────────────────────────────────────────────────────
+// LA SUSPENSIÓN FALSA NO TOCA EL BRILLO. NO LO VUELVAS A AÑADIR.
+// -------------------------------------------------------------
+// Lo tuvo, y estaba mal por dos razones independientes:
+//
+//  1. **No ahorraba nada.** El paso 2 de la secuencia de entrada es `dpms off`: el panel ya
+//     está APAGADO cuando le tocaría el turno al brillo. Bajar el brillo de una pantalla
+//     apagada no ahorra un solo vatio; solo escribe.
+//  2. **Se veía, y se veía mal.** La salida de la suspensión falsa la dispara el DESBLOQUEO
+//     de hyprlock, pero la pantalla la enciende antes cualquier tecla. En esa ventana —de la
+//     primera tecla hasta que se teclea la contraseña— el usuario se encontraba el panel al
+//     mínimo, y solo volvía a su brillo al desbloquear. Reportado en vivo.
+//
+// Y en este equipo el brillo va por DDC, así que además dejaba residuo FÍSICO en la firmware
+// del monitor (ver la cabecera). Si algún día alguien quiere volver a intentarlo: haría falta
+// restaurar el brillo al ENCENDERSE la pantalla, no al desbloquear, y no hay ninguna señal
+// fiable de eso — hypridle no emite `on-resume` de un DPMS que apagamos nosotros, que es el
+// mismo agujero que documenta «Cómo se sale» en docs/suspension-falsa.md.
+
 /** El objetivo, calculado SIEMPRE desde `base` —el brillo de antes de que bajáramos nada—
  *  y no desde el valor vivo: en modo relativo, partir de lo ya bajado restaría otra vez en
  *  cada reconciliación y la pantalla se apagaría sola a base de eventos. `null` = no hay

@@ -8,6 +8,15 @@ import { reiniciarHypridle } from "../pantalla/reinicioHypridle"
 import { interpretarMinutos, normalizarTextoMinutos } from "./tiempoMantenerDespierto"
 
 const RUTA_ESTADO = `${GLib.get_user_config_dir()}/gigios/wakeup.json`
+/** AJUSTES del Wake up, que NO es lo mismo que su estado. `wakeup.json` es estado vivo con
+ *  guarda de pid y se reescribe a `active:false` en cada arranque (`inicializarMantenerDespierto`),
+ *  así que guardar ahí una preferencia sería guardarla en un fichero que se borra solo.
+ *  Y tampoco puede ir en `preferences.json` ni en `power-save/config.json`: los dos se
+ *  reescriben ENTEROS por su propio escritor único, y un segundo escritor sobre el mismo
+ *  JSON se pisa (es la misma razón por la que la suspensión falsa tiene fichero propio en
+ *  vez de colarse en `runtime-state.json`). De ahí este tercer fichero, minúsculo y con un
+ *  solo escritor: este módulo. */
+const RUTA_OPCIONES = `${GLib.get_user_config_dir()}/gigios/wakeup-opciones.json`
 const instanteActual = () => Math.floor(Date.now() / 1000)
 
 export const [mantenerDespiertoActivo, establecerMantenerDespiertoActivo] = createState(false)
@@ -17,8 +26,56 @@ export const [minutosMantenerDespierto, establecerMinutosMantenerDespierto] = cr
 export const [tiempoRestanteMantenerDespierto, establecerTiempoRestanteMantenerDespierto] =
   createState<number | null>(null)
 
+/**
+ * «Al vencer la inactividad, entrar en suspensión falsa».
+ *
+ * Hoy el Wake up solo VETA: cuando hypridle quiere suspender, `idle-action.sh` se traga la
+ * acción y no pasa nada — el equipo se queda encendido, con la pantalla apagada por el
+ * listener de DPMS y nada más. Con esta opción, ese mismo momento se aprovecha para ENTRAR
+ * en suspensión falsa: el escritorio queda apagado de cara al usuario y el Wake up sigue
+ * cumpliendo su promesa, porque la suspensión falsa no detiene el kernel y la descarga, la
+ * compilación o la sesión SSH siguen vivas.
+ *
+ * Quien decide es AGS, no bash: el script sigue vetando el `systemctl suspend` exactamente
+ * igual y no aprende ninguna regla nueva (ver el puente en `wakeUpSuspensionFalsa.ts`).
+ *
+ * Es un AJUSTE, no estado de sesión, y por eso se persiste: el Wake up se apaga en cada
+ * arranque a propósito, pero «cómo quiero que se comporte cuando lo encienda» no debería
+ * haber que recordárselo cada vez.
+ */
+export const [suspensionFalsaAlVencer, establecerSuspensionFalsaAlVencer] =
+  createState(leerOpcionSuspensionFalsaAlVencer())
+
 let instanteLimite: number | null = null
 let temporizador: number | null = null
+
+/** Lectura tolerante del ajuste: cualquier problema degrada a `false`, que es el
+ *  comportamiento de siempre (vetar y nada más). Un fichero corrupto no puede acabar
+ *  metiendo al usuario en una suspensión falsa que no pidió. */
+function leerOpcionSuspensionFalsaAlVencer(): boolean {
+  try {
+    const [ok, contenido] = GLib.file_get_contents(RUTA_OPCIONES)
+    if (!ok) return false
+    const datos = JSON.parse(new TextDecoder().decode(contenido))
+    return datos?.suspensionFalsaAlVencer === true
+  } catch (_) {
+    return false
+  }
+}
+
+function guardarOpciones() {
+  try {
+    const directorio = GLib.path_get_dirname(RUTA_OPCIONES)
+    if (!GLib.file_test(directorio, GLib.FileTest.EXISTS)) {
+      GLib.mkdir_with_parents(directorio, 0o755)
+    }
+    GLib.file_set_contents(RUTA_OPCIONES, JSON.stringify({
+      suspensionFalsaAlVencer: suspensionFalsaAlVencer.get(),
+    }))
+  } catch (error) {
+    console.error("[mantener-despierto] no se pudieron guardar las opciones:", error)
+  }
+}
 
 function obtenerPidPropio(): number {
   try {
@@ -125,6 +182,14 @@ export function fijarMinutosMantenerDespierto(texto: string) {
 export function fijarMantenerPantallaActiva(activa: boolean) {
   establecerMantenerPantallaActiva(activa)
   if (mantenerDespiertoActivo.get()) escribirEstado(true)
+}
+
+/** Cambia y persiste «al vencer la inactividad, entrar en suspensión falsa». No hace falta
+ *  reescribir `wakeup.json`: el lado bash no conoce esta opción ni tiene por qué —lo único
+ *  que hace es vetar, como siempre— y quien la consume es el puente de AGS. */
+export function fijarSuspensionFalsaAlVencer(activa: boolean) {
+  establecerSuspensionFalsaAlVencer(activa)
+  guardarOpciones()
 }
 
 /** Limpia al iniciar cualquier veto heredado de otra sesión de AGS. */

@@ -1278,6 +1278,224 @@ leído **una vez al arrancar** — pero el toggle es maestro y su setter de AGS 
 caliente** (`pkill` + borrar el JSON al apagar; re-exec al encender), así que no hace falta
 reiniciar nada.
 
+### Cámara: detector de uso (`camara-monitor.sh`) + `ags/servicios/camara/`
+
+Dos cosas distintas que conviene no confundir: **quién está usando la cámara** (privacidad, va a
+la barra) y **cómo está ajustada la cámara** (brillo, exposición… va a QuickSettings y a Ajustes).
+La primera la resuelve este script; la segunda, la capa de servicio de AGS. Comparten la
+enumeración y poco más.
+
+#### Por qué la detección de uso NO puede vivir dentro de AGS
+
+El indicador de micrófono (`modulos/barra/indicadores/audio/Microfono.tsx`) presume, con razón, de
+**cero procesos, cero timers**: PipeWire gestiona todas las capturas de audio y AstalWp emite
+`recorder-added` al instante. Con la cámara no hay nada de eso. **Firefox, Chrome, Zoom y OBS abren
+`/dev/videoN` directamente por V4L2**, sin pasar por PipeWire, así que no existe ninguna señal a la
+que suscribirse. (Es el mismo hecho que obliga a `screencast-monitor.sh` a *excluir* `v4l2_*` y
+`libcamera*` de sus nodos `Video/Source`: la webcam no es una captura de pantalla y tampoco es un
+nodo de PipeWire cuando la usa una app normal.)
+
+La vía obvia —mirar quién tiene el nodo abierto recorriendo `/proc/*/fd`— **se midió en esta
+máquina: 28 ms por barrido con 435 procesos**. A 2 s de intervalo eso es más del 1% de una CPU
+quemado durante toda la sesión, y encima dentro del proceso que pinta la barra. Descartado.
+
+Lo que sí existe es un evento del kernel: **inotify entrega `IN_OPEN` e `IN_CLOSE` también sobre
+nodos de dispositivo**, no solo sobre ficheros normales. Comprobado antes de escribir nada:
+
+```sh
+inotifywait -m -e open -e close /dev/null   # imprime OPEN y CLOSE en cada `cat /dev/null`
+```
+
+Con eso la detección es puramente reactiva: el script se bloquea en `inotifywait` y solo trabaja
+cuando alguien abre o cierra de verdad la cámara. **En reposo: cero CPU, cero forks, cero timers**,
+igual que `wifi-monitor.sh` o `bt-monitor.sh`.
+
+#### Inotify dispara, `fuser` dice la verdad
+
+No se lleva la cuenta de OPEN menos CLOSE, y no es por pereza: **contar falla en los dos sentidos.**
+Una app abre el mismo nodo varias veces, y Chromium **abre y cierra al ENUMERAR** las cámaras —
+antes de usar ninguna—, así que llevar la cuenta encendería el indicador cada vez que alguien entra
+en una web con videollamada. Y por el otro lado, un proceso que muere de golpe cierra sus
+descriptores sin que llegue ningún CLOSE que case.
+
+Por eso inotify es solo el **disparador**: cada evento provoca una comprobación real con `fuser`,
+que le pregunta al kernel quién tiene el nodo abierto *ahora*, y los PID se traducen a su `comm`
+(`firefox`, `obs`) leyendo `/proc/<pid>/comm`. El barrido caro ocurre una vez por evento, no cada
+dos segundos.
+
+Entre el evento y la comprobación hay **0,4 s de asentado** (`ASENTADO`), y son justo los que
+descartan el sondeo de Chromium: para cuando se mira, el abrir-y-cerrar ya terminó y `fuser` no
+encuentra a nadie. Medido con un banco de pruebas que simula cinco aperturas instantáneas seguidas:
+**el indicador no llega a parpadear ni una vez**; una apertura de verdad sí lo enciende.
+
+#### Hotplug, y por qué no se vigila `/dev` con `-e open`
+
+Los nodos a vigilar hay que rearmarlos cuando se enchufa una webcam USB. Un **segundo**
+`inotifywait` vigila `/dev` con `-e create -e delete` y, al ver aparecer un `video*`, tumba al
+primero para que el bucle vuelva a enumerar (con 0,5 s de margen: udev tarda unos ms en poner las
+propiedades del nodo nuevo, y enumerar antes lo dejaría fuera de la vigilancia).
+
+Lo que **no** se puede hacer es meterlo todo en un solo `inotifywait` sobre `/dev`: un watch de
+directorio reporta los eventos de *todos* sus hijos, así que `-e open` sobre `/dev` entregaría cada
+apertura de `/dev/null`, `/dev/urandom` y `/dev/dri/*` — miles de eventos por minuto para descartar
+el 99,9%.
+
+#### Una webcam no es un `/dev/videoN`, son varios
+
+Una UVC corriente registra **dos o tres** nodos: el de vídeo y uno o dos de **metadatos**
+(`Video Capture Metadata`, desde el kernel 4.16). Abrir el de metadatos no da imagen, y
+`v4l2-ctl --list-ctrls` sobre él contesta con la lista **vacía, sin error** — o sea que quedarse con
+el primer `/dev/video*` es una moneda al aire que en media de las máquinas deja la sección de
+ajustes en blanco "sin motivo", y vigilarlo para detectar uso da falsos negativos.
+
+El criterio correcto **no es el nombre** (los dos nodos comparten el `name` de sysfs) sino la
+propiedad de udev **`ID_V4L_CAPABILITIES`**, que trae `:capture:` solo en los que capturan imagen.
+La rellena `60-persistent-v4l.rules` llamando a `v4l_id`, así que está en cualquier distro con udev.
+El script la lee con `udevadm info` y AGS con GUdev; **si la propiedad falta, no se descarta el
+nodo**: es preferible vigilar de más que dejar una cámara sin indicador.
+
+#### El contrato con AGS
+
+`~/.config/gigios/camara-uso.json`, escrito atómicamente (tmp + `mv`, que es por lo que el
+`Gio.FileMonitor` de AGS vigila el **directorio** y nunca lee un JSON a medias):
+
+```json
+{"enUso":true,"desde":1788054504,"camaras":[{"nodo":"/dev/video0","nombre":"Integrated Camera","apps":["firefox"]}]}
+```
+
+Lo lee `ags/servicios/camara/uso.ts` con `crearFuenteArchivoJson`. Ahí `enUso` **se deriva de la
+lista, no se cree el booleano del fichero**: si el script muriera a mitad de escritura, un `true`
+con lista vacía dejaría el indicador de privacidad encendido para siempre sin nada que señalar, que
+es la peor forma posible de fallar para un aviso de este tipo.
+
+El script emite además `camara.en-uso` (catálogo de `lib/notif.sh`) **solo en la transición** a
+encendido. El apagado no se avisa: no es un suceso de privacidad y duplicaría el ruido de cada
+videollamada.
+
+Sin `inotify-tools` el script sale en silencio **dejando el estado en LIBRE**. Un indicador de
+privacidad clavado en "te están grabando" es peor que no tener indicador.
+
+#### Los controles V4L2 se pierden solos — por eso hay persistencia
+
+Los controles (brillo, contraste, exposición, balance de blancos…) **no viven en la cámara: viven en
+el driver del kernel**, en la estructura que se crea al registrar el dispositivo. Se van al
+desenchufar la webcam, al recargar `uvcvideo` y al reiniciar. Sin reposición, quien ajusta el brillo
+porque su webcam sale oscura tiene que volver a ajustarlo en cada arranque, y nada le avisa: le
+vuelve a salir oscura y ya está.
+
+`ags/servicios/camara/persistencia.ts` guarda lo elegido en `~/.config/gigios/camara.json` (fuera
+del repo, como todo el estado de usuario) y lo repone al iniciar sesión **y en cada `add` de udev**,
+que es justo cuando vuelve a hacer falta. Tres detalles que no son adorno:
+
+- **Se indexa por aparato, no por nodo.** La clave es el serial USB, o `vendor:product` si el
+  fabricante no pone serial — nunca `/dev/videoN`, que el kernel reparte por orden de aparición: con
+  eso, enchufar la webcam en otro puerto aplicaría los ajustes de una a la otra.
+- **El orden de escritura importa.** `fijarControles()` manda los `*auto*` **primero**: si
+  `white_balance_automatic=0` no se ha aplicado todavía, el `white_balance_temperature=5200` que va
+  detrás cae en un control `inactive` y **se descarta en silencio**. Ese orden es la diferencia
+  entre que los ajustes guardados se restauren o no.
+- **`flags=inactive` llega hasta la UI.** Un control encadenado a un automático encendido acepta la
+  escritura, `v4l2-ctl` sale con 0 y el valor no cambia. La UI lo deshabilita en vez de dejar que el
+  usuario arrastre algo que no hace nada.
+
+Y una limitación que la UI tiene prohibido disimular: **no existe ninguna «cámara por defecto» en
+Linux.** A diferencia del audio, donde WirePlumber tiene `default.configured.audio.source` (ver la
+sección de endpoints de audio del CLAUDE.md de ags), ni V4L2 ni PipeWire publican nada equivalente
+para vídeo: Firefox, Chrome y Zoom eligen con su propio selector interno. La «cámara preferida» de
+GiGiOS vale para la vista previa, los ajustes y el indicador — y así se dice en pantalla.
+
+La resolución y los fps corren la misma suerte: los negocia la app al abrir el stream
+(`VIDIOC_S_FMT`), así que `formatos.ts` es una **ficha informativa** de lo que el aparato soporta,
+nunca un desplegable que se pueda «aplicar».
+
+#### Killswitch: bloquear la cámara (`system/camara/` + `servicios/camara/bloqueo.ts`)
+
+El interruptor «Cámara bloqueada» de QuickSettings y de Ajustes > Cámara. AGS no bloquea nada: los
+nodos `/dev/video*` son de `root:video` y quien decide sus permisos es udev, así que el trabajo lo
+hace `/usr/local/bin/gigios-camara` (root-owned, fuente en `system/camara/gigios-camara.sh`),
+autorizado sin contraseña por `/etc/sudoers.d/gigios-camara` **solo** para `block` y `unblock`.
+Mismo esquema que TLP y ClamAV. `status` queda fuera de la regla a propósito: no necesita root, solo
+comprueba si existe un fichero world-readable, y meterlo ampliaría el grant sin ninguna ganancia.
+
+**El estado ES la presencia del fichero de regla**, no un JSON nuestro. Así el bloqueo sobrevive a
+reiniciar sin que nadie tenga que acordarse de reponerlo, y se deshace desde un TTY con un `rm` si
+algún día la UI no arranca.
+
+##### El número de la regla es lo más importante de todo esto
+
+La regla se llama **`71-`**, y no `99-` como el resto de las nuestras, porque tiene que colarse
+**entre dos reglas del sistema**:
+
+```
+/usr/lib/udev/rules.d/70-uaccess.rules:34   SUBSYSTEM=="video4linux", TAG+="uaccess"
+/usr/lib/udev/rules.d/73-seat-late.rules    TAG=="uaccess|…", RUN{builtin}+="uaccess"
+```
+
+En el 70 se **marca** el dispositivo y en el 73 se **ejecuta** el builtin que le concede la ACL al
+usuario de la sesión. Nuestro `TAG-="uaccess"` tiene que ocurrir después del 70 (o no habría nada
+que quitar) y antes del 73 (o el builtin ya estaría encolado con el tag puesto). Una
+`99-gigios-camara.rules` —el nombre natural en este repo— quitaría el tag **después** de que la
+decisión estuviera tomada: no daría ningún error, `udevadm control --reload-rules` diría que todo
+bien, y la cámara seguiría abriéndose con normalidad. La regla se valida con `udevadm verify`.
+
+##### Y por qué además se hace `chmod 000` a mano
+
+La regla gobierna los nodos que udev procese **a partir de ahora**. Los que ya existen conservan la
+ACL que el builtin les puso al arrancar la sesión, y `udevadm trigger` **no la revoca**: el builtin
+`uaccess` solo corre cuando el dispositivo está etiquetado, así que al quitarle el tag nadie vuelve
+a pasar por ahí a deshacer lo hecho. Sin el chmod, «bloquear» no tendría ningún efecto hasta
+desenchufar la webcam o reiniciar.
+
+`chmod 000` basta —y es preferible a pelearse con `setfacl`— porque **en un fichero con ACL los bits
+de grupo del modo son la máscara**. Comprobado antes de escribir el helper:
+
+```
+$ setfacl -m u:nobody:rw f && chmod 000 f && getfacl -c f
+user:nobody:rw-   #effective:---
+mask::---
+```
+
+root sigue pudiendo abrir el nodo (`CAP_DAC_OVERRIDE`), que es lo que permite desbloquear después.
+
+##### Lo que el killswitch NO hace, y la UI lo dice
+
+Impide **abrir** la cámara; no cierra un descriptor ya abierto. Una app que estuviera emitiendo
+cuando se pulsa el bloqueo sigue viendo imagen hasta que suelte el dispositivo. Cortarla exigiría
+matarle el proceso o descargar `uvcvideo` a la fuerza, y ninguna de las dos cosas es aceptable para
+un interruptor de un panel de ajustes. Por eso `block` avisa por stderr si alguien la tiene abierta
+en ese momento, y las dos vistas lo enseñan: un interruptor que dice «bloqueada» mientras el piloto
+de la webcam sigue encendido sería mentira.
+
+Efecto lateral que hay que tener presente al tocar la UI: **con la cámara bloqueada `v4l2-ctl` falla
+por permisos**, así que la lista de controles sale vacía. Las dos vistas distinguen ese caso del
+«esta cámara no expone controles» y relanzan la lectura al desbloquear; sin eso, desbloquear dejaría
+la sección sin un solo mando hasta salir y volver a entrar.
+
+##### La trampa que cubre `preflight.sh`
+
+El bloqueo sobrevive a todo (es un fichero en `/etc`), pero el **helper** no: una instalación nueva
+donde el paso `sistema` no llegó a correr, o un `/usr/local` limpiado, deja la cámara bloqueada **y
+sin nada capaz de desbloquearla desde la UI**. `bin/preflight.sh` comprueba el par entero y lo marca
+como ERROR con las dos salidas (`bash install.sh --solo sistema`, o borrar la regla a mano).
+
+#### Vista previa
+
+«Probar cámara» lanza un `mpv` aparte (clase `gigios-camara-preview`, con su regla en
+`gigios/reglas.lua`) y no un widget dentro del panel. Empotrar vídeo en GTK4 exigiría un
+`gtk4paintablesink` y un pipeline de GStreamer vivo dentro del proceso que pinta la barra: si el
+pipeline se atasca —y una cámara desenchufada a mitad de stream lo hace— se lleva por delante el
+hilo principal del **shell entero**. No compensa para un botón que se usa diez segundos.
+
+#### Qué se probó de verdad
+
+Esta máquina es un sobremesa **sin cámara** (`/dev/video*` no existe, `uvcvideo` sin cargar), así
+que el detector se validó con un banco de pruebas que sustituye `/dev` por un directorio y el nodo
+por un fichero: enumeración vacía → `enUso:false`; aparición del nodo → rearme del vigilante;
+proceso que lo mantiene abierto → `enUso:true` con su `comm` resuelto; cierre → vuelta a libre; y
+cinco aperturas instantáneas seguidas → ningún parpadeo. El parser de `v4l2-ctl` sí está probado
+contra salida real (`controlesDatos.test.ts` usa la de una Logitech C920, con sus tres tipos de
+control, un `flags=inactive` y un menú con huecos).
+
 ### USB (`usb-monitor.sh`, `usb-eject.sh`, `usb-repair.sh`) + `system/udev/`
 
 **La raíz del problema con los USB no es el shell, es `vm.dirty_ratio`.** Linux acepta hasta el

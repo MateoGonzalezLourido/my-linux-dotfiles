@@ -22,13 +22,42 @@ export interface EntradaSonido {
   sonidoRegla?: string
   /** No molestar activo en el daemon. */
   noMolestar: boolean
+  /**
+   * El silencio vigente lo gobierna la **suspensión falsa**, no el usuario.
+   *
+   * Lo calcula `silencioDeSuspensionFalsa()` (`servicios/energia/suspensionFalsa/dnd.ts`) y es
+   * la pieza que evita el peor fallo de esa función: el DND que se enciende al entrar dejaría
+   * **las alarmas mudas**, porque aquí abajo No molestar calla el sonido y una crítica no se lo
+   * salta. Un despertador que no suena porque el equipo estaba en suspensión falsa no da ningún
+   * error: solo un usuario que se queda dormido.
+   *
+   * Con esta marca el DND sigue tapando los popups igual, pero el sonido pasa a decidirlo los
+   * dos ajustes de abajo. Falso —el caso normal, y también el DND **manual** del usuario, que
+   * no cambia de comportamiento en absoluto— deja la lógica de siempre intacta.
+   */
+  dndSuspensionFalsa?: boolean
+  /** Ajuste `sfSilenciarNotificaciones` (por defecto **sí**). Solo pinta con
+   *  `dndSuspensionFalsa`. Ausente = se calla, que es su valor de fábrica. */
+  sfSilenciarNotificaciones?: boolean
+  /** Ajuste `sfSilenciarReloj` (por defecto **no**). Solo pinta con `dndSuspensionFalsa`.
+   *  Ausente = **suena**: el defecto y el fallback apuntan los dos hacia el mismo lado, que es
+   *  el único en el que equivocarse no cuesta una alarma perdida. */
+  sfSilenciarReloj?: boolean
+  /** Hint `x-gigios-source` de la notificación. Lo único que hace falta de él aquí es
+   *  reconocer las alertas del reloj (`alarm`); ver `esAlertaReloj`. */
+  origen?: string
   /** `meta.muteAudio`, calculado por el motor de reglas. */
   muteAudio: boolean
   /** Urgencia D-Bus: 0 baja, 1 normal, 2 crítica. */
   urgencia?: number
 }
 
-export type MotivoSilencio = "sin-sonido" | "suppress-sound" | "no-molestar" | "regla"
+export type MotivoSilencio =
+  | "sin-sonido"
+  | "suppress-sound"
+  | "no-molestar"
+  | "suspension-falsa"
+  | "regla"
 
 /**
  * Expande un `~` inicial. Una ruta la teclea una persona en el editor de reglas o en el
@@ -62,11 +91,15 @@ export type DecisionSonido =
  *    las que lo piden. No hay sonido por defecto.
  * 2. **`suppress-sound` gana a todo lo demás.** Lo pone quien emite, que es quien sabe si ya ha
  *    sonado por otro canal (típico de los reproductores de música).
- * 3. **No molestar**, y después las **reglas** (`muteAudio`). Las dos silencian; se distinguen solo
- *    para poder explicarlo en las pruebas y en los logs.
+ * 3. **No molestar**, la **suspensión falsa** y después las **reglas** (`muteAudio`). Las tres
+ *    silencian; se distinguen solo para poder explicarlo en las pruebas y en los logs.
  *
  * Una crítica **no** se salta el No molestar. Aquí sí sería tentador —«esto es importante»— pero el
  * usuario que activa No molestar está pidiendo silencio, y la notificación sigue viéndose.
+ *
+ * La **suspensión falsa** es la única excepción a esa regla, y no lo es por urgencia sino por
+ * autoría: ese DND no lo ha pedido el usuario, lo pone la función al entrar. Ver
+ * `dndSuspensionFalsa`.
  */
 export function decidirSonido(entrada: EntradaSonido): DecisionSonido {
   const personalizado = entrada.sonidoRegla?.trim()
@@ -80,7 +113,31 @@ export function decidirSonido(entrada: EntradaSonido): DecisionSonido {
   // segundo convive con este campo en la misma pantalla (fijar ambos es contradictorio y manda el
   // que calla).
   if (entrada.suppressSound && !personalizado) return { reproducir: false, motivo: "suppress-sound" }
-  if (entrada.noMolestar) return { reproducir: false, motivo: "no-molestar" }
+
+  // El DND MANUAL primero, y sin matices: quien lo enciende pide silencio y lo tiene, alarmas
+  // incluidas. `dndSuspensionFalsa` ya viene a false cuando el DND vigente es del usuario (lo
+  // decide `silencioDeSuspensionFalsa()`, que es quien sabe quién lo encendió), así que aquí no
+  // hay que volver a distinguirlo.
+  if (entrada.noMolestar && !entrada.dndSuspensionFalsa) {
+    return { reproducir: false, motivo: "no-molestar" }
+  }
+
+  // Suspensión falsa: manda el ajuste, no el DND. Y se comprueba aunque `noMolestar` sea false,
+  // porque los dos ajustes de silencio son independientes de él — se puede querer el audio
+  // callado sin tapar los popups, y con el ajuste de DND apagado esta rama es la única que
+  // queda.
+  if (entrada.dndSuspensionFalsa) {
+    const callar = esAlertaReloj(entrada)
+      // Alarma / temporizador / cronómetro: SUENAN salvo que se pida lo contrario a propósito.
+      // El `=== true` no es paranoia de estilo: un campo ausente tiene que caer del lado del
+      // despertador que suena, nunca del que se queda mudo sin decir nada.
+      ? entrada.sfSilenciarReloj === true
+      // Notificación normal: se calla salvo que se pida lo contrario. Aquí el valor de fábrica
+      // es el silencio, así que el fallback lo acompaña.
+      : entrada.sfSilenciarNotificaciones !== false
+    if (callar) return { reproducir: false, motivo: "suspension-falsa" }
+  }
+
   if (entrada.muteAudio) return { reproducir: false, motivo: "regla" }
 
   // Lo que fija el usuario manda sobre lo que pida la notificación: es el único punto del sistema
@@ -98,6 +155,27 @@ export const SONIDO_ALARMA = "alarm-clock-elapsed"
 
 /** Nombre de tema para el fin del temporizador. */
 export const SONIDO_TEMPORIZADOR = "complete"
+
+/** Valor del hint `x-gigios-source` con el que el reloj emite sus alertas (`estadoReloj.ts`).
+ *  No es `system` a propósito: eso activaría el skin dunst de los avisos de `hypr/scripts`. */
+export const ORIGEN_RELOJ = "alarm"
+
+/**
+ * ¿Es esta notificación una alerta del reloj (alarma, temporizador o cronómetro)?
+ *
+ * Se reconoce por lo que el reloj YA emite —el hint de origen y los dos nombres de tema— y no
+ * por un canal nuevo: inventarse uno obligaría a mantener dos formas de decir lo mismo, y la
+ * que se olvidara de actualizar dejaría una alerta sin reconocer, o sea muda durante la
+ * suspensión falsa. Se miran las dos señales porque **ninguna basta sola**: una alarma con
+ * sonido personalizado no lleva `SONIDO_ALARMA` (viaja como `sound-file`), y un aviso ajeno
+ * podría pedir `alarm-clock-elapsed` sin venir del reloj — y en ese caso tratarlo como alerta
+ * es lo correcto de todos modos: lo que se está preguntando es «¿esto es un despertador?».
+ */
+export function esAlertaReloj(entrada: Pick<EntradaSonido, "origen" | "soundName">): boolean {
+  if (entrada.origen?.trim() === ORIGEN_RELOJ) return true
+  const tema = entrada.soundName?.trim()
+  return tema === SONIDO_ALARMA || tema === SONIDO_TEMPORIZADOR
+}
 
 /**
  * Comando de reproducción como **array de argumentos**, nunca una cadena para `sh -c`.

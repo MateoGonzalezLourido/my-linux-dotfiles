@@ -537,6 +537,21 @@ EOF
     warn "sin perfil de GPU en $gpu_perfil_ruta (Hyprland avisará en cada inicio; ejecutá install.sh --solo gpu)"
   fi
 
+  # Cámara bloqueada SIN forma de desbloquearla. Es la única trampa del killswitch, y es
+  # de las que dejan al usuario encerrado: el bloqueo es la PRESENCIA de un fichero de regla
+  # udev, así que sobrevive a reinstalar el sistema de ficheros del repo, a reiniciar y a
+  # borrar la configuración de GiGiOS. Si en esa situación falta el helper root-owned —una
+  # instalación nueva donde el paso `sistema` no llegó a correr, o un /usr/local limpiado— el
+  # interruptor de la UI no puede apagarlo y la cámara se queda muerta sin que nada explique
+  # por qué. Se comprueba el par entero, no cada mitad por su lado.
+  if [[ -f /etc/udev/rules.d/71-gigios-camara-bloqueada.rules ]]; then
+    if [[ -x /usr/local/bin/gigios-camara ]]; then
+      ok "cámara bloqueada a propósito (el interruptor de Ajustes > Cámara puede desbloquearla)"
+    else
+      fail "la cámara está bloqueada y falta /usr/local/bin/gigios-camara para desbloquearla (bash install.sh --solo sistema, o sudo rm /etc/udev/rules.d/71-gigios-camara-bloqueada.rules)"
+    fi
+  fi
+
   # TLP. Sólo aplica donde hay batería del sistema: el instalador no instala TLP en un
   # sobremesa a propósito. La trampa que esto destapa es que el paquete puede estar
   # instalado y la unidad NO activada — el selector de Ajustes > Energía sigue

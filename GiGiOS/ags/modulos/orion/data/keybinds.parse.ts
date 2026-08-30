@@ -110,6 +110,7 @@ const EXEC_PATTERNS: [RegExp, string][] = [
   [/toggle-quicksettings/, "Mostrar/ocultar ajustes rápidos"],
   [/toggle-notifications/, "Mostrar/ocultar notificaciones"],
   [/toggle-settings/, "Mostrar/ocultar ajustes"],
+  [/toggle-suspension-falsa/, "Entrar/salir de suspensión falsa"],
 ]
 
 function describeExec(cmd: string): string {

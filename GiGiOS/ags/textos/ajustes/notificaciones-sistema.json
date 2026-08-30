@@ -98,6 +98,7 @@
     "archivos.actualizacion": "Archivos de sistema tocados por una actualización",
     "sistema.reinicio-pendiente": "Reinicio pendiente tras actualizar kernel o drivers",
     "monitor.sin-inotify": "Vigilancia de ficheros desactivada (falta inotify-tools)",
+    "camara.en-uso": "Cámara en uso",
 
     "descargas.malware": "Malware detectado en Descargas",
     "descargas.ejecutable-nuevo": "Ejecutable nuevo en Descargas",

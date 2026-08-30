@@ -28,6 +28,8 @@ import {
 } from "../../../servicios/energia/powerState.ts"
 import { brightnessSupported } from "../../../servicios/pantalla/brightness.ts"
 import InactividadAhorro from "./InactividadAhorro"
+import Segmentado from "./Segmentado"
+import SuspensionFalsa from "./SuspensionFalsa"
 import { tlpAvailable, tlpMode, tlpBusy, setTlpMode } from "../../../servicios/energia/tlp.ts"
 import { accionesEnergiaOcultas, botonApagado, setAccionEnergiaOculta, setBotonApagado } from "../preferences.ts"
 import { ACCIONES_ENERGIA, accionesVisibles } from "../../menu-energia/acciones"
@@ -58,25 +60,6 @@ function DeslizadorPorcentaje(
   scale.cssClasses = ["qs-slider", "brightness"]
   conectarCambioDeslizador(scale, fijar)
   return scale
-}
-
-function Segmentado({ options, current, onSelect, disabled }: {
-  options: { value: string, label: string }[]
-  current: any
-  onSelect: (v: string) => void
-  disabled?: any
-}) {
-  return (
-    <box cssClasses={["dl-seg"]} valign={Gtk.Align.CENTER}>
-      {options.map((o) => (
-        <button
-          sensitive={disabled ? disabled((d: boolean) => !d) : true}
-          cssClasses={current((c: string) => c === o.value ? ["dl-seg-btn", "active"] : ["dl-seg-btn"])}
-          onClicked={() => onSelect(o.value)}
-        ><label label={o.label} /></button>
-      ))}
-    </box>
-  )
 }
 
 const etiquetaAccion = (accion: AccionBotonEncendido) =>
@@ -237,7 +220,12 @@ export default function SeccionEnergia() {
         <AjusteInterruptor titulo={textos.forzar.titulo} informacion={textos.forzar.descripcion} activo={forcePowerSave} alAlternar={() => setForcePowerSave(!forcePowerSave.get())} />
       </TarjetaAjustes>
 
-      {tlpAvailable && (
+      {/* Ternario con `<></>` y no `&&`: ver la nota larga en `SuspensionFalsa.tsx`. Con la
+          rama falsa, `&&` deja el booleano `false` como hijo del árbol y el runtime de gnim
+          revienta al llamar a `getType(false)`. Aquí llevaba tiempo sin dar la cara porque
+          este hijo cuelga del Fragment de nivel superior, que lo tolera; en cuanto uno igual
+          apareció dentro de una tarjeta, se llevó la sección entera. */}
+      {tlpAvailable ? (
         <TarjetaAjustes titulo={textos.grupos.tlp} icono="󰂎">
           <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand>
             <box spacing={8} valign={Gtk.Align.CENTER}>
@@ -264,7 +252,7 @@ export default function SeccionEnergia() {
             alAlternar={() => setTlpAutoInPowerSave(!tlpAutoInPowerSave.get())}
           />
         </TarjetaAjustes>
-      )}
+      ) : <></>}
 
       {/* Brillo. La tarjeta se pinta SIEMPRE, también sin backend de brillo: ocultarla
           dejaría el ajuste indescubrible y sin nada que explicara la ausencia — el mismo
@@ -360,6 +348,15 @@ export default function SeccionEnergia() {
         <AjusteInterruptor titulo={textos.transparencia.titulo} informacion={textos.transparencia.descripcion} activo={opaquePanelsInPowerSave} alAlternar={() => setOpaquePanelsInPowerSave(!opaquePanelsInPowerSave.get())} />
         <AjusteInterruptor titulo={textos.transparenciaVentanas.titulo} informacion={textos.transparenciaVentanas.descripcion} activo={opaqueWindowsInPowerSave} alAlternar={() => setOpaqueWindowsInPowerSave(!opaqueWindowsInPowerSave.get())} />
       </TarjetaAjustes>
+
+      {/* La suspensión falsa va al FINAL y con tarjetas propias: comparte casi toda la
+          maquinaria con el modo ahorro, pero no es «un ahorro más agresivo» — el ahorro
+          reacciona a la batería con el usuario delante y esta la pide él porque se va.
+          Mezclar sus interruptores con los de arriba habría hecho creer que se aplican
+          también con la batería baja. Son dos tarjetas (`SuspensionFalsa` devuelve un
+          fragmento) porque el allowlist de apps a congelar es lo único que puede perder
+          datos y merece su propio encabezado y su propio aviso. */}
+      <SuspensionFalsa />
 
     </box>
     </overlay>
