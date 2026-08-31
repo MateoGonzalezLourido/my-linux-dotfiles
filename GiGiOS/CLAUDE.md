@@ -28,9 +28,10 @@ alarma muda sin dar ningún error; ver `audio/README.md`),
 `bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
 `system/` (ficheros que van a `/etc` y `/usr/local/bin`, **no** se symlinkean: se instalan con `sudo` —
 la regla udev de escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP, el helper de
-firmas de ClamAV, el helper de limpieza de disco, el helper de bloqueo de la cámara, la cesión del
+firmas de ClamAV, el helper de limpieza de disco, el helper de bloqueo de la cámara, el helper y la
+preparación de la **hibernación**, la cesión del
 botón de encendido a Hyprland y la configuración de SDDM; ver las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento, de
-cámara y del botón de encendido).
+cámara, de hibernación y del botón de encendido).
 
 `system/sddm/99-gigios.conf.in` es la única pieza de `system/` que **no se copia tal cual**: es una
 plantilla que `install.sh` (paso `sddm`) materializa en `/etc/sddm.conf.d/99-gigios.conf`
@@ -122,7 +123,9 @@ autolimpieza de disco, que además leen `hypr/scripts/limpiar-almacenamiento.sh`
 `limpieza-arranque.sh` con `jq`—, `apps-inicio.json` —las apps que se abren al iniciar sesión, que
 lee `inicializador/apps-inicio.sh`—, `camara.json` —los controles V4L2 guardados por aparato, que
 se reponen solos porque el kernel los pierde al desenchufar o reiniciar— y `camara-uso.json` —lo
-que escribe `hypr/scripts/camara-monitor.sh` cuando una app abre la cámara—, …), plus `~/.config/jarvis/`
+que escribe `hypr/scripts/camara-monitor.sh` cuando una app abre la cámara— y `hibernacion.json`
+—el tiempo total de inactividad hasta hibernar y **cuál de los dos mecanismos** lo cumple; lo lee
+`idle-action.sh` para decidir si suspende con alarma RTC o sin ella—, …), plus `~/.config/jarvis/`
 and `~/.local/share/jarvis/` for the Orion launcher, `~/.config/power-save/config.json`
 (umbral y filtros de modo ahorro) and `~/.local/share/orion/favorites.json` (favoritos del
 launcher — ver "What this is" para por qué estos dos últimos dejaron de vivir dentro del repo).
@@ -208,6 +211,23 @@ Puntos que conviene recordar sin abrir el documento:
 - **Editar un `*-monitor.sh` no afecta al que ya está corriendo**: hace falta `pkill -f
   <script>` + relanzarlo, o `hyprctl reload full-reset` (que sí re-ejecuta el autostart; un
   `hyprctl reload` normal no).
+
+## Hibernación: un número en la UI, dos mecanismos debajo
+
+Ajustes > Pantalla > Suspensión tiene **un solo** tiempo de hibernación (inactividad total), pero
+por dentro hay dos caminos y elegir mal es un fallo mudo. La razón, en una frase: **durante una
+suspensión el userspace está congelado**, así que un listener de hypridle posterior a la suspensión
+NO SE DISPARA NUNCA. Cuando se puede, quien cuenta es systemd (`suspend-then-hibernate` + alarma
+RTC, con `HibernateDelaySec` = total − suspensión, que es una **resta**); el listener `hibernate`
+de `hypridle.conf` queda solo para cuando hibernar no llega a pasar por la suspensión.
+
+La autoridad es `~/.config/gigios/hibernacion.json`; el listener de `hypridle.conf` es su espejo.
+Habilitarla en una máquina nueva es un paso propio del instalador (`--solo hibernacion`: swapfile
+persistente, `resume=` en el kernel, VRAM de NVIDIA) y **no surte efecto hasta reiniciar**. Nada se
+asume: `gigios-hibernacion estado` pregunta a logind y, si dice que no, la fila de Ajustes sale
+apagada con el motivo escrito. **Detalle completo, trampas y por qué de cada pieza en la sección de
+hibernación de [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) — léela antes de tocar
+`servicios/energia/hibernacion.ts`, `system/hibernacion/` o el listener `hibernate`.**
 
 ## init.sh (hardware state restore)
 

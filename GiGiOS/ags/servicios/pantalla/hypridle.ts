@@ -2,13 +2,21 @@
 // node --test). El efecto (leer/escribir/reiniciar) vive en
 // modulos/ajustes/pantalla/Inactividad.tsx.
 
-export type ListenerKind = "dpms" | "lock" | "suspend"
+export type ListenerKind = "dpms" | "lock" | "suspend" | "hibernate"
 
 export interface ListenerState { timeout: number; enabled: boolean }
 export interface HypridleConfig {
   dpms: ListenerState
   lock: ListenerState
   suspend: ListenerState
+  /**
+   * Listener de HIBERNACIÓN. Ojo: su `enabled` NO significa "¿hiberna el equipo?" sino "¿hiberna
+   * contándolo hypridle?" — que es solo uno de los dos caminos posibles. El otro (el normal) es
+   * suspender primero y que systemd hiberne desde la suspensión con una alarma RTC, y entonces
+   * este listener está APAGADO aunque la hibernación esté encendida. Quién manda de verdad es
+   * `~/.config/gigios/hibernacion.json`; esto es su espejo. Ver `servicios/energia/hibernacion.ts`.
+   */
+  hibernate: ListenerState
   /** ¿Bloquea la pantalla al suspender? (before_sleep_cmd del bloque general) */
   bloqueoAlSuspender: boolean
 }
@@ -30,6 +38,7 @@ const GATE_ACTIONS: Record<string, ListenerKind> = {
   "dpms-off": "dpms",
   "lock": "lock",
   "suspend": "suspend",
+  "hibernate": "hibernate",
 }
 
 function kindOf(onTimeout: string): ListenerKind | null {
@@ -37,6 +46,10 @@ function kindOf(onTimeout: string): ListenerKind | null {
   if (gated) return GATE_ACTIONS[gated[1]] ?? null
   if (/dpms\s+off/.test(onTimeout)) return "dpms"
   if (/hyprlock/.test(onTimeout)) return "lock"
+  // `hibernate` ANTES que `suspend`: `systemctl suspend-then-hibernate` casa con los dos patrones
+  // y es, de las dos, la que hiberna. Al revés se leería como un listener de suspensión y la UI
+  // enseñaría el tiempo en la fila equivocada.
+  if (/systemctl\s+(hibernate|suspend-then-hibernate)/.test(onTimeout)) return "hibernate"
   if (/systemctl\s+suspend/.test(onTimeout)) return "suspend"
   return null
 }
@@ -86,7 +99,7 @@ export function writeBloqueoAlSuspender(text: string, enabled: boolean): string 
 
 export function parseHypridle(text: string): HypridleConfig {
   const cfg: HypridleConfig = {
-    dpms: { ...DEFAULT }, lock: { ...DEFAULT }, suspend: { ...DEFAULT },
+    dpms: { ...DEFAULT }, lock: { ...DEFAULT }, suspend: { ...DEFAULT }, hibernate: { ...DEFAULT },
     bloqueoAlSuspender: parseBloqueoAlSuspender(text),
   }
   // Partir en bloques listener { ... }

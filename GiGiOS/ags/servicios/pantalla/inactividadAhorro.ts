@@ -29,6 +29,7 @@
 import GLib from "gi://GLib"
 import { parseHypridle, writeHypridle, writeBloqueoAlSuspender, type HypridleConfig, type ListenerKind } from "./hypridle"
 import { reiniciarHypridle } from "./reinicioHypridle"
+import { aplicarHibernacion, leerHibernacion, type AjusteHibernacion } from "../energia/hibernacion"
 import {
   powerSaveActive,
   idleOverrideInPowerSave,
@@ -129,6 +130,10 @@ export function leerInactividadGeneral(): HypridleConfig | null {
     dpms: apunte.dpms ?? config.dpms,
     lock: apunte.lock ?? config.lock,
     suspend: apunte.suspend ?? config.suspend,
+    // `hibernate` NO se aparta nunca: el ahorro no lo toca, y además el número que ve el
+    // usuario no vive aquí sino en hibernacion.json (esto es solo su espejo). Ver
+    // servicios/energia/hibernacion.ts.
+    hibernate: config.hibernate,
     bloqueoAlSuspender: config.bloqueoAlSuspender,
   }
 }
@@ -138,14 +143,39 @@ export function leerInactividadGeneral(): HypridleConfig | null {
  * Con el override puesto van al apunte en vez de al fichero, para que la restauración del
  * final del ahorro devuelva lo último que pidió el usuario y no lo que había antes de editar.
  */
-export function guardarInactividadGeneral(valores: ValoresListener, bloqueoAlSuspender: boolean): void {
+export function guardarInactividadGeneral(
+  valores: ValoresListener,
+  bloqueoAlSuspender: boolean,
+  hibernacion?: AjusteHibernacion,
+): void {
   if (overrideInactividadActivo()) {
     escribirApunte(valores)
-    // El bloqueo al suspender no forma parte del override: se aplica en el acto.
-    escribirConfig({}, bloqueoAlSuspender)
+    // El bloqueo al suspender no forma parte del override: se aplica en el acto. La hibernación
+    // TAMPOCO se aparta, pero su reparto sí depende de la suspensión vigente (la del ahorro),
+    // así que `conHibernacion` la recalcula contra el fichero, no contra `valores`.
+    escribirConfig(conHibernacion({}, hibernacion), bloqueoAlSuspender)
     return
   }
-  escribirConfig(valores, bloqueoAlSuspender)
+  escribirConfig(conHibernacion(valores, hibernacion), bloqueoAlSuspender)
+}
+
+/**
+ * Añade a una escritura de tiempos el listener de hibernación que corresponde a la suspensión
+ * que ESA MISMA escritura va a dejar puesta, y de paso empuja el retardo a systemd.
+ *
+ * Va acoplado a cada escritura, y no suelto, por dos motivos:
+ *   • el reparto entre los dos mecanismos (alarma RTC durante el S3 vs. listener de hypridle)
+ *     depende del tiempo de suspensión, así que CUALQUIER cambio de ese tiempo —incluido entrar
+ *     y salir del modo ahorro, que lo cambia sin que el usuario toque nada— obliga a rehacerlo;
+ *   • así todo entra en UNA escritura del fichero y UN reinicio de hypridle, en vez de dos.
+ *
+ * Sin poder leer el fichero no se toca la hibernación: mejor dejarla como estaba que planificarla
+ * contra una suspensión inventada.
+ */
+function conHibernacion(valores: ValoresListener, ajuste?: AjusteHibernacion): ValoresListener {
+  const suspension = valores.suspend ?? leerConfig()?.suspend
+  if (!suspension) return valores
+  return { ...valores, hibernate: aplicarHibernacion(ajuste ?? leerHibernacion(), suspension) }
 }
 
 // ── Transiciones ─────────────────────────────────────────────────────────────
@@ -170,7 +200,7 @@ function aplicarOverride(): void {
     // dejaría los tiempos cortos puestos y sin nada que recordara los buenos.
     escribirApunte({ dpms: actual.dpms, lock: actual.lock, suspend: actual.suspend })
   }
-  if (!escribirConfig(valoresDelAhorro()) && !yaPuesto) {
+  if (!escribirConfig(conHibernacion(valoresDelAhorro())) && !yaPuesto) {
     // No se pudo escribir: el apunte quedaría mintiendo sobre un override inexistente.
     escribirApunte(null)
   }
@@ -179,7 +209,7 @@ function aplicarOverride(): void {
 function quitarOverride(): void {
   const apunte = leerApunte()
   if (apunte === null) return
-  if (escribirConfig(apunte)) escribirApunte(null)
+  if (escribirConfig(conHibernacion(apunte))) escribirApunte(null)
 }
 
 function reconciliar(): void {

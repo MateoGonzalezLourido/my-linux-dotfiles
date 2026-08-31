@@ -586,6 +586,33 @@ EOF
     fi
   fi
 
+  # Hibernación. Solo se comprueba si el usuario la tiene ENCENDIDA en Ajustes: montarla es un
+  # paso opcional del instalador (crea un swapfile de varios GiB), así que no tenerla no es un
+  # fallo. Encenderla y que no funcione SÍ lo es, y de la peor manera: `systemctl hibernate`
+  # falla al vencer el temporizador, de madrugada, sin nadie delante y sin dejar más rastro que
+  # una línea en el journal. La UI ya se apaga sola si logind dice que no; esto es para el caso
+  # en que se apagó DESPUÉS (alguien quitó el swapfile, o un cambio de bootloader se llevó el
+  # resume= por delante) y el ajuste quedó encendido creyendo que sigue valiendo.
+  archivo_hibernacion="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/hibernacion.json"
+  if [[ -r "$archivo_hibernacion" ]] && command -v jq >/dev/null 2>&1 &&
+     jq -e '.enabled == true' "$archivo_hibernacion" >/dev/null 2>&1; then
+    if [[ ! -x /usr/local/bin/gigios-hibernacion ]]; then
+      fail "la hibernación está activada pero falta su ayudante (bash install.sh --solo hibernacion)"
+    else
+      case "$(/usr/local/bin/gigios-hibernacion estado 2>/dev/null | sed -n 's/^disponible=//p')" in
+        si) ok "hibernación disponible (tiempo en Ajustes > Pantalla > Suspensión)" ;;
+        *)  fail "la hibernación está activada en Ajustes pero el equipo NO puede hibernar: falta swap persistente o resume= en el kernel (bash install.sh --solo hibernacion, y reiniciá)" ;;
+      esac
+    fi
+    # El otro fallo mudo del par: con la NVIDIA cargada y sin los servicios que conservan la
+    # VRAM, hibernar "funciona" y lo que falla es el DESPERTAR — pantalla negra o cuelgue, ya
+    # con la sesión restaurada y sin nada que apunte a la GPU.
+    if [[ -e /proc/driver/nvidia/version ]] &&
+       ! systemctl is-enabled --quiet nvidia-hibernate.service 2>/dev/null; then
+      warn "nvidia-hibernate.service no está activado: al volver de la hibernación puede quedar la pantalla negra (bash install.sh --solo hibernacion)"
+    fi
+  fi
+
   # SDDM. Lo que se comprueba es el SYMLINK de activación, no que el paquete esté: sin
   # /etc/systemd/system/display-manager.service el arranque se para en un TTY, con todo
   # lo demás perfectamente instalado y sin un solo error que lo explique. Es el fallo más

@@ -126,6 +126,11 @@
     "apagarPantalla": "Apagar pantalla",
     "bloquear": "Bloquear",
     "suspender": "Suspender",
+    "hibernar": "Hibernar",
+    "hibernarDetalle": "Tiempo total sin actividad, contando desde el último uso (no desde que se suspendió). Guarda la sesión en disco y apaga el equipo.",
+    "hibernarViaSuspension": "Se suspenderá a los {suspension} min y despertará solo para hibernar {retardo} min después.",
+    "hibernarDirecta": "Hibernará directamente, sin pasar antes por la suspensión.",
+    "hibernarNoDisponible": "No disponible",
     "bloquearAlSuspender": {
       "titulo": "Bloquear al suspender",
       "descripcion": "Pide la contraseña al despertar el equipo. Es independiente de «Bloquear»: se aplica a cualquier suspensión, también a la del menú de energía, el botón de encendido o cerrar la tapa."

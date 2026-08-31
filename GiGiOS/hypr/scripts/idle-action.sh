@@ -40,6 +40,11 @@
 #                              impedir (la descarga a medias, la compilación
 #                              larga, el SSH abierto).
 #   dpms-on                  → no lo veta NADIE, nunca. Ver dpms_on().
+#   hibernate                → se decide EXACTAMENTE igual que la suspensión. No tiene reglas
+#                              propias a propósito: hibernar es más fuerte que suspender (apaga
+#                              el equipo), así que todo lo que veta un S3 tiene que vetar también
+#                              un S4. Una tabla de vetos aparte para hibernar sería una segunda
+#                              copia de la regla de oro, y ya sabemos cómo acaban las copias.
 #
 # Vetan por OR: basta con que UNO de los dos esté vivo para no suspender.
 #
@@ -65,6 +70,11 @@ STATE_SF="$CFG/suspension-falsa.json"
 # Aviso de "hypridle ha querido suspender y se le ha vetado". No es estado: es un epoch
 # suelto que solo lee ags/servicios/energia/wakeUpSuspensionFalsa.ts. Ver el `case` de abajo.
 SIGNAL_VETO="$CFG/idle-suspend-vetado"
+# Ajuste de hibernación escrito por AGS (ags/servicios/energia/hibernacion.ts):
+#   { "enabled": bool, "totalSeconds": n, "modo": "retardo"|"listener" }
+# Aquí solo se mira para responder a UNA pregunta: al suspender, ¿hay que dejar armada la
+# alarma que hibernará luego? Ese es todo el papel de este script en la hibernación.
+ESTADO_HIB="$CFG/hibernacion.json"
 
 # Alcance vigente del fichero de estado "$1", por stdout:
 #   "off"     → no veta nada (incluido TODO fallo: ver la REGLA DE ORO)
@@ -207,10 +217,44 @@ lock_screen() {
   pidof hyprlock >/dev/null 2>&1 || hyprlock
 }
 
+# Suspender. Con la hibernación en modo "retardo" NO se usa `systemctl suspend` a secas sino
+# `suspend-then-hibernate`, que es el mismo S3 de siempre MÁS una alarma RTC armada antes de
+# dormirse: al vencer `HibernateDelaySec` (/etc/systemd/sleep.conf.d/99-gigios-hibernacion.conf,
+# lo escribe el helper root) el equipo despierta solo y se hiberna.
+#
+# Por qué no lo decide AGS cambiando este comando: porque suspender no siempre pasa por aquí
+# (menu de energía, botón físico, tapa, `systemctl suspend` a mano), y esta es la única ruta
+# que SÍ controlamos. Las demás se quedan en S3 puro, que es lo esperable: quien suspende a
+# mano está pidiendo suspender.
+#
+# REGLA DE ORO otra vez: ante cualquier duda (sin fichero, sin jq, JSON roto, modo desconocido)
+# se suspende y punto. Fallar hacia "no se suspende" sería silencioso y se comería la batería.
+suspender() {
+  if [[ -r $ESTADO_HIB ]] && command -v jq >/dev/null 2>&1 \
+     && jq -e '(.enabled == true) and (.modo == "retardo")' "$ESTADO_HIB" >/dev/null 2>&1; then
+    # Si `suspend-then-hibernate` no estuviera disponible (sin swap, sin resume=), systemctl
+    # falla en el acto y sin dormir el equipo: de ahí el repliegue, que aquí sí se puede
+    # decidir por código de salida porque systemctl no miente sobre esto.
+    systemctl suspend-then-hibernate && return
+  fi
+  systemctl suspend
+}
+
 case ${1:-} in
   dpms-off) blocked dpms-off || dpms_off ;;
   dpms-on)  dpms_on ;;
   lock)     blocked lock     || lock_screen ;;
+  # Mismo veto y mismo aviso que `suspend`, por lo dicho en la cabecera. Este camino solo se
+  # recorre con el listener de hibernación encendido, que es el caso minoritario (hibernar sin
+  # pasar por la suspensión); en el normal quien hiberna es systemd durante el S3 y aquí no
+  # vence ningún timeout.
+  hibernate)
+    if blocked suspend; then
+      printf '%s' "$(date +%s)" > "$SIGNAL_VETO" 2>/dev/null || true
+    else
+      systemctl hibernate
+    fi
+    ;;
   suspend)
     # Al VETAR se deja un aviso con el epoch del veto. No es una regla nueva y no toca la
     # REGLA DE ORO: el veto se decide exactamente igual que antes y este script sigue sin
@@ -224,11 +268,11 @@ case ${1:-} in
     if blocked suspend; then
       printf '%s' "$(date +%s)" > "$SIGNAL_VETO" 2>/dev/null || true
     else
-      systemctl suspend
+      suspender
     fi
     ;;
   *)
-    echo "uso: ${0##*/} {dpms-off|dpms-on|lock|suspend}" >&2
+    echo "uso: ${0##*/} {dpms-off|dpms-on|lock|suspend|hibernate}" >&2
     exit 2
     ;;
 esac

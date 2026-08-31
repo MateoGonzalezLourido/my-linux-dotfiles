@@ -86,6 +86,7 @@ declare -A DESC_PASO=(
   [css]="compilar ags/estilos/out.css con sass"
   [mime]="bases MIME y caché de aplicaciones de KDE"
   [sistema]="ficheros de /etc: udev USB, i2c-dev, botón de encendido, helpers TLP/ClamAV/limpieza/cámara"
+  [hibernacion]="habilitar la hibernación: swapfile persistente, resume= en el kernel y VRAM de NVIDIA"
   [sddm]="configurar SDDM y activarlo como gestor de sesión (display-manager.service)"
   [gpu]="elegir el perfil de GPU de esta máquina (~/.config/gigios/gpu-perfil)"
   [clamav-db]="descarga de la base de firmas de ClamAV (~200 MB)"
@@ -93,7 +94,7 @@ declare -A DESC_PASO=(
   [shell]="poner Zsh como shell predeterminado"
   [preflight]="validación final de la instalación"
 )
-ORDEN_PASOS=(paquetes repo symlinks sistema sddm clamav-db dolphin kitty firefox css mime gpu cursor shell preflight)
+ORDEN_PASOS=(paquetes repo symlinks sistema hibernacion sddm clamav-db dolphin kitty firefox css mime gpu cursor shell preflight)
 
 SOLO_PASOS=()
 SIN_PASOS=()
@@ -991,6 +992,40 @@ else
   info "Omito los ficheros de /etc (udev USB, i2c-dev, botón de encendido, helpers)."
 fi
 
+if paso_activo hibernacion; then
+  # --- Hibernación ---
+  #
+  # Va APARTE del paso `sistema` aunque instale ficheros en /etc, y es a propósito: este paso
+  # CREA UN FICHERO DE VARIOS GiB en el disco y REESCRIBE LA LÍNEA DE COMANDOS DEL KERNEL. Eso
+  # no se cuela dentro de un paso que la gente lanza a la ligera; tiene que poder omitirse con
+  # `--sin hibernacion` y lanzarse solo con `--solo hibernacion`.
+  #
+  # Sin este paso, el tiempo de hibernación de Ajustes > Pantalla > Suspensión sale apagado con
+  # su motivo ("sin swap o sin resume"), que es la degradación que se busca: visible, no muda.
+  SYSTEM_DIR="$HOME/GiGiOS/system"
+  if [ -d "$SYSTEM_DIR/hibernacion" ] && command -v sudo >/dev/null; then
+    sudo_prime
+    # El helper de runtime y su regla sudoers se instalan SIEMPRE que se pida el paso, incluso
+    # si la preparación del swap fallara: el retardo es un ajuste, y que el usuario pueda fijarlo
+    # antes de que la máquina sepa hibernar no rompe nada (systemd lee HibernateDelaySec cuando
+    # le toca). Al revés sí duele: swap listo y helper ausente = ajuste que no se puede tocar.
+    sudo install -Dm755 "$SYSTEM_DIR/hibernacion/gigios-hibernacion.sh" /usr/local/bin/gigios-hibernacion \
+      || warn "No pude instalar el helper de hibernación; el tiempo de hibernación no se podrá cambiar desde Ajustes."
+    instalar_sudoers "$SYSTEM_DIR/hibernacion/sudoers-gigios-hibernacion" /etc/sudoers.d/gigios-hibernacion \
+      "cambiar el tiempo de hibernación pedirá contraseña en cada pulsación (y el ajuste quedará inservible)."
+    info "Preparando la hibernación (swapfile + resume= + NVIDIA). Esto tarda un rato ..."
+    if sudo bash "$SYSTEM_DIR/hibernacion/gigios-hibernacion-setup.sh"; then
+      HIBERNACION_LISTA=1
+    else
+      warn "No pude preparar la hibernación. El resto de la instalación sigue; revisa la salida de arriba."
+    fi
+  else
+    warn "Omito la hibernación (falta sudo o $SYSTEM_DIR/hibernacion)."
+  fi
+else
+  info "Omito la hibernación (swapfile, resume= y VRAM de NVIDIA)."
+fi
+
 if paso_activo sddm; then
   # --- SDDM: configuración + activación como gestor de sesión ---
   #
@@ -1445,6 +1480,22 @@ else
               actualizan solas al INICIAR SESIÓN si faltan o tienen más de un día; hasta
               entonces el escáner de descargas no puede analizar nada.
 EOF
+fi
+if paso_activo hibernacion; then
+  if [[ -n "${HIBERNACION_LISTA:-}" ]]; then
+    cat <<'EOF'
+  • Hibernar: hace falta REINICIAR. resume= entra por la línea de comandos del kernel y la de
+              la sesión actual ya está fijada, así que hasta el reinicio 'gigios-hibernacion
+              estado' seguirá diciendo disponible=no y la fila de Ajustes saldrá apagada. Tras
+              reiniciar, el tiempo se pone en Ajustes > Pantalla > Suspensión.
+EOF
+  else
+    cat <<'EOF'
+  • Hibernar: la preparación NO terminó bien. Sin swapfile persistente y sin resume= el equipo
+              no puede hibernar, y la fila de Ajustes se queda apagada con su motivo. Repetilo
+              con: bash ~/GiGiOS/install.sh --solo hibernacion
+EOF
+  fi
 fi
 cat <<'EOF'
   • Disco:    Ajustes > Almacenamiento analiza qué ocupa el equipo y cataloga las apps por

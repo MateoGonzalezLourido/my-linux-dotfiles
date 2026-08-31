@@ -230,6 +230,91 @@ acciones del script:
 el rc". **Este fallo la burla**: rc 0, stdout `ok`, y la acción invertida. Si un dispatcher
 conmutable no hace lo que dice, comprueba antes que nada que le estés pasando una tabla.
 
+### Hibernación (`system/hibernacion/` + `servicios/energia/hibernacion.ts`)
+
+Ajustes > Pantalla > Suspensión enseña **un solo número** ("Hibernar tras N min"), y por debajo hay
+**dos mecanismos distintos**. Antes de tocar nada, la razón:
+
+> **Durante una suspensión (S3) el userspace está CONGELADO.** hypridle no cuenta, AGS no cuenta,
+> ningún script cuenta. Un `listener { timeout = 3000 }` de hibernación conviviendo con una
+> suspensión a los 20 min **no se dispara jamás**: el equipo se duerme a los 20 y ahí se queda,
+> sin un solo error. Lo único que sigue contando con el equipo dormido es el **reloj de la placa**.
+
+De ahí las dos rutas, que elige `planificar()` (`servicios/energia/planHibernacion.ts`, puro y con
+tests) a partir del total pedido y de la suspensión **vigente**:
+
+| caso | modo | quién cuenta |
+|---|---|---|
+| hay suspensión y el total es **mayor** que ella | `retardo` | systemd: `suspend-then-hibernate` arma una **alarma RTC** a `HibernateDelaySec`, el equipo despierta solo y se hiberna. El listener de hypridle queda apagado. |
+| no hay suspensión, o el total es **menor o igual** | `listener` | el listener `hibernate` de `hypridle.conf`, hibernando directo sin pasar por el S3. |
+
+**El retardo es la RESTA, no el total.** `HibernateDelaySec` cuenta *desde que se suspendió*, así
+que con suspensión a los 20 y hibernación a los 50 el retardo son 30. Poner ahí el número del
+usuario hibernaría 20 minutos tarde — y como el efecto solo se ve a la hora larga y sin nadie
+delante, nadie lo notaría. Hay un test para eso.
+
+Regalo del modo `retardo`: cubre también las suspensiones que **no** vienen de la inactividad
+(tapa, botón de encendido, menú de energía), porque quien hiberna es systemd y no nosotros.
+
+**Quién guarda qué** (tres sitios, y solo uno es la autoridad):
+
+- `~/.config/gigios/hibernacion.json` — **la autoridad**: `enabled`, `totalSeconds`, `modo`. Lo
+  escribe AGS y lo lee `idle-action.sh` para decidir si suspende con alarma o sin ella.
+- el listener `hibernate` de `hypridle.conf` — **espejo** del total; solo está *encendido* en modo
+  listener. Su `enabled` NO significa "¿hiberna el equipo?".
+- `/etc/systemd/sleep.conf.d/99-gigios-hibernacion.conf` — `HibernateDelaySec`, escrito por
+  `/usr/local/bin/gigios-hibernacion` (root, vía sudoers acotado). Se reescribe **siempre**,
+  incluso a 0 (que borra el drop-in): dejar uno viejo al apagar la hibernación haría que cualquier
+  `suspend-then-hibernate` ajeno siguiera hibernando con el tiempo antiguo.
+
+**El reparto se recalcula en CADA escritura de tiempos**, no una vez al guardar: depende del tiempo
+de suspensión, y el **modo ahorro lo cambia sin que el usuario toque nada**. Por eso
+`conHibernacion()` va acoplado dentro de `inactividadAhorro.ts` — entrar y salir del ahorro
+replanifica, y todo cae en una sola escritura del fichero y un solo reinicio de hypridle.
+
+**`kindOf()` mira `hibernate` ANTES que `suspend`.** `systemctl suspend-then-hibernate` casa con
+los dos patrones; al revés, ese listener se leería como suspensión y su tiempo saldría en la fila
+equivocada de Ajustes, sin ningún error.
+
+#### Habilitarla: el paso `hibernacion` del instalador
+
+Una máquina normal **no puede hibernar**, y lo descubre tarde. Tal como estaba esta:
+
+```
+swapon --show  → solo /dev/zram0   ← zram vive EN LA RAM. Volcar la RAM a la RAM no es nada.
+/proc/cmdline  → sin resume=       ← sin eso el kernel arranca en frío y la sesión se pierde.
+```
+
+`bash install.sh --solo hibernacion` lo monta: swapfile persistente (en btrfs, **subvolumen
+propio** — un swapfile dentro de `@` acabaría capturado por un snapshot de snapper y btrfs se
+niega a activar un swapfile con más de una referencia, así que `swapon` empezaría a fallar el día
+del primer snapshot, no hoy), entrada en `/etc/fstab` con `pri=-2` (por debajo de zram: el
+swapfile está para hibernar, no para paginar), `resume=`/`resume_offset=` en GRUB, e initramfs
+regenerado. Va **aparte** del paso `sistema` porque crea un fichero de varios GiB y reescribe la
+línea de comandos del kernel: eso tiene que poder omitirse.
+
+- **No hace falta el hook `resume` de mkinitcpio**: `HOOKS` lleva `systemd`, y ahí quien resume es
+  `systemd-hibernate-resume-generator` leyendo `resume=`.
+- **NVIDIA**: sin `NVreg_PreserveVideoMemoryAllocations=1` y los servicios
+  `nvidia-{suspend,hibernate,resume}`, hibernar "funciona" y lo que falla es el **despertar**
+  (pantalla negra o cuelgue), ya con la sesión restaurada y sin nada que apunte a la GPU.
+  `NVreg_TemporaryFilePath=/var/tmp` no es cosmético: el defecto es `/tmp`, que es un **tmpfs**, y
+  guardar la VRAM en RAM mientras se intenta escribir la RAM entera al swap es lo contrario de lo
+  que hace falta.
+- **`resume=` solo entra al REINICIAR.** Hasta entonces `gigios-hibernacion estado` sigue diciendo
+  `disponible=no` y la fila de Ajustes sale apagada con su motivo. No es un fallo del paso.
+- En esta máquina el paso destapó además que `GRUB_CMDLINE_LINUX_DEFAULT` estaba **anidado dentro
+  de sí mismo** (`="GRUB_CMDLINE_LINUX_DEFAULT='nowatchdog … loglevel=3' nvidia_drm.modeset=1"`),
+  así que el kernel recibía ese trozo como **un** parámetro entrecomillado y `nowatchdog`, `splash`
+  y `loglevel` llevaban sin aplicarse quién sabe cuánto. El setup lo desanida antes de añadir nada:
+  meter `resume=` en un valor así lo habría dejado dentro de las comillas, y el equipo habría
+  hibernado para arrancar en frío perdiendo la sesión, sin un solo mensaje.
+
+**Nada de esto se asume: se pregunta.** `gigios-hibernacion estado` consulta `CanHibernate` a
+logind (que es quien mira swap **y** `resume=`), y si dice que no, la fila sale apagada **con el
+motivo escrito**. `preflight.sh` avisa del caso contrario — el ajuste encendido en un equipo que
+dejó de poder hibernar —, que es el que fallaría de madrugada sin testigos.
+
 ### Diálogo de contraseña de root: hyprpolkitagent, y por qué sigue siendo feo
 
 El agente de polkit —la ventanita que pide la contraseña al necesitar root— **ya es
