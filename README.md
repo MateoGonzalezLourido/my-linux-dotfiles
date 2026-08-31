@@ -8,11 +8,6 @@ final path in the home directory. No stow, no copying: `git --git-dir=~/.dotfile
 The centerpiece is **[GiGiOS](GiGiOS/)** — a complete Hyprland/Wayland desktop rice (custom AGS
 shell, a Lua-native Hyprland config, and a suite of background daemons for security, power and USB
 safety). Everything else in this repo is the shell/terminal/tooling layer it runs on top of.
-
-![Hyprland](https://img.shields.io/badge/Hyprland-0.56-58e1ff?logo=wayland&logoColor=white)
-![Shell](https://img.shields.io/badge/shell-zsh%20%2B%20fish-89e051)
-![CI](https://img.shields.io/badge/CI-preflight%20%2B%20tests-success)
-
 ---
 
 ## 📦 Quick install (Arch Linux / CachyOS)
