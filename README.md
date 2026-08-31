@@ -1,11 +1,11 @@
 # my-linux-dotfiles
 
-Personal dotfiles for a full Arch Linux / CachyOS desktop, managed as a **bare git repo**
+Personal dotfiles for a full Arch Linux / CachyOS desktop (It may work without problems on other OS), managed as a **bare git repo**
 (`~/.dotfiles`) whose work-tree is `$HOME` — every file in this repository lives at its real,
 final path in the home directory. No stow, no copying: `git --git-dir=~/.dotfiles
 --work-tree=~ checkout` puts everything exactly where it belongs.
 
-The centerpiece is **[GiGiOS](GiGiOS/)** — a complete Hyprland/Wayland desktop rice (custom AGS v2
+The centerpiece is **[GiGiOS](GiGiOS/)** — a complete Hyprland/Wayland desktop rice (custom AGS
 shell, a Lua-native Hyprland config, and a suite of background daemons for security, power and USB
 safety). Everything else in this repo is the shell/terminal/tooling layer it runs on top of.
 
@@ -21,7 +21,7 @@ One command bootstraps the whole machine — packages, this repo checked out int
 symlink GiGiOS needs, and the `/etc` fragments that require root:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/MateoGonzalezLourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
 ```
 
 The same command **updates** an already-installed machine (fetches, fast-forwards, re-verifies
@@ -29,39 +29,9 @@ symlinks). See **[GiGiOS/README.md](GiGiOS/README.md)** for what gets installed,
 variables (`KITTY_PROFILE`, `FIREFOX_PROFILE`, `INSTALL_PACKAGES`, `DOTFILES_BRANCH`), and a
 detailed feature tour of the desktop itself; **[GiGiOS/docs/SETUP.md](GiGiOS/docs/SETUP.md)** for
 the full step-by-step + troubleshooting.
+Collision files are automatically backed up.
 
-### Manual bootstrap (if you'd rather not pipe a script)
-
-```sh
-git clone --bare https://github.com/MateoGonzalezLourido/my-linux-dotfiles.git "$HOME/.dotfiles"
-dotfiles() { git --git-dir="$HOME/.dotfiles" --work-tree="$HOME" "$@"; }
-dotfiles checkout          # back up anything that conflicts first
-dotfiles config core.hooksPath .githooks
-dotfiles config status.showUntrackedFiles no
-GiGiOS/bin/link.sh --force
-```
-
----
-
-## 🗂️ What's in here
-
-```
-GiGiOS/          Hyprland desktop rice — AGS shell, Lua Hyprland config, daemons (own README)
-.config/
-  zsh/           zsh + Powerlevel10k, fzf/eza/bat/duf integration, fish-parity helpers
-  fish/          fish config + functions (CachyOS's default shell)
-  kitty/         terminal config, split into laptop/desktop profiles (see GiGiOS docs)
-  firefox/       base.js + per-machine profile overrides, applied by GiGiOS's installer
-  fastfetch/     neofetch-style system info with a custom image set
-  MangoHud/      in-game performance overlay config
-  dolphinrc      KDE file manager tweaks
-  git/ignore     global gitignore
-.local/bin/      small fish helpers (compact-workspaces, toggle-gaps-borders)
-bin/             verify-files.sh — the security check behind the pre-push hook (below)
-.githooks/       versioned git hooks (pre-push), activated via core.hooksPath
-.github/         CI: preflight validation + TypeScript tests on every push/PR
-.bashrc / .zshenv / .gitconfig   thin root-level shell/git bootstrapping
-```
+## 🗂️ What's in here (updated 31/08/2026)
 
 `.config/` here holds only the pieces that are **plain dotfiles** (shell, terminal, Firefox,
 fastfetch, MangoHud) — everything Hyprland/AGS-related lives under `GiGiOS/` and is symlinked into
@@ -101,6 +71,7 @@ runs `bin/verify-files.sh` on every `git ls-files` before a push:
 ## ✅ Continuous integration
 
 Every push/PR runs (`.github/workflows/gigios-validate.yml`):
+
 - `GiGiOS/bin/preflight.sh` — validates files, scripts, required commands and symlink targets.
 - The pure-TypeScript test suite under `GiGiOS/ags/widget/**/*.test.ts` (Node's built-in test
   runner — no AGS/Hyprland runtime needed to run these).
@@ -113,10 +84,3 @@ Every push/PR runs (`.github/workflows/gigios-validate.yml`):
 - **[`GiGiOS/CLAUDE.md`](GiGiOS/CLAUDE.md)** and **[`GiGiOS/ags/CLAUDE.md`](GiGiOS/ags/CLAUDE.md)**
   — the deep architectural notes: not just *what* things do, but *why* they're built that way.
 - **[`DEVELOPMENT.md`](DEVELOPMENT.md)** — repo-maintenance notes (this hook, mainly).
-
-## ⚠️ Before you install
-
-These are **personal** dotfiles tuned to two specific machines (one laptop, one desktop). The
-installer runs cleanly on a fresh Arch/CachyOS box, but expect a few post-install, per-machine
-choices (GPU profile, region, cursor theme — see the GiGiOS README) and don't expect a
-distro-agnostic, drop-in rice.

@@ -1,72 +1,68 @@
-# Desarrollo
+# Development
 
-Notas para quien (tú, en otra máquina) toque el repo, no configuración de ningún
-subsistema en concreto — eso vive en `GiGiOS/README.md` y `GiGiOS/hypr/SETUP.md`.
+Notes for whoever (you, on another machine) touches the repo — not configuration
+for any specific subsystem, that lives in `GiGiOS/README.md` and
+`GiGiOS/hypr/SETUP.md`.
 
-## Verificación de archivos antes de cada `git push`
+## File verification before every `git push`
 
-El repo trae un hook de `pre-push` que corre automáticamente en cada push y aborta
-si encuentra algo que no debería estar versionado.
+The repo ships a `pre-push` hook that runs automatically on every push and
+aborts if it finds something that shouldn't be tracked.
 
-- **`bin/verify-files.sh`** — revisa el tipo *real* de cada archivo trackeado por
-  sus magic bytes (`file -b`), no por la extensión. Esto es a propósito: el
-  `.gitignore` (sección "Seguridad" al principio) filtra por nombre/extensión, que
-  es trivial de esquivar con solo renombrar un ejecutable a `.txt` o `.pdf`. El
-  script atrapa eso comprobando el contenido real: ELF, PE32 (`.exe`), Mach-O,
-  Java archive, Microsoft Cabinet, Composite Document File (OLE, el formato de los
-  `.doc`/`.xls` viejos con macros).
-- Si tienes **ClamAV** instalado (`clamscan` en el PATH), el script también pasa
-  todos los archivos por un escaneo de firmas de verdad. El script distingue el
-  código de salida de `clamscan`: `1` (infectado de verdad) bloquea el push;
-  cualquier otro código de error (p.ej. `2`, "no supported database files found"
-  porque falta correr `freshclam`) solo avisa y deja pasar — una instalación a
-  medio configurar no es un hallazgo de seguridad. Si no tienes `clamscan` en el
-  PATH, mismo trato: avisa y sigue, no bloquea por su ausencia.
-- **`.githooks/pre-push`** es el hook en sí; solo invoca `bin/verify-files.sh` sin
-  argumentos (revisa todo `git ls-files`, no solo el diff del push).
+- **`bin/verify-files.sh`** — checks the *real* type of every tracked file by
+  its magic bytes (`file -b`), not by extension. This is intentional: the
+  `.gitignore` ("Security" section at the top) filters by name/extension, which
+  is trivial to dodge by just renaming an executable to `.txt` or `.pdf`. The
+  script catches that by checking the actual content: ELF, PE32 (`.exe`),
+  Mach-O, Java archive, Microsoft Cabinet, Composite Document File (OLE, the
+  format used by old `.doc`/`.xls` files with macros).
+- If you have **ClamAV** installed (`clamscan` on PATH), the script also runs
+  every file through an actual signature scan. The script distinguishes
+  `clamscan`'s exit code: `1` (genuinely infected) blocks the push; any other
+  error code (e.g. `2`, "no supported database files found" because
+  `freshclam` hasn't been run) just warns and lets it through — a half-configured
+  install isn't a security finding. If `clamscan` isn't on PATH at all, same
+  treatment: warn and continue, don't block on its absence.
+- **`.githooks/pre-push`** is the hook itself; it just invokes
+  `bin/verify-files.sh` with no arguments (checks all of `git ls-files`, not
+  just the push diff).
 
-### Cómo se activa (y por qué no hace falta instalarlo a mano)
+### How it gets activated (and why you don't need to install it by hand)
 
-Los hooks en `.git/hooks/` no viajan con el repo — por eso están versionados en
-`.githooks/` y se activan apuntando `core.hooksPath` ahí. Ese `git config` es local
-de cada clon, así que `GiGiOS/bin/link.sh` lo reaplica cada vez que lo corres
-(ya es el paso estándar para preparar cualquier máquina nueva, ver
-`GiGiOS/hypr/SETUP.md` §11) — no es un paso manual aparte.
+Hooks in `.git/hooks/` don't travel with the repo — that's why they're
+versioned under `.githooks/` and activated by pointing `core.hooksPath` there.
+That `git config` is local to each clone, so `GiGiOS/bin/link.sh` reapplies it
+every time you run it (it's already the standard step for setting up any new
+machine, see `GiGiOS/hypr/SETUP.md` §11) — it's not a separate manual step.
 
-Si alguna vez hace falta a mano:
+If you ever need to do it by hand:
 
 ```sh
 git config core.hooksPath .githooks
 ```
 
-### Instalar ClamAV (opcional, para el escaneo de firmas)
+### Manual usage
 
 ```sh
-sudo pacman -S clamav
-sudo freshclam   # descarga las firmas la primera vez; actualízalas de vez en cuando
+bin/verify-files.sh              # checks all tracked files
+bin/verify-files.sh file.ext     # checks only those files
 ```
 
-### Uso manual
+### If the hook blocks something you actually want to track
+
+First confirm the file is legitimate (it's not enough that "I put it there" —
+if it came from a download or from someone else, actually check it). If it's
+legitimate:
 
 ```sh
-bin/verify-files.sh              # revisa todos los archivos trackeados
-bin/verify-files.sh archivo.ext  # revisa solo esos archivos
+git add -f file.ext
 ```
 
-### Si el hook bloquea algo que sí quieres versionar
+`verify-files.sh` will keep flagging it on the next push because it only looks
+at content, not whether it's already staged — that's a deliberate repeated
+warning, not a bug.
 
-Confirma primero que el archivo es legítimo (no basta con "yo lo puse", si venía de
-una descarga o de otra persona, revísalo de verdad). Si es legítimo:
-
-```sh
-git add -f archivo.ext
-```
-
-`verify-files.sh` seguirá marcándolo en el próximo push porque solo mira el
-contenido, no si ya está en el índice — es un aviso repetido a propósito, no un
-bug.
-
-En una emergencia real (el hook falla por algo que no es el archivo, p.ej. no hay
-`file` instalado) se puede saltar con `git push --no-verify`, pero eso también
-salta la verificación de archivos, así que úsalo solo sabiendo qué estás
-saltando.
+In a genuine emergency (the hook fails over something unrelated to the file,
+e.g. `file` isn't installed) you can skip it with `git push --no-verify`, but
+that also skips the file verification, so only use it knowing what you're
+skipping.
