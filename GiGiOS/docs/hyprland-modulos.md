@@ -186,6 +186,60 @@ gobierna el último interruptor de la tarjeta (`writeBloqueoAlSuspender` en
 conservar el comando escrito. Ojo al tocar ese regex: `after_sleep_cmd` comparte sufijo con
 `before_sleep_cmd` y es lo único que vuelve a encender la pantalla al despertar.
 
+### Bloquear la pantalla: un solo camino (`bloquear.sh`) y el fondo aleatorio
+
+`hyprlock` **no se llama nunca directamente**. Los cuatro sitios que bloquean la sesión —
+`lock_cmd` de `hypridle.conf`, `lock_screen()` de `idle-action.sh`, la acción `bloquear` de
+`gigios/boton-apagado.lua` y el botón «Bloquear» del menú de energía de AGS
+(`modulos/menu-energia/acciones.ts`) — entran por `hypr/scripts/bloquear.sh`, que sortea el fondo
+y hace `exec hyprlock`.
+
+**Por qué el sorteo no puede vivir en `hyprlock.conf`.** `hyprlock.conf` es hyprlang y hyprlang
+**no tiene sustitución de comandos**. El `cmd[update:N]` que usan las etiquetas de la hora es una
+característica del widget `label`, no del parser, y `background` no la admite: cuando hyprlock lee
+su config, la ruta del fondo ya tiene que estar escrita. Por eso alguien tiene que decidirla antes,
+y ese alguien es el script.
+
+**El enlace del fondo no lleva extensión, y es a propósito.** `background { path = ... }` apunta a
+`~/.cache/gigios/hyprlock-fondo`, un symlink que el script reapunta a un `.jpg`/`.jpeg`/`.png`/
+`.webp` al azar de `Wallpapers/`. Con los cuatro formatos mezclados, un enlace con extensión fija
+mentiría la mitad de las veces. Funciona porque hyprlock 0.9.6 carga las imágenes por
+**hyprgraphics**, que enlaza **libmagic** y decide el formato por los bytes del fichero, no por el
+nombre — comprobable con `ldd /usr/lib/libhyprgraphics.so.4 | grep magic`. Ojo si algún día se
+sustituye ese cargador: el fallo sería mudo (fondo negro, bloqueo por lo demás correcto).
+
+Está en la **caché** y no en `~/.config/gigios/` porque se regenera en cada bloqueo y no es una
+preferencia de nadie; borrarlo no rompe nada, el siguiente bloqueo lo repone.
+
+**El sorteo es fail-open, y aquí eso es seguridad, no comodidad.** Carpeta vacía, sin `shuf`, sin
+permisos de escritura en la caché: da igual, se bloquea igual con el fondo anterior o sin fondo. Un
+bloqueo de pantalla que no llega a ponerse porque no encontró una imagen bonita deja la sesión
+abierta, que es infinitamente peor que un rectángulo negro.
+
+**La guarda de instancia única se mudó al script, y ahora es una sola.** hyprlock no la tiene
+(0.9.6: ni siquiera una cadena "already running" en el binario), así que llamarlo con uno ya puesto
+arranca un segundo proceso encima del bloqueo — y duplicarlo pasa solo: el listener bloquea a los
+11 min y el `before_sleep_cmd` vuelve a bloquear al suspender. Antes el `pidof hyprlock` estaba
+copiado en cada llamador; hoy vive una vez en `bloquear.sh`. La copia que queda en
+`boton-apagado.lua` (`bloqueado()`) es redundante a propósito: allí también sirve para no abrir el
+menú de energía por debajo del bloqueo.
+
+**El `exec` final no es cosmético.** Si el script se quedara de padre, el proceso visible sería
+bash y `pidof hyprlock` no vería nada: la guarda dejaría de proteger de la siguiente llamada.
+
+**Dos trampas de los llamadores**, las dos silenciosas:
+
+- **AGS no ejecuta con una shell.** `execAsync` parte la cadena con `GLib.shell_parse_argv`, que
+  **no expande la `~`**. Por eso la acción del menú de energía va envuelta en `sh -c '...'`; sin él
+  se intentaría ejecutar un fichero llamado literalmente `~/.config/hypr/scripts/bloquear.sh` y el
+  botón no bloquearía nada. `hypridle.conf` sí pasa por shell, así que allí la `~` va pelada, igual
+  que en el resto de sus comandos.
+- **El nombre del script no contiene «hyprlock»**, y `ags/servicios/pantalla/hypridle.ts` clasifica
+  los listeners con un patrón `/hyprlock/` entre sus reglas. No afecta: el listener de bloqueo va
+  por `idle-action.sh lock`, que casa antes con la regla de la puerta (`GATE_ACTIONS`), y `lock_cmd`
+  no lo lee esa función. Pero si algún día un listener llamara a `bloquear.sh` directamente, Ajustes
+  > Pantalla dejaría de reconocer la fila **sin dar ningún error**: habría que añadir el patrón.
+
 ### Salir de suspensión: la pantalla en negro y el toggle disfrazado de `on`
 
 **Síntoma medido** (25-08-2026): al volver de suspensión la pantalla se encendía y, entre 0,1 s y

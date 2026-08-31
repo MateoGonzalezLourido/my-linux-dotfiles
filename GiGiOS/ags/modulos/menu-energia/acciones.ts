@@ -8,7 +8,12 @@ export interface AccionEnergia {
 }
 
 export const ACCIONES_ENERGIA: readonly AccionEnergia[] = [
-  { claseCss: "lock", icono: "󰌾", etiqueta: "Bloquear", comando: "hyprlock" },
+  // El bloqueo va por bloquear.sh, no por `hyprlock` a pelo: ese script sortea el fondo del
+  // bloqueo (hyprlock.conf no puede — hyprlang no sustituye comandos) y lleva la guarda de
+  // instancia única que hyprlock no tiene. El `sh -c` NO es adorno: execAsync parte la cadena
+  // con `GLib.shell_parse_argv`, que no es una shell y NO expande la `~` — sin él se ejecutaría
+  // un fichero llamado literalmente "~/.config/..." y el botón no bloquearía nada.
+  { claseCss: "lock", icono: "󰌾", etiqueta: "Bloquear", comando: "sh -c '~/.config/hypr/scripts/bloquear.sh'" },
   // Forma Lua del dispatcher (bajo config Lua la sintaxis legacy `dispatch exit`
   // no existe). Las comillas sobreviven: execAsync con string parsea con
   // GLib.shell_parse_argv, así que llega como un solo argumento.

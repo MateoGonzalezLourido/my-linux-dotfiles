@@ -223,6 +223,11 @@ Puntos que conviene recordar sin abrir el documento:
 - El arranque (`gigios/autostart.lua`) está **escalonado a propósito** (t=0 lo visible, t=3..6
   eventos, t=8..15 sondeos, t=20..30 lo caro) — no captures ese detalle sin leer el documento si vas
   a tocar los tiempos.
+- **Nadie llama a `hyprlock` directamente**: los cuatro sitios que bloquean la sesión pasan por
+  `hypr/scripts/bloquear.sh`, que sortea el fondo del bloqueo (un wallpaper al azar, vía un symlink
+  sin extensión en la caché — hyprlang no sabe sustituir comandos) y lleva la única guarda de
+  instancia única, que hyprlock no tiene. Ver su sección en
+  [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md).
 - **Editar un `*-monitor.sh` no afecta al que ya está corriendo**: hace falta `pkill -f
   <script>` + relanzarlo, o `hyprctl reload full-reset` (que sí re-ejecuta el autostart; un
   `hyprctl reload` normal no).

@@ -58,11 +58,14 @@ M.acciones = {
     hl.exec_cmd("ags request toggle-power-menu")
   end,
   bloquear = function()
-    -- La guarda evita apilar un segundo hyprlock sobre el que ya está puesto.
-    -- Se conserva el `setsid -f` del script: hyprlock debe sobrevivir a la
-    -- shell intermedia de exec_cmd.
+    -- Por bloquear.sh, no por `hyprlock` a pelo: es quien sortea el fondo del
+    -- bloqueo (hyprlock.conf no puede: hyprlang no sustituye comandos). La guarda
+    -- de `bloqueado()` es redundante con la que lleva el script dentro, pero se
+    -- mantiene para no pagar el fork cuando ya hay un bloqueo puesto.
+    -- Se conserva el `setsid -f`: hyprlock debe sobrevivir a la shell intermedia
+    -- de exec_cmd.
     if bloqueado() then return end
-    hl.exec_cmd("setsid -f hyprlock")
+    hl.exec_cmd("setsid -f " .. util.HOGAR .. "/.config/hypr/scripts/bloquear.sh")
   end,
   pantalla = function()
     -- Solo una tecla la vuelve a encender: mouse_move_enables_dpms = false.

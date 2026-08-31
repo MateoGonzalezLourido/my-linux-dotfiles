@@ -208,13 +208,14 @@ dpms_on() {
   hyprctl dispatch "hl.dsp.dpms({ action = 'on' })" >/dev/null 2>&1
 }
 
-# hyprlock no tiene guarda de instancia única (0.9.6: ni una cadena "already
-# running" en el binario), así que llamarlo con uno ya puesto arranca un SEGUNDO
-# proceso encima del bloqueo. Pasa solo: este listener bloquea a los 11 min y el
-# before_sleep_cmd de hypridle.conf vuelve a bloquear al suspender. Misma guarda
-# que allí y que el ejemplo de /usr/share/hypr/hypridle.conf.
+# El bloqueo no llama a `hyprlock` directo, sino a bloquear.sh: es quien sortea el
+# fondo del bloqueo (hyprlock.conf no puede — hyprlang no sustituye comandos) y
+# quien lleva la guarda de instancia única, que hyprlock no tiene (0.9.6: ni una
+# cadena "already running" en el binario) y hace falta porque duplicar el bloqueo
+# pasa solo: este listener bloquea a los 11 min y el before_sleep_cmd de
+# hypridle.conf vuelve a bloquear al suspender.
 lock_screen() {
-  pidof hyprlock >/dev/null 2>&1 || hyprlock
+  "$(dirname "$(readlink -f "$0")")/bloquear.sh"
 }
 
 # Suspender. Con la hibernación en modo "retardo" NO se usa `systemctl suspend` a secas sino

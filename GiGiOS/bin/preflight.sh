@@ -42,7 +42,7 @@ required=(
   hypr/hyprland.lua hypr/gigios/util.lua hypr/gigios/json.lua hypr/gigios/variables.lua
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
   hypr/gigios/gpu.lua hypr/gigios/gpu/laptop-hibrida.lua hypr/gigios/gpu/sobremesa-nvidia.lua hypr/gigios/gpu/integrada.lua
-  Wallpapers/sunset.jpg
+  hypr/scripts/bloquear.sh
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
   hypr/scripts/reparar-kdeglobals.sh

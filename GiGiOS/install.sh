@@ -1213,17 +1213,19 @@ if paso_activo sddm; then
       warn "No encontré $SDDM_TEMA_ORIGEN; no instalo el tema del saludador."
     fi
 
-    # Sólo se fija si el directorio existe DE VERDAD tras el intento anterior. Se prefiere
-    # el nuestro; los demás son restos de otros instaladores (el «Candy» de esta máquina
-    # lo dejó HyDE y no pertenece a ningún paquete, `pacman -Qo` no lo reconoce). Un
-    # Current= apuntando a un tema ausente no da error: SDDM cae a su tema empotrado y el
-    # aspecto cambia sin más.
+    # Sólo se fija si el directorio existe DE VERDAD tras el intento anterior. GiGiOS trae
+    # su propio tema, así que no hay que caer a ninguno ajeno: aquí se listaban también
+    # «Candy» y «sugar-candy», restos del instalador de HyDE que no pertenecen a ningún
+    # paquete (`pacman -Qo` no los reconoce). Preferirlos era heredar el aspecto de otro
+    # escritorio en cuanto el nuestro fallara al copiarse — mejor caer al tema empotrado
+    # de SDDM, que al menos se ve como lo que es. Un Current= apuntando a un tema ausente
+    # no da error: SDDM cae a ese tema empotrado y el aspecto cambia sin más.
     SDDM_TEMA=""
-    for _tema in gigios Candy sugar-candy Sugar-Candy; do
-      if [ -d "/usr/share/sddm/themes/$_tema" ]; then SDDM_TEMA="$_tema"; break; fi
-    done
-    [ -n "$SDDM_TEMA" ] \
-      || info "Ningún tema conocido de SDDM instalado; el saludador usará el aspecto de fábrica."
+    if [ -d "$SDDM_TEMA_DESTINO" ]; then
+      SDDM_TEMA=gigios
+    else
+      info "El tema de GiGiOS no está en $SDDM_TEMA_DESTINO; el saludador usará el aspecto de fábrica."
+    fi
 
     # Teclado en pantalla: se fija SÓLO si el módulo QML está de verdad en el sistema.
     # InputMethod=qtvirtualkeyboard sin qt6-virtualkeyboard no degrada, ROMPE: el greeter
