@@ -1910,6 +1910,26 @@ máquina recién instalada pasa por defecto. `install.sh` lo `disable --now` jus
 `tlp.service`, y solo en el mismo `tiene_bateria`. Se **desactiva**, no se enmascara: volver atrás
 es un `systemctl enable --now power-profiles-daemon.service`.
 
+**`enable --now` era el propio bug: un arranque en caliente fallido se llevaba por delante la
+activación.** `systemctl enable --now tlp.service` es UN comando con dos efectos de vidas
+distintas —dejar la unidad activada para los próximos arranques y arrancarla ahora— y basta con
+que falle el segundo para perder los dos. Y el segundo falla de verdad: `tlp init start` **aborta**
+si encuentra otro gestor de energía vivo (`conflicting power management service is active`). La
+instalación terminaba avisando «no pude activar tlp.service» y el portátil se quedaba **sin la
+unidad activada**, cuando el `enable` habría funcionado perfectamente — de ahí que un
+`sudo systemctl enable tlp` a mano después lo arreglara siempre, que es exactamente el síntoma que
+se reportó. Ahora el bucle hace `enable` y `start` **por separado y en ese orden**: si el arranque
+en caliente falla, la unidad ya quedó activada y el aviso lo dice («quedó activada pero no arrancó
+ahora … se aplicará al reiniciar») en vez de mandar a arreglar algo que ya está bien. Los dos
+avisos incluyen el stderr real de `systemctl`, que antes se tiraba: el aviso decía que algo falló
+pero nunca por qué.
+
+**Y la lista de conflictos es la de TLP, no solo ppd.** Mirar únicamente
+`power-profiles-daemon.service` no basta para que el `start` funcione: TLP aborta también con
+`tuned.service` y `auto-cpufreq.service`, y **`tuned-ppd` *provee* power-profiles-daemon**, así que
+comprobar el nombre de ppd no la ve. El bucle recorre las tres con el mismo criterio
+(`is-enabled` o `is-active` → `disable --now`, avisando sin abortar).
+
 **El preflight lo comprueba ahora, que es lo que faltaba para que no se repita.** En modo
 `--installed`, y solo si hay batería del SISTEMA (mismo criterio de `scope != Device` que usa
 `install.sh`), exige que `tlp` esté instalado y que `tlp.service` esté `is-enabled`, y avisa si ppd

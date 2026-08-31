@@ -665,30 +665,65 @@ install_packages() {
   # por dispatcher de NetworkManager).
   if tiene_bateria; then
     unidades+=(tlp.service)
-    # TLP y power-profiles-daemon se pelean por los mismos ajustes del kernel (governor,
-    # EPP, ASPM) y el resultado depende de quién escriba el último: el portátil acaba con
-    # una mezcla que no es ninguno de los dos perfiles. Es un requisito de TLP, no una
-    # preferencia nuestra, y no da error — sólo consumo. CachyOS trae ppd activo en varias
-    # de sus ediciones, así que en una máquina recién instalada esto pasa por defecto.
-    # Se DESACTIVA, no se enmascara: revertirlo es un `systemctl enable --now`.
-    if systemctl is-enabled --quiet power-profiles-daemon.service 2>/dev/null ||
-       systemctl is-active --quiet power-profiles-daemon.service 2>/dev/null; then
-      info "Desactivando power-profiles-daemon: entra en conflicto con TLP (lo usa Ajustes > Energía)."
-      sudo systemctl disable --now power-profiles-daemon.service \
-        || warn "No pude desactivar power-profiles-daemon; competirá con TLP. Hacelo con: sudo systemctl disable --now power-profiles-daemon.service"
-    fi
+    # TLP y los demás gestores de energía se pelean por los mismos ajustes del kernel
+    # (governor, EPP, ASPM) y el resultado depende de quién escriba el último: el portátil
+    # acaba con una mezcla que no es ninguno de los dos perfiles. Es un requisito de TLP,
+    # no una preferencia nuestra. CachyOS trae power-profiles-daemon activo en varias de
+    # sus ediciones, así que en una máquina recién instalada esto pasa por defecto.
+    # Se DESACTIVAN, no se enmascaran: revertirlo es un `systemctl enable --now`.
+    #
+    # La lista es la MISMA que comprueba el propio TLP, y por eso no basta con ppd: si
+    # cualquiera de estas sigue viva, `tlp init start` ABORTA con "conflicting power
+    # management service is active" y el arranque en caliente de tlp.service falla —
+    # justo lo que dejaba la instalación avisando de que no pudo activar TLP. `tuned` entra
+    # con nombre propio porque `tuned-ppd` *provee* power-profiles-daemon: mirar sólo el
+    # nombre de ppd no la ve.
+    local conflicto
+    for conflicto in power-profiles-daemon.service tuned.service auto-cpufreq.service; do
+      systemctl is-enabled --quiet "$conflicto" 2>/dev/null ||
+        systemctl is-active --quiet "$conflicto" 2>/dev/null || continue
+      info "Desactivando $conflicto: entra en conflicto con TLP (lo usa Ajustes > Energía)."
+      sudo systemctl disable --now "$conflicto" \
+        || warn "No pude desactivar $conflicto; competirá con TLP. Hacelo con: sudo systemctl disable --now $conflicto"
+    done
   fi
   info "Activando los servicios que usa el panel de red, Bluetooth y la energía ..."
-  local unidad
+  # `enable` y `start` SEPARADOS, y en ese orden. `systemctl enable --now` es UN solo
+  # comando con dos efectos de vidas distintas —dejar la unidad activada para los
+  # próximos arranques, y arrancarla ahora— y basta con que falle el segundo para
+  # perder los dos: eso es lo que pasaba con `tlp.service`, que al arrancar en caliente
+  # puede negarse (TLP aborta si detecta otro gestor de energía todavía vivo, y el
+  # `disable --now` de power-profiles-daemon de más arriba no siempre ha terminado de
+  # soltar los ajustes del kernel). El instalador avisaba "no pude activar tlp.service"
+  # y el equipo se quedaba SIN la unidad activada, cuando el `enable` habría funcionado
+  # perfectamente — de ahí que un `sudo systemctl enable tlp` a mano después lo
+  # arreglara siempre. Ahora un arranque en caliente fallido no cancela la activación:
+  # peor caso, TLP entra en el siguiente reinicio, que es cuando importa.
+  local unidad estado_enable estado_start
   for unidad in "${unidades[@]}"; do
     systemctl list-unit-files "$unidad" >/dev/null 2>&1 || {
       warn "La unidad $unidad no existe (¿falló su paquete?); no la activo."
       continue
     }
-    systemctl is-enabled --quiet "$unidad" 2>/dev/null && systemctl is-active --quiet "$unidad" 2>/dev/null \
-      && continue
-    sudo systemctl enable --now "$unidad" \
-      || warn "No pude activar $unidad; actívala antes de iniciar Hyprland."
+
+    if systemctl is-enabled --quiet "$unidad" 2>/dev/null; then
+      estado_enable=0
+    elif estado_enable="$(sudo systemctl enable "$unidad" 2>&1)"; then
+      estado_enable=0
+    else
+      warn "No pude activar $unidad para los próximos arranques: ${estado_enable:-error de systemctl}"
+      estado_enable=1
+    fi
+
+    systemctl is-active --quiet "$unidad" 2>/dev/null && continue
+    estado_start="$(sudo systemctl start "$unidad" 2>&1)" && continue
+    # Sólo se pierde el efecto de ESTA sesión; si el enable quedó hecho, el aviso lo dice
+    # para no mandar al usuario a arreglar algo que ya está bien.
+    if (( estado_enable == 0 )); then
+      warn "$unidad quedó activada pero no arrancó ahora (${estado_start:-error de systemctl}); se aplicará al reiniciar."
+    else
+      warn "No pude arrancar $unidad (${estado_start:-error de systemctl}); actívala antes de iniciar Hyprland."
+    fi
   done
 }
 
