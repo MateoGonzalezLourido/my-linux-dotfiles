@@ -9,30 +9,20 @@
 // el bar-toggle de state.tsx.
 import { onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
-import { execAsync } from "ags/process"
 import { panelAutoClose } from "../../../../estado/shell"
 import { datosActualizaciones } from "../../../../servicios/sistema/actualizaciones"
+import { abrirEnTerminal } from "../../../../utilidades/abrirTerminal"
 import { crearControlPopoverAnclado } from "../../componentes/controlPopoverAnclado"
 import { ESLABON, SensorCadena, type CadenaEstado } from "../../componentes/cadenaEstado"
 import type { ControlVisibilidadBarra } from "../../../../estado/visibilidadBarra"
 
-// Abre la actualización en la primera terminal disponible (kitty = $terminal del
-// sistema; fallback foot/alacritty/wezterm/xterm). --hold/read mantienen la ventana
-// abierta al terminar para poder leer la salida.
+// Abre la actualización en una terminal (kitty = $terminal del sistema, con fallback).
+// Ver `utilidades/abrirTerminal.ts`: es donde vive el picker, porque este ya no es el
+// único sitio que necesita pedir sudo interactivamente (ver también Ajustes > Pantalla
+// > Suspensión, preparar/quitar la hibernación).
 function lanzarActualizacion(cmd: string) {
   if (!cmd) return
-  const picker = `
-    hold_cmd="$1"
-    for t in kitty foot alacritty wezterm xterm; do
-      command -v "$t" >/dev/null 2>&1 || continue
-      case "$t" in
-        kitty) exec kitty --hold sh -lc "$hold_cmd";;
-        foot)  exec foot sh -lc "$hold_cmd; printf '\\nPulsa Enter para cerrar…'; read _";;
-        *)     exec "$t" -e sh -lc "$hold_cmd; printf '\\nPulsa Enter para cerrar…'; read _";;
-      esac
-    done
-    exit 127`
-  execAsync(["bash", "-c", picker, "bash", cmd]).catch((e) => console.error("[updates] launch:", e))
+  abrirEnTerminal(cmd, "updates").catch(() => {})
 }
 
 type TipoActualizacion = "kernel" | "gpu"

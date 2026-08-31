@@ -315,6 +315,35 @@ logind (que es quien mira swap **y** `resume=`), y si dice que no, la fila sale 
 motivo escrito**. `preflight.sh` avisa del caso contrario — el ajuste encendido en un equipo que
 dejó de poder hibernar —, que es el que fallaría de madrugada sin testigos.
 
+#### Desde la propia UI: preparar / quitar, sin pasar por la terminal a mano
+
+Ajustes > Pantalla > Suspensión no solo enseña el tiempo: cuando `CanHibernate` dice que no,
+la fila cambia por un botón **«Preparar hibernación…»**; cuando dice que sí, por
+**«Quitar hibernación…»**. Los dos son mutuamente excluyentes con el selector de minutos, igual
+que la fila «No disponible» que sustituyen.
+
+Ninguno de los dos pasa por una regla `sudoers` NOPASSWD — a propósito. Crear o borrar un
+fichero de varios GiB y reescribir la línea de comandos del kernel no es algo que un clic
+silencioso deba poder hacer. En vez de eso, `abrirEnTerminal()` (`utilidades/abrirTerminal.ts`,
+compartido con el botón de «Actualizaciones» de la barra que lanza `sudo pacman -Syu`) abre una
+terminal de verdad y dentro `sudo` pide la contraseña como en cualquier uso manual:
+
+- **Preparar** lanza `install.sh --solo hibernacion` (el mismo paso del instalador).
+- **Quitar** lanza `system/hibernacion/gigios-hibernacion-quitar.sh`, el simétrico del setup:
+  `swapoff` primero (es lo único que se nota SIN reiniciar — `CanHibernate` mira el swap
+  *activo*, no lo que diga fstab), borra el subvolumen `/swap` completo si solo contiene el
+  swapfile (si hay algo más dentro, avisa y borra solo el fichero), quita `resume=`/
+  `resume_offset=` de GRUB y regenera `grub.cfg`, desactiva únicamente los dos servicios de
+  NVIDIA que son puramente de hibernación (`nvidia-hibernate`,
+  `nvidia-suspend-then-hibernate`) — **no** `nvidia-suspend`/`nvidia-resume`, que conservan la
+  VRAM en cualquier S3 y no tienen nada que ver con lo que se desinstala —, y regenera el
+  initramfs. Dejar `/usr/local/bin/gigios-hibernacion` y su sudoers instalados es intencional:
+  sin swap ni `resume=` no hacen nada por sí solos, y quitarlos obligaría a reinstalarlos para
+  poder volver a intentarlo.
+
+Las dos vuelven a llamar a `comprobarHibernacion()` en cuanto la terminal se cierra, así que la
+fila refleja el estado nuevo sin reabrir el panel de Ajustes.
+
 ### Diálogo de contraseña de root: hyprpolkitagent, y por qué sigue siendo feo
 
 El agente de polkit —la ventanita que pide la contraseña al necesitar root— **ya es

@@ -32,6 +32,7 @@
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
 import { createState } from "ags"
+import { abrirEnTerminal } from "../../utilidades/abrirTerminal"
 import { planificar, type AjusteHibernacion, type ModoHibernacion } from "./planHibernacion"
 
 const ARCHIVO = `${GLib.get_user_config_dir()}/gigios/hibernacion.json`
@@ -141,4 +142,30 @@ export function aplicarHibernacion(
   execAsync(["sudo", "-n", "/usr/local/bin/gigios-hibernacion", "retardo", String(plan.retardo)])
     .catch((e) => console.error("[hibernacion] no se pudo fijar HibernateDelaySec:", e))
   return plan.listener
+}
+
+// ── Preparar / quitar el sistema entero ──────────────────────────────────────
+//
+// Esto NO es el ajuste del tiempo (arriba): es la instalación de disco y arranque que lo
+// hace posible en absoluto — swapfile persistente, resume= del kernel, conservación de
+// VRAM de NVIDIA. Se lanza en una TERMINAL con `sudo` interactivo (`abrirEnTerminal`) y no
+// por un helper NOPASSWD: crear/borrar un fichero de varios GiB y reescribir la línea de
+// comandos del kernel no es algo que un clic silencioso deba poder hacer. El mismo patrón
+// que ya usaba "Actualizaciones" de la barra para `sudo pacman -Syu`.
+//
+// Las dos reconsultan `comprobarHibernacion()` al cerrarse la terminal (el usuario ya vio
+// la salida y pulsó Enter/cerró la ventana), para que la fila de Ajustes refleje el nuevo
+// estado sin tener que reabrir el panel. Quitar SÍ se nota en el acto (el script hace
+// `swapoff` antes que nada); preparar sigue sin notarse hasta reiniciar (resume= es cosa
+// del arranque), y eso ya lo explica `hibernarPrepararInfo`.
+export function prepararHibernacion(): void {
+  abrirEnTerminal("bash ~/GiGiOS/install.sh --solo hibernacion", "hibernacion")
+    .then(comprobarHibernacion)
+    .catch(() => {})
+}
+
+export function quitarHibernacion(): void {
+  abrirEnTerminal("sudo bash ~/GiGiOS/system/hibernacion/gigios-hibernacion-quitar.sh", "hibernacion")
+    .then(comprobarHibernacion)
+    .catch(() => {})
 }

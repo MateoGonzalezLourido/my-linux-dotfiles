@@ -225,7 +225,9 @@ La autoridad es `~/.config/gigios/hibernacion.json`; el listener de `hypridle.co
 Habilitarla en una máquina nueva es un paso propio del instalador (`--solo hibernacion`: swapfile
 persistente, `resume=` en el kernel, VRAM de NVIDIA) y **no surte efecto hasta reiniciar**. Nada se
 asume: `gigios-hibernacion estado` pregunta a logind y, si dice que no, la fila de Ajustes sale
-apagada con el motivo escrito. **Detalle completo, trampas y por qué de cada pieza en la sección de
+apagada con el motivo escrito **y un botón «Preparar hibernación…»** que lanza ese paso en una
+terminal (con «Quitar hibernación…» a la inversa) — ninguno de los dos por NOPASSWD, a propósito.
+**Detalle completo, trampas y por qué de cada pieza en la sección de
 hibernación de [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) — léela antes de tocar
 `servicios/energia/hibernacion.ts`, `system/hibernacion/` o el listener `hibernate`.**
 

@@ -131,6 +131,10 @@
     "hibernarViaSuspension": "Se suspenderá a los {suspension} min y despertará solo para hibernar {retardo} min después.",
     "hibernarDirecta": "Hibernará directamente, sin pasar antes por la suspensión.",
     "hibernarNoDisponible": "No disponible",
+    "hibernarPreparar": "Preparar hibernación…",
+    "hibernarPrepararInfo": "Crea el swapfile persistente y prepara el arranque para poder hibernar. Se abre una terminal y pide la contraseña; tarda varios minutos y hace falta reiniciar al terminar.",
+    "hibernarQuitar": "Quitar hibernación…",
+    "hibernarQuitarInfo": "Borra el swapfile persistente y deshace la preparación del arranque, liberando ese espacio. Se abre una terminal y pide la contraseña; deja de poder hibernarse en el acto.",
     "bloquearAlSuspender": {
       "titulo": "Bloquear al suspender",
       "descripcion": "Pide la contraseña al despertar el equipo. Es independiente de «Bloquear»: se aplica a cualquier suspensión, también a la del menú de energía, el botón de encendido o cerrar la tapa."

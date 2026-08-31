@@ -1,6 +1,6 @@
 import { createState, createComputed } from "ags"
 import { Gtk } from "ags/gtk4"
-import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
+import { AjusteInterruptor, BotonAjustes, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
 import FilaInactividad from "./FilaInactividad"
 import { guardarInactividadGeneral, leerInactividadGeneral } from "../../../servicios/pantalla/inactividadAhorro"
 import {
@@ -9,6 +9,8 @@ import {
   hibernacionMotivo,
   leerHibernacion,
   planificar,
+  prepararHibernacion,
+  quitarHibernacion,
 } from "../../../servicios/energia/hibernacion"
 import textos from "../../../textos/ajustes/pantalla.json" with { type: "json" }
 
@@ -93,6 +95,19 @@ export default function Inactividad() {
       </box>
       <box cssClasses={["dev-row"]}>
         <TextoInformativo label={explicacion} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
+      </box>
+      {/*
+        Preparar/quitar el SISTEMA de hibernación (swapfile, resume=, VRAM de NVIDIA), no el
+        tiempo de arriba. Cada fila es mutuamente excluyente con la otra vía hibernacionActivable,
+        igual que "No disponible" arriba lo es con el selector de minutos.
+      */}
+      <box cssClasses={["dev-row"]} spacing={8} valign={Gtk.Align.CENTER} visible={hibernacionActivable((v) => !v)}>
+        <TextoInformativo label={textos.suspension.hibernarPrepararInfo} hexpand halign={Gtk.Align.START} wrap maxWidthChars={48} xalign={0} />
+        <BotonAjustes variante="principal" label={textos.suspension.hibernarPreparar} onClicked={prepararHibernacion} />
+      </box>
+      <box cssClasses={["dev-row"]} spacing={8} valign={Gtk.Align.CENTER} visible={hibernacionActivable}>
+        <TextoInformativo label={textos.suspension.hibernarQuitarInfo} hexpand halign={Gtk.Align.START} wrap maxWidthChars={48} xalign={0} />
+        <BotonAjustes variante="secundario" label={textos.suspension.hibernarQuitar} onClicked={quitarHibernacion} />
       </box>
       <AjusteInterruptor
         titulo={textos.suspension.bloquearAlSuspender.titulo}
