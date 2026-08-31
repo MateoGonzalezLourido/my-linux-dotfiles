@@ -67,6 +67,13 @@ BACKUP="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
 INSTALL_PACKAGES="${INSTALL_PACKAGES:-1}"
 KITTY_PROFILE="${KITTY_PROFILE:-auto}"
 FIREFOX_PROFILE="${FIREFOX_PROFILE:-auto}"
+# Un tema PEDIDO (--cursor o CURSOR_THEME= en el entorno) que no esté instalado es un
+# error que hay que decir; el tema por DEFECTO que no esté es sólo un paquete opcional
+# ausente, y ahí el paso cae a otro tema en vez de fallar. Sin esta distinción las dos
+# situaciones daban el mismo aviso, que era el que confundía. Se mira ANTES de aplicar
+# el valor por defecto, que es lo que hace distinguibles los dos casos.
+CURSOR_THEME_EXPLICITO=0
+[ -n "${CURSOR_THEME:-}" ] && CURSOR_THEME_EXPLICITO=1
 CURSOR_THEME="${CURSOR_THEME:-Bibata-Modern-Ice}"
 ASSUME_YES="${ASSUME_YES:-0}"
 SKIP_CLAMAV_DB="${SKIP_CLAMAV_DB:-0}"
@@ -174,7 +181,7 @@ while (($#)); do
     --repo)    REPO_URL="${2:?--repo necesita una URL}"; shift 2 ;;
     --kitty)   KITTY_PROFILE="${2:?--kitty necesita un perfil}"; shift 2 ;;
     --firefox) FIREFOX_PROFILE="${2:?--firefox necesita un perfil}"; shift 2 ;;
-    --cursor)  CURSOR_THEME="${2:?--cursor necesita un tema}"; shift 2 ;;
+    --cursor)  CURSOR_THEME="${2:?--cursor necesita un tema}"; CURSOR_THEME_EXPLICITO=1; shift 2 ;;
     --yes|-y)  ASSUME_YES=1; shift ;;
     --pasos|--steps) listar_pasos; exit 0 ;;
     --sin|--skip)  anadir_pasos SIN_PASOS "${2:?--sin necesita al menos un paso}"; shift 2 ;;
@@ -604,14 +611,24 @@ install_packages() {
   # puro esos paquetes no existen, así que sólo se agregan cuando el repositorio
   # configurado los proporciona. VS Code se instala sólo si ningún paquete ya
   # aporta el comando `code` (por ejemplo visual-studio-code-bin).
-  # bibata-cursor-theme vive en chaotic-aur, no en los repos oficiales: va aquí y
-  # no en la lista dura porque en un Arch puro haría fallar el `pacman -S` ENTERO
-  # y con él el resto de dependencias. Sin él, el paso 10 avisa y el escritorio
-  # arranca igual con el puntero de XCursor.
   local optional_official
-  for optional_official in cachyos-fish-config cachyos-rate-mirrors bibata-cursor-theme; do
+  for optional_official in cachyos-fish-config cachyos-rate-mirrors; do
     pacman -Si "$optional_official" >/dev/null 2>&1 && official+=("$optional_official")
   done
+
+  # bibata-cursor-theme no está en los repos oficiales (vive en chaotic-aur y en AUR), y
+  # va aparte porque en un Arch puro SIN ayudante haría fallar el `pacman -S` ENTERO y
+  # con él el resto de dependencias. Pero el gate era `pacman -Si` a secas, que NO VE AUR:
+  # en una máquina con paru/yay y sin chaotic-aur el paquete se descartaba pudiendo
+  # instalarse, Bibata no llegaba nunca, y el paso 10 moría con "no pude generar el tema
+  # hyprcursor 'Bibata-Modern-Ice'" — un aviso que culpaba al tema cuando lo que faltaba
+  # era el paquete. Con ayudante se añade y que lo resuelva él (paquetes_instalar ya
+  # trata los AUR-only sin abortar); sin ayudante se mantiene el gate de siempre.
+  if [[ -n "$AYUDANTE_AUR" ]] || pacman -Si bibata-cursor-theme >/dev/null 2>&1; then
+    official+=(bibata-cursor-theme)
+  else
+    info "bibata-cursor-theme no está en los repos y no hay paru/yay: el paso del puntero usará otro tema instalado."
+  fi
   command -v code >/dev/null 2>&1 || official+=(code)
 
   # TLP solo en portátiles. El paso 9 instala sus perfiles conmutables ÚNICAMENTE si
@@ -1396,14 +1413,57 @@ if paso_activo cursor; then
   # que escribe el usuario desde Ajustes > Dispositivos > Puntero. Generar el tema
   # es preparar el terreno; cambiarle el puntero a alguien que no lo ha pedido, no.
   CURSOR_GEN="$HOME/GiGiOS/bin/generar-hyprcursor.sh"
+  CURSOR_AVISO_HECHO=0
   CURSOR_THEME="${CURSOR_THEME:-Bibata-Modern-Ice}"
   if [ -x "$CURSOR_GEN" ]; then
-    info "Preparando el tema de puntero '$CURSOR_THEME' para hyprcursor ..."
-    # No es fatal: sin esto el escritorio arranca igual, solo que con el puntero
-    # de XCursor. Un tema que no esté instalado (otra distro, otro nombre) no debe
-    # tumbar una instalación por lo demás correcta.
-    "$CURSOR_GEN" "$CURSOR_THEME" \
-      || warn "No pude generar el tema hyprcursor '$CURSOR_THEME'. Elegí otro con '$CURSOR_GEN --list' y volvé a correrlo."
+    # El tema por defecto viene de un paquete que puede no estar (ver el gate de
+    # bibata-cursor-theme en el paso de paquetes: otra distro, sin chaotic-aur y sin
+    # ayudante de AUR). Antes eso terminaba en "no pude generar el tema hyprcursor
+    # 'Bibata-Modern-Ice'", un aviso que mandaba a elegir otro tema cuando el problema
+    # era un paquete ausente. Si NADIE pidió ese tema explícitamente, se cae a uno que
+    # sí esté instalado en vez de fallar: generar la mitad hyprcursor de otro tema no
+    # le cambia el puntero a nadie —eso lo decide `temaCursor` en devices.json— así que
+    # el peor caso de equivocarse es un directorio de más.
+    if ! "$CURSOR_GEN" --ruta "$CURSOR_THEME" >/dev/null 2>&1; then
+      if ((CURSOR_THEME_EXPLICITO)); then
+        # Aviso ya dado y concreto: el `else` de más abajo no debe añadir encima un
+        # "no hay ningún tema instalado" que además sería falso (los hay; el que falta
+        # es el pedido).
+        warn "El tema de puntero '$CURSOR_THEME' no está instalado; mirá los disponibles con '$CURSOR_GEN --list'."
+        CURSOR_THEME=""
+        CURSOR_AVISO_HECHO=1
+      else
+        # Preferencias en orden, y como último recurso el primero que liste el propio
+        # script: así una distro con otros nombres de tema tampoco se queda sin nada.
+        CURSOR_ALTERNATIVA=""
+        for CURSOR_CANDIDATO in breeze_cursors Adwaita \
+          "$("$CURSOR_GEN" --list 2>/dev/null | awk 'NR>1 { print $1; exit }')"; do
+          [ -n "$CURSOR_CANDIDATO" ] || continue
+          "$CURSOR_GEN" --ruta "$CURSOR_CANDIDATO" >/dev/null 2>&1 || continue
+          CURSOR_ALTERNATIVA="$CURSOR_CANDIDATO"
+          break
+        done
+        if [ -n "$CURSOR_ALTERNATIVA" ]; then
+          info "'$CURSOR_THEME' no está instalado; preparo '$CURSOR_ALTERNATIVA' en su lugar."
+          CURSOR_THEME="$CURSOR_ALTERNATIVA"
+        else
+          CURSOR_THEME=""
+        fi
+      fi
+    fi
+
+    if [ -n "$CURSOR_THEME" ]; then
+      info "Preparando el tema de puntero '$CURSOR_THEME' para hyprcursor ..."
+      # No es fatal: sin esto el escritorio arranca igual, solo que con el puntero
+      # de XCursor. Un tema que no esté instalado (otra distro, otro nombre) no debe
+      # tumbar una instalación por lo demás correcta. El stderr del generador se mete
+      # EN el aviso: antes se lo llevaba el scroll de la instalación y el resumen final
+      # decía que algo falló sin decir por qué.
+      ERROR_CURSOR="$("$CURSOR_GEN" "$CURSOR_THEME" 2>&1 >/dev/null)" \
+        || warn "No pude generar el tema hyprcursor '$CURSOR_THEME': ${ERROR_CURSOR:-error del generador}. Elegí otro con '$CURSOR_GEN --list' y volvé a correrlo."
+    elif ((CURSOR_AVISO_HECHO == 0)); then
+      warn "No hay ningún tema de puntero instalado al que añadirle la mitad hyprcursor; el compositor usará XCursor."
+    fi
   fi
 else
   info "Omito la generación del tema hyprcursor."

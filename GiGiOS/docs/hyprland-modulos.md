@@ -1865,6 +1865,36 @@ como Bibata-Modern-Ice, cuyos `.hlc` sí contienen un `.svg`. Sobre un tema de p
 **paridad, no nitidez**. Dato para dimensionarlo: en Bibata la mitad SVG ocupa **328 KB** y la
 XCursor **28 MB**.
 
+**El paso 10 moría por un paquete que el propio instalador trata como opcional.** El gate de
+`bibata-cursor-theme` era `pacman -Si`, que **no ve AUR**: en una máquina con paru/yay pero sin
+chaotic-aur el paquete se descartaba **pudiendo instalarse**, Bibata no llegaba nunca, y el paso
+terminaba con «no pude generar el tema hyprcursor 'Bibata-Modern-Ice'. Elegí otro con --list» — un
+aviso que culpa al tema y manda a elegir otro cuando lo que falta es un paquete. Tres cambios:
+
+- El gate acepta el ayudante de AUR (`[[ -n "$AYUDANTE_AUR" ]] || pacman -Si …`); `paquetes_instalar`
+  ya sabe pasarle los AUR-only sin abortar.
+- Un tema por defecto ausente ya **no es un fallo**: se cae al primer tema instalado
+  (`breeze_cursors`, `Adwaita`, o el primero que liste el generador). Generar la mitad hyprcursor de
+  otro tema **no le cambia el puntero a nadie** —eso sigue siendo `temaCursor` en `devices.json`—,
+  así que el peor caso de equivocarse es un directorio de más. Un tema pedido **explícitamente**
+  (`--cursor` o `CURSOR_THEME=` en el entorno) sí avisa, porque ahí el nombre lo eligió alguien:
+  esa distinción es `CURSOR_THEME_EXPLICITO`, y hay que calcularla **antes** de aplicar el valor por
+  defecto o siempre sale «explícito».
+- El aviso incluye el **stderr real del generador**. Antes el motivo se lo llevaba el scroll de
+  pacman y el resumen final decía que algo falló sin decir por qué.
+
+**Y el guardián de idempotencia miraba solo el DESTINO, lo que degradaba a Bibata sin pedir
+`--force`.** La cabecera del script ya advierte que rehacer un tema autorado en SVG sustituye sus
+328 KB de SVG por el repaquetado en PNG de su propia mitad XCursor. Pues eso pasaba **sin
+`--force`**: con Bibata instalado por paquete en `/usr/share/icons` (que trae su `manifest.hl` de
+fábrica), el destino `~/.local/share/icons/Bibata-Modern-Ice` está **vacío**, el guardián no veía
+nada y el script se ponía a repaquetar. Y la copia peor **tapa a la buena**, porque
+`~/.local/share/icons` tiene más precedencia que `/usr/share/icons`. Sin un solo error, y con un
+`Listo: … 47 formas` que parecía un éxito. Ahora se comprueba también el origen: si ya trae
+`manifest.hl`, no hay nada que añadir. `--ruta <tema>` es el otro añadido — imprime el directorio
+del tema o sale 1 — para que `install.sh` pregunte "¿está instalado?" sin reimplementar el orden de
+precedencia de XCursor, que solo vive aquí.
+
 ### Perfiles TLP conmutables (`system/tlp/` + `servicios/energia/tlp.ts`)
 
 Ajustes > Energía ofrece un selector **Normal/Ahorro** que cambia el perfil TLP en batería. El

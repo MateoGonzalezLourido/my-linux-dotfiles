@@ -28,6 +28,7 @@
 #
 # Uso:
 #   bin/generar-hyprcursor.sh --list           temas XCursor instalados y su estado
+#   bin/generar-hyprcursor.sh --ruta <tema>    imprime su directorio; rc 1 si no está
 #   bin/generar-hyprcursor.sh <tema>           genera ~/.local/share/icons/<tema>
 #   bin/generar-hyprcursor.sh <tema> <destino> ídem con otro nombre
 #
@@ -77,6 +78,14 @@ listar() {
 
 [ "${1:-}" = "--list" ] && { listar; exit 0; }
 
+# `--ruta <tema>` existe para que install.sh pueda preguntar "¿está instalado?" sin
+# reimplementar el orden de precedencia de XCursor, que es el único sitio donde vive.
+if [ "${1:-}" = "--ruta" ]; then
+  [ -n "${2:-}" ] || die "--ruta necesita un tema"
+  buscar_tema "$2" || exit 1
+  exit 0
+fi
+
 FUERZA=0
 args=()
 for a in "$@"; do
@@ -105,6 +114,20 @@ ORIGEN="$(buscar_tema "$ORIGEN_NOMBRE")" || die "no encuentro el tema '$ORIGEN_N
 DESTINO="$DESTINO_BASE/$DESTINO_NOMBRE"
 if [ -f "$DESTINO/manifest.hl" ] && [ "$FUERZA" -eq 0 ]; then
   msg "'$DESTINO_NOMBRE' ya tiene soporte hyprcursor ($DESTINO). Nada que hacer (--force para rehacer)."
+  exit 0
+fi
+
+# El ORIGEN también cuenta, no solo el destino. Un tema autorado en SVG (Bibata) ya
+# trae su mitad hyprcursor de fábrica en /usr/share/icons, y ahí el destino
+# ~/.local/share/icons/<mismo nombre> está vacío: el guardián de arriba no lo veía y
+# esto se ponía a repaquetar tan feliz. El resultado era la DEGRADACIÓN que advierte
+# la cabecera para --force, pero sin haber pedido --force: los SVG del tema
+# sustituidos por los PNG de su propia mitad XCursor, y encima en
+# ~/.local/share/icons, que tiene MÁS precedencia que /usr/share/icons — o sea que la
+# copia peor TAPA a la buena. Sin ningún error, y con un "Listo: … 47 formas" que
+# parecía un éxito. Si el origen ya lo trae, no hay nada que añadir.
+if [ -f "$ORIGEN/manifest.hl" ] && [ "$FUERZA" -eq 0 ]; then
+  msg "'$ORIGEN_NOMBRE' ya trae soporte hyprcursor de fábrica ($ORIGEN). Nada que hacer."
   exit 0
 fi
 
