@@ -33,10 +33,17 @@ preparación de la **hibernación**, la cesión del
 botón de encendido a Hyprland y la configuración de SDDM; ver las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento, de
 cámara, de hibernación y del botón de encendido).
 
-`system/sddm/99-gigios.conf.in` es la única pieza de `system/` que **no se copia tal cual**: es una
-plantilla que `install.sh` (paso `sddm`) materializa en `/etc/sddm.conf.d/99-gigios.conf`
-sustituyendo lo que es de cada máquina — el usuario del autologin, el `.desktop` de la sesión y el
-tema, que sólo se fija si existe en el equipo. Tres trampas que ya costaron su tiempo:
+`system/sddm/zz-gigios.conf.in` es la única pieza de `system/` que **no se copia tal cual**: es una
+plantilla que `install.sh` (paso `sddm`) materializa en `/etc/sddm.conf.d/zz-gigios.conf`
+sustituyendo lo que es de cada máquina — el usuario del autologin, el `.desktop` de la sesión, el
+tema (sólo si existe en el equipo) y el método de entrada. Junto a ella, `system/sddm/tema/` es el
+**tema del saludador** (la variante `jake_the_dog` de sddm-astronaut-theme, recortada a lo que esa
+variante usa de verdad): el mismo paso lo copia a `/usr/share/sddm/themes/gigios` y su fuente a
+`/usr/share/fonts/gigios`. **Ver `system/sddm/tema/README.md`** — explica por qué el tema no puede
+vivir bajo `$HOME` (el greeter corre como el usuario `sddm`, antes de que `/home` esté montado) y
+por qué la fuente va aparte (el tema no usa `FontLoader`: pide `Font="Thunderman"` por nombre y la
+resuelve fontconfig; sin instalar, Qt sustituye en silencio y el saludador se ve distinto sin dar
+ningún error). Cuatro trampas que ya costaron su tiempo:
 
 - **Activar SDDM es crear un SYMLINK**: `systemctl enable sddm.service` deja
   `/etc/systemd/system/display-manager.service -> /usr/lib/systemd/system/sddm.service` (la unidad
@@ -47,8 +54,16 @@ tema, que sólo se fija si existe en el equipo. Tres trampas que ya costaron su 
 - **`/etc/sddm.conf` gana sobre TODO `/etc/sddm.conf.d/`**, pese al nombre (`man 5 sddm.conf`). Si
   define una clave que también fijamos, manda la suya y editar el drop-in no se nota. El instalador
   compara las claves y avisa; no toca ese fichero, que es de la distribución.
-- El prefijo **`99-`** no es decorativo: `conf.d` se lee en orden alfabético y gana el último, y en
-  esta máquina conviven los restos de HyDE (`the_hyde_project.conf`), que fija `[Theme] Current`.
+- El prefijo **`zz-`** no es decorativo, y el que había antes (`99-`) **estaba mal**: `conf.d` se
+  lee en orden alfabético y gana **el último**, pero los dígitos van *antes* que las letras. Con los
+  restos de HyDE de esta máquina (`the_hyde_project.conf`, que fija `[Theme] Current=Candy`), un
+  `99-gigios.conf` se leía **primero** y quedaba pisado entero — tema y autologin incluidos — sin un
+  solo error: el saludador salía con el aspecto de HyDE y parecía que el paso `sddm` no se hubiera
+  ejecutado. El instalador retira el fichero con el nombre viejo, y `preflight.sh` avisa de
+  cualquier drop-in que ordene después del nuestro y fije una de nuestras claves.
+- **`InputMethod=qtvirtualkeyboard` sin `qt6-virtualkeyboard` no degrada, ROMPE**: el greeter no
+  llega a dibujarse y el equipo arranca a una pantalla negra, sin mensaje. Por eso es un campo de la
+  plantilla y no una línea fija: el instalador sólo lo escribe si encuentra el módulo QML instalado.
 
 `mime/`, `qt6ct/`, `menus/`, `kdeglobals`, `mimeapps.list` en la raíz no son un componente
 propio: son fragmentos sueltos de integración de escritorio (tema Qt, asociación de apps, menú

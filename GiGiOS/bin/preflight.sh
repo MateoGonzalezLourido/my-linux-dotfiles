@@ -50,6 +50,10 @@ required=(
   hypr/scripts/wallpaper.sh hypr/scripts/wallpaper-select.py hypr/scripts/lib/seleccion_fondos.py
   system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
   system/logind.conf.d/99-gigios-powerkey.conf
+  system/sddm/zz-gigios.conf.in
+  system/sddm/tema/metadata.desktop system/sddm/tema/theme.conf system/sddm/tema/Main.qml
+  system/sddm/tema/Backgrounds/jake_the_dog.mp4 system/sddm/tema/Backgrounds/jake_the_dog.png
+  system/sddm/tema/Fonts/Thunderman.ttf
   rofi/config.rasi rofi/emoji-grid.rasi
 )
 for path in "${required[@]}"; do
@@ -626,10 +630,42 @@ EOF
     else
       ok "SDDM activado (display-manager.service -> sddm.service)"
     fi
-    if [[ -r /etc/sddm.conf.d/99-gigios.conf ]]; then
-      ok "configuración de SDDM de GiGiOS en /etc/sddm.conf.d/99-gigios.conf"
+    if [[ -r /etc/sddm.conf.d/zz-gigios.conf ]]; then
+      ok "configuración de SDDM de GiGiOS en /etc/sddm.conf.d/zz-gigios.conf"
+      # Que exista NUESTRO fichero no significa que mande. conf.d se lee en orden
+      # alfabético y gana el último: cualquier drop-in que ordene DESPUÉS de zz- y fije
+      # una de nuestras claves nos pisa sin dar error. Y /etc/sddm.conf, pese al nombre,
+      # gana sobre todo el directorio (`man 5 sddm.conf`).
+      for otro in /etc/sddm.conf.d/*; do
+        [[ -f "$otro" ]] || continue
+        [[ "$(basename "$otro")" > "zz-gigios.conf" ]] || continue
+        if grep -qE '^[[:space:]]*(Current|User|Session|InputMethod)[[:space:]]*=' "$otro"; then
+          warn "$otro se lee DESPUÉS de zz-gigios.conf y fija claves nuestras: manda él (revisalo o borralo)"
+        fi
+      done
+      if [[ -e /etc/sddm.conf.d/99-gigios.conf ]]; then
+        warn "queda /etc/sddm.conf.d/99-gigios.conf, de una instalación vieja y con el nombre malo (bash install.sh --solo sddm lo retira)"
+      fi
     else
-      warn "falta /etc/sddm.conf.d/99-gigios.conf: SDDM usará su configuración de fábrica (bash install.sh --solo sddm)"
+      warn "falta /etc/sddm.conf.d/zz-gigios.conf: SDDM usará su configuración de fábrica (bash install.sh --solo sddm)"
+    fi
+    # El tema del saludador. Su ausencia no rompe nada: SDDM cae a su aspecto de fábrica.
+    if [[ -r /usr/share/sddm/themes/gigios/metadata.desktop ]]; then
+      ok "tema del saludador instalado en /usr/share/sddm/themes/gigios"
+      # La fuente NO viaja dentro del tema: no hay FontLoader, el .conf pide "Thunderman"
+      # por nombre y la resuelve fontconfig. Si falta, Qt sustituye en silencio y el
+      # saludador se ve con otra tipografía sin ningún error.
+      if command -v fc-match >/dev/null 2>&1 &&
+         [[ "$(fc-match -f '%{family}' Thunderman 2>/dev/null)" != *Thunderman* ]]; then
+        warn "la fuente Thunderman del saludador no está en el sistema: se verá con otra tipografía (bash install.sh --solo sddm)"
+      fi
+      # El fondo es un .mp4 y quien lo reproduce es QtMultimedia. Sin el backend de
+      # ffmpeg se queda el PNG de reserva: parece que el tema no está animado.
+      if ! pacman -Qq qt6-multimedia-ffmpeg >/dev/null 2>&1; then
+        warn "falta qt6-multimedia-ffmpeg: el fondo animado del saludador no se reproducirá (se queda el PNG)"
+      fi
+    else
+      warn "falta el tema del saludador en /usr/share/sddm/themes/gigios (bash install.sh --solo sddm)"
     fi
   else
     fail "SDDM no está instalado: nada lanzará Hyprland al arrancar (sudo pacman -S --needed sddm && bash install.sh --solo sddm)"

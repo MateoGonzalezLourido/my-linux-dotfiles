@@ -530,6 +530,17 @@ install_packages() {
     # terminaba "completa" y arrancaba en un TTY, sin nada que lanzara Hyprland. El paso
     # `sddm` lo configura y lo activa; aquí sólo se garantiza que el paquete exista.
     sddm
+    # Los tres Qt que necesita el TEMA del saludador (system/sddm/tema/, ver su README):
+    #   qt6-svg               los iconos de Assets/ son SVG; sin él los botones de
+    #                         apagar/reiniciar/usuario salen en blanco.
+    #   qt6-multimedia-ffmpeg el fondo es un .mp4; sin el backend de ffmpeg el vídeo no
+    #                         arranca y se queda el PNG de reserva. No da ningún error:
+    #                         parece que el tema simplemente no está animado.
+    #   qt6-virtualkeyboard   el teclado en pantalla. Es el peligroso de los tres: el paso
+    #                         `sddm` sólo escribe InputMethod=qtvirtualkeyboard si encuentra
+    #                         su módulo QML, porque fijarlo sin el paquete deja el greeter
+    #                         sin arrancar (pantalla negra al encender, sin mensaje).
+    qt6-svg qt6-multimedia-ffmpeg qt6-virtualkeyboard
     # hyprcursor: Hyprland ya depende de la librería, pero el paso 10 usa el
     # BINARIO hyprcursor-util (mismo paquete) para generar la mitad hyprcursor
     # del tema de puntero. Se pide explícito para que sea una dependencia
@@ -1083,7 +1094,7 @@ if paso_activo sddm; then
   #
   # Son DOS cosas distintas y cada una falla en silencio por su lado:
   #
-  #   • La configuración (/etc/sddm.conf.d/99-gigios.conf): autologin en Hyprland,
+  #   • La configuración (/etc/sddm.conf.d/zz-gigios.conf): autologin en Hyprland,
   #     tema del saludador y rango de usuarios. Sin ella SDDM arranca igual, con su
   #     aspecto de fábrica y pidiendo contraseña — molesto, no roto.
   #
@@ -1098,10 +1109,18 @@ if paso_activo sddm; then
   # Igual que los ficheros de /etc del paso anterior, la config NO se symlinkea a
   # ~/GiGiOS: SDDM la lee como root y antes de que exista sesión de usuario, y apuntar
   # /etc a un directorio escribible por el usuario sería una escalada silenciosa. Se
-  # materializa desde la plantilla system/sddm/99-gigios.conf.in sustituyendo los tres
-  # campos que son de cada máquina (usuario, sesión, tema).
-  SDDM_PLANTILLA="$HOME/GiGiOS/system/sddm/99-gigios.conf.in"
-  SDDM_DESTINO=/etc/sddm.conf.d/99-gigios.conf
+  # materializa desde la plantilla system/sddm/zz-gigios.conf.in sustituyendo los campos
+  # que son de cada máquina (usuario, sesión, tema, método de entrada).
+  #
+  # EL NOMBRE ES "zz-" A PROPÓSITO, no es un capricho: conf.d se lee en orden alfabético
+  # y gana el último, y los dígitos van ANTES que las letras. El nombre anterior
+  # (99-gigios.conf) quedaba por delante de los restos de HyDE (the_hyde_project.conf) y
+  # los dejaba a ELLOS mandando, en silencio. Ver la cabecera de la plantilla.
+  SDDM_PLANTILLA="$HOME/GiGiOS/system/sddm/zz-gigios.conf.in"
+  SDDM_DESTINO=/etc/sddm.conf.d/zz-gigios.conf
+  # Restos de instalaciones anteriores de GiGiOS con el nombre malo. No se deja: dos
+  # ficheros nuestros con valores distintos es exactamente el enredo que cuesta una tarde.
+  SDDM_DESTINO_VIEJO=/etc/sddm.conf.d/99-gigios.conf
 
   # Último valor no comentado de una clave en un .conf de SDDM. Vale para comprobar si
   # /etc/sddm.conf —que tiene MÁS precedencia que todo /etc/sddm.conf.d/, ver
@@ -1145,16 +1164,77 @@ if paso_activo sddm; then
     [ -n "$SDDM_SESION" ] \
       || warn "No encontré hyprland.desktop en wayland-sessions; SDDM arrancará sin sesión predefinida."
 
-    # Tema: sólo se fija si el directorio existe DE VERDAD. El «Candy» de esta máquina lo
-    # dejó el instalador de HyDE y no pertenece a ningún paquete (`pacman -Qo` no lo
-    # reconoce), así que en un equipo nuevo no está. Un Current= apuntando a un tema
-    # ausente no da error: SDDM cae a su tema empotrado y el aspecto cambia sin más.
+    # --- El tema del saludador ---
+    # Se INSTALA aquí, desde system/sddm/tema/ (variante jake_the_dog de
+    # sddm-astronaut-theme; ver system/sddm/tema/README.md). Se COPIA a
+    # /usr/share/sddm/themes/gigios y no se symlinkea a ~/GiGiOS por la misma razón que
+    # la configuración: el greeter corre como el usuario `sddm`, antes de que exista
+    # ninguna sesión, y /home puede ni estar montado todavía (LUKS, disco aparte). Un
+    # tema ilegible no da error — SDDM cae a su aspecto de fábrica y ya.
+    SDDM_TEMA_ORIGEN="$HOME/GiGiOS/system/sddm/tema"
+    SDDM_TEMA_DESTINO=/usr/share/sddm/themes/gigios
+    if [ -r "$SDDM_TEMA_ORIGEN/metadata.desktop" ]; then
+      info "Instalando el tema del saludador en $SDDM_TEMA_DESTINO ..."
+      # --delete: si una actualización quita un fichero del tema, el de la copia vieja
+      # no puede quedarse (un Themes/*.conf huérfano confundiría al siguiente que mire).
+      # rsync no está garantizado en un Arch pelado, así que el camino sin él es borrar
+      # y copiar, que para 2,5 MB da igual.
+      if command -v rsync >/dev/null 2>&1; then
+        sudo rsync -a --delete "$SDDM_TEMA_ORIGEN/" "$SDDM_TEMA_DESTINO/" \
+          || warn "No pude copiar el tema del saludador; SDDM se queda con el que hubiera."
+      else
+        sudo rm -rf "$SDDM_TEMA_DESTINO" \
+          && sudo mkdir -p "$SDDM_TEMA_DESTINO" \
+          && sudo cp -a "$SDDM_TEMA_ORIGEN/." "$SDDM_TEMA_DESTINO/" \
+          || warn "No pude copiar el tema del saludador; SDDM se queda con el que hubiera."
+      fi
+      # Legible por el usuario `sddm`, que no es root: la copia hereda los permisos del
+      # checkout y un umask restrictivo del usuario dejaría el tema sin leer.
+      sudo chmod -R a+rX "$SDDM_TEMA_DESTINO" 2>/dev/null || true
+
+      # La FUENTE va aparte, a /usr/share/fonts. El tema NO usa FontLoader: pide
+      # Font="Thunderman" por nombre y quien la resuelve es fontconfig. Si no está
+      # instalada en el sistema, Qt sustituye por la fuente por defecto y el saludador se
+      # ve distinto SIN dar ningún error — el fallo aparece como "el tema no quedó igual".
+      if [ -d "$SDDM_TEMA_ORIGEN/Fonts" ]; then
+        if sudo install -d -m755 /usr/share/fonts/gigios \
+           && sudo install -m644 "$SDDM_TEMA_ORIGEN"/Fonts/* /usr/share/fonts/gigios/; then
+          # fc-cache actualiza el índice de fontconfig. Sin él la fuente está en disco
+          # pero fc-match no la encuentra hasta el siguiente arranque.
+          # El `|| true` NO es decorativo: con `set -e` esta línea es la última del
+          # bloque, y sin fontconfig instalado (INSTALL_PACKAGES=0) el `command -v` falso
+          # abortaría el instalador entero por no poder refrescar una caché de fuentes.
+          { command -v fc-cache >/dev/null 2>&1 && sudo fc-cache -f >/dev/null 2>&1; } || true
+        else
+          warn "No pude instalar las fuentes del tema en /usr/share/fonts/gigios; el saludador usará otra tipografía."
+        fi
+      fi
+    else
+      warn "No encontré $SDDM_TEMA_ORIGEN; no instalo el tema del saludador."
+    fi
+
+    # Sólo se fija si el directorio existe DE VERDAD tras el intento anterior. Se prefiere
+    # el nuestro; los demás son restos de otros instaladores (el «Candy» de esta máquina
+    # lo dejó HyDE y no pertenece a ningún paquete, `pacman -Qo` no lo reconoce). Un
+    # Current= apuntando a un tema ausente no da error: SDDM cae a su tema empotrado y el
+    # aspecto cambia sin más.
     SDDM_TEMA=""
-    for _tema in Candy sugar-candy Sugar-Candy; do
+    for _tema in gigios Candy sugar-candy Sugar-Candy; do
       if [ -d "/usr/share/sddm/themes/$_tema" ]; then SDDM_TEMA="$_tema"; break; fi
     done
     [ -n "$SDDM_TEMA" ] \
       || info "Ningún tema conocido de SDDM instalado; el saludador usará el aspecto de fábrica."
+
+    # Teclado en pantalla: se fija SÓLO si el módulo QML está de verdad en el sistema.
+    # InputMethod=qtvirtualkeyboard sin qt6-virtualkeyboard no degrada, ROMPE: el greeter
+    # no llega a dibujarse y el equipo arranca a una pantalla negra, sin mensaje y sin
+    # forma de entrar salvo por TTY. Vacío es «no fijes ninguno», que siempre funciona.
+    SDDM_INPUTMETHOD=""
+    for _qml in /usr/lib/qt6/qml /usr/lib/qt/qml /usr/lib64/qt6/qml; do
+      if [ -d "$_qml/QtQuick/VirtualKeyboard" ]; then SDDM_INPUTMETHOD=qtvirtualkeyboard; break; fi
+    done
+    [ -n "$SDDM_INPUTMETHOD" ] \
+      || info "qt6-virtualkeyboard no está; el saludador irá sin teclado en pantalla."
 
     # Autologin: reproduce el comportamiento de esta máquina (entrar directo a Hyprland).
     # Se apaga con SDDM_AUTOLOGIN=0, y entonces el campo va vacío — que para SDDM es «no
@@ -1169,21 +1249,28 @@ if paso_activo sddm; then
     if _sddm_tmp="$(mktemp)"; then
       if sed -e "s/__GIGIOS_USER__/$SDDM_USUARIO/" \
              -e "s/__GIGIOS_SESSION__/$SDDM_SESION/" \
+             -e "s/__GIGIOS_INPUTMETHOD__/$SDDM_INPUTMETHOD/" \
              -e "s/__GIGIOS_THEME__/$SDDM_TEMA/" \
              "$SDDM_PLANTILLA" > "$_sddm_tmp" \
          && sudo install -Dm644 "$_sddm_tmp" "$SDDM_DESTINO"; then
         info "Escrito $SDDM_DESTINO (autologin: ${SDDM_USUARIO:-no}, tema: ${SDDM_TEMA:-por defecto})."
+        # Sólo se borra el viejo DESPUÉS de que el nuevo esté en su sitio.
+        if [ -e "$SDDM_DESTINO_VIEJO" ]; then
+          sudo rm -f "$SDDM_DESTINO_VIEJO" \
+            && info "Retirado $SDDM_DESTINO_VIEJO (nombre antiguo, lo pisaba the_hyde_project.conf)."
+        fi
         # /etc/sddm.conf gana sobre TODO el directorio conf.d pese a lo que sugiere el
         # nombre. Si trae una de nuestras claves con otro valor, lo que acabamos de
         # escribir no se aplica y no hay forma de notarlo mirando el fichero correcto.
         # No se toca: es de la distribución, y borrarlo a espaldas del usuario podría
         # llevarse ajustes que no son nuestros.
-        for _clave in User Session Current; do
+        for _clave in User Session Current InputMethod; do
           _suyo="$(sddm_valor /etc/sddm.conf "$_clave")"
           case "$_clave" in
-            User)    _nuestro="$SDDM_USUARIO" ;;
-            Session) _nuestro="$SDDM_SESION" ;;
-            Current) _nuestro="$SDDM_TEMA" ;;
+            User)        _nuestro="$SDDM_USUARIO" ;;
+            Session)     _nuestro="$SDDM_SESION" ;;
+            Current)     _nuestro="$SDDM_TEMA" ;;
+            InputMethod) _nuestro="$SDDM_INPUTMETHOD" ;;
           esac
           if [ -n "$_suyo" ] && [ "$_suyo" != "$_nuestro" ] && [ "$_suyo" != "${_nuestro%.desktop}" ]; then
             warn "/etc/sddm.conf fija $_clave=$_suyo y tiene MÁS precedencia que $SDDM_DESTINO (donde vale '${_nuestro:-vacío}'): manda el suyo. Revisalo o quitá esa línea."
