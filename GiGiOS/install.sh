@@ -170,7 +170,7 @@ usage() {
     # Ejecutado por `curl | bash` no hay fichero que leer.
     printf 'install.sh — instalador de GiGiOS.\n'
     printf 'Opciones: --branch --repo --kitty --firefox --cursor --no-packages --yes --skip-clamav-db\n'
-    printf 'Descargá el fichero y ejecutá "bash install.sh --help" para la ayuda completa.\n'
+    printf 'Descarga el fichero y ejecuta "bash install.sh --help" para la ayuda completa.\n'
   fi
 }
 
@@ -191,7 +191,7 @@ while (($#)); do
     --no-packages)    anadir_pasos SIN_PASOS paquetes; shift ;;
     --skip-clamav-db) anadir_pasos SIN_PASOS clamav-db; shift ;;
     --solo-paquetes|--only-packages) anadir_pasos SOLO_PASOS paquetes; shift ;;
-    *) die "Opción desconocida: '$1'. Usa --help para ver las disponibles." ;;
+    *) die "Opción desconocida: '$1'. Usa --help para ver lo disponible." ;;
   esac
 done
 
@@ -451,7 +451,7 @@ paquetes_instalar() {
       disponibles+=("${ausentes[@]}")
     else
       warn "Los repos configurados no ofrecen: ${ausentes[*]} (¿renombrados? ¿falta un repo? ¿hace falta 'pacman -Sy'?)"
-      warn "Sin paru ni yay no puedo buscarlos en AUR. Instalá uno y repetí el instalador."
+      warn "Sin paru ni yay no puedo buscarlos en AUR. Instala uno y repite el instalador."
     fi
   fi
   ((${#disponibles[@]})) || { warn "No hay ningún paquete instalable; omito este lote."; return 0; }
@@ -469,7 +469,7 @@ paquetes_instalar() {
   if ((${#fallidos[@]})); then
     PAQUETES_FALLIDOS+=("${fallidos[@]}")
     warn "No se pudieron instalar: ${fallidos[*]}"
-    warn "Reintentá luego con: ${gestor[*]} -S --needed ${fallidos[*]}"
+    warn "Reintenta luego con: ${gestor[*]} -S --needed ${fallidos[*]}"
   fi
   return 0
 }
@@ -489,7 +489,7 @@ comprobar_pacman_libre() {
     case "$comando" in
       pacman|pacman-key|paru|yay|checkupdates|pamac*)
         pid="${comm_file#/proc/}"; pid="${pid%/comm}"
-        die "Hay otro gestor de paquetes en marcha ($comando, PID $pid). Esperá a que termine y repetí el instalador."
+        die "Hay otro gestor de paquetes en marcha ($comando, PID $pid). Espera a que termine y repite el instalador."
         ;;
     esac
   done
@@ -1482,7 +1482,7 @@ if paso_activo gpu; then
       warn "No pude escribir $GPU_PERFIL; Hyprland avisará al iniciar sesión. Escribilo a mano: echo $perfil_gpu > $GPU_PERFIL"
     fi
   else
-    warn "No pude identificar la GPU de esta máquina; elegí el perfil a mano (ver docs/SETUP.md §9): echo <perfil> > $GPU_PERFIL"
+    warn "No pude identificar la GPU de esta máquina; elige el perfil a mano (ver docs/SETUP.md §9): echo <perfil> > $GPU_PERFIL"
   fi
 else
   info "Omito la elección del perfil de GPU."
@@ -1549,7 +1549,7 @@ if paso_activo cursor; then
       # EN el aviso: antes se lo llevaba el scroll de la instalación y el resumen final
       # decía que algo falló sin decir por qué.
       ERROR_CURSOR="$("$CURSOR_GEN" "$CURSOR_THEME" 2>&1 >/dev/null)" \
-        || warn "No pude generar el tema hyprcursor '$CURSOR_THEME': ${ERROR_CURSOR:-error del generador}. Elegí otro con '$CURSOR_GEN --list' y volvé a correrlo."
+        || warn "No pude generar el tema hyprcursor '$CURSOR_THEME': ${ERROR_CURSOR:-error del generador}. Elige otro con '$CURSOR_GEN --list' y volvé a correrlo."
     elif ((CURSOR_AVISO_HECHO == 0)); then
       warn "No hay ningún tema de puntero instalado al que añadirle la mitad hyprcursor; el compositor usará XCursor."
     fi
@@ -1622,7 +1622,7 @@ if paso_activo sddm; then
     cat <<'EOF'
   • SDDM:     NO quedó activado: sin /etc/systemd/system/display-manager.service el
               equipo arranca en un TTY, sin escritorio y sin ningún error a la vista.
-              Activalo con: sudo systemctl enable sddm.service
+              Actívalo con: sudo systemctl enable sddm.service
 EOF
   fi
 fi
@@ -1642,11 +1642,11 @@ EOF
   fi
 else
   cat <<'EOF'
-  • Hardware: antes de iniciar Hyprland elegí el perfil GPU; ver docs/SETUP.md.
+  • Hardware: antes de iniciar Hyprland elige el perfil GPU; ver docs/SETUP.md.
 EOF
 fi
 paso_activo cursor && cat <<'EOF'
-  • Puntero:  elegí el tema en Ajustes > Dispositivos > Puntero. Sin elegirlo, el
+  • Puntero:  elige el tema en Ajustes > Dispositivos > Puntero. Sin elegirlo, el
               compositor usa el puntero de XCursor; para añadir soporte hyprcursor
               a otro tema, ~/GiGiOS/bin/generar-hyprcursor.sh --list.
 EOF
@@ -1676,17 +1676,17 @@ EOF
   else
     cat <<'EOF'
   • Hibernar: la preparación NO terminó bien. Sin swapfile persistente y sin resume= el equipo
-              no puede hibernar, y la fila de Ajustes se queda apagada con su motivo. Repetilo
+              no puede hibernar, y la fila de Ajustes se queda apagada con su motivo. Repítelo
               con: bash ~/GiGiOS/install.sh --solo hibernacion
 EOF
   fi
 fi
 cat <<'EOF'
   • Disco:    Ajustes > Almacenamiento analiza qué ocupa el equipo y cataloga las apps por
-              tamaño; "Liberar espacio" limpia y, si lo activás, lo hace solo. La autolimpieza
+              tamaño; "Liberar espacio" limpia y, si lo activas, lo hace solo. La autolimpieza
               nace APAGADA y con todas las casillas sin marcar: nada se borra sin pedirlo.
-  • Sistema:  si necesitás sensores, ejecutá 'sudo sensors-detect'.
-  • Sesión:   cerrá y abrí sesión; después comprobá con 'ags run ~/.config/ags/app.ts'.
+  • Sistema:  si necesitás sensores, ejecuta 'sudo sensors-detect'.
+  • Sesión:   cerrá y abrí sesión; después comprueba con 'ags run ~/.config/ags/app.ts'.
 EOF
 
 resumen_degradado
@@ -1696,7 +1696,7 @@ resumen_degradado
 # ellos haría que un `install.sh && algo` encadenado dejara de funcionar sin motivo.
 if ((preflight_fallo)); then
   echo
-  printf '\033[1;31mxx\033[0m %s\n' "Revisá los errores de la validación y repetí el instalador cuando los hayas resuelto." >&2
+  printf '\033[1;31mxx\033[0m %s\n' "Revisa los errores de la validación y repite el instalador cuando los hayas resuelto." >&2
   exit 1
 fi
 exit 0
