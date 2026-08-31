@@ -32,3 +32,4 @@ if type(idioma) == "string" and idioma ~= "" then
   hl.env("LANG", idioma)
   hl.env("LC_ALL", idioma)
 end
+

@@ -36,8 +36,11 @@
 // Apagar la pantalla es lo PRIMERO, no lo último: con DPMS off el compositor deja de emitir
 // frame callbacks y todo cliente Wayland bien educado deja de pintar solo. Es el ahorro más
 // grande y es gratis; todo lo que venga después ya corre con el sistema medio dormido.
-// (Ocultar las ventanas de AGS sigue mereciendo la pena, pero por otra cosa: un widget
-// oculto no ejecuta sus `GLib.timeout_add` de repintado. Son timers, no GPU.)
+// (Ocultar las ventanas de AGS sigue mereciendo la pena, pero por otra cosa: son timers y
+// wakeups de CPU, no GPU. Ojo con la trampa que costó lo suyo: DESMAPEAR LA VENTANA NO PARA
+// LOS TIMERS — cuelgan del proceso, no de la superficie. Quien los suelta es `refrescar` de
+// `estado/visibilidadBarra.ts`, y por eso `Barra.tsx` mira la suspensión falsa en la primera
+// rama de `checkVisibility()`. Ver «El lever más grande» en el documento.)
 
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
@@ -162,18 +165,62 @@ function replanificarPlazo() {
   instanteSuspension = instanteActual() + minutos * 60
   _setRestante(minutos * 60)
   escribirEstado(true)
-  temporizador = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-    if (instanteSuspension === null) {
-      temporizador = null
-      return GLib.SOURCE_REMOVE
-    }
-    const restante = instanteSuspension - instanteActual()
-    if (restante > 0) {
-      _setRestante(restante)
-      return GLib.SOURCE_CONTINUE
-    }
+  programarTick()
+}
+
+/**
+ * El tick de la cuenta atrás, con la cadencia AJUSTADA A LO QUE SE PUEDE LEER.
+ *
+ * Antes era un `timeout_add_seconds(…, 1, …)` fijo: con un plazo de 40 min eran 2 400
+ * despertares del bucle principal —cada uno un wakeup de CPU— para refrescar un número que
+ * NADIE PUEDE VER. Durante la suspensión falsa la barra está desmapeada y los paneles
+ * cerrados (`closeAllPanels()` en la entrada), así que los tres consumidores de
+ * `segundosParaSuspensionReal` —el chip de la barra, `OpcionesSuspensionFalsa` y la tarjeta
+ * de Ajustes— no están en pantalla. Es sondeo puro, y en la función cuyo motivo de existir
+ * es dejar el equipo quieto.
+ *
+ * La cadencia sale de la única granularidad que la UI llega a enseñar (`textoRestante`:
+ * minutos por encima del minuto, segundos por debajo):
+ *
+ *   · queda más de `UMBRAL_TICK_FINO_S` → se duerme hasta el siguiente múltiplo de minuto,
+ *     que es cuando la cifra CAMBIA. Ni un despertar antes.
+ *   · queda menos → un tick por segundo, porque ahí la UI sí cuenta segundos.
+ *
+ * Un plazo de 40 min pasa de 2 400 despertares a unos 100, sin perder ni una cifra. Y el
+ * instante de disparo no depende de la cadencia: cada vuelta se recalcula contra
+ * `instanteSuspension`, que es un epoch ABSOLUTO, así que no acumula deriva ni se pasa de
+ * largo si el bucle llega tarde.
+ */
+const UMBRAL_TICK_FINO_S = 90
+
+function programarTick() {
+  detenerTemporizador()
+  if (instanteSuspension === null) return
+
+  const restante = instanteSuspension - instanteActual()
+  if (restante <= 0) {
+    _setRestante(0)
+    // Con `.catch`: `programarTick` se llama desde un callback de GLib, donde un rechazo sin
+    // atender no tiene a nadie encima que lo recoja y se pierde sin traza.
+    suspenderDeVerdad().catch((e) => console.error("[suspension-falsa] suspender de verdad:", e))
+    return
+  }
+  _setRestante(restante)
+
+  // El siguiente despertar: el cambio de cifra más próximo, y nunca más allá del plazo.
+  // `% 60` alinea con el minuto en curso en vez de contar 60 s desde ahora, que es lo que
+  // haría que la cifra saltara a destiempo (mismo criterio que `msHastaSiguienteTick` del
+  // reloj de la barra).
+  const espera = restante > UMBRAL_TICK_FINO_S
+    ? Math.min(restante - UMBRAL_TICK_FINO_S, restante % 60 || 60)
+    : 1
+
+  temporizador = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, espera, () => {
     temporizador = null
-    suspenderDeVerdad()
+    // El plazo pudo caerse mientras dormíamos (salida, Wake up, sustituto): `replanificarPlazo`
+    // ya limpió `instanteSuspension` y aquí no hay nada que rearmar.
+    if (instanteSuspension === null) return GLib.SOURCE_REMOVE
+    programarTick()
     return GLib.SOURCE_REMOVE
   })
 }
@@ -304,16 +351,13 @@ export function alternarSuspensionFalsa(): boolean {
  *
  * El caso de que ya hubiera un hyprlock puesto antes de entrar es real (el listener de los
  * 11 min, o el usuario) y no se puede resolver igual: ese proceso no es hijo nuestro. Ahí se
- * cae a un sondeo lento —`pidof` cada 5 s—, que junto a una pantalla apagada no cuesta nada
- * y es infinitamente mejor que la alternativa, que es no volver nunca. Y NO se lanza un
- * segundo hyprlock: no tiene guarda de instancia única (0.9.6) y arrancaría un proceso de
- * verdad encima del bloqueo.
+ * cae a un sondeo lento —`hayHyprlock()` cada 5 s, sin lanzar ningún proceso: ver su
+ * cabecera—, que junto a una pantalla apagada no cuesta nada y es infinitamente mejor que la
+ * alternativa, que es no volver nunca. Y NO se lanza un segundo hyprlock: no tiene guarda de
+ * instancia única (0.9.6) y arrancaría un proceso de verdad encima del bloqueo.
  */
 function bloquearYEsperarDesbloqueo() {
-  const yaBloqueado = GLib.find_program_in_path("pidof") !== null &&
-    GLib.spawn_command_line_sync("pidof hyprlock")[3] === 0
-
-  if (yaBloqueado) {
+  if (hayHyprlock()) {
     vigilarDesbloqueoPorSondeo()
     return
   }
@@ -332,13 +376,66 @@ function bloquearYEsperarDesbloqueo() {
   }
 }
 
-/** Plan B del de arriba: un `pidof` cada 5 s mientras dure. Se para solo en cuanto la
- *  suspensión falsa termina, venga la salida de donde venga. */
+/**
+ * ¿Hay un hyprlock vivo? Recorriendo /proc, SIN LANZAR NADA — y ese es todo el punto.
+ *
+ * Antes esto era `GLib.spawn_command_line_sync("pidof hyprlock")`, que tiene dos problemas
+ * y el segundo es el caro:
+ *
+ *  1. Es SÍNCRONO sobre el bucle de GTK. Un fork + exec + enlazado dinámico bloqueando el
+ *     hilo que atiende la UI, y encima repetido cada 5 s durante toda la suspensión falsa.
+ *  2. `pidof` hace exactamente este mismo recorrido de /proc, solo que después de pagar el
+ *     proceso. Hacerlo aquí es estrictamente más barato: mismos datos, cero forks.
+ *
+ * De regalo se va la dependencia de que `pidof` esté instalado, que antes decidía en
+ * silencio si el camino del sondeo llegaba a existir — y sin él la rama daba «no bloqueado»
+ * y se lanzaba un SEGUNDO hyprlock encima del que ya estaba (no tiene guarda de instancia
+ * única, ver la cabecera de arriba).
+ *
+ * Solo `comm`: es el nombre del ejecutable tal cual, no la línea de órdenes, así que no lo
+ * confunde un `grep hyprlock` ni un editor con el fichero abierto. Y nunca lanza: un PID que
+ * muere entre listar el directorio y leerlo es lo normal, no un error.
+ */
+function hayHyprlock(): boolean {
+  try {
+    const dir = Gio.File.new_for_path("/proc")
+      .enumerate_children("standard::name", Gio.FileQueryInfoFlags.NONE, null)
+    try {
+      for (let info = dir.next_file(null); info !== null; info = dir.next_file(null)) {
+        const nombre = info.get_name()
+        // Solo los procesos. /proc lleva además una veintena de entradas de texto
+        // (`meminfo`, `stat`…) que no hay ni que abrir.
+        if (!/^\d+$/.test(nombre)) continue
+        try {
+          const [ok, bytes] = GLib.file_get_contents(`/proc/${nombre}/comm`)
+          if (ok && new TextDecoder().decode(bytes).trim() === "hyprlock") return true
+        } catch (_) {
+          // El proceso murió entre el listado y la lectura: no es un caso de error.
+        }
+      }
+    } finally {
+      dir.close(null)
+    }
+  } catch (error) {
+    // Sin /proc legible no se puede saber. Se responde «no hay» porque es lo que deja
+    // funcionar al camino normal (lanzar hyprlock y esperar al hijo, que no sondea nada);
+    // el sondeo es el plan B y perderlo no encierra a nadie.
+    console.error("[suspension-falsa] no se pudo mirar /proc:", error)
+  }
+  return false
+}
+
+/** Plan B del de arriba: mirar si hyprlock sigue vivo cada 5 s mientras dure. Se para solo
+ *  en cuanto la suspensión falsa termina, venga la salida de donde venga.
+ *
+ *  Los 5 s se conservan a propósito y NO se estiran para ahorrar: son la latencia con la que
+ *  el escritorio vuelve cuando la salida cae por este camino, y el ahorro ya se lo llevó
+ *  quitar el fork (ver `hayHyprlock`). Alargar la espera se pagaría en el único sitio donde
+ *  hay una persona mirando una pantalla encendida a ver si pasa algo. */
 function vigilarDesbloqueoPorSondeo() {
   GLib.timeout_add_seconds(GLib.PRIORITY_LOW, 5, () => {
     if (!suspensionFalsaActiva.get()) return GLib.SOURCE_REMOVE
-    const bloqueado = GLib.spawn_command_line_sync("pidof hyprlock")[3] === 0
-    if (bloqueado) return GLib.SOURCE_CONTINUE
+    if (hayHyprlock()) return GLib.SOURCE_CONTINUE
     salirSuspensionFalsa().catch((e) => console.error("[suspension-falsa] salida tras desbloqueo:", e))
     return GLib.SOURCE_REMOVE
   })

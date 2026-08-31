@@ -30,6 +30,7 @@
 import { efectorDnd } from "./dnd"
 import { efectorLeds } from "./leds"
 import { efectorTlp } from "./tlp"
+import { efectorPerfilEnergia } from "./perfilEnergia"
 import { efectorBluetooth } from "./bluetooth"
 import { efectorAudio } from "./audio"
 import { efectorCongelarApps } from "./congelarApps"
@@ -59,6 +60,7 @@ export const EFECTORES: EfectorSuspensionFalsa[] = [
   //                    estado de este mismo módulo, sin nada que aplicar ni que restaurar)
   //   fase 5 → leds, tlp, bluetooth, audio  ✔  (el brillo se RETIRÓ: ver brilloAhorro.ts,
   //            «LA SUSPENSIÓN FALSA NO TOCA EL BRILLO»)
+  //   después → perfilEnergia ✔ (power-profiles-daemon, para las máquinas sin TLP)
   //   fase 8 → congelarApps  ✔ (SIEMPRE el último de la lista)
 
   // Puntos 8-9 de la secuencia de entrada del documento, en su orden. Entre ellos el orden
@@ -66,6 +68,13 @@ export const EFECTORES: EfectorSuspensionFalsa[] = [
   // es que van DESPUÉS de apagar la pantalla y ANTES de congelar nada.
   efectorLeds,
   efectorTlp,
+  // El hermano de TLP para las máquinas donde TLP no está —cualquier sobremesa, donde
+  // `tlpAvailable` es falso porque no hay batería—, y donde por tanto la lista se quedaba
+  // sin un solo control de energía de CPU. Va justo detrás porque son la misma pregunta
+  // hecha a dos subsistemas distintos, y entre ellos el orden da igual: TLP escribe /etc y
+  // PPD habla por D-Bus, no se leen el uno al otro. Es además el que más vatios mueve de
+  // toda la lista (7-12 W medidos con RAPL; ver la cabecera de `perfilEnergia.ts`).
+  efectorPerfilEnergia,
   // Los dos opcionales de «Qué más se apaga» del documento, los dos apagados por defecto.
   efectorBluetooth,
   efectorAudio,

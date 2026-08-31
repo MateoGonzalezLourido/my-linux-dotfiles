@@ -71,6 +71,13 @@ interface PowerConfig {
   sfMuteReloj: boolean
   sfLeds: boolean            // retroiluminación de teclado y LEDs a 0
   sfTlp: SfTlp               // perfil TLP mientras dure ("no-tocar" = no se toca ni se restaura)
+  /** Perfil de `power-profiles-daemon` mientras dure. Es el HERMANO de `sfTlp` para las
+   *  máquinas donde TLP no está —empezando por cualquier sobremesa, donde `tlpAvailable`
+   *  es falso y la tarjeta de TLP ni se pinta—, y en esta casa es el ajuste que más vatios
+   *  mueve de toda la sección: medido con RAPL en el sobremesa Intel, el paquete pasa de
+   *  ~17-22 W en `performance` a ~10 W en `power-saver` con el escritorio en reposo. Ver
+   *  `suspensionFalsa/perfilEnergia.ts`. */
+  sfPpd: SfPpd
   sfFreezeApps: string[]     // allowlist EXPLÍCITO de apps a congelar; nace vacío
   sfSuspendMin: number       // suspender de verdad tras N minutos; 0 = nunca
   /** SUSTITUIR la suspensión real por la falsa en todo el sistema. No es un ajuste más de
@@ -88,6 +95,16 @@ interface PowerConfig {
  *  conoce dos perfiles (`TlpMode`), y el tercero es no tocar nada — que es distinto de
  *  "normal": lo que no se impone tampoco se restaura al salir. */
 export type SfTlp = "no-tocar" | "ahorro" | "normal"
+
+/** Perfil de energía del sistema durante la suspensión falsa, en los nombres que entiende
+ *  `powerprofilesctl`. Como en `SfTlp`, "no-tocar" no es sinónimo de "balanced": lo que no
+ *  se impone tampoco se restaura al salir, así que deja pasar intacto lo que hubiera puesto
+ *  el usuario (o un juego, o GNOME) sin que la suspensión falsa se lo coma.
+ *
+ *  `performance` NO está en la lista, y no es un olvido: este selector existe para GASTAR
+ *  MENOS con el equipo desatendido. Ofrecer el perfil que gasta más sería un pie de foto sin
+ *  ningún caso de uso detrás. */
+export type SfPpd = "no-tocar" | "power-saver" | "balanced"
 const DEFAULTS: PowerConfig = {
   thresholdPct: 15,
   forcePowerSave: false,
@@ -128,6 +145,11 @@ const DEFAULTS: PowerConfig = {
   sfMuteReloj: false,
   sfLeds: true,
   sfTlp: "no-tocar",
+  // "no-tocar" por el mismo criterio que `sfTlp`, y es DELIBERADO aunque aquí cueste vatios
+  // medidos: cambiar el perfil de energía del sistema es una decisión que se toma a
+  // sabiendas, no un efecto colateral de estrenar la suspensión falsa. El ahorro está a un
+  // clic en Ajustes > Energía y la tarjeta dice lo que gana.
+  sfPpd: "no-tocar",
   sfFreezeApps: [],
   sfSuspendMin: 0,
   // Apagado por defecto y no puede ser otra cosa: cambia el comportamiento del botón de
@@ -175,6 +197,8 @@ function loadConfig(): PowerConfig {
         sfLeds: typeof data.sfLeds === "boolean" ? data.sfLeds : DEFAULTS.sfLeds,
         sfTlp: data.sfTlp === "ahorro" || data.sfTlp === "normal" || data.sfTlp === "no-tocar"
           ? data.sfTlp : DEFAULTS.sfTlp,
+        sfPpd: data.sfPpd === "power-saver" || data.sfPpd === "balanced" || data.sfPpd === "no-tocar"
+          ? data.sfPpd : DEFAULTS.sfPpd,
         sfFreezeApps: leerListaApps(data.sfFreezeApps),
         sfSuspendMin: typeof data.sfSuspendMin === "number" && data.sfSuspendMin > 0
           ? Math.min(1440, Math.round(data.sfSuspendMin)) : 0,
@@ -248,6 +272,7 @@ export const [sfSilenciarNotificaciones, _setSfMuteNotis] = createState(initial.
 export const [sfSilenciarReloj, _setSfMuteReloj] = createState(initial.sfMuteReloj)
 export const [sfApagarLeds, _setSfLeds] = createState(initial.sfLeds)
 export const [sfPerfilTlp, _setSfTlp] = createState<SfTlp>(initial.sfTlp)
+export const [sfPerfilEnergia, _setSfPpd] = createState<SfPpd>(initial.sfPpd)
 export const [sfAppsCongeladas, _setSfFreezeApps] = createState<string[]>(initial.sfFreezeApps)
 export const [sfMinutosSuspensionReal, _setSfSuspendMin] = createState(initial.sfSuspendMin)
 export const [sfSustituirReal, _setSfSustituirReal] = createState(initial.sfSustituirReal)
@@ -307,6 +332,7 @@ function persistAhora() {
       sfMuteReloj: sfSilenciarReloj.get(),
       sfLeds: sfApagarLeds.get(),
       sfTlp: sfPerfilTlp.get(),
+      sfPpd: sfPerfilEnergia.get(),
       sfFreezeApps: sfAppsCongeladas.get(),
       sfSuspendMin: sfMinutosSuspensionReal.get(),
       sfSustituirReal: sfSustituirReal.get(),
@@ -424,6 +450,10 @@ export function setSfSilenciarReloj(v: boolean) { _setSfMuteReloj(v); persist() 
 export function setSfApagarLeds(v: boolean) { _setSfLeds(v); persist() }
 export function setSfPerfilTlp(v: SfTlp) {
   _setSfTlp(v === "ahorro" || v === "normal" ? v : "no-tocar")
+  persist()
+}
+export function setSfPerfilEnergia(v: SfPpd) {
+  _setSfPpd(v === "power-saver" || v === "balanced" ? v : "no-tocar")
   persist()
 }
 /** Tope de 24 h y suelo de 0 (= desactivado). El tope no es paranoia: el campo es un

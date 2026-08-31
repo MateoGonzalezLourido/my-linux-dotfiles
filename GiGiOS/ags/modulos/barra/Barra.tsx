@@ -126,6 +126,16 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
 
   // Una sola ruta decide la visibilidad local de esta salida.
   const checkVisibility = () => {
+    // Durante la suspensión falsa manda ella y nadie más: la ventana está desmapeada y los
+    // sondeos de los widgets, sueltos. Va lo PRIMERO porque cualquier otra rama de aquí
+    // abajo puede llamar a `showNow()`/`handleShow()` y volver a encender `refrescar` —
+    // basta con que algo mueva `anyPanelVisible` o el auto-ocultado mientras dormimos— y el
+    // ahorro se perdería sin un solo síntoma visible, que es justo con la pantalla apagada
+    // cuando nadie lo notaría.
+    if (suspensionFalsaActiva.get()) {
+      setWidgetsRefresh(false)
+      return
+    }
     // Pantalla completa real en esta salida: Hyprland ya oculta la barra bajando su
     // capa a alpha 0, pero la superficie sigue MAPEADA y GTK la sigue renderizando
     // (~2,5 % de CPU medidos, con y sin pantalla completa: es render, no sondeo — los
@@ -161,6 +171,23 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
     else checkVisibility()
   }))
   bajas.push(barOcultaPorTecla.subscribe(checkVisibility))
+
+  // ── Suspensión falsa: DESMAPEAR NO PARA LOS TIMERS ────────────────────────────────
+  // La ventana se desmapea sola (ver el `visible` del <window>, más abajo), pero eso solo
+  // apaga el RENDER. `refrescar` es el otro lever, el de los SONDEOS, y hasta aquí no lo
+  // movía nadie más que el hover y el auto-ocultado: con la barra fija —`barAutoHide` en
+  // false, que es el caso de este equipo— se quedaba en `true` toda la suspensión falsa y
+  // `Recursos.tsx` seguía leyendo /proc/stat y /proc/meminfo CADA 4 s con la pantalla
+  // apagada. Es exactamente lo que el documento dice que esta función quita («un widget
+  // oculto no ejecuta sus GLib.timeout_add»), y no era verdad: lo apagaba la ventana, no el
+  // sondeo. Los consumidores de `refrescar` (Recursos, Batería, Red, Volumen, Reloj) ya
+  // saben soltar y readquirir; aquí solo hay que decírselo.
+  //
+  // Al SALIR no se restaura a `true` a ciegas: se vuelve a pasar por `checkVisibility()`,
+  // que es la única ruta que decide la visibilidad local de esta salida. Forzar `true`
+  // dejaría la barra sondeando retraída si la suspensión falsa terminó con el puntero fuera
+  // y el auto-ocultado puesto — o sea el estado que este bloque viene a evitar.
+  bajas.push(suspensionFalsaActiva.subscribe(checkVisibility))
 
   // Auto-ocultado desactivado en Barra y escritorios → el bar baja al instante y ya
   // no vuelve a ocultarse; al reactivarlo, checkVisibility decide (se retraerá si

@@ -22,6 +22,11 @@ escritorio queda tan quieto y tan barato como se pueda.
 - **No reemplaza a la suspensión real, y no se acerca a su consumo.** Un S3 baja a ~0,3 W; esto
   deja la CPU en idle con la red viva, que en este portátil son varios vatios. Si no hay nada que
   proteger, la suspensión de verdad sigue siendo la respuesta correcta.
+  - Cuánto es «varios vatios» ya no es una estimación: medido con RAPL en el sobremesa Intel
+    (`/sys/class/powercap/intel-rapl:0/energy_uj`, ventanas de 12 s, escritorio en reposo), el
+    paquete de CPU está entre **17 y 22 W** con el perfil `performance` y baja a **~10 W** con
+    `power-saver`. De ahí el efector de perfil de energía; ver «El perfil de energía del
+    sistema».
 - **No es un "modo ahorro más agresivo"** aunque comparta casi toda la maquinaria. El modo ahorro
   reacciona a la batería y el usuario sigue delante; la suspensión falsa la pide el usuario
   explícitamente y **asume que se va**.
@@ -41,10 +46,10 @@ añadir mecanismo nuevo, comprobar que no esté aquí.
 | Apagar cava, preview de escritorios (grim), mascota, píldora de Spotify | `spectrumSuspended`, `wsPreviewSuspended`, `mascotaSuspended`, `spotifyBarSuspended` (`servicios/energia/powerState.ts`) |
 | Opacar paneles y ventanas (mata blur y transparencias) | `transparenciaSuspendida`, `opacidadVentanasForzada` |
 | Cambiar el perfil TLP | `servicios/energia/tlp.ts` → `/usr/local/bin/gigios-tlp-apply` (root helper, sudoers fijo) |
-| Bloquear la sesión — no cerrarla: solo pedir contraseña al volver, para que nadie de fuera entre | `pidof hyprlock \|\| hyprlock` (la guarda de instancia única, que hyprlock NO tiene) |
+| Bloquear la sesión — no cerrarla: solo pedir contraseña al volver, para que nadie de fuera entre | la guarda de instancia única, que hyprlock NO tiene: hoy `hayHyprlock()` (recorrido de `/proc`, sin forks) `\|\|` lanzarlo |
 | Silenciar popups sin perder notificaciones | `notifd.dontDisturb` con la disciplina `autoOwned` de `modulos/notificaciones/autoDnd/watcher.ts` |
 | Silenciar el **sonido** de notificaciones y alarmas | `decidirSonido()` en `modulos/notificaciones/sonido/decision.ts` — es el único punto por el que suena algo en todo el shell (ver «Alarmas y No molestar») |
-| Parar los procesos de fondo de GiGiOS que no hacen falta mientras nadie mira | **no hace falta nada nuevo**: el sondeo caro lo congela el mismo `gaming-gate.sh` de la fila 3, y los timers de los widgets se paran solos al ocultar las ventanas de AGS (ver «El lever más grande») |
+| Parar los procesos de fondo de GiGiOS que no hacen falta mientras nadie mira | el sondeo caro lo congela el mismo `gaming-gate.sh` de la fila 3; los timers de los widgets **no se paran solos** al desmapear la ventana y hay que soltar `refrescar` a mano (ver «El lever más grande») |
 | Punto de entrada scriptable (menú de energía, atajos, cron) | `requestHandler` de `ags/app.ts` → `ags request toggle-suspension-falsa`, como `toggle-bar` o `toggle-power-menu` |
 
 ### El lever más grande, y es gratis
@@ -54,9 +59,26 @@ Wayland bien educado (Firefox, Discord, el propio AGS/GTK4) **deja de pintar sol
 "parar el renderizado de AGS" a mano para conseguir el grueso del ahorro: lo consigue el `dpms
 off` que ya está escrito.
 
-Ocultar las ventanas de AGS (`visible={false}`) sigue mereciendo la pena, pero por otra razón: un
-widget oculto no ejecuta sus `GLib.timeout_add` de repintado (reloj, chips, medidores). El ahorro
-es de timers y de wakeups de CPU, no de GPU. **No lo vendas como lo que apaga el renderizado.**
+Ocultar las ventanas de AGS (`visible={false}`) sigue mereciendo la pena, pero por otra razón: es
+el ahorro de timers y de wakeups de CPU, no de GPU. **No lo vendas como lo que apaga el
+renderizado.**
+
+⚠️ **Y desmapear la ventana NO para los sondeos por sí solo.** Esto se dio por sentado y era
+falso: GTK deja de dibujar la superficie, pero los `GLib.timeout_add` de los widgets siguen
+corriendo porque cuelgan del proceso, no de la ventana. En esta barra quien los gobierna es
+`refrescar` de `estado/visibilidadBarra.ts` —el lever que ya usaban `Recursos`, `Batería`, `Red`,
+`Volumen` y el `Reloj` para soltar y readquirir sus fuentes— y hasta ahora **solo lo movían el
+hover y el auto-ocultado**. Con la barra fija (`barAutoHide` en `false`, que es el caso de este
+equipo) se quedaba en `true` toda la suspensión falsa y `Recursos.tsx` seguía leyendo
+`/proc/stat` y `/proc/meminfo` **cada 4 s con la pantalla apagada**.
+
+Arreglado en `Barra.tsx` metiendo la suspensión falsa **como primera rama de
+`checkVisibility()`**, que es la única ruta que decide la visibilidad local de una salida.
+Primera y no última a propósito: cualquier rama de más abajo puede llamar a
+`showNow()`/`handleShow()` y volver a encender `refrescar` —basta con que algo mueva
+`anyPanelVisible`— y el ahorro se perdería sin un solo síntoma, que con la pantalla apagada es
+exactamente cuando nadie lo notaría. Al salir NO se fuerza `true`: se vuelve a pasar por
+`checkVisibility()`, o la barra acabaría sondeando retraída.
 
 Corolario para el diseño: **apagar la pantalla es lo PRIMERO de la secuencia de entrada**, no lo
 último. Todo lo que venga después ya se ejecuta con el sistema medio dormido.
@@ -68,7 +90,7 @@ En este orden, y el orden importa:
 1. **Marcar el estado** (`suspensionFalsaActiva` en RAM + fichero de estado en disco, ver abajo).
    Primero, para que nadie corra un tick de mantenimiento durante los pasos siguientes.
 2. **DPMS off** vía `idle-action.sh dpms-off`.
-3. **Bloquear** (opcional, por defecto **sí**): `pidof hyprlock || hyprlock`. Es además la puerta
+3. **Bloquear** (opcional, por defecto **sí**): `hayHyprlock() || hyprlock`. Es además la puerta
    de salida — ver «Cómo se sale».
 4. **DND** encendido con la marca `autoOwned`, para no pisar una elección manual del usuario.
 5. **Suspensiones del shell**: los flags de `powerState.ts` ya existentes se activan por OR con el
@@ -76,8 +98,11 @@ En este orden, y el orden importa:
 6. **Ocultar las ventanas de AGS.**
 7. **Retroiluminación de teclado y LEDs a 0** (ver «Qué más se apaga»).
 8. **Perfil TLP** al que diga el ajuste, si es distinto de «no tocar» (ver «Ajustes»).
-9. **Congelar las apps del allowlist**, si hay alguna. Lo último porque es lo único
-   potencialmente destructivo.
+9. **Perfil de energía del sistema** (`power-profiles-daemon`), igual: solo si el ajuste pide
+   uno. Es el paso que más consumo quita y el único de energía de CPU que existe en un
+   sobremesa, donde TLP no está — ver «El perfil de energía del sistema».
+10. **Congelar las apps del allowlist**, si hay alguna. Lo último porque es lo único
+    potencialmente destructivo.
 
 **El brillo NO se toca**, y no por olvido: se implementó, se probó y se retiró. Ver «El brillo: lo
 que se intentó y por qué se retiró».
@@ -297,6 +322,26 @@ Ojo: al llegar el momento hay que **salir primero de la suspensión falsa** (des
 restaurar TLP, quitar el veto) y solo entonces `systemctl suspend`. Suspender con apps congeladas
 deja el freezer puesto al despertar.
 
+### La cuenta atrás no puede ser un tick de un segundo
+
+Lo era, y es el tipo de sondeo que esta función existe para quitar: con un plazo de 40 min son
+**2 400 despertares del bucle principal** para refrescar un número que **nadie puede ver** —
+durante la suspensión falsa la barra está desmapeada y los paneles cerrados, así que los tres
+consumidores de `segundosParaSuspensionReal` (el chip de la barra, `OpcionesSuspensionFalsa` y la
+tarjeta de Ajustes) no están en pantalla.
+
+`programarTick()` reprograma en cada vuelta con la cadencia que la UI llega a ENSEÑAR
+(`textoRestante`: minutos por encima del minuto, segundos por debajo):
+
+- queda más de 90 s → se duerme hasta el siguiente **múltiplo de minuto**, que es cuando la cifra
+  cambia. Se alinea con `restante % 60` y no con «60 s desde ahora», o la cifra saltaría a
+  destiempo (mismo criterio que `msHastaSiguienteTick` del reloj de la barra);
+- queda menos → un tick por segundo, porque ahí sí se cuentan segundos.
+
+Los mismos 40 min pasan de 2 400 despertares a un centenar, sin perder una sola cifra. El instante
+de disparo no depende de la cadencia: cada vuelta se recalcula contra `instanteSuspension`, que es
+un epoch **absoluto**, así que no acumula deriva ni se pasa de largo si el bucle llega tarde.
+
 Y recordar la regla 3 de «Wake up y suspensión falsa»: con un Wake up vivo, este plazo **no salta**.
 
 ## Alarmas, temporizador y No molestar — la inversión que hay que mirar
@@ -394,6 +439,7 @@ Regla heredada: todo lo que **se ve o puede perder datos** nace apagado, igual q
 | Silenciar alarmas, temporizador y cronómetro | `sfMuteReloj` | **no** (ver «Alarmas y No molestar») |
 | Apagar retroiluminación de teclado / LEDs | `sfLeds` | sí |
 | Perfil TLP mientras dure | `sfTlp` | `"no-tocar"` |
+| Perfil de energía del sistema (PPD) mientras dure | `sfPpd` | `"no-tocar"` |
 | Apps a congelar | `sfFreezeApps` | **lista vacía** |
 | Suspender de verdad tras N minutos (0 = nunca) | `sfSuspendMin` | 0 |
 | **Usar la suspensión falsa en lugar de la real** | `sfSustituirReal` | **no** |
@@ -419,6 +465,47 @@ Valores, y son solo tres porque `servicios/energia/tlp.ts` solo conoce dos perfi
 La tarjeta se **oculta entera** donde `tlpAvailable` es falso —hace falta `tlp` instalado, el helper
 `/usr/local/bin/gigios-tlp-apply` y una batería real—, exactamente como hace ya el selector manual.
 En el sobremesa no aparece.
+
+### El perfil de energía del sistema: el efector que más vatios mueve
+
+Y existe porque el párrafo anterior deja un agujero que no se ve hasta contar los efectores en un
+sobremesa: **allí `tlpAvailable` es falso, así que la suspensión falsa se quedaba sin UN SOLO
+control de energía de CPU.** Apagaba pantalla, DND y LEDs y dejaba el paquete corriendo al perfil
+de siempre. Medido con RAPL en este equipo (escritorio en reposo, ventanas de 12 s):
+
+| Perfil PPD | Paquete de CPU |
+|---|---|
+| `performance` | 22,10 W / 17,40 W |
+| `power-saver` | 9,97 W / 9,91 W |
+
+Entre **7 y 12 W**, o sea más que todo lo demás de la lista de efectores junto.
+
+`power-profiles-daemon` es lo que lo resuelve, y su diferencia con TLP es la que decide todo el
+diseño de la pieza:
+
+- **No necesita root.** `powerprofilesctl` habla por D-Bus con un demonio de sistema que ya
+  autoriza al usuario de la sesión activa. **No hay helper en `/usr/local/bin`, no hay regla en
+  `sudoers.d`, no hay nada en `system/` ni paso en `install.sh`**: si el demonio está, funciona.
+  Es la razón de que este efector no siga el patrón del de TLP aunque responda a la misma pregunta.
+- **No deja residuo persistente.** TLP escribe `/etc/tlp.conf`; PPD es estado vivo del demonio,
+  que vuelve a su perfil configurado al reiniciarse él o el equipo. Por eso el efector NO lleva
+  apunte en disco: eso está reservado a lo que se pierde en silencio y para siempre (el brillo por
+  DDC), y aquí lo peor que deja un AGS muerto es una máquina lenta hasta el siguiente arranque —
+  residuo visible y de la misma familia que el mute de `audio.ts`.
+- **Los dos conviven en un portátil, y es correcto.** Gobiernan cosas distintas (TLP: periféricos,
+  disco y radios; PPD: el EPP/gobernador de la CPU) y no se leen entre sí, así que se aplican en
+  cualquier orden. La UI enseña las dos filas y por eso el título del selector de TLP dice «TLP»
+  explícitamente: antes las dos se llamaban «Perfil de energía».
+
+Selector de tres valores con la misma disciplina que TLP —«no-tocar» no impone nada y por tanto no
+restaura nada—, y **`performance` NO se ofrece a propósito**: este ajuste existe para gastar menos
+con el equipo desatendido, y una opción que gasta más no tiene ningún caso de uso detrás.
+
+La comparación de `restaurar()` («¿sigue puesto el que puse yo?») cubre de un golpe los tres modos
+de fallo, sin una segunda bandera que pudiera mentir: el usuario lo cambió a mano, el `set` falló
+al entrar (hay drivers de CPU que no publican `power-saver`), o algo tomó un **hold**
+(`powerprofilesctl launch`, que es como un juego o un instalador fuerzan `performance` un rato) —
+en los tres, `get` devuelve algo que no es lo nuestro y no se toca nada.
 
 ## Sustituir la suspensión real por la falsa
 
@@ -510,7 +597,22 @@ en horas.
    el listener deja de ser editable desde la UI **en silencio**. Es el motivo de que
    `idle-action.sh` exista.
 3. **hyprlock no tiene guarda de instancia única.** Lanzarlo con uno ya puesto arranca un segundo
-   proceso de verdad. Siempre `pidof hyprlock || hyprlock`.
+   proceso de verdad. Siempre se comprueba antes de lanzarlo.
+
+   La comprobación **NO lanza `pidof`**, y el cambio se pagó dos veces:
+
+   - Era `GLib.spawn_command_line_sync("pidof hyprlock")`, o sea un fork + exec + enlazado
+     dinámico **bloqueando el bucle de GTK**, y repetido cada 5 s durante toda la suspensión falsa
+     por el sondeo del plan B. `pidof` hace exactamente el mismo recorrido de `/proc` que ahora
+     hace `hayHyprlock()` en proceso: mismos datos, cero forks.
+   - Y colgaba de que `pidof` estuviera instalado. Sin él la rama respondía «no bloqueado» y se
+     lanzaba **un segundo hyprlock encima del que ya estaba**, que es justo lo que este punto
+     existe para impedir.
+
+   Se compara contra `comm` y no contra la línea de órdenes: así no lo confunde un `grep hyprlock`
+   ni un editor con el fichero abierto. Los 5 s del sondeo **no se estiran** para ahorrar más — son
+   la latencia con la que vuelve el escritorio por ese camino, y ahí sí hay una persona delante de
+   una pantalla encendida.
 4. **Un bind sin `locked = true` no existe con hyprlock delante.** Ver «El atajo tiene que ser
    `locked = true`». Y todo bind pasa por el envoltorio `bind()`, nunca por `hl.bind`.
 5. **Editar un `*-monitor.sh` no afecta al que ya está corriendo.** Hace falta `pkill -f <script>`
@@ -552,8 +654,8 @@ orden se conserva porque explica por qué cada pieza depende de la anterior:
 |---|---|
 | Orquestador: estado, secuencias, plazo, puerta de salida | `ags/servicios/energia/suspensionFalsa.ts` |
 | Contrato de los efectores y su ORDEN (entrada; la salida lo recorre al revés) | `ags/servicios/energia/suspensionFalsa/efectores.ts` |
-| Efectores | `suspensionFalsa/{dnd,leds,tlp,bluetooth,audio,congelarApps}.ts` |
-| Los diez ajustes `sf*` (carga, validación, persistencia) y el OR con las suspensiones del shell | `ags/servicios/energia/powerState.ts` |
+| Efectores | `suspensionFalsa/{dnd,leds,tlp,perfilEnergia,bluetooth,audio,congelarApps}.ts` |
+| Los once ajustes `sf*` (carga, validación, persistencia) y el OR con las suspensiones del shell | `ags/servicios/energia/powerState.ts` |
 | Puente «Wake up → suspensión falsa al vencer» | `ags/servicios/energia/wakeUpSuspensionFalsa.ts` |
 | Veto + aviso del veto + sustituto | `hypr/scripts/idle-action.sh` (`alcance_vigente`, `sustituye_suspension`, `blocked`, `SIGNAL_VETO`) |
 | «Suspender» del sistema, con el sustituto aplicado | `ags/app.ts` → `ags request suspend`; lo llaman `menu-energia/acciones.ts` y `hypr/gigios/boton-apagado.lua` |

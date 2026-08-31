@@ -100,12 +100,20 @@
       "descripcion": "Nace apagado a propósito: puede que la música o el vídeo que suenan sean justo lo que quieres dejar en marcha mientras la pantalla está apagada."
     },
     "tlp": {
-      "titulo": "Perfil de energía mientras dure",
+      "titulo": "Perfil TLP mientras dure",
       "descripcion": "«No tocar» deja el perfil como esté y no restaura nada al salir. Con «Ahorro» o «Normal», el perfil se aplica al entrar y se devuelve al salir, pero solo si sigue puesto el que puso la suspensión falsa: si lo cambias a mano mientras tanto, manda tu elección.",
       "distincion": "Es una pregunta distinta a la del ajuste automático de arriba, que reacciona a la batería baja. Este vale también con el equipo enchufado.",
       "noTocar": "No tocar",
       "ahorro": "Ahorro",
       "normal": "Normal"
+    },
+    "ppd": {
+      "titulo": "Perfil de energía del sistema",
+      "descripcion": "Cambia el perfil de power-profiles-daemon mientras dure la suspensión falsa: es lo que decide cómo de agresiva es la CPU en reposo. «No tocar» lo deja como esté y no restaura nada al salir; con «Ahorro» o «Equilibrado» se aplica al entrar y se devuelve al salir, pero solo si sigue puesto el que puso la suspensión falsa.",
+      "medido": "Es la medida que más consumo quita de esta lista: en este equipo, con el escritorio en reposo, el paquete de CPU pasa de unos 17-22 W en «Rendimiento» a unos 10 W en «Ahorro».",
+      "noTocar": "No tocar",
+      "ahorro": "Ahorro",
+      "equilibrado": "Equilibrado"
     },
     "plazo": {
       "titulo": "Suspender de verdad tras",

@@ -26,6 +26,18 @@
 // «¿y mientras estoy fuera?». Su fila se oculta ENTERA sin `tlpAvailable` (sin `tlp`, sin el
 // helper root o sin batería real, o sea en el sobremesa), igual que la tarjeta del selector
 // manual — ofrecer un ajuste que no puede aplicarse es peor que no ofrecerlo.
+//
+// HAY DOS SELECTORES DE PERFIL Y NO SON EL MISMO. Debajo del de TLP va el de
+// `power-profiles-daemon`, y cada uno se enseña donde su subsistema existe:
+//
+//   · TLP (`tlpAvailable`) gobierna periféricos, disco y radios, escribe /etc y necesita
+//     root. En un sobremesa no aparece nunca — no hay batería.
+//   · PPD (`ppdDisponible`) gobierna el EPP/gobernador de la CPU, habla por D-Bus y no
+//     necesita nada instalado. Es el ÚNICO control de energía de CPU que la suspensión
+//     falsa tiene en un sobremesa, y el que más vatios mueve (ver `perfilEnergia.ts`).
+//
+// En un portátil con los dos se ven las dos filas, que es correcto: son controles de cosas
+// distintas y no se pisan. Por eso el título del de TLP dice «TLP» explícitamente.
 
 import { createComputed } from "ags"
 import { Gtk } from "ags/gtk4"
@@ -42,13 +54,16 @@ import {
   sfSilenciarReloj, setSfSilenciarReloj,
   sfApagarLeds, setSfApagarLeds,
   sfPerfilTlp, setSfPerfilTlp,
+  sfPerfilEnergia, setSfPerfilEnergia,
   sfMinutosSuspensionReal, setSfMinutosSuspensionReal,
   sfApagarBluetooth, setSfApagarBluetooth,
   sfSilenciarAudio, setSfSilenciarAudio,
   sfSustituirReal, setSfSustituirReal,
   type SfTlp,
+  type SfPpd,
 } from "../../../servicios/energia/powerState.ts"
 import { tlpAvailable } from "../../../servicios/energia/tlp.ts"
+import { ppdDisponible } from "../../../servicios/energia/suspensionFalsa/perfilEnergia"
 import { mantenerDespiertoActivo } from "../../../servicios/energia/mantenerDespierto"
 import {
   suspensionFalsaActiva, segundosParaSuspensionReal,
@@ -202,6 +217,33 @@ export default function SuspensionFalsa() {
             </box>
             <TextoInformativo label={textos.suspensionFalsa.tlp.descripcion} maxWidthChars={62} />
             <TextoInformativo label={textos.suspensionFalsa.tlp.distincion} maxWidthChars={62} />
+          </box>
+        ) : <></>}
+
+        {/* Perfil de energía del sistema (power-profiles-daemon). Mismo patrón que el de
+            TLP —incluido el ternario con `<></>`, por el `getType(false)` que documenta el
+            comentario de arriba— pero con otra condición: aquí basta con que exista
+            `powerprofilesctl`, sin helper root ni batería.
+
+            «Rendimiento» NO se ofrece a propósito, aunque el demonio lo tenga: este selector
+            existe para gastar MENOS con el equipo desatendido, y una opción que gasta más no
+            tiene ningún caso de uso que ponerle debajo. */}
+        {ppdDisponible ? (
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand>
+            <box spacing={8} valign={Gtk.Align.CENTER}>
+              <TituloAjuste label={textos.suspensionFalsa.ppd.titulo} hexpand halign={Gtk.Align.START} />
+              <Segmentado
+                current={sfPerfilEnergia}
+                onSelect={(v) => setSfPerfilEnergia(v as SfPpd)}
+                options={[
+                  { value: "no-tocar", label: textos.suspensionFalsa.ppd.noTocar },
+                  { value: "power-saver", label: textos.suspensionFalsa.ppd.ahorro },
+                  { value: "balanced", label: textos.suspensionFalsa.ppd.equilibrado },
+                ]}
+              />
+            </box>
+            <TextoInformativo label={textos.suspensionFalsa.ppd.descripcion} maxWidthChars={62} />
+            <TextoInformativo label={textos.suspensionFalsa.ppd.medido} maxWidthChars={62} />
           </box>
         ) : <></>}
 
