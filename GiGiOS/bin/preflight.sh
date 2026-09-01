@@ -348,6 +348,29 @@ EOF
     (( ${precmd_functions[(I)_fish_ctrl_c_for_zle]} )) &&
     (( ${preexec_functions[(I)_fish_ctrl_c_for_commands]} ))
   ' >/dev/null 2>&1 || fail "Zsh no cargó los bindings o la paleta de Fish"
+
+  # La comprobación de arriba mira $ZSH_HIGHLIGHT_STYLES, que fish-parity.zsh
+  # RELLENA A MANO: pasaba igual de bien con zsh-syntax-highlighting sin cargar.
+  # Lo mismo con las sugerencias. Durante meses ambos plugins estuvieron muertos
+  # porque .zshrc los buscaba en $ZSH/plugins (de Oh My Zsh) cuando Arch los pone
+  # en /usr/share/zsh/plugins: ni un error, solo una terminal sin sugerencias en
+  # gris y sin colores. Aquí se interroga el RUNTIME, no la configuración.
+  zsh_runtime="$(zsh -ic '
+    print -r -- "autosuggest=${+functions[_zsh_autosuggest_start]}"
+    print -r -- "highlight=${ZSH_HIGHLIGHT_VERSION:-no}"
+    print -r -- "substring=${+widgets[history-substring-search-up]}"
+    print -r -- "globdots=${${_comp_options[(r)globdots]}:-no}"
+  ' 2>/dev/null)"
+  [[ "$zsh_runtime" == *"autosuggest=1"* ]] \
+    || fail "zsh-autosuggestions no está cargado (revisá el source en ~/.config/zsh/.zshrc)"
+  [[ "$zsh_runtime" == *"highlight=no"* ]] \
+    && fail "zsh-syntax-highlighting no está cargado (revisá el source en ~/.config/zsh/.zshrc)"
+  [[ "$zsh_runtime" == *"substring=1"* ]] \
+    || fail "zsh-history-substring-search no está cargado (lo sourcea fish-parity.zsh)"
+  [[ "$zsh_runtime" == *"globdots=globdots"* ]] \
+    || fail "Tab no completa ficheros ocultos: falta '_comp_options+=(globdots)' en ~/.config/zsh/.zshrc"
+  grep -q 'p10k-instant-prompt' "$HOME/.config/zsh/.zshrc" \
+    || fail "falta el prompt instantáneo de Powerlevel10k en ~/.config/zsh/.zshrc (cada terminal espera a que cargue todo)"
   for fish_file in "$HOME/.config/fish/config.fish" "$HOME/.config/fish/functions/"*.fish; do
     [[ -f "$fish_file" ]] || { fail "falta configuración Fish: $fish_file"; continue; }
     fish -n "$fish_file" || fail "sintaxis Fish: $fish_file"

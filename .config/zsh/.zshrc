@@ -1,6 +1,14 @@
 # Configuración interactiva autónoma de Zsh.
 [[ -o interactive ]] || return 0
 
+# Prompt instantáneo de Powerlevel10k. Tiene que quedarse arriba del todo: pinta
+# el prompt desde una cache antes de que carguen Oh My Zsh, compinit, p10k y
+# fastfetch, que es lo que hacia esperar al abrir cada terminal. Cualquier cosa
+# que pida entrada por consola (contraseñas, [y/n]) va POR ENCIMA de este bloque.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
 export EDITOR=code
 export VISUAL="$EDITOR"
 
@@ -19,14 +27,12 @@ DISABLE_MAGIC_FUNCTIONS=true
 COMPLETION_WAITING_DOTS=true
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)
 
+# Oh My Zsh solo carga los plugins que trae EL PROPIO Oh My Zsh. Los de Arch
+# (autosuggestions, syntax-highlighting, history-substring-search) NO viven en
+# $ZSH/plugins ni en $ZSH_CUSTOM/plugins sino en /usr/share/zsh/plugins, asi que
+# buscarlos aqui no encuentra nada y OMZ los ignora SIN DAR NINGUN ERROR. Se
+# cargan a mano mas abajo, donde el orden entre ellos importa.
 plugins=(git sudo)
-typeset _plugin
-for _plugin in zsh-256color zsh-autosuggestions zsh-syntax-highlighting; do
-    if [[ -d "$ZSH_CUSTOM/plugins/$_plugin" || -d "$ZSH/plugins/$_plugin" ]]; then
-        plugins+=("$_plugin")
-    fi
-done
-unset _plugin
 
 if [[ -r "$ZSH/oh-my-zsh.sh" ]]; then
     source "$ZSH/oh-my-zsh.sh"
@@ -34,6 +40,10 @@ else
     autoload -Uz compinit
     compinit -d "$ZDOTDIR/.zcompdump"
 fi
+
+# Tab completa tambien ficheros y directorios ocultos (.config, .zshrc...), como
+# hace Fish. compinit crea $_comp_options, asi que esto va DESPUES de cargarlo.
+_comp_options+=(globdots)
 
 if [[ -r /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme ]]; then
     source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
@@ -141,11 +151,29 @@ unset FNM_PATH
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
+# Plugins de Arch, en el unico orden que documentan sus autores:
+#   syntax-highlighting -> history-substring-search -> autosuggestions
+# history-substring-search lo carga fish-parity.zsh por dentro, de ahi que el
+# resaltado vaya antes del source y las sugerencias despues.
+_zsh_plugins=/usr/share/zsh/plugins
+[[ -r "$_zsh_plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] &&
+    source "$_zsh_plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+
 [[ -r "$ZDOTDIR/functions/fish-parity.zsh" ]] && source "$ZDOTDIR/functions/fish-parity.zsh"
 
-# Equivalente al greeting del perfil Fish, solo en una terminal real.
+[[ -r "$_zsh_plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] &&
+    source "$_zsh_plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+unset _zsh_plugins
+
+# Equivalente al greeting del perfil Fish. Solo en terminales que saben pintar el
+# logo por el protocolo de imagenes: con --logo-type kitty en cualquier otra
+# (VS Code, ssh, tty) sale basura o un retardo que no compensa.
 if [[ -t 1 ]] && command -v fastfetch >/dev/null 2>&1; then
-    fastfetch --logo-type kitty
+    case "${TERM_PROGRAM:-$TERM}" in
+        kitty | xterm-kitty | ghostty | xterm-ghostty | WezTerm | konsole)
+            fastfetch --logo-type kitty
+            ;;
+    esac
 fi
 
 # bun completions
