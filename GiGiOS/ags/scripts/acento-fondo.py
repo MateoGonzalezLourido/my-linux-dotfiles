@@ -19,6 +19,14 @@ CÓDIGOS DE SALIDA: 0 con línea. Cualquier fallo (Pillow ausente, imagen ilegib
 ruta vacía, fondo sin color) sale con 1 y SIN línea, y el llamador se queda con la
 paleta de fábrica del tema. Un fondo no puede dejar el shell sin colores.
 
+⚠️ EL FONDO SIN COLOR SE DISTINGUE POR STDERR, y no es un adorno: es la única
+respuesta que el llamador puede CACHEAR. `sin-acento` por stderr (con rc 1) quiere
+decir "esta imagen no tiene acento que sacar", que es una propiedad de la imagen y
+vale para siempre; los demás fallos con rc 1 son del entorno (Pillow desinstalado,
+fichero a medio copiar) y cachearlos congelaría el tema de fábrica hasta que
+alguien vaciara la caché a mano. `execAsync` de AGS solo entrega stderr —el código
+de salida no llega—, así que la marca va por ahí.
+
 QUIÉN LO LLAMA: `servicios/fondos/acento.ts` de AGS, cada vez que cambia el fondo
 y solo si el ajuste "acento adaptativo" está activado. No lo llama `wallpaper.sh`:
 el acento es cosa del shell, no de quien aplica el fondo, y así el arranque de la
@@ -53,6 +61,14 @@ import colorsys
 import json
 import sys
 
+# Lo que se escribe en stderr cuando la imagen no tiene acento que sacar. Es
+# CONTRATO con `servicios/fondos/acento.ts`: ver la nota de los códigos de salida.
+MARCA_SIN_ACENTO = "sin-acento"
+
+
+class SinAcento(Exception):
+    """La imagen no tiene ningún color del que sacar un acento."""
+
 # Fondo contra el que se mide el contraste: `$bg-bar` de `estilos/_colores.scss`.
 FONDO_BARRA = (8, 8, 12)
 
@@ -68,6 +84,18 @@ CONTRASTE_MIN = 4.5   # AA de WCAG para texto normal
 # paleta apagada (nieblas, sepias) antes de rendirse. Ver la nota del croma arriba.
 CROMA_MIN = 24
 CROMA_MIN_RELAJADO = 10
+
+# ...y el croma tampoco basta SOLO, por el motivo simétrico: es absoluto, así que un
+# beige (#c0b0a7) o una tinta china sobre crema (#f0ebd8) lo pasan de sobra mientras
+# su tono sigue siendo ruido — y como la corrección de abajo sube la saturación hasta
+# 0,42 conservando el tono, el acento salía INVENTADO: naranja de una foto gris de un
+# gato, amarillo de un dibujo a tinta en blanco y negro. Medido sobre la carpeta real.
+# El suelo de saturación RELATIVA (croma/max, o sea la `s` de HSV) es lo que descarta
+# eso sin tocar los colores de verdad apagados. También arregla el caso contrario: en
+# una foto con neones, un cielo lavado que ocupa media imagen le ganaba el acento
+# principal a los neones por cobertura.
+SAT_MIN_CANDIDATO = 0.20
+SAT_MIN_CANDIDATO_RELAJADO = 0.16
 VAL_MIN_CANDIDATO, VAL_MAX_CANDIDATO = 0.12, 0.96
 
 # Separación mínima entre los tonos de la paleta, en vueltas de la rueda de color
@@ -105,6 +133,16 @@ def candidatos(ruta: str) -> list[tuple[int, int, int]]:
         # stderr en cada cambio de fondo por una imagen que el usuario eligió a mano.
         warnings.simplefilter("ignore")
         with Image.open(ruta) as im:
+            # `draft()` es GRATIS y ahorra un tercio del coste en los JPEG: le pide
+            # al decodificador que descomprima ya reducido (la escala 1/2, 1/4 o 1/8
+            # del propio DCT), así que el 4K nunca llega a existir entero en RAM. En
+            # PNG no hace nada —no hay decodificado parcial que pedir— y por eso el
+            # resultado de esos no cambia ni un dígito respecto a antes.
+            im.draft("RGB", (160, 160))
+            # El convert va ANTES del thumbnail a propósito: reducir una imagen en
+            # modo P (paleta) resampla ÍNDICES, que Pillow resuelve con NEAREST, y
+            # eso cambia los colores que se miden. Cuesta unos ms de más en los
+            # pocos fondos que son P y mantiene la medición igual para todos.
             im = im.convert("RGB")
             # 160 px de lado basta: buscamos la paleta, no el detalle, y esto deja el
             # coste por debajo de los 200 ms incluso con un 4K.
@@ -119,12 +157,14 @@ def candidatos(ruta: str) -> list[tuple[int, int, int]]:
 
     total = sum(n for n, _ in colores)
 
-    def puntuar(croma_min: int) -> list[tuple[int, int, int]]:
+    def puntuar(croma_min: int, sat_min: float) -> list[tuple[int, int, int]]:
         puntuados = []
         for n, rgb in colores:
             if max(rgb) - min(rgb) < croma_min:
                 continue
             _, s, v = colorsys.rgb_to_hsv(*(c / 255 for c in rgb))
+            if s < sat_min:
+                continue
             if not (VAL_MIN_CANDIDATO <= v <= VAL_MAX_CANDIDATO):
                 continue
             cobertura = n / total
@@ -136,7 +176,8 @@ def candidatos(ruta: str) -> list[tuple[int, int, int]]:
         puntuados.sort(key=lambda par: par[0], reverse=True)
         return [rgb for _, rgb in puntuados]
 
-    return puntuar(CROMA_MIN) or puntuar(CROMA_MIN_RELAJADO)
+    return (puntuar(CROMA_MIN, SAT_MIN_CANDIDATO)
+            or puntuar(CROMA_MIN_RELAJADO, SAT_MIN_CANDIDATO_RELAJADO))
 
 
 def distancia_tono(a: float, b: float) -> float:
@@ -166,7 +207,7 @@ def paleta(ruta: str, cuantos: int = 3) -> list[tuple[int, int, int]]:
                 return elegidos
 
     if not elegidos:
-        raise ValueError("fondo sin color del que sacar un acento")
+        raise SinAcento("fondo sin color del que sacar un acento")
 
     # El giro alterna de signo para que los derivados caigan a lado y lado del
     # principal en la rueda, en vez de amontonarse todos hacia el mismo sitio.
@@ -210,6 +251,9 @@ def main(argv: list[str]) -> int:
         return 1
     try:
         brutos = paleta(args[0])
+    except SinAcento:
+        print(MARCA_SIN_ACENTO, file=sys.stderr)
+        return 1
     except Exception:
         return 1
     print(json.dumps({

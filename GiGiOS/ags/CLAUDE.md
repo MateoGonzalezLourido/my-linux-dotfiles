@@ -773,6 +773,54 @@ déficit *a medias* con el título; acotado a 14 (con `tooltipText` para no perd
     primera versión troceaba a 15 min — 96 despertares diarios para no hacer nada casi ninguno — y la
     señal lo resuelve mejor y sin coste. Si algún día se quita, hay que devolver el troceo.
   - Fail-open hacia "las franjas no cambian el fondo". Detalle completo en el `CLAUDE.md` raíz.
+- `servicios/fondos/acento.ts` + `acentoCss.ts` + `acentoCache.ts` + `scripts/acento-fondo.py` —
+  **el acento adaptativo**: los tres colores de acento del tema salen del fondo de escritorio. El
+  reparto es: el script (Pillow) extrae la paleta, `acentoCss.ts` la valida y la convierte en una
+  hoja de una línea que redefine `--acento*`, `acentoCache.ts` decide qué se recuerda y `acento.ts`
+  es lo único que toca GTK. Apagarlo es **vaciar la hoja**, con lo que cada `var(--acento…, <color
+  de siempre>)` de `out.css` cae en su reserva — mismo mecanismo que `opacidadAhorro.ts`.
+  - **En segundo plano no consume NADA, y conviene saber por qué antes de tocarlo**: no hay
+    temporizador ni sondeo, solo dos suscripciones (`currentWallpaper`, que se mueve por el
+    `Gio.FileMonitor` de `wallpaper.json`, o sea inotify; y la preferencia). Un `Accessor` de
+    `createState` **no notifica si el valor no cambia** (`Object.is`), así que reescribir
+    `wallpaper.json` con el mismo fondo —el toggle de "aleatorio al iniciar", una franja que vuelve a
+    sortear la misma imagen, el `_setCurrentWallpaper` optimista de `applyWallpaper` seguido de la
+    escritura de `wallpaper.sh`— **no lanza nada**. Si algún día esto gasta CPU con el escritorio
+    quieto, el fallo está en quien llame a `recalcular()`.
+  - **La paleta de cada fondo se CACHEA en `~/.cache/gigios/acento-fondo.json`** (48 entradas, la más
+    reciente delante). El extractor cuesta ~150 ms de media y hasta 480 ms con los PNG más grandes de
+    la carpeta (medido sobre los 64 fondos reales), y ese coste se pagaba **entero en cada cambio de
+    fondo y en cada inicio de sesión**, siempre por las mismas imágenes: con franjas horarias el
+    fondo rota entre un puñado fijo. Con caché, acertar es un `stat` y se pinta **síncrono**, sin
+    fork y sin un fotograma con el acento anterior.
+  - **La clave es un sello, y lleva dentro el mtime del PROPIO script.** Editar `acento-fondo.py`
+    invalida la caché entera por construcción; sin eso, tocar los umbrales y seguir viendo los
+    colores viejos sería un fallo mudo perfecto. La imagen se sella con tamaño + mtime, igual que la
+    caché de miniaturas de `modulos/orion/services/wallpaperThumbs.ts`.
+  - **Se cachea también "este fondo no tiene acento"**, que es una respuesta legítima (un fondo en
+    blanco y negro, un boceto a lápiz): si no, justo esos fondos serían los únicos que forkearían
+    siempre. Lo demás que falla (Pillow ausente, imagen a medio copiar) **no** se cachea, porque es
+    del entorno y dejaría el tema de fábrica clavado hasta vaciar la caché a mano. El extractor los
+    distingue escribiendo `sin-acento` en **stderr** — `execAsync` entrega stderr pero **no** el
+    código de salida, así que la marca no podía ir en el `rc`.
+  - **Los colores de la caché se re-normalizan al leer**, no se dan por buenos por venir de "nuestro"
+    fichero: acaban concatenados dentro de una hoja de estilo y `~/.cache` es texto que cualquiera
+    puede editar. Es la misma frontera de confianza que `normalizarHexAcento` aplica a la salida del
+    script (hay test).
+  - **La saturación HSV no descarta grises, pero el croma absoluto tampoco basta solo** — y las dos
+    mitades están medidas. `#010000` tiene `s = 1.0`, así que filtrar por `s` deja pasar colores cuyo
+    tono es ruido de cuantización (era el bug del rojo inventado en `gojo.png`); y el croma es
+    absoluto, así que un beige (`#c0b0a7`) o una tinta china sobre crema (`#f0ebd8`) lo pasan de
+    sobra mientras la corrección los sube a `s = 0.42` **conservando el tono**, o sea inventando un
+    naranja de una foto gris de un gato y un amarillo de un dibujo en blanco y negro. El filtro son
+    los **dos** suelos a la vez (croma ≥ 24 y `s` ≥ 0.20, con un segundo intento más laxo para
+    paletas apagadas). De regalo arregla el caso simétrico: en una foto con neones, un cielo lavado
+    que ocupa media imagen le ganaba el acento principal por cobertura.
+  - **El decodificado usa `im.draft()` antes del `convert`**: le pide al decodificador JPEG que
+    descomprima ya reducido (escalas 1/2, 1/4, 1/8 del DCT), ~30 % menos por fondo, y en PNG no hace
+    nada — así los resultados de esos no cambian ni un dígito. El `convert("RGB")` **va antes del
+    `thumbnail`** a propósito: reducir en modo P resamplea índices con NEAREST y cambia los colores
+    que se miden.
 - `servicios/energia/botonEncendido.ts` — **qué hace el botón de encendido físico** (Ajustes > Energía). El shell **solo persiste la elección** (`botonApagado` en `preferences.json`); quien la ejecuta es `GiGiOS.boton_apagado()` (`hypr/gigios/boton-apagado.lua`) desde el bind de `XF86PowerOff` con `{locked = true}`, releyéndola en cada pulsación — así el botón responde con AGS caído y con la sesión bloqueada, y el setter no tiene que relanzar ni recargar nada. La única acción que vuelve al shell es `menu`, por el `request` **`toggle-power-menu`** (`alternarMenuEnergia()`), añadido con ella.
   - **`teclaCedidaAHyprland` pregunta a logind por D-Bus, no mira si existe el fichero de `/etc`.** `systemd-logind` maneja esa tecla a nivel de asiento (`HandlePowerKey`, `poweroff` de fábrica) sin pasar por el compositor: si no está en `ignore`, el bind se ejecuta igual pero el apagado de logind lo tapa y el ajuste parece roto **sin dar ningún error**. `busctl get-property … HandlePowerKey` (sin privilegios) es la única respuesta que no puede mentir — el fichero puede estar en otro sitio o el valor cambiado a mano. El estado es `boolean | null` a propósito: `null` = no se pudo comprobar, y **no** saca el aviso; saber que está mal no es lo mismo que no saberlo. El aviso tampoco sale con la acción `apagar`, donde el resultado es el mismo venga de quien venga. La cesión la instala `install.sh` (paso 9) desde `system/logind.conf.d/`; detalle completo en el `CLAUDE.md` raíz.
 - `servicios/energia/gamemode.ts` — **interruptor manual de Feral GameMode** (paquete `gamemode`), el botón de mando de la cabecera de Quick Settings, al lado de la campana (gris apagado, violeta encendido; glifo `GAME_GLYPH`, el mismo que la pastilla de juegos). **No lo confundas con `gamingState.ts`**: aquel detecta que hay un juego y congela el mantenimiento *del shell*; este le pide al **sistema** que se ponga a rendir (gobernador de CPU a `performance`, prioridades/ioprio, tweaks de GPU). Son complementarios y no se hablan.
