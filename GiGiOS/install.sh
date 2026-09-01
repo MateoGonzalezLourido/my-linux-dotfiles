@@ -274,6 +274,40 @@ tiene_bateria() {
   return 1
 }
 
+# Perfil de GPU de esta máquina, deducido del hardware. Vive aquí arriba y no dentro
+# del paso `gpu` porque lo necesitan DOS pasos: `paquetes` (para saber si hay que
+# instalar el driver VA-API de NVIDIA) y `gpu` (para escribir el perfil). Tenerlo dos
+# veces era garantía de que un día dejaran de coincidir.
+#
+# Se lee /sys y no `lspci`: este paso puede correr con --sin paquetes, donde pciutils
+# no está garantizado, y un `command -v lspci` fallido dejaría el perfil sin elegir sin
+# que se note. Clases PCI 0x03xxxx = VGA / 3D controller / Display controller.
+detectar_perfil_gpu() {
+  local dispositivo clase vendor nvidia=0 integrada=0 encontrada=0
+  for dispositivo in /sys/bus/pci/devices/*; do
+    [[ -r "$dispositivo/class" && -r "$dispositivo/vendor" ]] || continue
+    IFS= read -r clase < "$dispositivo/class" || continue
+    [[ "$clase" == 0x03* ]] || continue
+    IFS= read -r vendor < "$dispositivo/vendor" || continue
+    encontrada=1
+    case "$vendor" in
+      0x10de) nvidia=1 ;;
+      0x8086|0x1002|0x1022) integrada=1 ;;
+    esac
+  done
+  ((encontrada)) || return 1
+  if ((nvidia)); then
+    # Híbrida sólo en portátil: en un sobremesa con iGPU y NVIDIA la pantalla cuelga
+    # casi siempre de la NVIDIA, que es lo que asume sobremesa-nvidia.
+    if ((integrada)) && tiene_bateria; then printf 'laptop-hibrida'
+    else printf 'sobremesa-nvidia'; fi
+  elif ((integrada)); then
+    printf 'integrada'
+  else
+    return 1
+  fi
+}
+
 # Un sudo que caduca a mitad de una instalación de veinte minutos abre un prompt de
 # contraseña en medio del scroll de pacman, y con `curl | bash` ni siquiera puede leerse.
 # Se pide una vez al principio y se renueva en segundo plano mientras dura el instalador.
@@ -668,6 +702,33 @@ install_packages() {
   else
     info "Sin batería del sistema: omito TLP (los perfiles de energía son cosa de portátil)."
   fi
+
+  # Driver VA-API de NVIDIA, sólo si hay una NVIDIA. Los perfiles que el paso `gpu`
+  # elige para esas máquinas (sobremesa-nvidia, y nvidia-vieja-hyde si se pone a mano)
+  # exportan LIBVA_DRIVER_NAME=nvidia y NVD_BACKEND=direct, y sin este paquete esa
+  # variable apunta a un driver que NO EXISTE: la aceleración de vídeo por hardware no
+  # se degrada, deja de funcionar, y no lo dice nadie. El propio perfil ya avisaba
+  # ("Requiere el paquete 'libva-nvidia-driver'") pero el instalador no lo instalaba,
+  # así que la promesa dependía de que el usuario leyera un comentario en un .lua.
+  #
+  # El resto de la pila NVIDIA (nvidia-utils y el módulo del kernel) NO se toca a
+  # propósito: el módulo va atado al kernel de cada máquina (aquí, por ejemplo,
+  # linux-cachyos-nvidia-open) y elegirlo mal deja el equipo sin arrancar a la sesión
+  # gráfica. Este paquete, en cambio, no depende del kernel.
+  # Se mira el perfil YA ELEGIDO antes que la detección, por la misma razón por la que
+  # el paso `gpu` nunca pisa un fichero existente: si el usuario puso nvidia-vieja-hyde
+  # a mano, ese perfil también exporta LIBVA_DRIVER_NAME=nvidia y necesita el paquete.
+  # laptop-hibrida NO entra aunque lleve una NVIDIA: ese perfil deja el vídeo en la
+  # Intel a propósito y no toca LIBVA_DRIVER_NAME.
+  perfil_gpu_efectivo=""
+  if [[ -s "$HOME/.config/gigios/gpu-perfil" ]]; then
+    perfil_gpu_efectivo="$(tr -d '[:space:]' < "$HOME/.config/gigios/gpu-perfil")"
+  else
+    perfil_gpu_efectivo="$(detectar_perfil_gpu 2>/dev/null || true)"
+  fi
+  case "$perfil_gpu_efectivo" in
+    sobremesa-nvidia|nvidia-vieja-hyde) official+=(libva-nvidia-driver) ;;
+  esac
 
   # AGS y las bibliotecas Astal entran EN LA MISMA LISTA, no en una pasada aparte.
   # Son dependencias del escritorio como cualquier otra; que su origen habitual sea AUR
@@ -1561,35 +1622,9 @@ if paso_activo gpu; then
   # Kitty o el de Firefox; ver docs/anadir-perfiles-por-equipo.md), por eso se escribe
   # aquí y no en el repo.
   #
-  # Se lee /sys y no `lspci`: este paso puede correr con --sin paquetes, donde pciutils
-  # no está garantizado, y un `command -v lspci` fallido dejaría el perfil sin elegir
-  # sin que se note. Clases PCI 0x03xxxx = VGA / 3D controller / Display controller.
+  # La detección (detectar_perfil_gpu) está definida arriba, junto a tiene_bateria:
+  # el paso `paquetes` la necesita antes que este para decidir el driver VA-API.
   GPU_PERFIL="$HOME/.config/gigios/gpu-perfil"
-  detectar_perfil_gpu() {
-    local dispositivo clase vendor nvidia=0 integrada=0 encontrada=0
-    for dispositivo in /sys/bus/pci/devices/*; do
-      [[ -r "$dispositivo/class" && -r "$dispositivo/vendor" ]] || continue
-      IFS= read -r clase < "$dispositivo/class" || continue
-      [[ "$clase" == 0x03* ]] || continue
-      IFS= read -r vendor < "$dispositivo/vendor" || continue
-      encontrada=1
-      case "$vendor" in
-        0x10de) nvidia=1 ;;
-        0x8086|0x1002|0x1022) integrada=1 ;;
-      esac
-    done
-    ((encontrada)) || return 1
-    if ((nvidia)); then
-      # Híbrida sólo en portátil: en un sobremesa con iGPU y NVIDIA la pantalla cuelga
-      # casi siempre de la NVIDIA, que es lo que asume sobremesa-nvidia.
-      if ((integrada)) && tiene_bateria; then printf 'laptop-hibrida'
-      else printf 'sobremesa-nvidia'; fi
-    elif ((integrada)); then
-      printf 'integrada'
-    else
-      return 1
-    fi
-  }
   if [[ -s "$GPU_PERFIL" ]]; then
     info "Perfil de GPU ya elegido ($(tr -d '[:space:]' < "$GPU_PERFIL")); no lo toco."
   elif perfil_gpu="$(detectar_perfil_gpu)"; then

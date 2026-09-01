@@ -568,6 +568,51 @@ EOF
     gpu_perfil="$(tr -d '[:space:]' < "$gpu_perfil_ruta")"
     if [[ -f "$GIGIOS/hypr/gigios/gpu/$gpu_perfil.lua" ]]; then
       ok "perfil de GPU: $gpu_perfil"
+      # Que el nombre EXISTA no quiere decir que CORRESPONDA a esta máquina. El paso
+      # `gpu` del instalador nunca pisa un perfil ya escrito (correcto: la elección es
+      # del usuario), asi que un perfil que se queda obsoleto lo sigue estando para
+      # siempre — cambiar de tarjeta o mover el disco a otro equipo basta. Y el fallo es
+      # mudo: sobremesa-nvidia sobre una máquina sin NVIDIA exporta GBM_BACKEND=nvidia-drm
+      # y LIBVA_DRIVER_NAME=nvidia sobre Mesa, que es justo lo que gpu/integrada.lua
+      # describe como "rompen la aceleración de vídeo en vez de mejorarla".
+      #
+      # Es warn y no fail a propósito: el usuario puede tener una razón para forzar un
+      # perfil (una tarjeta que la detección no clasifica bien), y esto no debe tumbar
+      # una instalación por lo demás correcta.
+      gpu_hay_nvidia=0
+      gpu_hay_integrada=0
+      for gpu_dispositivo in /sys/bus/pci/devices/*; do
+        [[ -r "$gpu_dispositivo/class" && -r "$gpu_dispositivo/vendor" ]] || continue
+        IFS= read -r gpu_clase < "$gpu_dispositivo/class" || continue
+        [[ "$gpu_clase" == 0x03* ]] || continue
+        IFS= read -r gpu_vendor < "$gpu_dispositivo/vendor" || continue
+        case "$gpu_vendor" in
+          0x10de) gpu_hay_nvidia=1 ;;
+          0x8086|0x1002|0x1022) gpu_hay_integrada=1 ;;
+        esac
+      done
+      case "$gpu_perfil" in
+        sobremesa-nvidia|nvidia-vieja-hyde|laptop-hibrida)
+          (( gpu_hay_nvidia )) \
+            || warn "el perfil de GPU '$gpu_perfil' asume una NVIDIA y aquí no hay ninguna: exporta GBM_BACKEND/LIBVA_DRIVER_NAME de NVIDIA sobre Mesa (echo integrada > $gpu_perfil_ruta)"
+          ;;
+        integrada)
+          (( gpu_hay_nvidia )) \
+            && warn "hay una NVIDIA pero el perfil de GPU es 'integrada', que no configura nada (ejecutá: rm $gpu_perfil_ruta && bash install.sh --solo gpu)"
+          ;;
+      esac
+      if [[ "$gpu_perfil" == laptop-hibrida ]] && (( ! gpu_hay_integrada )); then
+        warn "el perfil de GPU 'laptop-hibrida' deja el compositor en la iGPU y aquí no hay ninguna (¿querías sobremesa-nvidia?)"
+      fi
+      # El driver VA-API que esos dos perfiles dan por supuesto. Sin él
+      # LIBVA_DRIVER_NAME=nvidia apunta a un driver inexistente y la decodificación por
+      # hardware deja de funcionar sin un solo error.
+      case "$gpu_perfil" in
+        sobremesa-nvidia|nvidia-vieja-hyde)
+          pacman -Q libva-nvidia-driver >/dev/null 2>&1 \
+            || fail "el perfil '$gpu_perfil' exporta LIBVA_DRIVER_NAME=nvidia pero falta libva-nvidia-driver (sudo pacman -S --needed libva-nvidia-driver)"
+          ;;
+      esac
     else
       fail "perfil de GPU desconocido: '$gpu_perfil' (no existe hypr/gigios/gpu/$gpu_perfil.lua)"
     fi
