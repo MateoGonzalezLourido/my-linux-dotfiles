@@ -121,6 +121,7 @@ import { abrirVistaPrevia, cerrarVistaPrevia } from "../../servicios/camara/vist
 import {
   componerFilas,
   geometriaControl,
+  mismasFilas,
   resolverCamaraVisible,
   resumenTileCamara,
   type FilaControlCamara,
@@ -1114,20 +1115,41 @@ quickSettingsVisible.subscribe(() => {
   }
 })
 
-function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onRightClick, subtitleWidthRequest, claseActiva, visible = true }: {
+function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onRightClick, subtitleWidthRequest, subtitleMaxWidthChars, claseActiva, avisoActivo, visible = true }: {
   icon: any, iconWidget?: any, label: any, subtitle: any, active: any, onToggle: () => void, onRightClick?: () => void, subtitleWidthRequest?: number,
-  /** Clase EXTRA mientras `active` es cierto. La usa la cámara, donde "activo"
-   *  no significa "encendido" sino "alguien está mirando" y merece otro color
-   *  que el azul de Wi-Fi o Bluetooth. Sale de la misma derivación que el resto
-   *  de clases para no acabar con dos fuentes de verdad del mismo hecho, que es
-   *  justo lo que le pasó al tile de Bluetooth (ver arriba). */
+  /** Tope de ancho NATURAL del subtítulo, en caracteres. `ellipsize` por sí solo
+   *  no acota nada: baja el ancho MÍNIMO de la etiqueta, pero su natural sigue
+   *  siendo el texto entero, y la rejilla es `homogeneous` — o sea que un
+   *  subtítulo largo (el nombre de una webcam: "HP True Vision FHD Camera: HP T")
+   *  ensancha su columna, la otra con ella y el panel entero. Mismo remedio que
+   *  el `maxWidthChars` del título del popup de notificaciones. */
+  subtitleMaxWidthChars?: number,
+  /** Clase EXTRA mientras `active` es cierto. La usa la cámara para pintar de
+   *  rojo el "alguien está mirando" sobre el resaltado normal (que ahí significa
+   *  "no está bloqueada"), en vez del azul de Wi-Fi o Bluetooth. Sale de la misma
+   *  derivación que el resto de clases para no acabar con dos fuentes de verdad
+   *  del mismo hecho, que es justo lo que le pasó al tile de Bluetooth. */
   claseActiva?: string,
+  /** Cuándo aplicar `claseActiva`, si no basta con `active`. Lo usa la cámara:
+   *  "alguien está mirando" y "no está bloqueada" son dos hechos distintos que
+   *  pueden discrepar —bloquear no corta una captura ya abierta—, así que el
+   *  aviso rojo no puede colgar del mismo booleano que el resaltado. Exige que
+   *  `active` sea también un accessor, para que los dos entren en el mismo
+   *  cómputo y no puedan contradecirse. */
+  avisoActivo?: any,
   visible?: any,
 }) {
-  const construir = (a: boolean) => a
-    ? ["qs-tile", "active", ...(claseActiva ? [claseActiva] : [])]
-    : ["qs-tile"]
-  const classes = typeof active === "function" ? active(construir) : construir(!!active)
+  const construir = (activo: boolean, aviso: boolean) => {
+    const clases = ["qs-tile"]
+    if (activo) clases.push("active")
+    if (aviso && claseActiva) clases.push(claseActiva)
+    return clases
+  }
+  const classes = avisoActivo !== undefined
+    ? createComputed([active, avisoActivo], construir)
+    : typeof active === "function"
+      ? active((a: boolean) => construir(a, a))
+      : construir(!!active, !!active)
   return (
     <button cssClasses={classes} onClicked={onToggle} hexpand visible={visible}>
       <Gtk.GestureClick
@@ -1144,6 +1166,7 @@ function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onRightCl
             halign={Gtk.Align.START}
             xalign={0}
             widthRequest={subtitleWidthRequest}
+            maxWidthChars={subtitleMaxWidthChars}
             ellipsize={3}
           />
         </box>
@@ -1293,13 +1316,13 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   const micMute = mic ? createBinding(mic, "mute") : null
 
   // Icono, subtítulo y resaltado del tile de cámara, del MISMO objeto y el mismo
-  // cómputo (la lección del tile de Bluetooth). Las tres dependencias van en la
+  // cómputo (la lección del tile de Bluetooth). Las cuatro dependencias van en la
   // forma de ARRAY: con la forma de función y un `&&` por medio, `createComputed`
   // solo se suscribe a lo que leyó en la primera pasada — ver el comentario largo
   // de `indicadores/audio/Microfono.tsx`.
   const infoCamara = createComputed(
-    [camaras, estadoCamara, usoCamara],
-    (lista, estado, uso) => resumenTileCamara(lista, estado.preferida, uso),
+    [camaras, estadoCamara, usoCamara, camaraBloqueada],
+    (lista, estado, uso, bloqueada) => resumenTileCamara(lista, estado.preferida, uso, bloqueada),
   )
 
   function volIcon(v: number, m: boolean) {
@@ -1387,9 +1410,20 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           icon={infoCamara((i) => i.icono)}
           label="Cámara"
           subtitle={infoCamara((i) => i.subtitulo)}
+          // El nombre de una webcam es largo ("HP True Vision FHD Camera: HP T")
+          // y sin tope ensancharía la rejilla y con ella todo el panel.
+          subtitleMaxWidthChars={16}
           active={infoCamara((i) => i.activo)}
+          avisoActivo={infoCamara((i) => i.enUso)}
           claseActiva="qs-tile-camara-uso"
           onToggle={onCamaraClick}
+          // Clic derecho = bloquear/desbloquear, que es lo que anuncia el
+          // resaltado, igual que en los demás tiles. La guarda de "ocupado" es
+          // la misma que deja insensible el interruptor del submenú: `udevadm
+          // settle` tarda un instante y dos órdenes seguidas se pisarían.
+          onRightClick={() => {
+            if (bloqueoDisponible.get() && !bloqueoOcupado.get()) alternarBloqueo()
+          }}
         />
       </box>
     </box>
@@ -3754,8 +3788,25 @@ function QsDisplayMenu({ onBack }: { onBack: () => void }) {
 function QsCamaraMenu({ onBack }: { onBack: () => void }) {
   const ciclo = crearCicloVida()
   const [claveSel, setClaveSel] = createState<string>("")
-  const [filas, setFilas] = createState<FilaControlCamara[]>([])
+  // La ESTRUCTURA (qué mandos hay) y los VALORES van por separado, porque
+  // cambian a ritmos distintos: la primera casi nunca (otra cámara, un hotplug,
+  // un desbloqueo) y los segundos en cada escritura. Publicar los valores en la
+  // misma lista hacía que el `<For>` desparentara y volviera a parentar sus
+  // filas en cada lectura aunque los mandos fueran los mismos (ver
+  // `mismasFilas`), y en GTK4 desparentar es desmapear y desrealizar. Con
+  // `equals` por claves, `filas` solo emite cuando de verdad cambia la lista de
+  // mandos; lo que se mueve a cada rato es `controles`, al que se suscribe cada
+  // fila sin tocar la jerarquía de widgets.
+  const [controles, setControles] = createState<Control[]>([])
+  const [filas, setFilas] = createState<FilaControlCamara[]>([], { equals: mismasFilas })
   const [cargando, setCargando] = createState(false)
+
+  /** Publica una lectura: primero los valores, para que una fila recién
+   *  construida por el `<For>` ya nazca con los buenos. */
+  const publicar = (claveCamara: string, lista: Control[]) => {
+    setControles(lista)
+    setFilas(componerFilas(claveCamara, lista))
+  }
 
   // Las tres dependencias en la forma de ARRAY, no un `() => a() && b()`:
   // `createComputed` con función solo se suscribe a lo que llegó a LEER en la
@@ -3777,14 +3828,14 @@ function QsCamaraMenu({ onBack }: { onBack: () => void }) {
     const camara = camaraSel.get()
     const gen = ++generacion
     if (!camara) {
-      setFilas([])
+      publicar("", [])
       setCargando(false)
       return
     }
     setCargando(true)
     const lista = await leerControles(camara.nodo)
     if (gen !== generacion) return
-    setFilas(componerFilas(camara.clave, lista))
+    publicar(camara.clave, lista)
     setCargando(false)
   }
 
@@ -3840,7 +3891,7 @@ function QsCamaraMenu({ onBack }: { onBack: () => void }) {
       // `/dev/videoN` que ya no existe (escribir ahí falla en un `execAsync` que
       // nadie mira, o sea sin más síntoma que "no hace nada").
       generacion++
-      setFilas([])
+      publicar("", [])
       setCargando(false)
       cerrarVistaPrevia()
       if (qsView.get() === "camara") onBack()
@@ -3874,7 +3925,7 @@ function QsCamaraMenu({ onBack }: { onBack: () => void }) {
       // nada un rato después, ya sin nadie mirando.
       olvidarCamara(camara.clave)
       if (gen !== generacion) return
-      setFilas(componerFilas(camara.clave, lista))
+      publicar(camara.clave, lista)
       setCargando(false)
     })
   }
@@ -3890,8 +3941,8 @@ function QsCamaraMenu({ onBack }: { onBack: () => void }) {
     const cicloFila = crearCicloVida()
     const nombre = fila.control.nombre
     const vivo = createComputed(
-      [filas],
-      (lista) => lista.find((f) => f.clave === fila.clave)?.control ?? fila.control,
+      [controles],
+      (lista) => lista.find((c) => c.nombre === nombre) ?? fila.control,
     )
     // `inactivo` = encadenado a un automático encendido. Escribir en él NO da
     // error y NO hace nada (`v4l2-ctl` devuelve 0 tan contento), así que el mando
@@ -3968,7 +4019,26 @@ function QsCamaraMenu({ onBack }: { onBack: () => void }) {
           aplicar(valor)
           asentar(valor)
         },
-        (cb) => { cicloFila.suscribir(filas, () => cb()) },
+        // ⚠️ SE ESCUCHA LO QUE SE LEE: `vivo`, no el estado del que deriva. Esta
+        // suscripción iba al estado (antes `filas`, hoy sería `controles`) y el
+        // deslizador se quedaba **un cambio por detrás para siempre**: al
+        // restablecer, las etiquetas pasaban a 0 y 32 y el relleno de la barra
+        // seguía clavado en 40 y 10 (medido en píxeles sobre la captura del
+        // panel), sin ningún error de por medio. No lo trajo el reparto
+        // estructura/valores de arriba: estaba desde antes, con `filas`.
+        //
+        // La causa está en `DEPRECATED_createComputedArgs` (`gnim/jsx/state.ts`)
+        // y hacen falta las dos mitades: (1) el derivado solo refresca su caché
+        // de dependencias DENTRO de su propia suscripción al origen, así que un
+        // suscriptor del origen registrado antes que él —y este lo estaba: se
+        // engancha al construir la fila, antes de que ningún binding del JSX
+        // toque `vivo`— corre primero; y (2) su `get()` de reserva
+        // (`value !== nil ? value : compute()`) solo vuelve a `peek()` una
+        // dependencia **si su hueco de caché está vacío**, y `makeScale` lo
+        // llena al sembrar `adj.value` en la construcción. Reproducido con la
+        // propia librería bajo node: suscrito al origen lee el valor viejo,
+        // suscrito al derivado lee el nuevo.
+        (cb) => { cicloFila.suscribir(vivo, () => cb()) },
         // El deslizador se mueve en PASOS, no en el valor crudo: hay controles
         // con `step=16` o `step=64` y escribir fuera de esa rejilla se redondea
         // en silencio. Ver `geometriaControl`.

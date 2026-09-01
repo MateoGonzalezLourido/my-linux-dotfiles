@@ -6,7 +6,7 @@
     "daltonismo": "Corrección de color para daltonismo"
   },
   "daltonismo": {
-    "descripcion": "Aplica la corrección elegida a toda la pantalla. Solo puede haber un modo activo; vuelve a pulsarlo para desactivarlo. El filtro puede aumentar ligeramente el uso de la GPU."
+    "descripcion": "Solo puede haber un modo activo. El filtro puede aumentar ligeramente el uso de la GPU."
   },
   "modos": {
     "protanopia": {

@@ -1280,6 +1280,61 @@ popover.background {
   min-height: 18px;
 }
 
+.gestos-indicador .icon {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 16px;
+}
+
+.gestos-icono {
+  color: rgb(60.3088740651%, 32.0671113806%, 93.8936729331%);
+  transition: color 180ms ease-in-out, text-shadow 180ms ease-in-out;
+}
+
+.gestos-icono.en-espera {
+  color: #e2e2e2;
+  opacity: 0.45;
+  text-shadow: none;
+}
+
+.gestos-icono.viendo {
+  color: #cba6f7;
+  text-shadow: 0 0 6px rgba(203, 166, 247, 0.55);
+}
+
+.gestos-fila {
+  padding: 6px 0;
+}
+
+.gestos-glifo {
+  font-family: "MesloLGS Nerd Font";
+  font-size: 20px;
+  color: #cba6f7;
+  margin-right: 10px;
+  min-width: 26px;
+}
+
+.gestos-gesto-titulo {
+  font-weight: bold;
+  color: #e2e2e2;
+}
+
+.gestos-gesto-detalle {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.gestos-motivo {
+  color: #fab387;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.gestos-aviso-camara {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 6px;
+}
+
 .np-panel button, popover.upd-popover-container > contents, .qs-wifi-list-scroll scrollbar,
 .qs-wifi-list-scroll scrollbar slider,
 .qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, .game-tray .game-tray-icon {

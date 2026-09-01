@@ -97,11 +97,12 @@ declare -A DESC_PASO=(
   [sddm]="configurar SDDM y activarlo como gestor de sesión (display-manager.service)"
   [gpu]="elegir el perfil de GPU de esta máquina (~/.config/gigios/gpu-perfil)"
   [clamav-db]="descarga de la base de firmas de ClamAV (~200 MB)"
+  [gestos]="entorno del modo gestos por cámara (venv con MediaPipe + modelo de manos, ~200 MB)"
   [cursor]="generar la mitad hyprcursor del tema de puntero"
   [shell]="poner Zsh como shell predeterminado"
   [preflight]="validación final de la instalación"
 )
-ORDEN_PASOS=(paquetes repo symlinks sistema hibernacion sddm clamav-db dolphin kitty firefox css mime gpu cursor shell preflight)
+ORDEN_PASOS=(paquetes repo symlinks sistema hibernacion sddm clamav-db gestos dolphin kitty firefox css mime gpu cursor shell preflight)
 
 SOLO_PASOS=()
 SIN_PASOS=()
@@ -1312,6 +1313,96 @@ else
   info "Omito SDDM: ni la configuración del saludador ni su activación como gestor de sesión."
 fi
 
+if paso_activo gestos; then
+  # --- Entorno del MODO GESTOS por cámara ---
+  #
+  # Dos cosas que no pueden vivir en el repo: un venv de Python y un modelo de 7,8 MB.
+  #
+  # ── POR QUÉ UN VENV Y NO UN PAQUETE ────────────────────────────────────────────────
+  # MediaPipe no está en los repos oficiales. En AUR hay dos, y ninguno sirve:
+  # `python-mediapipe` compila contra `python-tensorflow` (build de horas) y
+  # `python-mediapipe-bin` se quedó en la 0.10.32. La rueda de PyPI (1.0.1) sí funciona
+  # con el Python 3.14 de Arch — comprobado antes de escribir esto — pero `pip` al sistema
+  # está prohibido en Arch (PEP 668, `externally-managed-environment`) y saltárselo con
+  # --break-system-packages es exactamente lo que su nombre dice.
+  #
+  # `--system-site-packages` para reaprovechar `python-numpy` y `python-opencv`, que sí son
+  # paquetes del sistema: sin él, pip se bajaría su propia copia de OpenCV (~90 MB) y
+  # tendríamos dos, con la de pip ganando por orden de búsqueda.
+  #
+  # ── EL VENV MUERE CON CADA ACTUALIZACIÓN MAYOR DE PYTHON, Y HAY QUE DECIRLO ────────
+  # Un venv guarda la versión de Python con la que se creó. Cuando Arch pase a 3.15, este
+  # venv apuntará a un intérprete que ya no existe y el modo dejará de arrancar. No es un
+  # fallo mudo —`gestos.sh` avisa con el motivo y Ajustes lo enseña— pero la solución es
+  # rehacerlo: `bash install.sh --solo gestos`. Por eso el paso BORRA un venv roto en vez
+  # de intentar repararlo.
+  GESTOS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/gigios/gestos"
+  GESTOS_MODELO="$GESTOS_DIR/hand_landmarker.task"
+  GESTOS_VENV="$GESTOS_DIR/venv"
+  # URL oficial de Google para el modelo del Hand Landmarker (variante float16, la que
+  # recomiendan para CPU). No se versiona en el repo: son 7,8 MB de binario que git
+  # guardaría entero en cada cambio, y el repo no tiene ningún otro blob.
+  GESTOS_URL="https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+
+  mkdir -p "$GESTOS_DIR"
+
+  # El venv se rehace si su intérprete ya no existe (ver arriba).
+  if [ -d "$GESTOS_VENV" ] && [ ! -x "$GESTOS_VENV/bin/python" ]; then
+    warn "El entorno de gestos apuntaba a un Python que ya no existe; lo rehago."
+    rm -rf "$GESTOS_VENV"
+  fi
+
+  if [ ! -x "$GESTOS_VENV/bin/python" ]; then
+    info "Creando el entorno de gestos (venv con MediaPipe) ..."
+    if python3 -m venv --system-site-packages "$GESTOS_VENV" 2>/dev/null; then
+      # `--upgrade` en pip primero: las ruedas de MediaPipe usan etiquetas de plataforma
+      # que un pip viejo no sabe leer y rechaza con "no matching distribution", que suena
+      # a "no existe para tu sistema" cuando el problema es el propio pip.
+      "$GESTOS_VENV/bin/pip" install --quiet --upgrade pip >/dev/null 2>&1
+      if ! "$GESTOS_VENV/bin/pip" install --quiet mediapipe; then
+        warn "No pude instalar MediaPipe. El modo gestos (SUPER+SHIFT+G) no funcionará; reintenta: bash install.sh --solo gestos"
+        rm -rf "$GESTOS_VENV"
+      fi
+    else
+      warn "No pude crear el venv de gestos (¿falta python-virtualenv?). El modo gestos no funcionará."
+    fi
+  else
+    info "El entorno de gestos ya existe."
+  fi
+
+  # El modelo, aparte del venv: son dos fallos independientes y arreglar uno no debe
+  # obligar a rehacer el otro (bajar 200 MB de MediaPipe otra vez por un .task que se
+  # truncó sería absurdo).
+  if [ ! -s "$GESTOS_MODELO" ]; then
+    info "Descargando el modelo de manos (7,8 MB) ..."
+    # A un temporal y solo entonces al sitio: una descarga cortada dejaría un .task
+    # truncado que MediaPipe rechaza al arrancar con un error de FlatBuffer que no dice
+    # nada, y el usuario no tendría forma de saber que hay que volver a bajarlo.
+    if curl -fsSL --retry 3 -o "$GESTOS_MODELO.parcial" "$GESTOS_URL"; then
+      mv -f "$GESTOS_MODELO.parcial" "$GESTOS_MODELO"
+    else
+      rm -f "$GESTOS_MODELO.parcial"
+      warn "No pude descargar el modelo de manos. El modo gestos (SUPER+SHIFT+G) no funcionará; reintenta: bash install.sh --solo gestos"
+    fi
+  else
+    info "El modelo de manos ya está descargado."
+  fi
+
+  # Comprobación de verdad: que el intérprete del venv pueda IMPORTAR lo que hace falta.
+  # Que pip dijera "ok" no basta — una rueda instalada para otra versión de Python instala
+  # sin quejarse y revienta al importar, que es justo el modo de fallo que este paso
+  # existe para descartar.
+  if [ -x "$GESTOS_VENV/bin/python" ] && [ -s "$GESTOS_MODELO" ]; then
+    if "$GESTOS_VENV/bin/python" -c 'import mediapipe, cv2' >/dev/null 2>&1; then
+      info "Modo gestos listo: SUPER+SHIFT+G lo enciende y lo apaga."
+    else
+      warn "El entorno de gestos se instaló pero no importa (mediapipe/cv2). El modo no funcionará."
+    fi
+  fi
+else
+  info "Omito el entorno del modo gestos (SUPER+SHIFT+G no funcionará hasta instalarlo con --solo gestos)."
+fi
+
 if paso_activo dolphin; then
   # --- 4. Aplicar el perfil ligero de Dolphin ---
   DOLPHIN_CONFIGURATOR="$HOME/GiGiOS/bin/configurar-dolphin.sh"
@@ -1479,7 +1570,7 @@ if paso_activo gpu; then
     if mkdir -p "$(dirname "$GPU_PERFIL")" && printf '%s\n' "$perfil_gpu" > "$GPU_PERFIL"; then
       info "Perfil de GPU detectado y escrito en $GPU_PERFIL: $perfil_gpu"
     else
-      warn "No pude escribir $GPU_PERFIL; Hyprland avisará al iniciar sesión. Escribilo a mano: echo $perfil_gpu > $GPU_PERFIL"
+      warn "No pude escribir $GPU_PERFIL; Hyprland avisará al iniciar sesión. Escríbelo a mano: echo $perfil_gpu > $GPU_PERFIL"
     fi
   else
     warn "No pude identificar la GPU de esta máquina; elige el perfil a mano (ver docs/SETUP.md §9): echo <perfil> > $GPU_PERFIL"
@@ -1518,7 +1609,7 @@ if paso_activo cursor; then
         # Aviso ya dado y concreto: el `else` de más abajo no debe añadir encima un
         # "no hay ningún tema instalado" que además sería falso (los hay; el que falta
         # es el pedido).
-        warn "El tema de puntero '$CURSOR_THEME' no está instalado; mirá los disponibles con '$CURSOR_GEN --list'."
+        warn "El tema de puntero '$CURSOR_THEME' no está instalado; mira los disponibles con '$CURSOR_GEN --list'."
         CURSOR_THEME=""
         CURSOR_AVISO_HECHO=1
       else
@@ -1601,7 +1692,7 @@ echo "  • Rama:     $BRANCH"
 [ -d "$BACKUP" ] && echo "  • Backups:  $BACKUP"
 cat <<'EOF'
   • Secretos: ~/.config/gigios/spotify-creds.json y ~/.config/gigios/google-calendar-creds.json
-              NO vienen en el repo (git-ignored). Restaurá tus copias o corré
+              NO vienen en el repo (git-ignored). Restaura tus copias o corre
               ~/GiGiOS/ags/scripts/spotify-auth.sh y ~/GiGiOS/ags/scripts/google-calendar-auth.sh
 EOF
 paso_activo shell && cat <<'EOF'
@@ -1636,7 +1727,7 @@ if paso_activo gpu; then
       "$(tr -d '[:space:]' < "$GPU_PERFIL")" "$GPU_PERFIL"
   else
     cat <<'EOF'
-  • GPU:      no se pudo elegir perfil. Escribí uno en ~/.config/gigios/gpu-perfil o
+  • GPU:      no se pudo elegir perfil. Escribe uno en ~/.config/gigios/gpu-perfil o
               Hyprland avisará en cada inicio de sesión; ver docs/SETUP.md §9.
 EOF
   fi
@@ -1650,6 +1741,19 @@ paso_activo cursor && cat <<'EOF'
               compositor usa el puntero de XCursor; para añadir soporte hyprcursor
               a otro tema, ~/GiGiOS/bin/generar-hyprcursor.sh --list.
 EOF
+if paso_activo gestos; then
+  cat <<'EOF'
+  • Gestos:   el modo gestos por cámara está instalado. SUPER+SHIFT+G lo enciende y lo apaga;
+              Ajustes > Cámara > Gestos elige qué gestos van y lo calibra. Mientras esté
+              encendido la cámara queda OCUPADA (no se puede hacer una videollamada a la
+              vez) y el indicador rojo de la barra se enciende, a propósito.
+EOF
+else
+  cat <<'EOF'
+  • Gestos:   NO se instaló el entorno del modo gestos. SUPER+SHIFT+G avisará de que falta;
+              instalalo con: bash ~/GiGiOS/install.sh --solo gestos
+EOF
+fi
 if paso_activo clamav-db; then
   cat <<'EOF'
   • Antivirus: las firmas de ClamAV ya se descargaron. A partir de ahora se comprueban al
@@ -1685,8 +1789,8 @@ cat <<'EOF'
   • Disco:    Ajustes > Almacenamiento analiza qué ocupa el equipo y cataloga las apps por
               tamaño; "Liberar espacio" limpia y, si lo activas, lo hace solo. La autolimpieza
               nace APAGADA y con todas las casillas sin marcar: nada se borra sin pedirlo.
-  • Sistema:  si necesitás sensores, ejecuta 'sudo sensors-detect'.
-  • Sesión:   cerrá y abrí sesión; después comprueba con 'ags run ~/.config/ags/app.ts'.
+  • Sistema:  si necesitas sensores, ejecuta 'sudo sensors-detect'.
+  • Sesión:   cierra y abre sesión; después comprueba con 'ags run ~/.config/ags/app.ts'.
 EOF
 
 resumen_degradado

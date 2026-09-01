@@ -39,7 +39,6 @@
     "energia.perfil-tlp": "Cambio de perfil TLP",
     "juegos.modo-juego": "Modo juego (GameMode)",
     "energia.wake-up-fin": "Fin del plazo de Wake up",
-
     "temperatura.cpu-alta": "CPU sobrecalentada",
     "temperatura.cpu-normal": "CPU enfriada",
     "temperatura.gpu-alta": "GPU sobrecalentada",
@@ -53,7 +52,6 @@
     "kernel.panic": "Kernel panic",
     "kernel.tarea-colgada": "Proceso colgado en el kernel",
     "kernel.modulo-sin-firmar": "Módulo de kernel sin firmar",
-
     "disco.casi-lleno": "Disco casi lleno",
     "limpieza.completada": "Limpieza automática terminada",
     "disco.error-es": "Error de entrada/salida del disco",
@@ -80,14 +78,12 @@
     "usb.reparar-en-uso": "No se puede reparar: el volumen está en uso",
     "usb.reparar-fallo": "No se pudo reparar el volumen USB",
     "usb.reparar-sin-dispositivo": "No se puede reparar: ya no está conectado",
-
     "wifi.desconectado": "WiFi desconectado",
     "wifi.reconectado": "WiFi reconectado",
     "wifi.portal-cautivo": "Portal cautivo detectado",
     "wifi.sin-interfaz": "NetworkManager no publica la interfaz WiFi",
     "bluetooth.conectado": "Bluetooth conectado",
     "bluetooth.perdido": "Bluetooth perdido",
-
     "seguridad.escalada-privilegios": "Escalada de privilegios (pkexec, su, polkit)",
     "sudo.fallo-autenticacion": "Fallo de autenticación de sudo",
     "ssh.evento": "Evento SSH (acceso o fallo)",
@@ -99,7 +95,8 @@
     "sistema.reinicio-pendiente": "Reinicio pendiente tras actualizar kernel o drivers",
     "monitor.sin-inotify": "Vigilancia de ficheros desactivada (falta inotify-tools)",
     "camara.en-uso": "Cámara en uso",
-
+    "gestos.no-disponible": "No se puede activar el modo gestos",
+    "gestos.detenido": "Modo gestos detenido",
     "descargas.malware": "Malware detectado en Descargas",
     "descargas.ejecutable-nuevo": "Ejecutable nuevo en Descargas",
     "descargas.archivo-grande": "Archivo grande sin analizar en Descargas",
@@ -124,12 +121,10 @@
     "aislado.sin-archivo": "No se puede lanzar: el archivo no existe",
     "aislado.falta-firejail": "No se puede lanzar aislado: falta Firejail",
     "aislado.falta-wine": "No se puede lanzar: falta Wine",
-
     "app.crash": "App crasheada",
     "app.tormenta-crashes": "Tormenta de crashes",
     "servicio.fallo-arranque": "Un servicio no arrancó",
     "servicio.en-fallo": "Servicio en estado de fallo",
-
     "arranque.resumen": "Resumen de varios problemas en el arranque",
     "arranque.servicios-fallidos": "Servicios fallidos en el arranque",
     "arranque.errores-journal": "Errores en el journal del arranque",
@@ -149,7 +144,6 @@
     "arranque.bluetooth-inactivo": "Servicio Bluetooth inactivo",
     "arranque.bluetooth-bloqueado": "Bluetooth bloqueado por rfkill",
     "arranque.errores-usb": "Errores USB en el arranque",
-
     "desinstalar.ok": "App desinstalada",
     "desinstalar.fallo": "No se pudo desinstalar la app",
     "desinstalar.steam": "Desinstalación pendiente de confirmar en Steam",

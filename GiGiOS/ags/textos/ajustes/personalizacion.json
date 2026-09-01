@@ -11,13 +11,12 @@
     "funcionesShell": {
       "titulo": "Funciones del shell",
       "apariencia": "Apariencia",
-      "sonidoInicio": "Sonido al iniciar sesión",
+      "sonidoInicio": "Al iniciar sesión",
       "indicadores": "Respuesta a las teclas multimedia",
       "ventanas": "Ventanas y escritorios",
       "orion": "Comportamiento de Orion",
-      "portapapeles": "Historial de copias",
-      "conectividadInicio": "Conectividad al iniciar sesión"
-    },
+      "portapapeles": "Historial de copias"
+      },
     "sistema": {
       "supervision": "Supervisión",
       "actualizaciones": "Actualizaciones"
@@ -35,27 +34,27 @@
   "apariencia": {
     "fondo": {
       "titulo": "Color de fondo global",
-      "descripcion": "Cambia el fondo de la barra, los paneles principales y Orion.",
+      "descripcion": "Cambia el fondo principal del Shell",
       "opciones": {
         "negro": "Negro actual",
         "grafito": "Grafito"
       }
     },
     "acento": {
-      "titulo": "Colores del fondo de escritorio",
-      "descripcion": "Saca del fondo de escritorio los tres colores de acento del shell (workspaces, reloj, controles, iconos y resaltados) y los cambia con él.\nLos avisos conservan su color: verde correcto, ámbar aviso, rojo error.\nSi el fondo no tiene color del que sacarlos, se conserva la paleta del tema."
+      "titulo": "Enfatizar fondo de escritorio",
+      "descripcion": "Saca del fondo de escritorio los colores para el Shell y los cambia con él.\nLos avisos conservan su color: verde correcto, ámbar aviso, rojo error.\nSi el fondo no tiene color del que sacarlos, se conserva la paleta del tema."
     }
   },
   "actualizaciones": {
     "titulo": "Actualizaciones del sistema",
-    "descripcion": "Avisa en la barra de actualizaciones del kernel o de los controladores gráficos.\nDesactivarlo detiene las comprobaciones.",
+    "descripcion": "Avisa en la barra de actualizaciones del kernel o de los controladores gráficos.",
     "periodicas": {
       "titulo": "Recomprobar periódicamente",
-      "descripcion": "Realiza comprobaciones programadas además de la inicial.\nEl cambio se aplica en la próxima sesión."
+      "descripcion": "Realiza comprobaciones programadas además de la inicial."
     },
     "intervalo": {
       "titulo": "Comprobar cada (horas)",
-      "descripcion": "El nuevo intervalo se aplica al reiniciar las comprobaciones o en la próxima sesión.",
+      "descripcion": "",
       "placeholder": "3",
       "guardar": "Guardar"
     }
@@ -63,17 +62,17 @@
   "inicioAudio": {
     "volumen": {
       "titulo": "Iniciar el volumen silenciado",
-      "descripcion": "Se aplica al comenzar la próxima sesión."
+      "descripcion": ""
     },
     "microfono": {
       "titulo": "Iniciar el micrófono silenciado",
-      "descripcion": "Se aplica al comenzar la próxima sesión."
+      "descripcion": ""
     }
   },
   "inicioConectividad": {
     "bluetooth": {
       "titulo": "Iniciar con el bluetooth desactivado",
-      "descripcion": "Se aplica al comenzar la próxima sesión."
+      "descripcion": ""
     }
   },
   "barra": {
@@ -91,7 +90,7 @@
     },
     "red": {
       "titulo": "Red en la barra",
-      "descripcion": "Muestra si usas Wi-Fi o Ethernet y avisa si la conexión no tiene acceso a internet."
+      "descripcion": "Icono de estado del Wifi o Ethernet"
     },
     "indicadorMicrofono": {
       "titulo": "Indicador de micrófono en la barra",
@@ -99,11 +98,11 @@
     },
     "compartirPantalla": {
       "titulo": "Indicador de compartir pantalla",
-      "descripcion": "Avisa al detectar que se comparte o graba la pantalla. Desactivarlo detiene la detección."
+      "descripcion": "Avisa al detectar que se comparte o graba la pantalla."
     },
     "bandeja": {
       "titulo": "Iconos de bandeja en la barra",
-      "descripcion": "Muestra en la barra los iconos de bandeja de las aplicaciones y sus menús."
+      "descripcion": "Muestra los iconos de bandeja de las aplicaciones y sus menús."
     },
     "notificaciones": {
       "titulo": "Notificaciones en la barra",
@@ -153,7 +152,7 @@
   "ventanas": {
     "segundaAlLado": {
       "titulo": "La segunda ventana, al lado",
-      "descripcion": "Con una sola ventana en el escritorio, la siguiente se abre a la derecha en vez de apilarse debajo, esté donde esté el ratón.\nA partir de la tercera cada ventana se coloca donde señale el puntero, como siempre.\nSe aplica al instante."
+      "descripcion": "Con una sola ventana en el escritorio, la siguiente se abre a la derecha en vez de apilarse debajo, esté donde esté el ratón.\nA partir de la tercera cada ventana se coloca donde señale el puntero, como siempre."
     },
     "anclaje": {
       "titulo": "Anclar ventanas al escritorio de lanzamiento",
@@ -161,7 +160,7 @@
     },
     "escanerInicio": {
       "titulo": "Escáner de apps al iniciar sesión",
-      "descripcion": "Durante los primeros 30 segundos vigila las ventanas que se abren solas (autostart, restauración de sesión) y después te lleva al escritorio donde han quedado.\nSi ocupan varios escritorios, primero los compacta y salta al más cercano al que estés.\nSe aplica al comenzar la próxima sesión."
+      "descripcion": "Durante los primeros 30 segundos vigila las ventanas que se abren solas (autostart, restauración de sesión) y después te lleva al escritorio donde han quedado.\nSi ocupan varios escritorios, primero los compacta y salta al más cercano al que estés."
     },
     "superSordo": {
       "titulo": "Ignorar SUPER + tecla sin atajo",
@@ -198,11 +197,11 @@
   "monitores": {
     "bateria": {
       "titulo": "Monitor de batería",
-      "descripcion": "Avisa al conectar o desconectar el cargador, completar la carga y alcanzar niveles bajos.\nSe aplica en la próxima sesión."
+      "descripcion": "Avisa al conectar o desconectar el cargador, completar la carga y alcanzar niveles bajos."
     },
     "temperatura": {
       "titulo": "Monitor de temperatura",
-      "descripcion": "Avisa al superar 85 °C en una CPU Intel o GPU NVIDIA y al volver a enfriarse.\nSe aplica en la próxima sesión."
+      "descripcion": "Avisa al superar 85 °C en una CPU Intel o GPU NVIDIA y al volver a enfriarse."
     }
   },
   "noMolestar": {

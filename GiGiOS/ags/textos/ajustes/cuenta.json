@@ -8,9 +8,9 @@
     "equipo": "Equipo: {{nombre}}",
     "foto": {
       "titulo": "Foto de perfil",
-      "descripcion": "Copia una imagen local, recortada en cuadrado, para AGS y la pantalla de bloqueo.",
+      "descripcion": "",
       "placeholder": "~/Imágenes/perfil.png",
-      "boton": "Cambiar foto"
+      "boton": "Cambiar"
     }
   },
   "datosPersonales": {
@@ -55,7 +55,7 @@
     "fotoActualizada": "Foto de perfil actualizada.",
     "usuarioInvalido": "El usuario debe usar minúsculas, números, _ o - y empezar por una letra.",
     "contrasenasNoCoinciden": "Las contraseñas nuevas no coinciden.",
-    "contrasenaCorta": "La contraseña nueva debe tener al menos 8 caracteres.",
+    "contrasenaCorta": "La contraseña nueva es demasiado corta.",
     "sinCambios": "No hay cambios que guardar.",
     "aplicando": "Aplicando cambios…",
     "cuentaActualizadaReinicio": "Cuenta actualizada. Cierra sesión para usar el nuevo nombre.",

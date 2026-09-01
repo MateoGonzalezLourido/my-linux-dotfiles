@@ -14,11 +14,12 @@
 
 // ── El tile de la rejilla ────────────────────────────────────────────────────
 //
-// Solo cuando alguien está MIRANDO. El `.active` de los demás tiles significa
-// "encendido" y se pinta de cian; aquí significa "hay una app con la cámara
-// abierta", que es un aviso de privacidad y no un estado normal — de ahí el
-// rojo. La clase la añade `QsTile` desde la misma derivación que el resto de
-// clases (`claseActiva`), no desde un segundo cómputo.
+// Solo cuando alguien está MIRANDO. El `.active` del tile de cámara significa lo
+// mismo que en los demás ("disponible", o sea no bloqueada) y se pinta de cian;
+// esta clase se le superpone cuando además hay una app con la cámara abierta,
+// que es un aviso de privacidad y no un estado normal — de ahí el rojo. La añade
+// `QsTile` (`claseActiva` + `avisoActivo`) desde la misma derivación que el resto
+// de clases, no desde un segundo cómputo.
 .qs-tile.active.qs-tile-camara-uso {
   background: rgba($red, 0.14);
   border-color: rgba($red, 0.45);

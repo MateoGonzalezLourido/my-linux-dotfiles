@@ -55,6 +55,28 @@ export function componerFilas(claveCamara: string, controles: Control[]): FilaCo
   return controles.map((control) => ({ clave: `${claveCamara}:${control.nombre}`, control }))
 }
 
+/** ¿Las dos listas son la misma ESTRUCTURA, o sea las mismas filas en el mismo
+ *  orden? Solo mira las claves: los valores viven aparte a propósito.
+ *
+ *  El `<For>` de gnim **desparenta y vuelve a parentar TODOS sus hijos en cada
+ *  emisión**, casen o no las claves: `callback` (`jsx/For.ts`) recorre su mapa
+ *  entero haciendo `fragment.remove` y solo después reordena. La clave sí evita
+ *  lo caro —medido con una traza en el constructor de la fila: reconstruye
+ *  **cero** filas—, pero el vaivén de la jerarquía se paga igual, y en GTK4
+ *  desparentar es desmapear y desrealizar. Sin esta igualdad eran los ~15 mandos
+ *  de la sección pasando por ahí en CADA lectura: al restablecer, al soltar un
+ *  deslizador y al tocar cualquier automático.
+ *
+ *  Honestidad sobre el alcance: grabando el panel a 144 Hz no se llegó a
+ *  fotografiar ningún fotograma intermedio con el layout movido, así que esto
+ *  quita trabajo y una fuente conocida de saltos, pero no está demostrado que
+ *  fuera la causa del parpadeo que se reportó. El fallo VISIBLE que sí se midió
+ *  en esa misma pantalla —y se arregló— era otro: el deslizador se quedaba un
+ *  cambio por detrás (ver la suscripción de la escala en `QuickSettings.tsx`). */
+export function mismasFilas(a: FilaControlCamara[], b: FilaControlCamara[]): boolean {
+  return a.length === b.length && a.every((fila, i) => fila.clave === b[i].clave)
+}
+
 // ── La geometría de un slider de control ────────────────────────────────────
 
 export interface GeometriaControl {
@@ -100,24 +122,36 @@ export interface ResumenTileCamara {
    *  tile cabe una sola línea y saber que está encendida importa más que saber
    *  el modelo, que se lee entrando al submenú. */
   subtitulo: string
-  /** Enciende el resaltado del tile. Aquí "activo" es "hay alguien mirando",
-   *  que es lo contrario a lo que significa en el de Wi-Fi (encendido) — pero
-   *  es lo único de la cámara que merece llamar la atención. */
+  /** Enciende el resaltado del tile, con el mismo significado que en los demás:
+   *  "está disponible", o sea que NO está bloqueada — y el clic derecho la
+   *  bloquea y la desbloquea, igual que el de Wi-Fi enciende y apaga la radio.
+   *
+   *  La excepción es que alguien la tenga ABIERTA, que enciende el resaltado
+   *  aunque esté bloqueada: bloquear impide abrirla, no corta una captura en
+   *  marcha (`servicios/camara/bloqueo.ts`), así que apagar ahí el aviso de
+   *  privacidad —que es el rojo de `claseActiva`, pintado sobre este mismo
+   *  resaltado— lo escondería justo cuando más importa. */
   activo: boolean
+  /** Alguien tiene la cámara abierta. Viaja aparte de `activo` porque es lo que
+   *  decide el COLOR del resaltado (rojo de privacidad en vez del cian normal),
+   *  y los dos hechos pueden discrepar. */
+  enUso: boolean
 }
 
 export function resumenTileCamara(
   lista: Camara[],
   clavePreferida: string | null | undefined,
   uso: UsoCamara,
+  bloqueada: boolean,
 ): ResumenTileCamara {
   if (uso.enUso) {
-    return { icono: GLIFO_CAMARA_EN_USO, subtitulo: "En uso", activo: true }
+    return { icono: GLIFO_CAMARA_EN_USO, subtitulo: "En uso", activo: true, enUso: true }
   }
   const camara = resolverCamaraVisible(lista, null, clavePreferida)
   return {
     icono: GLIFO_CAMARA,
     subtitulo: camara?.nombre ?? "Sin cámara",
-    activo: false,
+    activo: !bloqueada,
+    enUso: false,
   }
 }

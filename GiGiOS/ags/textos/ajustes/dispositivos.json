@@ -88,7 +88,7 @@
     "titulo": "Teclado",
     "distribucion": {
       "titulo": "Distribución",
-      "descripcion": "Determina qué caracteres produce cada tecla; se aplica al instante",
+      "descripcion": "Determina qué caracteres produce cada tecla",
       "opciones": {
         "espanol": "Español",
         "latinoamericano": "Latinoamericano",
@@ -117,7 +117,7 @@
     },
     "bloqueoNumerico": {
       "titulo": "Bloqueo numérico al iniciar",
-      "descripcion": "Activa Num Lock de forma predeterminada al detectar los teclados"
+      "descripcion": ""
     }
   },
   "puntero": {

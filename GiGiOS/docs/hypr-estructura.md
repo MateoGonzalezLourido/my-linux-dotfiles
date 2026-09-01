@@ -154,7 +154,15 @@ de parsear el socket de eventos a mano.
 **2. Atajos de teclado** (`gigios/keybinds.lua`): `rofi-launch.py`
 (`SUPER+SPACE`), `clipboard-history.sh picker` (`SUPER+V`), `emoji-picker.sh`
 (`SUPER+.`), `grabar-pantalla.sh`
-/ `grabar-pantalla.sh ventana` (`CTRL+SHIFT+F` / `CTRL+SHIFT+S`).
+/ `grabar-pantalla.sh ventana` (`CTRL+SHIFT+F` / `CTRL+SHIFT+S`), `gestos.sh`
+(`SUPER+SHIFT+G`).
+
+`gestos.sh` es el único de esa lista que enciende y apaga un **daemon**, y el
+único daemon de `hypr/scripts/` que **no** sale de `autostart.lua`: abre la
+webcam, cuesta medio núcleo y deja la cámara ocupada para el resto de apps, así
+que se pide a propósito. El trabajo vive en `scripts/gestos/` (tres módulos
+Python: motor puro con pruebas, puente con el compositor por socket, y el bucle
+de cámara). Ver su sección en `docs/hyprland-modulos.md`.
 
 Cinco atajos **ya no llaman a ningún script**: son funciones Lua dentro del
 propio config — pegar ventanas (`GiGiOS.toggle_gaps`), compactar escritorios

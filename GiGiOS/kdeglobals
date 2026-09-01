@@ -165,6 +165,9 @@ View Style=DetailTree
 EnableRemoteFolderThumbnail=false
 MaximumRemoteSize=0
 
+[UiSettings]
+ColorScheme=BreezeDark
+
 [WM]
 activeBackground=39,44,49
 activeBlend=252,252,252

@@ -138,7 +138,9 @@ autolimpieza de disco, que además leen `hypr/scripts/limpiar-almacenamiento.sh`
 `limpieza-arranque.sh` con `jq`—, `apps-inicio.json` —las apps que se abren al iniciar sesión, que
 lee `inicializador/apps-inicio.sh`—, `camara.json` —los controles V4L2 guardados por aparato, que
 se reponen solos porque el kernel los pierde al desenchufar o reiniciar— y `camara-uso.json` —lo
-que escribe `hypr/scripts/camara-monitor.sh` cuando una app abre la cámara— y `hibernacion.json`
+que escribe `hypr/scripts/camara-monitor.sh` cuando una app abre la cámara—, `gestos.json` y
+`gestos-estado.json` —el modo gestos por cámara: el primero lo escribe Ajustes y lo lee el demonio
+al arrancar, el segundo al revés; dos ficheros con un dueño cada uno, no uno con dos escritores— y `hibernacion.json`
 —el tiempo total de inactividad hasta hibernar y **cuál de los dos mecanismos** lo cumple; lo lee
 `idle-action.sh` para decidir si suspende con alarma RTC o sin ella—, …), plus `~/.config/jarvis/`
 and `~/.local/share/jarvis/` for the Orion launcher, `~/.config/power-save/config.json`
@@ -228,6 +230,30 @@ Puntos que conviene recordar sin abrir el documento:
   sin extensión en la caché — hyprlang no sabe sustituir comandos) y lleva la única guarda de
   instancia única, que hyprlock no tiene. Ver su sección en
   [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md).
+- **El modo gestos por cámara (SUPER+SHIFT+G) es el único daemon de `hypr/scripts/` que NO sale del
+  autostart**: abre la webcam, cuesta medio núcleo y la deja ocupada para el resto de apps (no se
+  puede hacer una videollamada con él encendido), así que se pide a propósito. Lo enciende y apaga
+  `hypr/scripts/gestos.sh`; el trabajo está en `hypr/scripts/gestos/` y su entorno (venv con
+  MediaPipe + modelo de manos) lo instala `install.sh --solo gestos` fuera del repo. **Antes de
+  tocarlo lee su sección en [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md)**: documenta que
+  **el pellizco NO saca la ventana del mosaico** (hacerlo movía bien pero la dejaba sin recolocarse
+  nunca más: una tilada se recoloca por pasos con la secuencia `preselect`/`movewindow`/`preselect
+  none`, y solo una que YA estaba flotando recibe coordenadas), que el arrastre nativo
+  (`hl.dsp.window.drag`) **no sigue un cursor warpado** y además acepta cualquier argumento
+  respondiendo `ok`, que `w.at` de `HL.Window` es de SOLO LECTURA pero un `pcall` alrededor de la
+  asignación devuelve `ok=true, err=nil`, que `hl.dsp.window.move` responde `ok` sin mover nada
+  sobre una ventana en mosaico, que un puño cerrado es geométricamente indistinguible de un
+  pellizco por distancia pulgar-índice, que OpenCV 5 ya no abre la cámara por nombre **ni pasa de
+  640x480 sin pedir MJPG explícitamente** (se acepta, se ignora y no da ningún error), y sobre todo
+  que **UN SOLO frame sin mano mataba el gesto entero**: el motor lo trataba como «la mano ya no
+  está», tiraba el trayecto y volvía a BUSCANDO con 0,40 s de rearme — y perder un frame es lo
+  NORMAL al mover la mano deprisa, porque sale borrosa. Era la causa del «a veces va y a veces no».
+  Y que **`num_hands=1` deja que una CARA detectada como mano TAPE la mano de verdad** (la cara
+  puntúa 0,98: ocupa la única plaza y la mano no llega, que desde fuera se ve como «no detecta
+  nada»); se piden dos y se elige por CONTINUIDAD, no por puntuación. Para medir qué ve la cámara
+  sin tocar el escritorio: `gestos.py --diagnostico`, que mide en dos fases —primero SIN manos, para
+  contar falsos positivos— porque la tasa de detección a solas no distingue una mano de una cara.
+
 - **Editar un `*-monitor.sh` no afecta al que ya está corriendo**: hace falta `pkill -f
   <script>` + relanzarlo, o `hyprctl reload full-reset` (que sí re-ejecuta el autostart; un
   `hyprctl reload` normal no).

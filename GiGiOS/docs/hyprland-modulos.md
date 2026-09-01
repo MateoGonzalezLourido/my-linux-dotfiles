@@ -1625,6 +1625,19 @@ mask::---
 
 root sigue pudiendo abrir el nodo (`CAP_DAC_OVERRIDE`), que es lo que permite desbloquear después.
 
+##### Y el desbloqueo tiene que deshacerlo a mano, o la cámara se queda muerta
+
+`unblock` borraba la regla, recargaba udev y daba el trabajo por hecho. **No lo estaba**: udev fija
+dueño y modo del nodo al **crearlo**, y en el evento `change` que manda `udevadm trigger` sobre un
+nodo que ya existe no vuelve a aplicarlos. Medido tras un `unblock`: `c--------- root root`, con la
+entrada `user:<usuario>:rw-` de la ACL intacta pero `#effective:---` por la máscara — o sea la
+cámara **inaccesible hasta el siguiente arranque**, mientras `status` decía `unblocked` y la UI
+pintaba el interruptor apagado. Ningún error por ningún lado, y en un portátil no hay ni la
+escapatoria de desenchufarla. Es la misma asimetría de arriba en el otro sentido, así que el remedio
+es simétrico: el desbloqueo repone `0660 root:video` en los nodos vivos (lo que dejan
+`50-udev-default.rules` y el modo por defecto de udev), y con la máscara otra vez en `rw` la ACL de
+sesión vuelve a ser efectiva.
+
 ##### Lo que el killswitch NO hace, y la UI lo dice
 
 Impide **abrir** la cámara; no cierra un descriptor ya abierto. Una app que estuviera emitiendo
@@ -1663,6 +1676,760 @@ proceso que lo mantiene abierto → `enUso:true` con su `comm` resuelto; cierre 
 cinco aperturas instantáneas seguidas → ningún parpadeo. El parser de `v4l2-ctl` sí está probado
 contra salida real (`controlesDatos.test.ts` usa la de una Logitech C920, con sus tres tipos de
 control, un `flags=inactive` y un menú con huecos).
+
+### Modo gestos por cámara (`gestos.sh` + `hypr/scripts/gestos/`)
+
+Manejar el escritorio moviendo la mano delante de la webcam. Se enciende y se apaga con **SUPER+SHIFT+G**
+(o desde Ajustes > Cámara > Gestos) y **no se autoarranca**: no hay ninguna línea suya en
+`gigios/autostart.lua`, al contrario que el resto de piezas de cámara. Un monitor de uso en reposo
+cuesta cero porque bloquea en inotify; esto enciende la webcam, quema medio núcleo y deja la cámara
+ocupada para cualquier otra aplicación. Un modo así se pide a propósito o no se pide.
+
+Cinco gestos:
+
+| gesto | acción |
+| --- | --- |
+| palma abierta desplazándose en horizontal | escritorio anterior / siguiente (`focus{workspace='e±1'}`) |
+| pulgar + índice juntos (pellizco) | agarrar la ventana activa y recolocarla, sin sacarla del mosaico |
+| **dos** pellizcos rápidos | flotar la ventana, o devolverla al mosaico (flip-flop) |
+| puño cerrado | pausa corta: no se reconoce nada mientras lo mantengas |
+| abrir y cerrar la mano **dos veces** | pausa larga (modo de espera): entra y sale |
+
+#### Dos pellizcos rápidos: flotar o volver al mosaico
+
+Un flip-flop sobre la ventana activa (`hl.dsp.window.float({action='toggle', window=…})`). No lleva
+lógica de arrastre propia: **el arrastre ya se adapta solo** porque `_iniciar_arrastre` lee
+`floating` al agarrar, así que tras alternar, el mismo pellizco sostenido pasa a mover la ventana
+libremente o a recolocarla por pasos según haya quedado. Verificado en vivo, mosaico → flotante →
+mosaico → flotante, comprobando además que `Arrastre.flotante` sigue al modo real.
+
+Dos detalles de orden que no son casualidad:
+
+- **El evento `flotar` se emite ANTES del `arrastre-inicio` del mismo frame.** Así el demonio alterna
+  primero y el arrastre nace leyendo el modo nuevo; al revés habría que rehacerlo a posteriori. Y
+  entre las dos cosas hay una pausa de 60 ms porque Hyprland rehace el reparto al sacar o meter una
+  ventana: sin ella se leería la geometría anterior y el arrastre empezaría con un salto.
+- **`action='toggle'` en TABLA**, aunque aquí el toggle sea justo lo que se quiere. El motivo es
+  otro: con la cadena `'toggle'` Hyprland tira el argumento **y también el selector `window`**, así
+  que alternaría la ventana ACTIVA en vez de la pedida. Suelen coincidir, y por eso el fallo pasaría
+  desapercibido hasta el día en que el foco cambie a mitad de gesto.
+
+##### Lo difícil no es detectarlo: es NO detectarlo mientras arrastras
+
+Soltar y volver a pellizcar es lo que uno hace constantemente al mover una ventana — agarras, la
+llevas un trecho, sueltas para recolocar la mano, vuelves a agarrar. Si cualquier par de pellizcos
+seguidos alternara el flotante, arrastrar una ventana la sacaría y la metería en el mosaico sola cada
+dos por tres. De ahí que un **toque** sea un pellizco breve (`tap_pellizco_max`, 0,45 s) **que no
+llegó a mover la ventana**: las dos condiciones hacen falta, porque la duración sola dejaría pasar un
+tirón corto que sí recolocó, y «no movió» sola dejaría pasar un agarre largo en el que te lo pensaste
+sin mover la mano. Lo cubre `test_SOLTAR_Y_REAGARRAR_MIENTRAS_ARRASTRAS_NO_dispara`.
+
+Y una guarda que salió de un test en rojo: **el pellizco que cierra un par no siembra otro**. Sin
+ella, tres toques seguidos disparaban DOS veces (medido) — el segundo, que es el que sostienes para
+arrastrar, dejaba su toque al soltarse y se emparejaba con el tercero, así que la ventana entraba y
+salía del mosaico sola. Con la guarda los toques se agrupan de dos en dos, como uno espera.
+
+El gesto dispara **al empezar el segundo pellizco**, no al soltarlo, para que ese mismo pellizco siga
+vivo y ya arrastre: «dos pellizcos rápidos y la muevo flotante» en un solo movimiento continuo.
+
+#### El modo de espera: dos pausas, y no sobra ninguna
+
+Hay **dos** formas de decirle al modo que no te haga caso, y hacen cosas distintas:
+
+- **Puño cerrado** — pausa mientras lo mantengas. Es un estado (`NEUTRO`), no una orden: en cuanto
+  abres la mano vuelve a estar armado. Sirve para rascarte la cara sin cambiar de escritorio.
+- **Abrir y cerrar la mano dos veces** — pausa **enclavada** (`ESPERA`). Baja las manos, sigue
+  trabajando y el modo no vuelve a mirarte hasta que repitas el mismo gesto. Es lo que evita tener
+  que apagarlo entero cuando solo quieres un rato de tranquilidad.
+
+Tres decisiones que no se deducen del código:
+
+- **La espera SOBREVIVE a que la mano salga del cuadro.** Es el único estado que lo hace; todo lo
+  demás cae a `BUSCANDO` cuando no hay mano. Y tiene que ser así: bajar las manos es exactamente lo
+  que uno hace justo después de pedir la pausa, así que si eso la deshiciera el gesto no serviría
+  para nada.
+- **Entrar en espera SUELTA una ventana agarrada.** Estando en espera ya no se procesa el pellizco,
+  así que nadie emitiría el `arrastre-fin` y la ventana se quedaría agarrada para siempre.
+- **Se cuentan CIERRES, no se casa una secuencia de cuatro posturas.** Para que haya un segundo
+  cierre hay que haber abierto la mano entre medias, así que contar `abierta → puño` dentro de una
+  ventana ya describe el gesto entero.
+
+##### ⚠️ Comparar contra la postura del frame anterior NO funciona
+
+Cerrando la mano se pasa por posturas intermedias (dos o tres dedos extendidos = `OTRA`). Si el
+cierre es lento, esa intermedia **llega a confirmarse** y la secuencia real es `ABIERTA → OTRA →
+PUÑO`: comparando contra la postura inmediatamente anterior el cierre no se cuenta, y el gesto falla
+justo cuando se hace despacio — que es como lo hace quien todavía no le ha cogido el punto, o sea el
+caso en que más parece que la función está rota. Se compara contra la última postura **relevante**
+(abierta o puño), ignorando lo que haya en medio. Cubierto por
+`test_el_cierre_LENTO_cuenta_aunque_pase_por_posturas_intermedias`.
+
+Dos guardas más, cada una con su prueba: perder la mano **borra** esa referencia (meter y sacar el
+puño del cuadro dos veces no es «abrir y cerrar dos veces»), y la lista de cierres **se vacía al
+disparar** (si no, un tercer cierre dentro de la ventana volvería a cumplir la condición y el modo
+entraría y saldría de la espera con la mano todavía haciendo el gesto).
+
+##### El suelo de la ventana temporal lo pone `frames_confirmacion`, no la mano
+
+`ventana_doble` son 1,8 s y parece generoso para algo que se pide «rápido». No lo es: abrir y cerrar
+dos veces son **cuatro cambios de postura**, y cada uno necesita 3 frames seguidos para confirmarse
+— a 15 fps eso ya son 0,8 s solo de confirmación, y con posturas intermedias de por medio se va a
+~1,6 s. Con una ventana de 1 s el gesto sería sencillamente imposible y parecería que no funciona.
+Es el primer número que tocar si cuesta que entre.
+
+##### La espera NO libera la cámara ni ahorra batería, y hay que decirlo
+
+Sigue habiendo inferencia en cada frame, porque hay que seguir mirando por si repites el gesto. La
+espera solo deja de **actuar**. Quien quiera recuperar la webcam o el núcleo y cuarto tiene que
+apagar el modo (SUPER+SHIFT+G). Lo único que sí se conserva es la dormancia: sin ninguna mano en el cuadro
+el bucle baja a 5 fps también en espera, y al aparecer una mano vuelve al ritmo completo en el frame
+siguiente, así que el gesto para salir no se pierde.
+
+La señal de que estás en espera es el **indicador de la barra**, que cambia de glifo (󱄄 → 󱐵,
+«sensor de movimiento apagado») y se apaga de color, con el tooltip diciendo cómo volver. No es
+decoración: en espera no responde nada, y eso es indistinguible de que se haya roto.
+
+#### El reparto en tres ficheros, y por qué
+
+- **`gestos/deteccion.py`** — landmarks → intención. **Puro**: no importa mediapipe, ni cv2, ni
+  habla con el compositor. Recibe tuplas `(x, y, z)` normalizadas y un instante monótono.
+- **`gestos/hypr.py`** — el puente con Hyprland.
+- **`gestos/gestos.py`** — cámara, modelo, bucle, estado publicado y apagado limpio.
+- **`gestos.sh`** — el conmutador; es lo único que tocan el atajo y AGS.
+
+La separación no es estética: el motor es la parte que hay que **calibrar**, y calibrarla contra una
+webcam es insufrible (ponerse delante, mover la mano, adivinar por qué no disparó). Siendo puro se
+prueba con recorridos sintéticos en milisegundos y **con el intérprete del sistema, sin el venv**:
+
+```sh
+python3 -m unittest discover -s hypr/scripts/gestos -p '*_test.py'
+```
+
+#### El problema de verdad no es detectar, es NO detectar de más
+
+Reconocer «la mano se ha movido a la derecha» es fácil. Lo difícil es que **el gesto de vuelta no
+dispare el contrario**: mueves la mano a la derecha (cambia de escritorio), la traes de vuelta al
+centro para repetir, y ese regreso es un recorrido hacia la izquierda idéntico al que se acaba de
+aceptar. Un detector ingenuo alterna escritorios y se queda donde estaba.
+
+##### La primera solución funcionaba y hubo que quitarla igual
+
+Era exigir que la mano **se parase** para rearmar. Contra el regreso es lo mejor que hay. Y era el
+mayor estorbo del modo, reportado así: «me obliga a tenerla recta arriba en el centro un instante y
+luego desplazarme; me gustaría poner la mano donde quiera y que al moverla lo detecte, y encadenar
+varios movimientos sin tener que cerrar el puño para reiniciar».
+
+Las dos quejas salen de la misma línea. Hoy son dos mecanismos, ninguno de los cuales pide nada:
+
+- **Armar es instantáneo.** Al confirmar la mano abierta se pasa a `ARMADO` y se **tira el
+  trayecto**. Lo único que hacía falta de aquella espera era no traerse el movimiento de LEVANTAR la
+  mano dentro del recorrido, y para eso basta con tirarlo. De descartar la subida diagonal ya se
+  encarga la regla de dominancia horizontal (`|dx| ≥ 1,5·|dy|`), con test.
+- **Rearmar es por TIEMPO** (`cooldown_swipe`), no por quietud, y al salir se vuelve a tirar el
+  trayecto.
+
+##### El compromiso, medido
+
+No hay valor que gane en todo. Barrido con un golpe de ida de 0,25 s y regresos a distintas
+velocidades:
+
+```
+cooldown   regresos que disparan por error   encadenar a propósito
+  0,35 s   los de 0,55 s y 0,70 s            con 0,20 s entre golpes
+  0,45 s   el de 0,70 s                      con 0,40 s
+  0,55 s   ninguno                           con 0,40 s     ← de fábrica
+```
+
+0,55 es estrictamente mejor que 0,45 —mismo coste de encadenado, cero errores— así que es el valor de
+fábrica, y está **en Ajustes** porque el trato es una preferencia real: quien prefiera encadenar más
+deprisa a cambio de que algún regreso cuele solo tiene que bajarlo.
+
+##### `ventana_swipe` es una velocidad mínima disfrazada
+
+Exigir 0,20 de recorrido dentro de 0,35 s es pedir **0,57 anchos de cuadro por segundo**. Bajó de
+0,70 a 0,35 al quitar la quietud, y medido resultó estrictamente mejor: con 0,70 el regreso relajado
+(0,9 s y 1,3 s) disparaba el gesto contrario y con 0,35 no, mientras que un golpe deliberado —incluso
+lento, 0,55 s— sigue disparando igual. El límite está sobre los **0,8 s** para cruzar medio cuadro:
+por encima ya no cuenta. Es deliberado — un swipe es un golpe seco, y eso es lo que lo separa de
+mover la mano por moverla.
+
+⚠️ **Esa ventana interactúa con la tolerancia a frames perdidos, y el ritmo importa.** Las dos están
+en SEGUNDOS, así que a mitad de ritmo los mismos «3 frames perdidos» son el doble de tiempo y se
+comen la ventana entera. Medido: **a 30 fps un swipe aguanta 8 frames perdidos con la ventana en
+0,35; a 15 fps no llegaría a 3.** Es otra razón por la que el ritmo por defecto son 30 y no 15, y por
+la que los tests de huecos se corren explícitamente a `dt = 1/30` y no al 1/15 del banco.
+
+#### Un puño junta el pulgar y el índice igual que un pellizco
+
+El fallo más caro de los medidos, y lo cazó una prueba antes de que ninguna mano se pusiera delante
+de la cámara. La detección natural del pellizco es la distancia pulgar-índice normalizada por el
+tamaño de la mano. **Pero al cerrar el puño, la punta del pulgar queda pegada a la del índice**: la
+razón de un puño ronda 0,6, por debajo del umbral de salida. O sea que un puño se detecta como
+pellizco, y con eso se van los dos gestos a la vez — el «no me hagas caso» nunca llega a `NEUTRO` y
+cerrar la mano agarra una ventana.
+
+La distancia no puede distinguirlos porque en los dos casos es corta. Lo que sí los distingue es
+**dónde** está esa unión: en un pellizco el índice apunta hacia fuera y la punta queda lejos de la
+muñeca; en un puño está recogida contra la palma. De ahí `alcance_indice()` (distancia punta del
+índice → muñeca, en unidades de mano): un pellizco pasa de 1,1 y un puño no llega a 0,8. Se exige
+tanto para entrar como **para seguir dentro**, así que cerrar la mano encima de un arrastre lo
+suelta en vez de dejarlo agarrado.
+
+Otras dos decisiones del motor que parecen detalles y no lo son:
+
+- **El centro de la palma, no la muñeca.** El punto 0 es el landmark más ruidoso del modelo (está
+  en el borde del recorte) y baila varios puntos porcentuales con la mano inmóvil. Ese temblor se
+  traduce en velocidad aparente, y la velocidad es justo lo que decide si la mano está quieta. Se
+  usa la media de muñeca y los cuatro nudillos.
+- **Dedo extendido = distancia a la muñeca, no coordenada Y.** Con Y, una mano girada de lado da un
+  recuento sin sentido — y una mano de lado es exactamente como se pone al hacer un swipe.
+
+#### ⚠️ Y con la mano ABIERTA detectaba pellizcos: el veto de los cuatro dedos
+
+Reportado justo después de arreglar lo anterior: «cuando tengo la mano abierta a veces me detecta el
+pellizco, es muy sensible». Causa directa: se había subido `pellizco_entra` de 0.45 a 0.55 para dar
+margen al pellizco (0.36 dejaba solo nueve centésimas), y **el margen que se quitó fue el de la mano
+abierta**. Los 0.98 de la mano abierta son de una pose con los dedos bien separados; relajada y en
+movimiento baja mucho más de lo que sugiere ese número.
+
+Devolver el umbral a 0.45 habría bastado a medias. El arreglo bueno sale de mirar la tercera columna
+de las medidas, que hasta entonces no se usaba para nada:
+
+```
+             razón_pellizco   alcance_indice   dedos_extendidos
+puño              0.26          0.78 – 0.80          0
+pellizco          0.36          1.19 – 1.21          0
+mano abierta      0.98          1.77 – 1.78          4
+```
+
+**La mano abierta es la única de las tres con los cuatro dedos estirados.** Así que «con cuatro dedos
+estirados NO hay pellizco» la separa **sin depender de la distancia pulgar-índice**, que es justo la
+medida que se estaba colando. Hay test con razones absurdamente bajas (0.10, más baja que un puño):
+con cuatro dedos fuera sigue siendo mano abierta.
+
+El corte es **cuatro y no tres** a propósito: un pellizco «de OK» —índice tocando el pulgar, los
+otros tres estirados— cuenta 3 y tiene que seguir funcionando. También tiene test.
+
+##### Y el fixture volvió a mentir, otra vez
+
+Añadir el veto tumbó **quince** pruebas de golpe. No era el veto: la mano sintética pellizcaba con
+los **cuatro dedos estirados**, una postura que no existe — la misma clase de irrealidad que ya había
+descalibrado `alcance_indice_min`. El pellizco sintético se reconstruyó contra las medidas y ahora
+las clava (razón 0.36, alcance 1.20, dedos 0).
+
+De paso cayó una afirmación que estaba mal en una prueba: con el pellizco desactivado, una mano
+pellizcando **queda como PUÑO, no como ABIERTA**. Un pellizco real tiene los cuatro dedos recogidos
+igual que un puño, así que sin el discriminante eso *es* un puño. La prueba anterior esperaba ABIERTA
+porque describía la mano imposible.
+
+Es la tercera vez en esta sección que el mismo error muerde. **Un fixture sintético que no se ha
+contrastado con una medida real no es una prueba: es una suposición con `assert`.**
+
+#### El socket de Hyprland, no `hyprctl`
+
+`hypr.py` habla directamente con `$XDG_RUNTIME_DIR/hypr/$HIS/.socket.sock` y es la única pieza del
+repo que lo hace; el resto usa `hyprctl` con `subprocess`, y está bien porque son de un solo
+disparo. Este demonio manda una orden **por frame** durante un arrastre. Medido en esta máquina,
+50 llamadas a `j/activewindow` por cada vía:
+
+```
+socket unix directo : 0.05 ms/llamada
+hyprctl (subprocess): 7.38 ms/llamada      ← 148 veces más
+```
+
+A 15 fps son 0,75 ms/s contra **110 ms/s** quemados solo en `fork`+`exec`, con el demonio ya pagando
+33 ms por frame de inferencia.
+
+#### ⚠️ `w.at` es de solo lectura, y MIENTE al comprobarlo
+
+`HL.Window` tiene un campo `at`, y el camino evidente para mover una ventana sería asignarlo. **No
+funciona**: el compositor responde `attempt to modify read-only hl object` y la ventana no se mueve.
+
+Lo peligroso es cómo se comporta al medirlo. Un `pcall` alrededor de la asignación devuelve
+**`ok=true, err=nil`** —medido— porque el rechazo no es un `error()` de Lua que pcall pueda atrapar:
+se anota en la respuesta del `eval` y la ejecución sigue como si nada. Así que la sonda «¿es
+escribible?» contesta que SÍ, la ventana no se mueve, y no hay ninguna excepción a la que agarrarse.
+**Solo mirando la respuesta cruda del socket aparece el error** — ni el pcall, ni el código de
+salida, ni `hyprctl` (que se come el mensaje) lo delatan. Lo mismo vale para `w.size`.
+
+La forma correcta la da el propio compositor si se le pasa una clave que no conoce:
+
+```
+hl.window.move: unrecognized arguments.
+Expected one of: direction, x+y(+relative), workspace, into_group, out_of_group
+```
+
+O sea `hl.dsp.window.move({x=…, y=…, window='address:0x…'})`, sin `relative` = absoluto. Se usa el
+absoluto y no el relativo a propósito: cada orden recoloca desde el ancla, así que un frame perdido
+no descoloca nada, mientras que sumando incrementos el error se acumula y la ventana se queda atrás
+de la mano.
+
+Con un aviso: **sobre una ventana en mosaico no hace nada y responde `ok`.** Medido. Tiene sentido
+—la posición la decide el layout— pero significa que el valor de retorno no se puede leer como «se
+ha movido», así que tampoco sirve para *descubrir* si una ventana era flotante intentándolo. Hay que
+mirar `floating` antes.
+
+#### ⚠️ EL PELLIZCO NO SACA LA VENTANA DEL MOSAICO
+
+La primera versión ponía la ventana a flotar para poder darle coordenadas. Movía, sí, y por eso
+pasó las pruebas — pero rompía lo que importa: **una ventana sacada del mosaico ya no vuelve a
+recolocarse sola**, así que el escritorio quedaba desbaratado después de cada gesto y había que
+recomponerlo a mano. Es el fallo clásico de resolver «mover una ventana» con la herramienta que da
+control absoluto en vez de con la que respeta el gestor.
+
+Lo correcto es que el modo de la ventana lo decida **la ventana**, no el gesto. De ahí los dos
+caminos, elegidos leyendo `floating` UNA vez al agarrar:
+
+| la ventana está… | qué se le pide | por qué |
+| --- | --- | --- |
+| en mosaico | `recolocar()`: pasos discretos por dirección | su posición la decide el layout; lo único que se le puede pedir es que Hyprland rehaga el reparto |
+| ya flotando | `mover()`: posición absoluta | para eso sirve flotar |
+
+**El movimiento direccional NO vale para una ventana flotante**, y es lo que obliga a tener los dos
+caminos en vez de uno: medido, `movewindow <dir>` sobre una flotante la **estampa contra el borde de
+la pantalla** (`[764,3]` → `[0,3]` → `[0,0]` con dos órdenes), no la desplaza un poco.
+
+##### El `preselect` de delante no es adorno
+
+`recolocar()` manda tres órdenes, no una, y son la misma secuencia que usa SUPER+SHIFT+flecha en
+`gigios/keybinds.lua` (donde está la medición completa):
+
+```lua
+hl.dsp.layout('preselect <dir>')
+hl.dsp.window.move({direction='<dir>', window='address:0x…'})
+hl.dsp.layout('preselect none')
+```
+
+Sin el `preselect`, dwindle resuelve `movewindow <dir>` sacando la ventana del árbol y
+reinsertándola junto a un punto focal 1 px más allá del borde: el lado del corte sale de en qué
+**cuadrante** del vecino cae ese punto —un ángulo, no la dirección que has pedido—. Con dos ventanas
+coincide; con tres o más, no.
+
+El `preselect none` del final limpia el override. Hyprland lo consume al reinsertar, pero un
+`movewindow` que **no mueve nada** (la ventana ya está en ese borde) sale antes de tocar el árbol y
+lo dejaría puesto: la siguiente ventana que abrieras nacería en esa dirección sin que nadie lo haya
+pedido. **En un gesto esto pasa constantemente** —llevas la mano al borde y sigues empujando—, así
+que aquí importa bastante más que con el teclado.
+
+##### Lo que se intentó primero y NO funciona: el arrastre nativo con warp del cursor
+
+Lo elegante habría sido iniciar `hl.dsp.window.drag()` (el dispatcher del `bindm` de
+SUPER+botón izquierdo) y llevar el cursor con la mano: Hyprland recoloca al soltar, exactamente como
+con el ratón. **No funciona.** Medido: con el arrastre iniciado, seis `hl.dsp.cursor.move` seguidos
+mueven el puntero pero la ventana **no se mueve ni un píxel**, ni durante ni al soltar. El arrastre
+sigue el movimiento REAL del puntero, no los saltos — es el mismo motivo por el que `ags/CLAUDE.md`
+advierte de que warpar el cursor no sirve para probar un hover: no se entregan eventos de cruce.
+
+Y tiene una trampa cara: `hl.dsp.window.drag()` acepta **cualquier** argumento y responde `ok`
+(`{nonsense=1}` incluido), así que no hay forma de saber por la respuesta si ha hecho algo. Durante
+las pruebas dejó **tres ventanas del usuario flotando**, una de ellas fuera de pantalla en `x=-248`;
+si lo tocas, comprueba `floating` en `hyprctl clients` después.
+
+##### El reanclaje es lo que convierte los pasos en un arrastre
+
+Tras cada paso, el ancla se mueve a donde está la mano AHORA. Midiendo siempre desde el ancla
+inicial, una mano que se queda quieta a tres pasos de distancia seguiría cumpliendo el umbral en
+cada frame y la ventana **se iría al infinito** mientras no soltaras el pellizco (hay test:
+`test_la_mano_QUIETA_LEJOS_no_sigue_dando_pasos`). `intervalo_paso` (0,28 s) es la otra mitad: cada
+paso provoca un reparto nuevo con su animación, y sin él un gesto rápido encadenaba varios antes de
+que se viera ninguno — la ventana aparecía tres huecos más allá sin que se pudiera seguir el
+recorrido.
+
+#### Coordenadas: `monitors` mezcla dos sistemas y no lo dice
+
+Esto solo afecta al camino **flotante** (el único que da coordenadas); una ventana en mosaico se
+recoloca por pasos y no pasa por aquí.
+
+`hyprctl monitors` da `width`/`height` en píxeles **físicos**, mientras que el `at`/`size` de una
+ventana viene en píxeles **lógicos**. En este portátil (1920x1200 con escala 1,25) el monitor dice
+1920x1200 pero el escritorio útil mide 1536x960, que es donde viven las ventanas. Acotar el arrastre
+contra 1920x1200 dejaría meter la ventana 384 px fuera de la pantalla por la derecha sin dar ningún
+error: simplemente desaparecería. `geometria_monitor()` divide por la escala y descuenta `reserved`.
+
+El acotado en sí tampoco es cosmético: sin él un gesto amplio deja la ventana entera fuera de la
+pantalla, y como está flotante no hay forma de recuperarla con el ratón. Se deja siempre un cuarto
+de la ventana (mínimo 80 px) dentro.
+
+#### `fullscreen` es un MODO, no un booleano
+
+0 nada, **1 maximizada**, 2 pantalla completa. Solo la 2 impide arrastrar. Con `if v.get("fullscreen")`
+cualquier ventana simplemente maximizada quedaría fuera del arrastre, que es la mitad de las ventanas
+de una sesión normal. Es la misma trampa que documenta el repo para la detección de juegos.
+
+#### OpenCV 5 no abre la cámara por nombre
+
+En OpenCV 4, `VideoCapture("/dev/video0", CAP_V4L2)` era lo idiomático. En el **OpenCV 5.0.0** de
+estos repos esa misma llamada avisa `VIDEOIO(V4L2): backend is generally available but can't be used
+to capture by name` y devuelve un capture cerrado — la forma «correcta de toda la vida» falla, y
+falla con un mensaje que parece informativo. Lo que sí funciona con el backend V4L2 es el **índice**:
+`/dev/videoN` → `VideoCapture(N, CAP_V4L2)`. `Camara._abrir()` prueba las tres formas en orden en vez
+de clavar una, porque el número de OpenCV no es algo que este repo controle.
+
+#### El hilo lector existe por el retraso, no por el rendimiento
+
+V4L2 encola frames. Si la cámara entrega a 30 fps y el bucle consume a 15 (la inferencia cuesta
+33 ms), cada `read()` devuelve el frame más viejo de la cola: el retraso crece hasta quedarse en
+varias décimas de segundo fijas. En un indicador no se notaría; en un gesto es la diferencia entre
+que la ventana siga a la mano y que vaya detrás. `CAP_PROP_BUFFERSIZE` no es fiable con V4L2 (el
+backend lo ignora en muchos drivers), así que se drena de verdad: un hilo lee todo lo que la cámara
+dé y guarda **solo el último**, y el bucle coge ese.
+
+#### Lo que cuesta, medido — y una cifra que estuvo MAL
+
+Primero el error, porque la moraleja vale para cualquier medición de este demonio. Una primera medida
+dio **129% de un núcleo** y se documentó como tal. Era un **artefacto**: se tomó sobre el proceso
+recién arrancado, así que dentro de la ventana entraban la carga del modelo y el calentamiento de
+XNNPACK. Hay que dejarlo asentarse unos segundos antes de contar.
+
+Las cifras buenas, en un A/B con todo igual salvo lo indicado (15 fps, sin mano en el cuadro, 90
+frames por configuración, `getrusage` sobre el propio proceso):
+
+```
+ 640x480  @ 15 fps → 41% de un núcleo   ·  inferencia 20,6 ms
+1280x720  @ 15 fps → 50% de un núcleo   ·  inferencia 21,1 ms
+1280x720  @ 20 fps → 82% de un núcleo
+1280x720  @ 30 fps → 90% de un núcleo   ← el ritmo por defecto desde la v2
+1280x720  @  5 fps → 24% de un núcleo   (dormitando)
+```
+
+**El ritmo por defecto son 30 fps y no 15**, y no es solo por responder antes: la cámara entrega
+29,6 fps reales, así que a 15 se **tiraba uno de cada dos frames** — y el que se tiraba podía ser el
+único nítido de un gesto rápido. A 30 se procesa todo lo que llega. De paso, `frames_confirmacion`
+(3 frames) baja de 200 ms a 100 ms, que es la mitad de la sensación de lentitud. El cambio va con
+migración de esquema (`version` 1 → 2 en `gestos.json`), y **solo sube el valor si era el 15 de
+fábrica**: quien lo hubiera bajado a propósito por batería lo hizo por un motivo.
+
+Sigue habiendo dos mandos: el de fps en Ajustes (5..30) y el **bajón automático** — sin mano en el
+cuadro durante 4 s el bucle cae a 5 fps, porque buscar una mano que no está no merece el ritmo
+completo. Un arrastre en curso no dormita nunca.
+
+Lo que **no** es el problema, aunque lo pareciera: el hilo lector. Medido, `grab()` bloquea 33,33 ms
+esperando el frame de la cámara y decodificarlo cuesta **0,01 ms** — o sea que el lector se pasa la
+vida dormido en el kernel. Separar `grab()` de `retrieve()` para «ahorrar la decodificación» no
+ahorraría nada; la única palanca es la inferencia.
+
+#### 720p sale casi gratis, y hay que PEDIR MJPG para conseguirlo
+
+Medido, 70 frames por configuración:
+
+```
+ 640x480  MJPG → inferencia 21,2 ms | ciclo 33,7 ms | techo 29,4 fps
+1280x720  MJPG → inferencia 19,4 ms | ciclo 33,7 ms | techo 29,4 fps
+1920x1080 MJPG → inferencia 23,5 ms | ciclo 36,2 ms | techo 27,5 fps
+```
+
+El cuello de botella son los **30 fps de la cámara**, no el proceso: a 720p el ciclo completo es
+idéntico. Y 720p da **cuatro veces más píxeles al recorte de la mano**, que es de donde salen los 21
+landmarks — mejor recorte, mejor distinción entre un puño y un pellizco o entre un dedo extendido y
+uno a medio doblar. 1080p ya cuesta y no aporta: MediaPipe reescala el recorte a 224x224 igual.
+
+⚠️ **Sin pedir MJPG explícitamente no se pasa de 640x480, y no da ningún error.** Esta webcam publica
+YUYV solo hasta 640x480 y reserva 720p/1080p para MJPG (`v4l2-ctl --list-formats-ext`); OpenCV abre
+en YUYV por defecto, así que un `CAP_PROP_FRAME_WIDTH = 1280` a secas **se acepta, se ignora y
+`cap.get(3)` sigue devolviendo 640**. Así se descubrió: las tres resoluciones daban exactamente el
+mismo número de milisegundos. El `CAP_PROP_FOURCC` va **antes** del tamaño.
+
+#### La exposición NO se puede bajar en esta cámara, y era la vía obvia
+
+La mano en movimiento sale borrosa porque la webcam expone **31,2 ms** (`exposure_time_absolute` =
+312, en unidades de 100 µs), casi el intervalo entero de un frame a 30 fps. Lo evidente es forzar
+exposición manual corta. Medido, y **no funciona aquí**:
+
+```
+auto (31,2 ms)        → brillo 131/255
+manual 20 ms, gain 0  → brillo  15/255
+manual 12 ms, gain 4  → brillo  28/255
+manual  5 ms, gain 4  → brillo  19/255
+```
+
+En manual la imagen se va a negro: el modo automático («Aperture Priority») aplica una ganancia
+interna que el control `gain` —que llega hasta **4**— no puede replicar ni de lejos. O sea que
+acortar la exposición cambia borrosidad por oscuridad, y el modelo falla igual. La vía está cerrada
+en esta webcam; con otra que tenga rango de ganancia sería la primera que probar.
+
+`exposure_dynamic_framerate` está en **1** (su valor por defecto es 0), o sea que la cámara puede
+bajar los fps para alargar la exposición con poca luz. En las medidas con luz normal entregaba 29,7
+fps reales, así que aquí no estaba actuando — pero es el primer sospechoso si el modo va peor de
+noche.
+
+#### ⚠️ UN SOLO FRAME PERDIDO MATABA EL GESTO ENTERO
+
+Es el arreglo con más efecto de todo el motor, y el que explica el «a veces va y a veces no» que se
+reportó en uso real.
+
+`frame()` trataba un frame sin mano como «la mano ya no está»: tiraba el trayecto, devolvía la
+máquina a `BUSCANDO` y cerraba cualquier arrastre. Medido sobre el motor:
+
+```
+swipe limpio                        → 1 swipe
+el MISMO swipe con UN frame perdido → 0 swipes, estado 'buscando'
+coste de recuperación               → 6 frames de mano abierta = 0,40 s
+```
+
+Y perder la mano un frame suelto es **lo normal**, no la excepción: con 31 ms de exposición la mano
+en movimiento sale borrosa y MediaPipe no la encuentra. O sea que el modo fallaba **precisamente en
+los frames del gesto** y funcionaba con los movimientos lentos — de ahí la irregularidad.
+
+La cura es `gracia_perdida` (0,35 s): mientras el hueco sea más corto que eso, `frame()` **devuelve
+sin tocar nada** —ni postura, ni trayecto, ni estado, ni arrastre—, porque un fallo de visión no es
+un cambio de lo que hace la mano. Pasada la gracia sí se da por bajada, y ahí sí se cancela todo (si
+no, un recorrido de hace diez segundos seguiría contando y la ventana agarrada no se soltaría nunca).
+
+Tres detalles con prueba propia: **no se concede gracia antes de haber visto una mano** (al arrancar
+no hay estado que preservar), **la gracia no se encadena** (tras darla por perdida se pone
+`_visto_ultimo = None`; si no, un frame con mano cada medio segundo mantendría viva una sesión
+indefinidamente), y los huecos breves **tampoco rompen el gesto de espera**.
+
+#### ⚠️ LA CARA SE DETECTA COMO UNA MANO, Y CON `num_hands=1` TAPA LA BUENA
+
+Reportado en uso real: «detecta mi cara como mi mano a veces» y «no detecta apenas». Las dos cosas
+son el mismo fallo, y el enlace no es obvio.
+
+`num_hands=1` hace que MediaPipe devuelva **solo** la detección de mayor puntuación. Si el detector
+de palmas se cree una cara —pasa, y con puntuación altísima: **0,98 medido**— esa falsa mano ocupa
+la única plaza y la mano de verdad **no llega al motor**. O sea que un falso positivo no añade ruido:
+**tapa la señal buena**, y desde fuera se ve exactamente como «no me detecta nada».
+
+Parte de la culpa fue de aquí: se habían bajado los tres umbrales a 0.4/0.3 para que la mano borrosa
+no se descartara, y `min_hand_detection_confidence` es justamente el que gobierna ADQUIRIR una mano
+nueva. Aflojarlo es pedirle al detector que se crea cualquier cosa. Los tres umbrales **no valen lo
+mismo**, y la asimetría es todo el diseño:
+
+```
+detección   0.6   ← cuesta ADQUIRIR una mano nueva (esto es lo que frena las caras)
+presencia   0.5
+seguimiento 0.3   ← es fácil CONSERVAR una que ya se tenía, aunque salga borrosa
+```
+
+La segunda mitad es pedir **dos** manos y elegir. `elegir_mano()` (puro, con test) no intenta saber
+qué es una cara: usa **continuidad**. Elegir por puntuación no sirve —una cara puntúa como una mano—
+pero lo que una cara no puede hacer es estar donde estaba tu mano hace 33 ms, así que se toma la
+candidata más cercana al centro de palma del frame anterior. Sin referencia previa (primer frame, o
+tras perder la mano) se cae a la puntuación, que es el único momento en que un falso positivo puede
+colarse; dura hasta que aparece la mano de verdad. Medido: `num_hands=2` cuesta **7 puntos de CPU**
+(70% → 77% a 24 fps), porque el modelo de landmarks solo corre dos veces cuando de verdad encuentra
+dos cosas.
+
+#### El delegado GPU casi dobla la velocidad
+
+MediaPipe Tasks acepta `BaseOptions(delegate=...)`. Medido sobre los **mismos 50 frames**:
+
+```
+CPU → 29,7 ms/inferencia
+GPU → 16,2 ms/inferencia
+```
+
+Y en el demonio vivo, a 30 fps y 720p: **81% de un núcleo en CPU contra 42% en GPU**. Es la única
+palanca de rendimiento que quedaba — el resto del pipeline por frame son 0,8 ms en total
+(`cv2.flip` 0,29 · `cvtColor` 0,18 · `mp.Image` 0,34), o sea que la inferencia es el **96%** del
+trabajo y optimizar cualquier otra cosa es perder el tiempo.
+
+Con **repliegue a CPU** si el delegado no arranca, y no es paranoia: la GPU necesita un contexto GL
+utilizable y eso puede fallar por driver, por cómo esté montada la sesión o por VRAM ocupada. Un modo
+que no arranca es mucho peor que uno lento; el fallo se anota en `~/.cache/gigios/gestos.log`.
+
+#### ⚠️ DOS SUPOSICIONES MÍAS QUE LOS DATOS TUMBARON
+
+Medido con `--diagnostico` sobre una sesión real (491 frames con la mano, 170 sin ella):
+
+```
+SIN manos → detecta el 25% del tiempo   ← falsos positivos
+CON la mano → detecta el 88%
+frames con DOS detecciones simultáneas → 0
+confianza media → 0.98
+```
+
+**1. `num_hands=2` no resuelve lo que yo creía.** La teoría era que la cara ocupaba la única plaza y
+tapaba la mano. Pero hubo **cero** frames con dos detecciones a la vez: en modo VIDEO, MediaPipe
+*sigue* la mano que ya tiene y solo vuelve a correr el detector de palmas cuando la pierde, así que
+nunca llega a haber dos candidatas. La cara y la mano **se alternan**, no compiten. `elegir_mano`
+está bien escrita y probada, pero en la práctica casi nunca tiene que elegir.
+
+**2. Subir el umbral de confianza NO filtra los falsos positivos.** Es el consejo obvio y es falso:
+puntúan **0,98**, exactamente lo mismo que una mano de verdad. La confianza no discrimina aquí por
+mucho que se suba, y por eso el propio diagnóstico lo dice ahora en su lectura — para que el
+siguiente no pierda la tarde en ello.
+
+Lo que queda por hacer con ese 25% es caracterizarlo con datos antes de escribir ningún filtro. Ya se
+ha fallado dos veces adivinando en este mismo punto.
+
+#### ⚠️ El umbral del pellizco estaba calibrado contra una mano que no existe
+
+Reportado: «para que detecte pellizco tienes que colocar muy bien la mano, si no dice puño».
+
+`alcance_indice_min` valía **1.00**, y ese número salió de la mano SINTÉTICA de `deteccion_test.py`,
+que pellizca con el índice mucho más estirado de lo que pellizca nadie. Medido después con
+`--calibrar` sobre una mano real (120 muestras por postura, distribuciones cerradísimas, p05 ≈ p95):
+
+```
+             razón_pellizco   alcance_indice        dedos
+puño              0.26          0.78 – 0.80           0
+pellizco          0.36          1.19 – 1.21           0
+mano abierta      0.98          1.77 – 1.78           4
+```
+
+Dos cosas que solo se ven con estos números delante:
+
+- **El puño puntúa MÁS BAJO que el pellizco en `razon_pellizco`** (0.26 contra 0.36). Por esa medida
+  sola, un puño es «más pellizco» que un pellizco. Es la confirmación empírica de por qué
+  `alcance_indice` tiene que existir.
+- **El corte NO va en el punto medio.** El medio de 0.80 y 1.19 es **0.99**, o sea prácticamente el
+  1.00 con el que se reportó el fallo. Y ahí está la trampa: la calibración mide tu **mejor pose**,
+  sostenida cuatro segundos; el gesto real se hace de pasada y con la mano moviéndose, y cae bastante
+  más bajo. Un margen del 16% suena razonable sobre el papel y aun así falló en la mano de quien lo
+  usa.
+
+Los dos errores tampoco cuestan lo mismo: un puño leído como pellizco agarra una ventana y se suelta
+abriendo la mano —molesto y reversible—, mientras que un pellizco que no registra hace el gesto
+**inutilizable**. Con costes asimétricos el corte se pega al lado estable (el puño, que apenas varía)
+con un cuarto del hueco de margen: **0.90**, que deja 0.10 sobre el puño y tolera un pellizco un 24%
+por debajo de su valor posado. `--calibrar` aplica ese mismo sesgo al recomendar.
+
+Con los mismos datos se subió también `pellizco_entra` de 0.45 a **0.55**: con 0.45 el margen contra
+el pellizco posado (0.36) eran nueve centésimas, y un pellizco casual se sale de ahí. La mano abierta
+está en 0.98, así que subir no acerca nada al otro extremo.
+
+**Las medidas están clavadas como prueba** (`TestUmbralesContraManoREAL`): mover un umbral rompe el
+test en vez de romper el gesto en silencio. Y esa clase reimplementa la decisión de
+`_postura_cruda` con números sueltos en vez de fabricar landmarks — construir una mano sintética que
+diera exactamente esos valores sería volver al error que documenta.
+
+La lección general: **una geometría sintética sirve para escribir la lógica, no para fijar sus
+umbrales.**
+
+#### Calibración: `--calibrar`
+
+```sh
+~/.local/share/gigios/gestos/venv/bin/python ~/.config/hypr/scripts/gestos/gestos.py --calibrar
+```
+
+Pide las tres posturas, mide `razon_pellizco`, `alcance_indice` y los dedos extendidos en cada una, y
+dice el corte recomendado con el sesgo de arriba. Si los dos rangos se solapan lo dice en vez de
+inventar un número — con esa medida no habría corte que acertara siempre, y esa información vale más
+que un valor falsamente preciso. No escribe nada: el valor se pone a mano en `Config`, que es un
+ajuste de una sola vez y no merece otro fichero de configuración.
+
+#### Barrido de parámetros: `barrido.py`
+
+```sh
+python3 ~/GiGiOS/hypr/scripts/gestos/barrido.py
+```
+
+La tercera herramienta, y cada una responde algo distinto:
+
+| herramienta | responde |
+| --- | --- |
+| `gestos.py --calibrar` | qué geometría tiene TU mano en cada postura |
+| `gestos.py --diagnostico` | qué está viendo la cámara ahora mismo |
+| `barrido.py` | qué hace el MOTOR ante recorridos conocidos |
+
+Las dos primeras necesitan cámara y una mano delante. Esta no necesita nada: fabrica los recorridos y
+mide el motor puro, así que corre con el intérprete del sistema, sin venv, y da el mismo resultado en
+cualquier máquina. **Las tablas de esta sección salen de ahí** — si tocas un umbral, re-córrelo y
+actualiza el documento.
+
+Su valor no es reproducir números: es que varias de sus tablas **desmintieron lo que parecía
+evidente**. «Un tiempo muerto más corto siempre encadena mejor» → falso, 0,45 y 0,55 encadenan igual
+pero 0,45 deja colar un regreso. «Estrechar la ventana perderá los gestos lentos» → falso, un golpe
+de 0,55 s sigue disparando. «La ventana del swipe y la tolerancia a huecos son independientes» →
+falso, el ritmo las acopla.
+
+⚠️ **Las manos sintéticas viven en `manos_sinteticas.py`, no en el fichero de pruebas**, y eso no es
+organización: `*_test.py` está en el `.gitignore` a propósito (con un hook de pre-push que rechaza el
+push si alguno acaba rastreado), así que en un checkout limpio el fichero de pruebas **no existe** y
+`barrido.py` no habría arrancado en ninguna máquina que no fuera la de desarrollo.
+
+#### Diagnóstico: `--diagnostico`
+
+```sh
+~/.local/share/gigios/gestos/venv/bin/python ~/.config/hypr/scripts/gestos/gestos.py --diagnostico 20
+```
+
+Mide qué ve la cámara **sin tocar el escritorio** (a propósito: un swipe que cambie de escritorio en
+mitad de la prueba se lleva la ventana donde estás leyendo los números).
+
+**Son DOS fases, y la primera es la importante.** Primero se mide *sin ninguna mano delante*: todo lo
+que detecte ahí es un falso positivo, y eso **no se puede deducir de la fase con la mano** — ahí un
+porcentaje alto de detección parece bueno aunque la mitad sean caras. Después se mide con la mano
+moviéndose, que es la tasa útil. Las dos cifras juntas dicen qué tocar; por separado, ninguna.
+
+Reporta además los frames con DOS detecciones simultáneas (la cara compitiendo con la mano), el
+tamaño aparente de la mano —si pasa de 0,25 del cuadro, está demasiado cerca y se sale— y la peor
+racha sin detección contra la tolerancia de `gracia_perdida`.
+
+Existe porque «a veces no me detecta» no es accionable y «sin levantar la mano detecta algo el 20%
+del tiempo» sí lo es. Toma el mismo cerrojo que el demonio: la cámara es de uno solo.
+
+#### Los dos JSON, y quién escribe cada uno
+
+| fichero | lo escribe | lo lee |
+| --- | --- | --- |
+| `~/.config/gigios/gestos.json` | AGS (Ajustes > Cámara > Gestos) | el demonio, **una vez al arrancar** |
+| `~/.config/gigios/gestos-estado.json` | el demonio | AGS (`servicios/gestos/estado.ts`) |
+
+Dos ficheros con un dueño cada uno, y no uno con dos escritores que se pisarían.
+
+**La configuración no se aplica en caliente: el demonio se reinicia.** Recargarla en vivo obligaría
+a vigilar el fichero desde el bucle de inferencia y a rehacer la máquina de estados a mitad de un
+gesto. Como el modo se enciende a ratos y arrancar cuesta ~1 s, sale más barato reiniciarlo;
+`guardar()` lo hace solo si estaba activo. Por eso los deslizadores de Ajustes **se posan 700 ms**
+antes de guardar: sin eso, arrastrar uno apagaría y encendería la cámara sesenta veces por segundo.
+
+**El estado no se publica por frame.** Al otro lado hay un `Gio.FileMonitor` que reinterpreta el
+JSON en cada cambio, dentro del proceso que pinta la barra. A 15 fps serían 15 parseos por segundo
+durante todo el modo para redibujar un icono que casi nunca cambia. Se publica solo cuando cambia
+algo visible y como mucho cada 200 ms. Al tocar cualquiera de los dos lados hay que conservar ese
+trato: no es una optimización suelta, es la razón de que el modo no se note.
+
+#### Este proceso se ve, y así tiene que ser
+
+Mientras corre tiene `/dev/videoN` abierto, así que `camara-monitor.sh` enciende el indicador rojo de
+privacidad y avisa «Cámara en uso» diciendo `python`. **No se hace nada por evitarlo**: ese indicador
+existe justo para que nada mire por la cámara sin que se vea, y un modo del propio escritorio no es
+una excepción. Por eso tampoco se emite una notificación propia al activarlo — sería un segundo
+aviso de lo mismo. En la barra se ven **dos** iconos y son dos hechos distintos:
+
+- 󰄀 rojo pulsante — algo está mirando por la cámara (privacidad).
+- 󱄄 violeta fijo — el escritorio obedece a tus manos (modo). Se **ilumina** cuando hay una mano en
+  el cuadro, que es la única realimentación de que el modo te ve: sin ella, «no me hace caso» y «no
+  me ve» son indistinguibles, que es el problema número uno de cualquier control por cámara.
+
+La consecuencia menos agradable: **con el modo encendido no se puede hacer una videollamada**, porque
+una webcam UVC no admite dos capturas a la vez. Si al arrancar la cámara ya está ocupada, el demonio
+no insiste — dice quién la tiene y sale. Y el killswitch manda: con la cámara bloqueada se niega a
+arrancar con el motivo escrito, en vez de dar un EACCES genérico que mandaría al usuario a buscar un
+problema de hardware que no existe.
+
+#### Instalación: un venv, y por qué
+
+MediaPipe no está en los repos oficiales. En AUR hay dos y ninguno sirve: `python-mediapipe` compila
+contra `python-tensorflow` (build de horas) y `python-mediapipe-bin` se quedó en la 0.10.32. La rueda
+de PyPI (**1.0.1**) sí funciona con el Python 3.14 de Arch —comprobado— pero `pip` al sistema está
+prohibido (PEP 668) y `--break-system-packages` hace lo que su nombre dice. De ahí el paso `gestos`
+del instalador: venv en `~/.local/share/gigios/gestos/venv` con `--system-site-packages` (para
+reaprovechar `python-numpy` y `python-opencv` del sistema; sin eso pip se bajaría su propia copia de
+OpenCV y habría dos, ganando la de pip). El modelo (`hand_landmarker.task`, 7,8 MB) se descarga
+aparte y **no se versiona**: el repo no tiene ningún otro blob.
+
+**Un venv muere con cada actualización mayor de Python.** Guarda la versión con la que se creó, así
+que cuando Arch pase a 3.15 apuntará a un intérprete que ya no existe y el modo dejará de arrancar.
+No es un fallo mudo (`gestos.sh` avisa con el motivo y Ajustes lo enseña) pero la solución es
+rehacerlo: `bash install.sh --solo gestos`. `bin/preflight.sh --installed` lo caza comprobando que el
+intérprete **importe**, no que exista: un venv colgando conserva todos sus ficheros y pasa cualquier
+test de existencia.
+
+#### `flock`, no un fichero de PID
+
+El demonio toma un `flock` sobre `$XDG_RUNTIME_DIR/gigios-gestos.lock` y escribe dentro su PID;
+`gestos.sh` lo lee y lo **confirma contra `/proc/<pid>/cmdline`** antes de creérselo. Un PID escrito
+a mano se queda obsoleto si el proceso muere de golpe y el siguiente arranque se cree que ya hay uno
+vivo, dejando el modo inarrancable hasta borrar el fichero. Y un `pgrep -f gestos.py` a secas casaría
+con el editor que tenga el fichero abierto o con la propia línea del script — matar por ese patrón es
+exactamente cómo se acaba matando algo que no era.
+
+`apagar()` **espera de verdad** a que el proceso muera antes de devolver el control: un `off` seguido
+de un `on` se encontraría el nodo todavía ocupado y fallaría con «la cámara ya la está usando
+python3».
 
 ### USB (`usb-monitor.sh`, `usb-eject.sh`, `usb-repair.sh`) + `system/udev/`
 

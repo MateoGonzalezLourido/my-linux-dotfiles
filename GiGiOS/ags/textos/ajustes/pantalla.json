@@ -47,7 +47,7 @@
     },
     "escala": {
       "titulo": "Escala",
-      "descripcion": "Un valor mayor hace más grandes el texto y los elementos de la interfaz."
+      "descripcion": ""
     },
     "rotacion": {
       "titulo": "Rotación",
@@ -97,15 +97,15 @@
   },
   "brillo": {
     "titulo": "Brillo",
-    "descripcion": "Ajusta el panel interno o el primer monitor externo compatible con DDC/CI."
+    "descripcion": ""
   },
   "luzNocturna": {
     "titulo": "Luz nocturna manual",
-    "descripcion": "Se usa fuera de las franjas programadas. Menos K produce un tono más cálido."
+    "descripcion": "Menos K produce un tono más cálido."
   },
   "programacion": {
     "titulo": "Programación horaria",
-    "descripcion": "Cada regla puede ajustar la luz nocturna, el brillo o ambos. Elige «hasta las» para una franja con final (puede cruzar la medianoche) o «en adelante» para poner solo la hora a la que empieza: rige desde ahí hasta que otra regla la releve.\nAl terminar una franja, la luz vuelve al ajuste manual y el brillo recupera su valor anterior. «No cambiar» deja ese canal intacto; «Apagar» mantiene la luz nocturna apagada aunque esté encendida a mano; el brillo solo se fija al empezar a regir."
+    "descripcion": ""
   },
   "globales": {
     "titulo": "Fluidez y juegos",
@@ -121,23 +121,23 @@
   },
   "suspension": {
     "titulo": "✦ Suspensión de pantalla",
-    "descripcion": "Define qué ocurre tras cada tiempo sin actividad. Al desactivar una acción queda en «Nunca» y conserva su tiempo; cualquier cambio reinicia la cuenta. «Wake up» puede impedirlas temporalmente.",
+    "descripcion": "Define qué ocurre tras cada tiempo sin actividad. «Wake up» puede impedirlas temporalmente.",
     "nunca": "Nunca",
     "apagarPantalla": "Apagar pantalla",
     "bloquear": "Bloquear",
     "suspender": "Suspender",
     "hibernar": "Hibernar",
-    "hibernarDetalle": "Tiempo total sin actividad, contando desde el último uso (no desde que se suspendió). Guarda la sesión en disco y apaga el equipo.",
+    "hibernarDetalle": "Tiempo total sin actividad, contando desde el último uso (no desde que se suspendió).",
     "hibernarViaSuspension": "Se suspenderá a los {suspension} min y despertará solo para hibernar {retardo} min después.",
     "hibernarDirecta": "Hibernará directamente, sin pasar antes por la suspensión.",
     "hibernarNoDisponible": "No disponible",
     "hibernarPreparar": "Preparar hibernación…",
-    "hibernarPrepararInfo": "Crea el swapfile persistente y prepara el arranque para poder hibernar. Se abre una terminal y pide la contraseña; tarda varios minutos y hace falta reiniciar al terminar.",
+    "hibernarPrepararInfo": "Crea el swapfile persistente y prepara el arranque para poder hibernar.",
     "hibernarQuitar": "Quitar hibernación…",
-    "hibernarQuitarInfo": "Borra el swapfile persistente y deshace la preparación del arranque, liberando ese espacio. Se abre una terminal y pide la contraseña; deja de poder hibernarse en el acto.",
+    "hibernarQuitarInfo": "Borra el swapfile persistente y deshace la preparación del arranque, liberando ese espacio.",
     "bloquearAlSuspender": {
       "titulo": "Bloquear al suspender",
-      "descripcion": "Pide la contraseña al despertar el equipo. Es independiente de «Bloquear»: se aplica a cualquier suspensión, también a la del menú de energía, el botón de encendido o cerrar la tapa."
+      "descripcion": "Pide la contraseña al despertar el equipo."
     }
   }
 }

@@ -169,6 +169,22 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   // positivo que más asusta de un aviso de este tipo.
   ev("camara.en-uso", "seguridad", "camara-monitor.sh", { clearOnBoot: true }),
 
+  // Modo gestos (hypr/scripts/gestos/). Solo DOS avisos, y ninguno para el
+  // encendido normal: al activarlo, `camara-monitor.sh` ya emite «Cámara en
+  // uso», y un segundo aviso diciendo lo mismo con otras palabras sería ruido
+  // cada vez que se pulsa SUPER+SHIFT+G.
+  //
+  // `gestos.no-disponible` es el que de verdad hace falta: sin él, un atajo que
+  // no hace nada (la cámara bloqueada, ocupada por una videollamada, o el
+  // entorno sin instalar) es indistinguible de un atajo roto. Lleva el motivo
+  // en el cuerpo.
+  //
+  // `clearOnBoot` en los dos: hablan de un intento concreto de una sesión que ya
+  // terminó, y arrastrarlos al arranque siguiente señalaría a un problema que
+  // probablemente ya no existe.
+  ev("gestos.no-disponible", "seguridad", "gestos.sh", { clearOnBoot: true }),
+  ev("gestos.detenido", "seguridad", "gestos.py", { clearOnBoot: true }),
+
   // ── Antivirus y descargas ──────────────────────────────────────────────────────────────
   ev("descargas.malware", "antivirus", "oom-monitor.sh"),
   ev("descargas.ejecutable-nuevo", "antivirus", "oom-monitor.sh"),

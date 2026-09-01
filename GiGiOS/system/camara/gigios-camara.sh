@@ -116,11 +116,24 @@ EOF
         ;;
     unblock)
         rm -f "$REGLA"
-        # Al volver a pasar por las reglas sin la nuestra, el 50-udev-default devuelve
-        # GROUP="video" y el 73 vuelve a conceder la ACL de sesión. No se hace `chmod` de vuelta a
-        # un valor fijo a propósito: acertar el modo "correcto" es cosa de udev y de la distro, no
-        # nuestra, y clavarlo aquí dejaría los permisos mal en cuanto cambiara.
         recargar_udev || echo "aviso: no pude recargar udev; desbloquea del todo al reiniciar" >&2
+        # ⚠️ EL TRIGGER NO DESHACE EL `chmod 000`, y creer que sí dejaba la cámara MUERTA hasta el
+        # siguiente arranque —sin un solo error, y con `status` diciendo "unblocked"—. Es la misma
+        # asimetría que documenta la cabecera para la ACL, en el otro sentido: udev fija dueño y
+        # modo del nodo al CREARLO, y en un evento `change` sobre un nodo que ya existe no vuelve a
+        # aplicarlos (medido: tras `unblock` el nodo seguía `c--------- root root`, con la entrada
+        # `user:<usuario>:rw-` de la ACL intacta pero `#effective:---` por la máscara). Por eso el
+        # bloqueo se hace a mano y el desbloqueo también tiene que deshacerse a mano.
+        #
+        # `0660 root:video` es lo que dejan `50-udev-default.rules` (`SUBSYSTEM=="video4linux",
+        # GROUP="video"`) y el modo por defecto de udev; se reponen los dos porque la regla de
+        # bloqueo cambia los dos. Con la máscara otra vez en `rw`, la ACL de sesión que el builtin
+        # `uaccess` puso al arrancar vuelve a ser efectiva y la cámara se abre sin reiniciar.
+        for dev in /dev/video*; do
+            [[ -c $dev ]] || continue
+            chown root:video "$dev" 2>/dev/null
+            chmod 660 "$dev" 2>/dev/null
+        done
         echo "unblocked $(nodos)"
         ;;
     status)

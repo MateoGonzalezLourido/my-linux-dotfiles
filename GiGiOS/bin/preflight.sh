@@ -46,6 +46,11 @@ required=(
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
   hypr/scripts/reparar-kdeglobals.sh
+  hypr/scripts/gestos.sh hypr/scripts/gestos/gestos.py hypr/scripts/gestos/deteccion.py hypr/scripts/gestos/hypr.py
+  hypr/scripts/gestos/manos_sinteticas.py hypr/scripts/gestos/barrido.py
+  ags/servicios/gestos/estado.ts ags/servicios/gestos/control.ts
+  ags/modulos/barra/indicadores/sistema/Gestos.tsx ags/modulos/ajustes/camara/TarjetaGestos.tsx
+  ags/estilos/_gestos.scss
   hypr/scripts/run-untrusted.sh hypr/scripts/desinstalar-app.sh
   hypr/scripts/wallpaper.sh hypr/scripts/wallpaper-select.py hypr/scripts/lib/seleccion_fondos.py
   system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
@@ -554,6 +559,29 @@ EOF
     else
       fail "la cámara está bloqueada y falta /usr/local/bin/gigios-camara para desbloquearla (bash install.sh --solo sistema, o sudo rm /etc/udev/rules.d/71-gigios-camara-bloqueada.rules)"
     fi
+  fi
+
+  # Entorno del MODO GESTOS. Es OPCIONAL —el resto del escritorio funciona igual sin él— así
+  # que ausente es AVISO y no error; lo que sí sería un error mudo es tenerlo a medias.
+  #
+  # Se comprueban las dos mitades por separado porque fallan por separado y se arreglan
+  # distinto, y sobre todo se comprueba que el intérprete IMPORTE: un venv creado con un
+  # Python que ya no existe (Arch sube de versión mayor y el enlace del venv queda colgando)
+  # conserva todos sus ficheros y pasa cualquier test de existencia, pero no arranca. Ese es
+  # justo el fallo que este bloque existe para cazar, porque desde fuera parece instalado.
+  gestos_dir="${XDG_DATA_HOME:-$HOME/.local/share}/gigios/gestos"
+  if [[ -e "$gestos_dir/venv" || -e "$gestos_dir/hand_landmarker.task" ]]; then
+    if [[ ! -x "$gestos_dir/venv/bin/python" ]]; then
+      fail "el entorno del modo gestos está a medias: falta el intérprete del venv (bash install.sh --solo gestos)"
+    elif ! "$gestos_dir/venv/bin/python" -c 'import mediapipe, cv2' >/dev/null 2>&1; then
+      fail "el venv de gestos existe pero no importa mediapipe/cv2 (¿cambió la versión de Python?): bash install.sh --solo gestos"
+    elif [[ ! -s "$gestos_dir/hand_landmarker.task" ]]; then
+      fail "falta el modelo de manos del modo gestos (bash install.sh --solo gestos)"
+    else
+      ok "modo gestos instalado (SUPER+SHIFT+G)"
+    fi
+  else
+    warn "sin entorno del modo gestos; SUPER+SHIFT+G no hará nada (opcional: bash install.sh --solo gestos)"
   fi
 
   # TLP. Sólo aplica donde hay batería del sistema: el instalador no instala TLP en un

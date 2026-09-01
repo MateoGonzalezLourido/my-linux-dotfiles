@@ -50,6 +50,7 @@ import {
 import { abrirVistaPrevia, cerrarVistaPrevia } from "../../../servicios/camara/vistaPrevia"
 import { camaraEnUso } from "../../../servicios/camara/uso"
 import { ajustarAlPaso, camarasConocidas, resumenFormatos, type CamaraConocida } from "./camaraDatos"
+import TarjetaGestos from "./TarjetaGestos"
 import textos from "../../../textos/ajustes/camara.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
 
@@ -464,6 +465,14 @@ export default function SeccionCamara() {
             <TextoInformativo label={textos.lista.avisoPreferida} maxWidthChars={64} />
           </box>
         </TarjetaAjustes>
+
+        {/* ── Gestos ──────────────────────────────────────────────────────────────────
+            Va DELANTE del killswitch y de los controles de imagen a propósito: es lo
+            único de esta sección que compite por la cámara con el resto del sistema, y
+            leerlo antes que el interruptor de bloqueo deja claro que los dos hablan del
+            mismo recurso. Su implementación está en `TarjetaGestos.tsx`; el trabajo de
+            verdad, en `hypr/scripts/gestos/`. */}
+        <TarjetaGestos />
 
         {/* ── Killswitch ──────────────────────────────────────────────────────────────
             El bloqueo NO lo aplica AGS: los nodos `/dev/video*` son de `root:video` y sus

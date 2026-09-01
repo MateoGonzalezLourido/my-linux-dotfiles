@@ -18,6 +18,7 @@ import CapturaPantalla from "./indicadores/sistema/CapturaPantalla"
 import IndicadorMantenerDespierto from "./funciones/IndicadorMantenerDespierto"
 import Microfono from "./indicadores/audio/Microfono"
 import Camara from "./indicadores/sistema/Camara"
+import Gestos from "./indicadores/sistema/Gestos"
 import BotonNotificaciones from "./indicadores/notificaciones/BotonNotificaciones"
 import Actualizaciones from "./indicadores/sistema/Actualizaciones"
 import BotonMenuEnergia from "./controles/BotonMenuEnergia"
@@ -29,6 +30,7 @@ import { suscribirPantallaCompleta } from "../../servicios/escritorios/pantallaC
 import { spotifyBarSuspended } from "../../servicios/energia/powerState"
 import { barAutoHideEnabled, batteryBarEnabled, fondoShell, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "../ajustes/preferences"
 import { camaraEnUso } from "../../servicios/camara/uso"
+import { gestosActivos } from "../../servicios/gestos/estado"
 import { anyPanelVisible, alternarQuickSettings, solicitudAlternarBar } from "../../estado/shell"
 import { notifPanelVisible } from "../notificaciones/store"
 import { suspensionFalsaActiva } from "../../servicios/energia/suspensionFalsa"
@@ -390,6 +392,13 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
                   monta solo mientras hay algo que avisar y desaparece sin
                   descolocar al resto de la pastilla. */}
               <RanuraCondicionalBarra estado={camaraEnUso} construir={() => <Camara />} />
+              {/* Modo gestos. Va INMEDIATAMENTE detrás del de cámara y no en
+                  otro sitio: con el modo encendido los dos aparecen juntos, y
+                  se leen de un golpe como una sola frase ("la cámara está
+                  encendida, y es el escritorio quien mira"). La ranura tampoco
+                  es un interruptor de Ajustes sino la propia actividad del
+                  modo, igual que la de al lado. */}
+              <RanuraCondicionalBarra estado={gestosActivos} construir={() => <Gestos />} />
               <RanuraCondicionalBarra
                 estado={networkBarEnabled}
                 construir={() => <Red visibilidad={visibilidad} />}

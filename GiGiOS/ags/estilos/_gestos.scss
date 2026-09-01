@@ -1,0 +1,90 @@
+// Estilos del MODO GESTOS.
+//
+// Parcial propio por el mismo motivo que los tres de la cámara: comparte paleta
+// con ellos pero no fichero. Se consume desde `style.scss` con `@use`.
+@use 'sass:color';
+@use 'colores' as *;
+
+// ── Indicador de la barra ───────────────────────────────────────────────────
+// (`modulos/barra/indicadores/sistema/Gestos.tsx`)
+//
+// NO hereda de `.recording`, a diferencia de su vecino el de cámara, y es
+// deliberado: ese rojo pulsante significa "algo te está captando" y lo comparten
+// micro, cámara y captura de pantalla. Esto es otra cosa —un MODO del escritorio
+// encendido— y pintarlo igual diluiría el aviso de privacidad hasta volverlo
+// ruido de fondo. Violeta fijo, que es el acento del shell.
+//
+// La familia se fija a mano por la misma razón que en `.camara-indicador`: sin
+// ella GTK resuelve el glifo Nerd Font con la fuente de texto, que no lo tiene, y
+// pinta el rectángulo del carácter ausente sin dar ningún error.
+.gestos-indicador .icon {
+  font-family: $font-icon;
+  font-size: 16px;
+}
+
+.gestos-icono {
+  color: color.adjust($violet, $lightness: -18%);
+  // La transición es lo que hace legible el parpadeo de "te veo / no te veo":
+  // el modelo pierde la mano un frame suelto de vez en cuando, y sin suavizar,
+  // el icono daba un tirón de brillo que parecía un fallo. 180 ms tapan el
+  // frame perdido sin llegar a ocultar que has sacado la mano del cuadro.
+  transition: color 180ms ease-in-out, text-shadow 180ms ease-in-out;
+}
+
+// EN ESPERA: el modo está encendido pero no obedece a nada. Se apaga el color y
+// se baja la opacidad — es lo contrario del estado `.viendo`, y tiene que leerse
+// como «esto está aquí pero dormido», no como «esto está funcionando».
+.gestos-icono.en-espera {
+  color: $text;
+  opacity: 0.45;
+  text-shadow: none;
+}
+
+// Hay una mano en el cuadro: es la única realimentación de que el modo te ve.
+.gestos-icono.viendo {
+  color: $violet;
+  text-shadow: 0 0 6px color.change($violet, $alpha: 0.55);
+}
+
+// ── Tarjeta de Ajustes > Cámara > Gestos ────────────────────────────────────
+
+// Fila de un gesto: el pictograma a la izquierda y la explicación al lado.
+.gestos-fila {
+  padding: 6px 0;
+}
+
+.gestos-glifo {
+  font-family: $font-icon;
+  font-size: 20px;
+  color: $violet;
+  margin-right: 10px;
+  // Ancho fijo para que las tres filas alineen su texto aunque los glifos
+  // tengan anchos distintos.
+  min-width: 26px;
+}
+
+.gestos-gesto-titulo {
+  font-weight: bold;
+  color: $text;
+}
+
+.gestos-gesto-detalle {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+// El motivo por el que el modo no arrancó (cámara ocupada, bloqueada, sin
+// entorno). Naranja y no rojo: no es un error del sistema, es una condición que
+// el usuario puede resolver.
+.gestos-motivo {
+  color: $orange;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+// Aviso permanente de que el modo ocupa la cámara.
+.gestos-aviso-camara {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 6px;
+}

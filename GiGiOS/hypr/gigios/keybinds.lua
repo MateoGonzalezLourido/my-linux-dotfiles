@@ -91,6 +91,17 @@ bind(mod .. " + Z", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
 bind(mod .. " + X", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
   .. " && hyprshot -m output -m active -o " .. vars.ruta_captura_pantalla))
 
+-- modo gestos por cámara (toggle). La MISMA tecla enciende y apaga, como las
+-- grabaciones: es un modo, y un modo que se enciende con una combinación y se
+-- apaga con otra se queda encendido.
+--
+-- El atajo lanza el conmutador y no el demonio: `gestos.sh` es quien decide el
+-- sentido, comprueba el killswitch de la cámara y avisa si algo falta. Ojo, este
+-- modo NO se autoarranca (no hay línea suya en gigios/autostart.lua) — enciende
+-- la webcam y la deja ocupada para el resto de apps, así que se pide a
+-- propósito. Ver la sección de gestos en docs/hyprland-modulos.md.
+bind(mod .. " + SHIFT + G", hl.dsp.exec_cmd("~/.config/hypr/scripts/gestos.sh"))
+
 -- portapapeles
 bind(mod .. " + V", hl.dsp.exec_cmd("~/.config/hypr/scripts/clipboard-history.sh picker"))
 -- selector de emojis al estilo Windows; `period` es la tecla física "."
