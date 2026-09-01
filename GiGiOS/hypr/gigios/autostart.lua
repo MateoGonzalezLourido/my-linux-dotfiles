@@ -15,7 +15,7 @@
 --
 -- La regla: lo que el usuario VE o lo que no puede perder eventos va a t=0; lo
 -- que solo consulta el estado del PC (disco, sensores, batería, journal) se
--- aparta unos segundos. Nada de esto es urgente al segundo 0 — un disco lleno o
+-- aparta unos segundos (calendario comprimido: este equipo aguanta la carga). Nada de esto es urgente al segundo 0 — un disco lleno o
 -- un ventilador parado siguen estándolo 20 s después.
 --
 -- Van ESCALONADOS, no todos con el mismo sleep: darles a todos `sleep 5` solo
@@ -148,15 +148,15 @@ hl.on("hyprland.start", function()
   -- `window.open` nativo desde su propio hl.on("hyprland.start") — misma ventana
   -- de 30 s, sin socket ni nc. Su .sh ya no existe: se borró con la migración.)
 
-  -- ── t=3..6 · monitores dirigidos por eventos ───────────────────────────────
+  -- ── t=1..3,5 · monitores dirigidos por eventos ────────────────────────────
   -- Bloquean en un socket (udev/D-Bus/nmcli/PipeWire): en reposo no cuestan
   -- nada, pero su arranque compite con el de los propios servicios a los que se
   -- enganchan. Los dispositivos ya presentes al encender NO generan eventos
   -- después del login (los emitió el kernel durante el boot, antes de que estos
   -- existieran), así que el retardo solo se saltaría algo que enchufes en esos
   -- primeros segundos.
-  hl.exec_cmd("sleep 3 && ~/.config/hypr/scripts/bt-monitor.sh")
-  hl.exec_cmd("sleep 4 && ~/.config/hypr/scripts/usb-monitor.sh")
+  hl.exec_cmd("sleep 1 && ~/.config/hypr/scripts/bt-monitor.sh")
+  hl.exec_cmd("sleep 1.5 && ~/.config/hypr/scripts/usb-monitor.sh")
   -- WiFi: además, arrancar tarde estrecha una carrera real — el script busca la
   -- interfaz con `nmcli` nada más nacer, y NetworkManager arranca a la vez que
   -- este autostart. El script ya no depende solo de este margen: si no hay
@@ -166,10 +166,10 @@ hl.on("hyprland.start", function()
   -- tailscale0) no aparece en `ps` y ES lo correcto. Lo mismo con
   -- battery/temp-monitor, que salen solos si su toggle está en `false` en
   -- preferences.json (aquí ambos lo están).
-  hl.exec_cmd("sleep 5 && ~/.config/hypr/scripts/wifi-monitor.sh")
+  hl.exec_cmd("sleep 2 && ~/.config/hypr/scripts/wifi-monitor.sh")
   -- Screencast: necesita que PipeWire haya publicado sus nodos para que
   -- `pw-dump` vea algo.
-  hl.exec_cmd("sleep 6 && ~/.config/hypr/scripts/screencast-monitor.sh")
+  hl.exec_cmd("sleep 2.5 && ~/.config/hypr/scripts/screencast-monitor.sh")
   -- Cámara en uso (el indicador de privacidad de la barra). Encaja en esta
   -- franja por lo mismo que sus vecinos: se BLOQUEA en inotify sobre los
   -- `/dev/videoN` y en reposo no cuesta nada —ni sondeo, ni timer, ni forks—,
@@ -187,18 +187,18 @@ hl.on("hyprland.start", function()
   -- correcto: escribe el estado "libre" y sale. Mismo caso que wifi-monitor sin
   -- antena; no lo busques como si fuera un fallo.
   --
-  -- El medio segundo no es un capricho: el 6 ya es de screencast y el 7 de las
-  -- apps de inicio, y la regla de este calendario es que cada arranque tenga su
-  -- hueco (darles a todos el mismo sleep solo mueve la avalancha de sitio).
-  -- `sleep` de coreutils acepta decimales.
-  hl.exec_cmd("sleep 6.5 && ~/.config/hypr/scripts/camara-monitor.sh")
+  -- Los medios segundos no son un capricho: con el calendario comprimido los
+  -- huecos son de medio segundo, y la regla sigue siendo que cada arranque
+  -- tenga el suyo (darles a todos el mismo sleep solo mueve la avalancha de
+  -- sitio). `sleep` de coreutils acepta decimales.
+  hl.exec_cmd("sleep 3 && ~/.config/hypr/scripts/camara-monitor.sh")
 
   -- Apps de inicio del usuario (Ajustes > Apps al inicio). La LISTA es dato en
   -- ~/.config/gigios/apps-inicio.json; aquí solo vive el momento en que se
   -- abre, que es lo que le toca decidir a este calendario. Sin lista, el script
   -- sale en un `test -r`.
   --
-  -- A t=7 y no antes: son apps de escritorio completas —lo más caro que puede
+  -- A t=3,5 y no antes: son apps de escritorio completas —lo más caro que puede
   -- entrar en esta lista— y compiten por la GPU con el arranque de AGS, que es
   -- el medio segundo que decide cuándo se ve la barra (ver la nota del fondo, a
   -- t=0). Y no mucho más tarde tampoco: quien pone Spotify en el inicio lo
@@ -210,31 +210,31 @@ hl.on("hyprland.start", function()
   -- combinas las dos cosas — con `escanerAppsInicio` activado, el escáner te
   -- lleva al escritorio de estas apps al terminar su ventana, lo que deshace en
   -- la práctica el "sin traerme a él" de una entrada silenciosa.
-  hl.exec_cmd("sleep 7 && ~/.config/inicializador/apps-inicio.sh")
+  hl.exec_cmd("sleep 3.5 && ~/.config/inicializador/apps-inicio.sh")
 
-  -- ── t=8..15 · sondeos de estado del PC ─────────────────────────────────────
+  -- ── t=4..5,5 · sondeos de estado del PC ───────────────────────────────────
   -- Ninguno es urgente al arrancar: la RAM está libre, la CPU fría y el disco
   -- tan lleno como hace un minuto. Se apartan del pico de carga.
-  hl.exec_cmd("sleep 8 && ~/.config/hypr/scripts/ram-monitor.sh")
-  hl.exec_cmd("sleep 10 && ~/.config/hypr/scripts/temp-monitor.sh")
-  hl.exec_cmd("sleep 12 && ~/.config/hypr/scripts/battery-monitor.sh")
+  hl.exec_cmd("sleep 4 && ~/.config/hypr/scripts/ram-monitor.sh")
+  hl.exec_cmd("sleep 4.5 && ~/.config/hypr/scripts/temp-monitor.sh")
+  hl.exec_cmd("sleep 4.8 && ~/.config/hypr/scripts/battery-monitor.sh")
   -- Disco: comprobación única (`df`) y sale. Quedarse sin espacio es cosa de
-  -- una vez al año — puede esperar 15 s.
-  hl.exec_cmd("sleep 15 && ~/.config/hypr/scripts/disk-monitor.sh")
+  -- una vez al año — puede esperar unos segundos.
+  hl.exec_cmd("sleep 5.5 && ~/.config/hypr/scripts/disk-monitor.sh")
 
-  -- ── t=20..30 · lo caro ─────────────────────────────────────────────────────
+  -- ── t=5..8 · lo caro ───────────────────────────────────────────────────────
   -- Monitor de actualizaciones (SO + drivers GPU). Toca RED y sincroniza una BD
   -- temporal de pacman: lo último que quieres compitiendo con el arranque de la
   -- sesión.
-  hl.exec_cmd("sleep 20 && ~/.config/hypr/scripts/updates-monitor.sh")
+  hl.exec_cmd("sleep 5 && ~/.config/hypr/scripts/updates-monitor.sh")
   -- Healthcheck de arranque: es el más caro de todos (lee el journal entero del
   -- boot dos veces, SMART de cada disco, sensores, ping). Es un DIAGNÓSTICO, no
-  -- una alarma en vivo — nadie lo necesita en el primer medio minuto. Antes
+  -- una alarma en vivo — nadie lo necesita en los primeros segundos. Antes
   -- esperaba 5 s por dentro; ese sleep vive aquí para que el calendario se lea
   -- entero en un sitio y para poder ejecutarlo a mano sin esperas. Además le da
   -- tiempo a systemd a terminar el boot: `systemd-analyze` falla si aún no ha
   -- acabado, y con él se perdía el aviso de arranque lento.
-  hl.exec_cmd("sleep 30 && ~/.config/hypr/scripts/boot-healthcheck.sh")
+  hl.exec_cmd("sleep 8 && ~/.config/hypr/scripts/boot-healthcheck.sh")
 
   -- Firmas de ClamAV. **Este es el ÚNICO sitio del sistema que actualiza firmas solo**, y
   -- sustituye al periodo de `clamav-freshclam`: en vez de un servicio que despierta cada N
@@ -244,10 +244,10 @@ hl.on("hyprland.start", function()
   -- proceso vigilando. El script sale en ~4 ms cuando no toca (un `jq` y un `stat`) y **no
   -- notifica nada** en modo `--auto`; si el interruptor está apagado, ni eso hace.
   -- Va detrás del healthcheck porque freshclam baja ~200 MB cuando sí toca, y ese es el
-  -- peor compañero posible para el primer medio minuto de sesión.
-  hl.exec_cmd("sleep 40 && ~/.config/hypr/scripts/actualizar-firmas.sh --auto")
+  -- peor compañero posible para los primeros segundos de sesión.
+  hl.exec_cmd("sleep 10 && ~/.config/hypr/scripts/actualizar-firmas.sh --auto")
 
-  -- ── t=45 · autolimpieza de disco ───────────────────────────────────────────
+  -- ── t=12 · autolimpieza de disco ──────────────────────────────────────────
   -- **No es un daemon.** Lee un JSON, decide, y o limpia o se muere: en el caso
   -- normal (todavía no toca) son 2,9 ms y UN solo proceso `jq`, y no queda nada
   -- en `ps`. Antes era un bucle que despertaba cada hora forkeando hasta quince
@@ -258,7 +258,7 @@ hl.on("hyprland.start", function()
   -- 2360 paquetes y un `du` del hogar no deben coincidir con nada del arranque.
   -- Cuando no toca limpiar —lo normal, 23 de cada 24 sesiones con el intervalo
   -- por defecto— el retardo no cuesta nada, porque el script tampoco.
-  hl.exec_cmd("sleep 45 && ~/.config/hypr/scripts/limpieza-arranque.sh")
+  hl.exec_cmd("sleep 12 && ~/.config/hypr/scripts/limpieza-arranque.sh")
 
   -- (KWallet retirado) Las credenciales de Spotify viven en texto plano en
   -- ~/.config/gigios/spotify-creds.json — no se arranca ningún ksecretd/KWallet.

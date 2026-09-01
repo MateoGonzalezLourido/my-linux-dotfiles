@@ -11,8 +11,8 @@ application/rss+xml=firefox.desktop;
 application/xhtml+xml=firefox.desktop;
 application/x-xpinstall=firefox.desktop;
 x-scheme-handler/chrome=firefox.desktop;
-x-scheme-handler/http=firefox.desktop;
-x-scheme-handler/https=firefox.desktop;
+x-scheme-handler/http=brave-origin.desktop
+x-scheme-handler/https=brave-origin.desktop
 
 # Documentos de Okular, excepto PDF
 application/epub+zip=okularApplication_epub.desktop;
@@ -137,7 +137,7 @@ application/x-tiled-tsx=code.desktop;
 application/x-yaml=code.desktop;
 application/yaml=code.desktop;
 text/css=code.desktop;
-text/html=code.desktop;
+text/html=brave-origin.desktop
 text/javascript=code.desktop;
 text/rust=code.desktop;
 text/vnd.trolltech.linguist=code.desktop;
@@ -363,6 +363,8 @@ x-scheme-handler/claude-cli=claude-code-url-handler.desktop
 x-scheme-handler/gh=github-handler.desktop;
 x-scheme-handler/ghapp=github-handler.desktop;
 x-scheme-handler/github-app=github-handler.desktop;
+x-scheme-handler/about=brave-origin.desktop
+x-scheme-handler/unknown=brave-origin.desktop
 
 [Added Associations]
 # Alternativas útiles que Dolphin mostrará en «Abrir con…».

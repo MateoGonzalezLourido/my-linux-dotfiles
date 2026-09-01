@@ -424,6 +424,30 @@ en `~/.config/gigios/spotify-creds.json` (chmod 600, git-ignored). No hay KWalle
 Secret Service: se retiró a propósito porque bajo Hyprland pedía la contraseña del monedero
 en cada arranque. No hace falta instalar `kwallet`/`libsecret` ni lanzar ningún `ksecretd`.
 
+**La contrapartida la paga cualquier app que sí espere un keyring**, y la primera es VS
+Code: al no encontrar `org.freedesktop.secrets` en el bus, saca un cartel modal
+("An OS keyring couldn't be identified…") en **cada** arranque. Ninguno de sus dos botones
+recuerda la respuesta de forma fiable, así que el paso `vscode` del instalador escribe la
+decisión de una vez en `~/.vscode/argv.json`:
+
+```sh
+bash ~/GiGiOS/install.sh --solo vscode   # o: ~/GiGiOS/bin/configurar-vscode.sh aplicar
+```
+
+Lo que fija es `"password-store": "basic"` — el equivalente permanente del botón *Use
+weaker encryption*: VS Code cifra sus secretos (tokens de GitHub, cuentas de extensiones,
+Settings Sync) con una clave fija en vez de con el llavero. Es el **mismo** modelo de
+amenaza que las credenciales de arriba, no uno peor. Instalar `gnome-keyring` no arregla
+nada por sí solo en esta máquina: con el autologin de SDDM, PAM no ve ninguna contraseña
+con la que desbloquear el llavero, así que volvería a preguntar una vez por sesión —
+exactamente el problema por el que se retiró KWallet.
+
+El fichero es JSONC (JSON **con comentarios**, que VS Code escribe él mismo) y lleva el
+`crash-reporter-id` de la máquina, así que `bin/configurar-vscode.sh` inserta la clave
+respetando lo que hubiera en vez de regenerarlo, y no usa `jq` (que aborta ante un `//`).
+`bin/preflight.sh` lo comprueba como AVISO, no como error: `argv.json` no existe hasta que
+VS Code se abre por primera vez.
+
 **Las credenciales de Spotify NO viajan copiando el repo** — el archivo está fuera de git.
 En el PC nuevo ejecuta una vez:
 

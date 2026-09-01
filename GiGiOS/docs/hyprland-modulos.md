@@ -65,9 +65,11 @@ reload does not restart those commands. Relaunch AGS separately when its code ch
 **El arranque está ESCALONADO, y `gigios/autostart.lua` es el único sitio donde se lee el
 calendario entero.** Todo esto salía a la vez y competía con la carga de Hyprland y del shell con la caché
 fría. La regla: lo que se ve (wallpaper, AGS, `init.sh`) o lo que no puede perder eventos va a
-t=0; lo que solo consulta el estado del PC se aparta — eventos a t=3..6 (bt, usb, wifi,
-screencast), sondeos a t=8..15 (ram, temp, batería, disco), y lo caro al final (updates t=20,
-`boot-healthcheck` t=30, que antes esperaba 5 s por dentro). Van a segundos DISTINTOS a
+t=0; lo que solo consulta el estado del PC se aparta — eventos a t=1..3,5 (bt, usb, wifi,
+screencast, cámara, apps de inicio), sondeos a t=4..5,5 (ram, temp, batería, disco), y lo caro al
+final (updates t=5, `boot-healthcheck` t=8, que antes esperaba 5 s por dentro). El calendario está
+comprimido a propósito respecto al original (que llegaba a t=45): este equipo absorbe la carga, y
+esperar medio minuto por el aviso de actualizaciones no compensaba. Van a segundos DISTINTOS a
 propósito: darles a todos el mismo `sleep` solo movería la avalancha unos segundos más tarde.
 
 **El retardo vive en el punto de llamada, no dentro de los scripts**, y eso es deliberado:
@@ -3807,7 +3809,7 @@ más un `df`, y casi siempre para responder «todavía no toca»: con el interva
 23 de cada 24 despertares no hacían nada salvo forkear quince veces y volverse a dormir. Encima
 dejaba un bash residente por sesión.
 
-Hoy `limpieza-arranque.sh` corre **una vez**, desde el autostart (t=45), y su camino normal es
+Hoy `limpieza-arranque.sh` corre **una vez**, desde el autostart (t=12), y su camino normal es
 **una lectura y un `if`**: un solo `jq -n --slurpfile` que abre los dos JSON (configuración y
 estado) y emite una línea TSV con todo lo que hace falta decidir. Medido: **2,9 ms** y cero
 procesos residentes cuando no toca limpiar. `command -v jq` no cuenta — es un builtin de bash— y

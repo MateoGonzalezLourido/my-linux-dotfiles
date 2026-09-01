@@ -22,7 +22,8 @@ warn() { printf 'AVISO   %s\n' "$*"; warnings=$((warnings + 1)); }
 # La comprobación de coherencia de más abajo impide que vuelva a colarse una ruta
 # ignorada en esta lista.
 required=(
-  install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh ags/app.ts ags/estilos/style.scss ags/estilos/out.css
+  install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh
+  bin/configurar-vscode.sh ags/app.ts ags/estilos/style.scss ags/estilos/out.css
   mimeapps.list menus/applications.menu kdeglobals qt6ct/qt6ct.conf
   mime/packages/text-x-xresources.xml mime/packages/text-x-codigo.xml
   ags/servicios/juegos/evidencia.ts ags/servicios/juegos/iconos.ts
@@ -134,6 +135,7 @@ for script in \
   "$GIGIOS/install.sh" "$GIGIOS/bin/link.sh" "$GIGIOS/bin/preflight.sh" \
   "$GIGIOS/bin/kitty-profile.sh" "$GIGIOS/bin/firefox-profile.sh" \
   "$GIGIOS/bin/configurar-dolphin.sh" \
+  "$GIGIOS/bin/configurar-vscode.sh" \
   "$GIGIOS/inicializador/init.sh"; do
   bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGIOS"/}"
   [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGIOS"/}"
@@ -520,6 +522,16 @@ reader.parse-on-load.enabled|true
 EOF
   "$GIGIOS/bin/firefox-profile.sh" status >/dev/null 2>&1 \
     || fail "el perfil de Firefox no está compuesto o enlazado correctamente"
+
+  # VS Code sin almacén de secretos fijado = un cartel modal pidiendo el llavero del
+  # sistema en cada arranque, porque esta sesión no ofrece org.freedesktop.secrets (ver
+  # bin/configurar-vscode.sh). Es AVISO y no ERROR: ~/.vscode/argv.json no existe hasta
+  # que VS Code se abre por primera vez, así que en una instalación recién hecha faltar
+  # es lo normal y el paso `vscode` lo dejará puesto en cuanto haya fichero.
+  if command -v code >/dev/null 2>&1; then
+    "$GIGIOS/bin/configurar-vscode.sh" --check >/dev/null 2>&1 \
+      || warn "VS Code no tiene password-store fijado (pedirá el llavero del sistema en cada arranque): bin/configurar-vscode.sh aplicar"
+  fi
 
   font_family="$(fc-match -f '%{family}' 'CaskaydiaCove Nerd Font Mono' 2>/dev/null)"
   [[ "$font_family" == *CaskaydiaCove* || "$font_family" == *Caskaydia\ Cove* ]] \

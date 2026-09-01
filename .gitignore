@@ -53,6 +53,24 @@ core
 #
 # Aquí abajo solo quedan rutas de $HOME que no son de GiGiOS.
 
+# --- Credenciales en texto plano de $HOME ---
+#
+# El work-tree de este repo bare ES $HOME, asi que un `add -A` distraido publica
+# lo que haya. `~/.git-credentials` es el caso peligroso: lo escribe el helper
+# `store` de git (ver [credential] en .gitconfig) y contiene el TOKEN de GitHub en
+# texto plano. No estaba cubierto por ninguna regla: la seccion de arriba filtra
+# por EXTENSION (.exe, .deb, .iso) y este fichero no tiene ninguna.
+.git-credentials
+.netrc
+.pgpass
+
+# Claves privadas, esten donde esten.
+*.pem
+*.key
+id_rsa
+id_ecdsa
+id_ed25519
+
 # --- Metadatos de escritorio (todo $HOME) ---
 
 # Ficheros que deja Dolphin con la vista de cada carpeta. Aparecen en cualquier

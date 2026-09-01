@@ -11,11 +11,14 @@ local util = require("gigios.util")
 -- solo las nombra en ejemplos comentados), así que no hay otro escritor con el
 -- que desincronizarse.
 local aspecto = {
-  -- El tipo gap es entero: el 2.5 se trunca a 2 igual que hacía hyprlang
-  -- (medido: ambas sesiones reportan "2 2 2 2"). Se conserva el 2.5 del
-  -- original por fidelidad.
-  gaps_in  = 2.5,
-  gaps_out = 8,
+  -- Espaciado UNIFORME de 4 px: `gaps_in` es MEDIO hueco (se aplica a cada uno
+  -- de los dos lados que se tocan), así que 2 aquí son los mismos 4 px que deja
+  -- `gaps_out` contra los bordes de la pantalla y contra la zona exclusiva de la
+  -- barra. Antes eran 2.5/8 (el 2.5 venía de hyprlang y se truncaba a 2), y el
+  -- resultado medido era 4 px entre ventanas contra 8 px en todo lo demás: el
+  -- doble, que es justo lo que se veía descuadrado.
+  gaps_in  = 2,
+  gaps_out = 4,
   border_size = 0,
   rounding    = 6,
 
