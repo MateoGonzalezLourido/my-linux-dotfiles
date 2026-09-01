@@ -61,6 +61,16 @@ ningún error). Cuatro trampas que ya costaron su tiempo:
   solo error: el saludador salía con el aspecto de HyDE y parecía que el paso `sddm` no se hubiera
   ejecutado. El instalador retira el fichero con el nombre viejo, y `preflight.sh` avisa de
   cualquier drop-in que ordene después del nuestro y fije una de nuestras claves.
+- **El autologin lo conmuta también Ajustes > Cuenta > Inicio de sesión**, sobre esa misma clave
+  (`[Autologin] User=`) de ese mismo fichero — no hay copia del dato en `~/.config/gigios/`:
+  `ags/modulos/ajustes/cuenta/autologin.ts` lee y escribe el drop-in (por `pkexec`) y surte efecto
+  en el siguiente arranque. Dos consecuencias: el paso `sddm` **respeta lo que haya** cuando
+  `SDDM_AUTOLOGIN` no se pasa (si no, reinstalar desharía la decisión del usuario sin decir nada), y
+  la fila sale **apagada con el motivo escrito** cuando cambiarla no serviría de nada — sin drop-in
+  nuestro, sin `hyprland.desktop` (sin `Session=` SDDM ignora el autologin y enseña el saludador) o
+  con `/etc/sddm.conf` u otro drop-in posterior fijando `User`. Renombrar el usuario desde esa misma
+  pantalla **arrastra el autologin** al nombre nuevo, en la misma escalada de privilegios: si no, la
+  clave queda apuntando a un usuario que ya no existe y el autologin deja de funcionar sin error.
 - **`InputMethod=qtvirtualkeyboard` sin `qt6-virtualkeyboard` no degrada, ROMPE**: el greeter no
   llega a dibujarse y el equipo arranca a una pantalla negra, sin mensaje. Por eso es un campo de la
   plantilla y no una línea fija: el instalador sólo lo escribe si encuentra el módulo QML instalado.

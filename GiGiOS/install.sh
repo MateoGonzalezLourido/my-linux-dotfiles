@@ -39,7 +39,9 @@
 #   KITTY_PROFILE    auto, laptop o desktop (por defecto: auto)
 #   FIREFOX_PROFILE  auto, laptop o desktop (por defecto: auto)
 #   CURSOR_THEME     tema de puntero al que añadir la mitad hyprcursor
-#   SDDM_AUTOLOGIN   1 SDDM entra solo en Hyprland con tu usuario (por defecto); 0 muestra el saludador
+#   SDDM_AUTOLOGIN   1 SDDM entra solo en Hyprland con tu usuario (por defecto); 0 muestra el saludador.
+#                    Si NO se pasa y ya hay configuración nuestra, se respeta lo que
+#                    diga (lo mismo que conmuta Ajustes > Cuenta > Inicio de sesión)
 #   ASSUME_YES       1 equivale a --yes
 #   SKIP_CLAMAV_DB   1 equivale a --skip-clamav-db
 #   ONLY_PACKAGES    1 equivale a --solo-paquetes
@@ -78,6 +80,11 @@ CURSOR_THEME="${CURSOR_THEME:-Bibata-Modern-Ice}"
 ASSUME_YES="${ASSUME_YES:-0}"
 SKIP_CLAMAV_DB="${SKIP_CLAMAV_DB:-0}"
 ONLY_PACKAGES="${ONLY_PACKAGES:-0}"
+# Se recuerda si la variable venía PUESTA antes de darle valor: sin eso no hay forma
+# de distinguir «quiero autologin» de «no dije nada», y el paso `sddm` reescribiría en
+# cada reinstalación una decisión que el usuario puede haber cambiado desde
+# Ajustes > Cuenta > Inicio de sesión (que escribe la misma clave). Ver el paso `sddm`.
+SDDM_AUTOLOGIN_EXPLICITO=0; [ -n "${SDDM_AUTOLOGIN+x}" ] && SDDM_AUTOLOGIN_EXPLICITO=1
 SDDM_AUTOLOGIN="${SDDM_AUTOLOGIN:-1}"
 
 # Catálogo de pasos seleccionables. El orden es el de ejecución, que es también el orden
@@ -1250,11 +1257,24 @@ if paso_activo sddm; then
     # Autologin: reproduce el comportamiento de esta máquina (entrar directo a Hyprland).
     # Se apaga con SDDM_AUTOLOGIN=0, y entonces el campo va vacío — que para SDDM es «no
     # hay autologin», no «autologin del usuario ''».
-    if ((SDDM_AUTOLOGIN)) && [ -n "$SDDM_SESION" ]; then
+    #
+    # Y ojo con REINSTALAR: esta misma clave la conmuta Ajustes > Cuenta > Inicio de
+    # sesión (ags/modulos/ajustes/cuenta/autologin.ts). Volver a escribir aquí el valor
+    # por defecto le desharía al usuario su decisión en silencio — no da ningún error,
+    # simplemente el equipo vuelve a entrar solo (o a pedir contraseña) en el siguiente
+    # arranque. Por eso, si SDDM_AUTOLOGIN no se pasó y ya existe nuestro fichero, manda
+    # lo que el fichero diga; la variable sigue ganando siempre que se escriba.
+    _sddm_quiere_autologin=$SDDM_AUTOLOGIN
+    if ((!SDDM_AUTOLOGIN_EXPLICITO)) && [ -r "$SDDM_DESTINO" ]; then
+      if [ -n "$(sddm_valor "$SDDM_DESTINO" User)" ]; then _sddm_quiere_autologin=1; else _sddm_quiere_autologin=0; fi
+      ((_sddm_quiere_autologin == SDDM_AUTOLOGIN)) \
+        || info "Conservo el inicio automático como estaba ($( ((_sddm_quiere_autologin)) && echo activado || echo desactivado )); pásame SDDM_AUTOLOGIN=$SDDM_AUTOLOGIN para forzarlo."
+    fi
+    if ((_sddm_quiere_autologin)) && [ -n "$SDDM_SESION" ]; then
       SDDM_USUARIO="$(id -un)"
     else
       SDDM_USUARIO=""
-      ((SDDM_AUTOLOGIN)) && info "Sin sesión detectada: dejo SDDM pidiendo usuario y contraseña."
+      ((_sddm_quiere_autologin)) && info "Sin sesión detectada: dejo SDDM pidiendo usuario y contraseña."
     fi
 
     if _sddm_tmp="$(mktemp)"; then
