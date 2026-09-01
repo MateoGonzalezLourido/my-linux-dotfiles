@@ -38,6 +38,21 @@ export function esReproductorSpotify(reproductor: { bus_name?: string | null } |
 }
 
 /**
+ * `playerctld` publica SIEMPRE su propio nombre MPRIS y, cuando hay algo sonando, espeja al
+ * reproductor activo: `entry`, `identity`, `title` y `trackid` salen idénticos a los del original
+ * (medido con Spotify: dos `Player` indistinguibles salvo por el `bus_name`). AstalMpris no lo
+ * filtra, así que sin esta regla el mismo reproductor entra dos veces en la lista y la tarjeta de
+ * multimedia — que es un carrusel, no una lista — enseña el paginador «1/2» y deja cambiar con la
+ * rueda a un clon idéntico. No es un reproductor: es el demonio de playerctl haciendo de proxy.
+ */
+export function esEspejoPlayerctld(
+  reproductor: { bus_name?: string | null } | null | undefined,
+): boolean {
+  const nombre = String(reproductor?.bus_name ?? "")
+  return /^org\.mpris\.MediaPlayer2\.playerctld$/i.test(nombre)
+}
+
+/**
  * Spotify se anuncia en MPRIS en cuanto abre, aunque no haya nada seleccionado: sin lista
  * ni pista queda parado (`Stopped`) y con los metadatos vacíos, y el reproductor de la barra
  * enseñaba una tarjeta muerta que además ocupaba un hueco en el carrusel. Otros clientes sí

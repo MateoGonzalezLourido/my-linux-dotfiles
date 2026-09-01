@@ -1108,6 +1108,26 @@ déficit *a medias* con el título; acotado a 14 (con `tooltipText` para no perd
   `notify` conectada** (`reproductoresVivos`): si se descartara, nadie avisaría de que ha vuelto a
   reproducir y no reaparecería nunca.
 
+  **El espejo de `playerctld` se descarta ANTES de registrarlo** (`esEspejoPlayerctld` en
+  `estadoPista.ts`, puro y con test; se aplica en `sincronizarReproductores`, al construir
+  `actuales` y no en `publicar()`, para no crearle registro ni conectarle señales que serían un
+  duplicado exacto de las del reproductor real). El demonio de playerctl publica **siempre** su
+  propio nombre MPRIS —lo activa D-Bus, no lo lanza GiGiOS— y cuando hay algo sonando espeja al
+  reproductor activo: medido con Spotify, `mpris.players` devolvía **dos** `Player` con el mismo
+  `entry`, `identity`, `title` y `trackid`, indistinguibles salvo por el `bus_name`. AstalMpris no
+  filtra ningún nombre (no hay un solo `playerctld` en las cadenas de `libastal-mpris.so`). **No
+  partía la tarjeta, y por eso parecía que funcionaba bien**: el reproductor es un **carrusel** y
+  `players[0]` es el auténtico, que entra primero — lo que salía era el paginador **«1/2»** con un
+  solo reproductor real y la rueda del ratón llevando a un clon idéntico. `estadoSpotify` se
+  salvaba de rebote, porque `find(esReproductorSpotify)` casa por `bus_name`. La comparación es del
+  nombre **exacto**: un `startsWith` se llevaría por delante a cualquier reproductor que lo prefije.
+
+  **El `CRITICAL` de `player.vala:840` al arrancar el shell es de esto y NO se puede callar desde
+  aquí**: `GDBus.Error:…playerctld.NoActivePlayer: No player is being controlled by playerctld`. Lo
+  emite Vala dentro de `libastal-mpris` al pedirle propiedades al espejo sin nada detrás, antes de
+  que corra una sola línea de `mpris.ts`. Es cosmético (todo va en try/catch) y este filtro no lo
+  evita — solo desaparecería impidiendo que `playerctld` exista en la sesión, y el repo no lo usa.
+
   **Anuncios**: `servicios/multimedia/mpris.ts` mantiene una sola fuente MPRIS para la barra y Quick Settings, y `estadoPista.ts` comparte el contador por `trackid`. `OndaSpotify.tsx` conserva únicamente el estado visual de cada monitor: usa `add_tick_callback`, se limita a 60 fps (24 en ahorro) y se detiene cuando su barra local está oculta o la reproducción queda en reposo.
   **La onda es AUDIO REAL, con el algoritmo de siempre como repliegue** (`servicios/multimedia/espectro.ts`). Las 13 barras eran puramente procedimentales: tres senoides por banda más un "bombo" simulado a **112 BPM fijos**, o sea que no seguían la música — un tema lento y uno rápido se veían igual. Hoy la FFT la hace **`cava`** (C + fftw) en modo `raw`/`ascii`, una línea de 13 valores por frame por stdout; aquí solo se parsea. **La FFT no puede hacerse en TypeScript**: serían ~2,6 M multiplicaciones por segundo dentro del bucle principal de GTK. Medido: cava en régimen permanente cuesta **0,50 % de un core** y 14 MB de RSS (el ~11 % que sale de un `ps %cpu` corto es el arranque, los planes de fftw; no es el coste real).
   - **`channels = mono` en el config NO es opcional**, y su ausencia no degrada: rompe. El default de cava es `stereo`, que **exige un número PAR de barras**, y `BANDAS` es 13 — cava se niega a arrancar (`must have even number of bars with stereo output` por stderr) y además escupe basura **por stdout**, que es justo el flujo de datos. Sin esa clave no sale ni una línea parseable (medido). El config se escribe en `$XDG_RUNTIME_DIR/ags/cava.conf` desde una constante del módulo en vez de versionarse, para que no pueda divergir de `BANDAS`/`FPS`, que son el contrato con el widget.

@@ -7,6 +7,7 @@ import {
 } from "./cacheCaratulas"
 import {
   ContadorAnuncios,
+  esEspejoPlayerctld,
   esReproductorSpotify,
   esSpotifyOcioso,
   obtenerMiniaturaYoutube,
@@ -154,7 +155,9 @@ function crearRegistro(reproductor: any): RegistroReproductor {
 }
 
 function sincronizarReproductores() {
-  const actuales = [...(mpris?.players ?? [])]
+  // El espejo de playerctld se descarta AQUÍ, no en `publicar()`: así tampoco se le crea registro
+  // ni se le conectan señales, que serían un duplicado exacto de las del reproductor real.
+  const actuales = [...(mpris?.players ?? [])].filter((r) => !esEspejoPlayerctld(r))
   const conjunto = new Set(actuales)
 
   for (const [reproductor, registro] of registros) {
