@@ -16,7 +16,6 @@ local util = require("gigios.util")
 local VALIDOS = {
   ["laptop-hibrida"] = true,
   ["sobremesa-nvidia"] = true,
-  ["nvidia-vieja-hyde"] = true,
   -- "no hay nada que configurar" también es una elección: sin este nombre, la
   -- única forma de decirlo era dejar el fichero ausente, y eso avisaba en cada
   -- inicio de sesión en cualquier máquina Intel/AMD. Ver gpu/integrada.lua.
@@ -28,7 +27,7 @@ local nombre = (util.leer_fichero(ruta) or ""):gsub("%s+", "")
 
 if nombre == "" then
   util.notificar("sin perfil de GPU: escribe uno en ~/.config/gigios/gpu-perfil "
-    .. "(laptop-hibrida | sobremesa-nvidia | nvidia-vieja-hyde)")
+    .. "(laptop-hibrida | sobremesa-nvidia | integrada)")
 elseif not VALIDOS[nombre] then
   util.notificar("perfil de GPU desconocido: '" .. nombre .. "' (gpu-perfil)")
 else

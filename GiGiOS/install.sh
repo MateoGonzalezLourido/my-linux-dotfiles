@@ -97,6 +97,7 @@ declare -A DESC_PASO=(
   [dolphin]="perfil ligero de Dolphin (miniaturas y comportamiento)"
   [kitty]="perfil de rendimiento de Kitty"
   [firefox]="perfil de rendimiento de Firefox"
+  [vscode]="almacén de secretos de VS Code (sin keyring en esta sesión)"
   [css]="compilar ags/estilos/out.css con sass"
   [mime]="bases MIME y caché de aplicaciones de KDE"
   [sistema]="ficheros de /etc: udev USB, i2c-dev, botón de encendido, helpers TLP/ClamAV/limpieza/cámara"
@@ -109,7 +110,7 @@ declare -A DESC_PASO=(
   [shell]="poner Zsh como shell predeterminado"
   [preflight]="validación final de la instalación"
 )
-ORDEN_PASOS=(paquetes repo symlinks sistema hibernacion sddm clamav-db gestos dolphin kitty firefox css mime gpu cursor shell preflight)
+ORDEN_PASOS=(paquetes repo symlinks sistema hibernacion sddm clamav-db gestos dolphin kitty firefox vscode css mime gpu cursor shell preflight)
 
 SOLO_PASOS=()
 SIN_PASOS=()
@@ -704,8 +705,8 @@ install_packages() {
   fi
 
   # Driver VA-API de NVIDIA, sólo si hay una NVIDIA. Los perfiles que el paso `gpu`
-  # elige para esas máquinas (sobremesa-nvidia, y nvidia-vieja-hyde si se pone a mano)
-  # exportan LIBVA_DRIVER_NAME=nvidia y NVD_BACKEND=direct, y sin este paquete esa
+  # elige para esas máquinas (sobremesa-nvidia) exporta LIBVA_DRIVER_NAME=nvidia y
+  # NVD_BACKEND=direct, y sin este paquete esa
   # variable apunta a un driver que NO EXISTE: la aceleración de vídeo por hardware no
   # se degrada, deja de funcionar, y no lo dice nadie. El propio perfil ya avisaba
   # ("Requiere el paquete 'libva-nvidia-driver'") pero el instalador no lo instalaba,
@@ -716,8 +717,7 @@ install_packages() {
   # linux-cachyos-nvidia-open) y elegirlo mal deja el equipo sin arrancar a la sesión
   # gráfica. Este paquete, en cambio, no depende del kernel.
   # Se mira el perfil YA ELEGIDO antes que la detección, por la misma razón por la que
-  # el paso `gpu` nunca pisa un fichero existente: si el usuario puso nvidia-vieja-hyde
-  # a mano, ese perfil también exporta LIBVA_DRIVER_NAME=nvidia y necesita el paquete.
+  # el paso `gpu` nunca pisa un fichero existente: la elección del usuario manda.
   # laptop-hibrida NO entra aunque lleve una NVIDIA: ese perfil deja el vídeo en la
   # Intel a propósito y no toca LIBVA_DRIVER_NAME.
   perfil_gpu_efectivo=""
@@ -727,7 +727,7 @@ install_packages() {
     perfil_gpu_efectivo="$(detectar_perfil_gpu 2>/dev/null || true)"
   fi
   case "$perfil_gpu_efectivo" in
-    sobremesa-nvidia|nvidia-vieja-hyde) official+=(libva-nvidia-driver) ;;
+    sobremesa-nvidia) official+=(libva-nvidia-driver) ;;
   esac
 
   # AGS y las bibliotecas Astal entran EN LA MISMA LISTA, no en una pasada aparte.
@@ -1537,6 +1537,25 @@ else
   info "Omito el perfil de Firefox."
 fi
 
+if paso_activo vscode; then
+  # --- 6b. Fijar el almacén de secretos de VS Code ---
+  # VS Code lo instala el paso `paquetes` (official+=(code)), pero NADIE en esta sesión
+  # ofrece el Secret Service `org.freedesktop.secrets`: KWallet/ksecretd está retirado a
+  # propósito (hypr/gigios/autostart.lua) y gnome-keyring no se instala. Sin esto, toda
+  # instalación limpia recibe un cartel modal pidiendo el llavero del sistema en CADA
+  # arranque de VS Code. El porqué del compromiso, en la cabecera del script.
+  VSCODE_CONFIGURATOR="$HOME/GiGiOS/bin/configurar-vscode.sh"
+  if [ -x "$VSCODE_CONFIGURATOR" ]; then
+    info "Fijando el almacén de secretos de VS Code ..."
+    "$VSCODE_CONFIGURATOR" aplicar \
+      || warn "No se pudo fijar password-store en ~/.vscode/argv.json. Reintentá: $VSCODE_CONFIGURATOR aplicar"
+  else
+    warn "No encontré $VSCODE_CONFIGURATOR; VS Code pedirá el llavero del sistema en cada arranque."
+  fi
+else
+  info "Omito el ajuste de secretos de VS Code."
+fi
+
 if paso_activo css; then
   # --- 7. Generar el CSS que importa app.ts ---
   SCSS="$HOME/GiGiOS/ags/estilos/style.scss"
@@ -1628,8 +1647,6 @@ if paso_activo gpu; then
   if [[ -s "$GPU_PERFIL" ]]; then
     info "Perfil de GPU ya elegido ($(tr -d '[:space:]' < "$GPU_PERFIL")); no lo toco."
   elif perfil_gpu="$(detectar_perfil_gpu)"; then
-    # `nvidia-vieja-hyde` no se elige nunca automáticamente: es un apaño para tarjetas
-    # antiguas concretas y sólo lo sabe quien tiene una.
     if mkdir -p "$(dirname "$GPU_PERFIL")" && printf '%s\n' "$perfil_gpu" > "$GPU_PERFIL"; then
       info "Perfil de GPU detectado y escrito en $GPU_PERFIL: $perfil_gpu"
     else

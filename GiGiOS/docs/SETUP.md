@@ -580,13 +580,11 @@ garantizado. La regla es:
   Existe para que «no hay nada que configurar» sea una respuesta y no un hueco — con el
   fichero ausente, `gpu.lua` no puede distinguirlo de «todavía no lo he elegido» y avisa
   en pantalla en **cada inicio de sesión**.
-- **`nvidia-vieja-hyde`:** nunca se elige solo. Es un apaño para tarjetas antiguas
-  concretas; ponlo a mano si sabes que lo necesitas.
 
-`nvidia-vieja-hyde` aparte, los cuatro perfiles están versionados. El instalador **no
-pisa** un `gpu-perfil` que ya exista, así que tu elección manual gana siempre. Sin
-fichero (o con un nombre que no exista) no se aplica ninguno y sale un aviso en pantalla,
-pero el compositor arranca igual: el primer arranque es portable.
+Los tres perfiles están versionados. El instalador **no pisa** un `gpu-perfil` que ya
+exista, así que tu elección manual gana siempre. Sin fichero (o con un nombre que no
+exista) no se aplica ninguno y sale un aviso en pantalla, pero el compositor arranca
+igual: el primer arranque es portable.
 
 `gigios/env-firefox.lua` solo activa Wayland/EGL y no fuerza un driver VA-API ni desactiva el
 sandbox multimedia. Los ajustes exclusivos de NVIDIA están aislados en el perfil de

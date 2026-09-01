@@ -25,7 +25,7 @@ hypr/                       (symlink: ~/.config/hypr)
 │   └── gpu/                 un módulo por hardware; lo elige un fichero local
 │       ├── laptop-hibrida.lua
 │       ├── sobremesa-nvidia.lua
-│       └── nvidia-vieja-hyde.lua
+│       └── integrada.lua
 │   ├── pantalla.lua         lee display.json (Ajustes > Pantalla)
 │   ├── dispositivos.lua     lee devices.json (Ajustes > Dispositivos)
 ├── hypridle.conf            otro binario; lo lanza el autostart

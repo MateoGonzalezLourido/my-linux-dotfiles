@@ -592,7 +592,7 @@ EOF
         esac
       done
       case "$gpu_perfil" in
-        sobremesa-nvidia|nvidia-vieja-hyde|laptop-hibrida)
+        sobremesa-nvidia|laptop-hibrida)
           (( gpu_hay_nvidia )) \
             || warn "el perfil de GPU '$gpu_perfil' asume una NVIDIA y aquí no hay ninguna: exporta GBM_BACKEND/LIBVA_DRIVER_NAME de NVIDIA sobre Mesa (echo integrada > $gpu_perfil_ruta)"
           ;;
@@ -608,7 +608,7 @@ EOF
       # LIBVA_DRIVER_NAME=nvidia apunta a un driver inexistente y la decodificación por
       # hardware deja de funcionar sin un solo error.
       case "$gpu_perfil" in
-        sobremesa-nvidia|nvidia-vieja-hyde)
+        sobremesa-nvidia)
           pacman -Q libva-nvidia-driver >/dev/null 2>&1 \
             || fail "el perfil '$gpu_perfil' exporta LIBVA_DRIVER_NAME=nvidia pero falta libva-nvidia-driver (sudo pacman -S --needed libva-nvidia-driver)"
           ;;
