@@ -20,11 +20,18 @@ hl.env("__GL_THREADED_OPTIMIZATIONS", "1")
 
 hl.config({
   cursor = {
-    -- Cursores por hardware en NVIDIA suelen causar tirones -> mejor por software.
-    no_hardware_cursors = true,
-    -- Si quisieras activar HW cursors necesitarías también use_cpu_buffer =
-    -- true — pero OJO: la API Lua descarta 0/false en esta clave (queda el
-    -- auto; medido, ver gpu/laptop-hibrida.lua).
+    -- CURSORES POR HARDWARE ACTIVADOS (false = "no los desactives").
+    --
+    -- Aquí estuvo `true` heredado de la época de los drivers anteriores al 555,
+    -- cuando los HW cursors sobre NVIDIA daban tirones. Con el 610 y explicit
+    -- sync eso ya no aplica, y forzar el cursor por software tiene un coste que
+    -- SÍ se nota: se recompone en cada frame, y el resultado eran tirones
+    -- intermitentes del ratón — justo lo que la opción pretendía evitar.
+    -- Medido en esta máquina (RTX 3060, driver 610.57.04, Hyprland 0.56.2).
+    --
+    -- No hace falta `use_cpu_buffer`: queda en auto (int 2) y los HW cursors
+    -- funcionan igual. No se pone lo que no se necesita.
+    no_hardware_cursors = false,
   },
 })
 

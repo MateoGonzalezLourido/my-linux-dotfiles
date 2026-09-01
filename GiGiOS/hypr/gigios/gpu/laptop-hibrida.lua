@@ -29,14 +29,18 @@
 -- El escritorio va en Intel; forzar NVIDIA global mete reverse-PRIME,
 -- gasta batería y rompe la aceleración de vídeo (VA-API) de Intel.
 
--- Con el compositor en Intel los cursores por hardware funcionan bien.
+-- Con el compositor en Intel los cursores por hardware funcionan bien, y el
+-- default `auto` ya resuelve a eso, así que aquí no se fija nada.
 --
--- Aquí faltaría un `cursor:no_hardware_cursors = false` (0 = permitir HW
--- cursors). NO se pone porque la API Lua DESCARTA el valor para
--- esta clave concreta — medido en 0.56: con 0, false y "0" (anidada headless,
--- tanto anidado como clave plana) la opción queda `int: 2, set: false`, o sea
--- el default auto; `true`/1 sí fijan (los usan los otros dos perfiles). No es
--- una pérdida: en auto Hyprland solo desactiva los HW cursors sobre NVIDIA,
--- así que con el compositor en Intel el auto resuelve a lo mismo que el 0
--- explícito. Si algún día hiciera falta forzarlo de verdad, habría que
--- reverificar si la clave ya acepta el 0.
+-- Si alguna vez hiciera falta forzarlo, la clave SÍ acepta el valor (remedido en
+-- 0.56.2; la nota anterior decía que lo descartaba y estaba equivocada). Las
+-- formas que valen y la que NO, comprobadas con hyprctl eval + getoption:
+--
+--   hl.config({ cursor = { no_hardware_cursors = false } })  -> int: 0  OK
+--   hl.config({ cursor = { no_hardware_cursors = 0 } })      -> int: 0  OK
+--   hl.config({ cursor = { no_hardware_cursors = "0" } })    -> sin efecto
+--
+-- La cadena "0" se descarta EN SILENCIO: `hyprctl eval` responde `ok` y la
+-- opción se queda como estaba. Y la forma de clave plana no existe en esta API
+-- para ninguna opción: hl.config({ ["cursor:no_hardware_cursors"] = false })
+-- da «unknown config key». Usa siempre la tabla anidada con booleano o entero.
