@@ -18,6 +18,35 @@ HISTSIZE=10000
 SAVEHIST=10000
 setopt append_history extended_history hist_expire_dups_first
 setopt hist_ignore_dups hist_ignore_space share_history interactive_comments
+setopt hist_reduce_blanks hist_no_store
+
+# Comandos triviales que no se guardan en el historial. HISTORY_IGNORE es un
+# PATRON de zsh (no una lista) y por si solo NO BASTA: zsh solo lo consulta al
+# escribir el fichero, asi que el comando sigue en el historial de la sesion y
+# la flecha arriba lo sigue sacando. El gancho zshaddhistory es el que lo deja
+# fuera de verdad -- devolver 1 desde ahi descarta la linea en memoria Y en el
+# fichero. Se dejan los dos porque cubren caminos distintos.
+typeset -ga GIGIOS_HIST_IGNORAR=(
+    clear c cls reset 'tput reset'
+    bash zsh fish sh dash
+    exit logout
+    pwd cd 'cd -' 'cd ..' .. ...
+    history
+    ls la ll lt 'l.'
+    fastfetch neofetch
+)
+HISTORY_IGNORE="(${(j:|:)GIGIOS_HIST_IGNORAR})"
+
+_gigios_historial_ignorar() {
+    setopt localoptions extendedglob
+    local linea=${1%%$'\n'}
+    linea=${linea##[[:space:]]##}
+    linea=${linea%%[[:space:]]##}
+    [[ -z $linea || $linea == ${~HISTORY_IGNORE} ]] && return 1
+    return 0
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook zshaddhistory _gigios_historial_ignorar
 
 # Oh My Zsh aporta completado y plugins; Powerlevel10k se carga por separado.
 export ZSH=/usr/share/oh-my-zsh

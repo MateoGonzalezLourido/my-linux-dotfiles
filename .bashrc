@@ -15,6 +15,19 @@ if command -v bat >/dev/null 2>&1; then
 fi
 export HISTTIMEFORMAT='%F %T '
 shopt -s histappend checkwinsize cdspell dirspell 2>/dev/null
+
+# Comandos que NO se guardan en el historial: los triviales (no aportan nada al
+# buscar hacia atras) y todo lo que empiece por espacio, que es la forma de
+# escribir algo puntual sin dejar rastro. HISTIGNORE compara PATRONES CONTRA LA
+# LINEA ENTERA, no contra el nombre del comando: por eso hace falta "cd" y
+# ademas "cd *" si se quiere excluir cualquier cd, y por eso "ls -la" no cae por
+# el patron "ls". El "&" inicial descarta la repeticion del comando anterior.
+# El patron del espacio va con [[:space:]], NO con el clasico [ \t]: dentro de
+# unos corchetes de glob la barra invertida es literal, asi que [ \t] es el
+# conjunto {espacio, barra, t} y se tragaba en silencio todo comando que
+# empezara por t (top, tar, tail...).
+HISTCONTROL=ignoreboth          # ignorespace + ignoredups
+HISTIGNORE='&:[[:space:]]*:clear:c:cls:reset:tput reset:bash:zsh:fish:sh:dash:exit:logout:pwd:history:ls:la:ll:lt:l.:cd:cd -:cd ..:..:...:fastfetch:neofetch'
 bind 'set show-all-if-ambiguous on' 2>/dev/null
 bind 'set completion-ignore-case on' 2>/dev/null
 
