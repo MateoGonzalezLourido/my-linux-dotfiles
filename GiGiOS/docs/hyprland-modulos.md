@@ -2715,6 +2715,19 @@ como Bibata-Modern-Ice, cuyos `.hlc` sí contienen un `.svg`. Sobre un tema de p
 **paridad, no nitidez**. Dato para dimensionarlo: en Bibata la mitad SVG ocupa **328 KB** y la
 XCursor **28 MB**.
 
+**Y antes de eso moría por un paquete que NADIE declaraba: `xcur2png`.** `hyprcursor-util
+--extract` **no lee los XCursor él mismo**: comprueba `xcur2png --help` y le pasa cada fichero
+(visible en las cadenas del binario). Sin él aborta con `Failed: missing dependency: -x requires
+xcur2png.`, y **el paquete `hyprcursor` no lo arrastra** — en Arch/CachyOS ni siquiera figura como
+`optdepend`. El instalador pedía `hyprcursor` y daba por hecho el resto, así que en toda máquina
+recién instalada el paso 10 fallaba **siempre**, y el aviso que salía era el mismo que el de abajo:
+«no pude generar el tema hyprcursor 'Bibata-Modern-Ice' … elegí otro con `--list`». Mandaba a
+cambiar de tema cuando **ningún** tema podía funcionar; probar otro reproduce el fallo idéntico y
+parece que el generador está roto. Tres sitios, porque el diagnóstico tiene que llegar antes que el
+síntoma: `xcur2png` se declara junto a `hyprcursor` en el paso de paquetes, el generador lo
+comprueba **antes de extraer** y muere diciendo qué instalar y que *no es problema del tema*, y
+`preflight.sh` lo exige junto a `hyprcursor-util` (que tampoco estaba en su lista).
+
 **El paso 10 moría por un paquete que el propio instalador trata como opcional.** El gate de
 `bibata-cursor-theme` era `pacman -Si`, que **no ve AUR**: en una máquina con paru/yay pero sin
 chaotic-aur el paquete se descartaba **pudiendo instalarse**, Bibata no llegaba nunca, y el paso

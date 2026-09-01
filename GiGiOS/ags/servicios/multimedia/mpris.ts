@@ -5,7 +5,12 @@ import {
   registrarCaratulaLocal,
   resolverCaratulaRemota,
 } from "./cacheCaratulas"
-import { ContadorAnuncios, esReproductorSpotify, obtenerMiniaturaYoutube } from "./estadoPista"
+import {
+  ContadorAnuncios,
+  esReproductorSpotify,
+  esSpotifyOcioso,
+  obtenerMiniaturaYoutube,
+} from "./estadoPista"
 
 export type EstadoReproductor = {
   reproductor: any
@@ -30,6 +35,12 @@ const mpris = (() => {
   try { return AstalMpris.get_default() } catch (_) { return null }
 })()
 const registros = new Map<any, RegistroReproductor>()
+/**
+ * Todos los reproductores vivos, incluidos los que no se enseñan. Se guardan aparte porque
+ * hay que seguir escuchando sus señales: un Spotify ocioso vuelve a la lista visible en
+ * cuanto se le da a reproducir, y si se hubiera descartado nadie avisaría del cambio.
+ */
+let reproductoresVivos: any[] = []
 
 export const [reproductoresMultimedia, establecerReproductoresMultimedia] = createState<any[]>([])
 export const [revisionMultimedia, establecerRevisionMultimedia] = createState(0)
@@ -45,9 +56,18 @@ function origenCaratula(reproductor: any): string {
   return obtenerMiniaturaYoutube(leerMetadato(reproductor, "xesam:url"))
 }
 
+function mismosReproductores(a: any[], b: any[]): boolean {
+  return a.length === b.length && a.every((reproductor, indice) => reproductor === b[indice])
+}
+
 function publicar() {
-  const reproductores = reproductoresMultimedia.get()
-  const spotify = reproductores.find(esReproductorSpotify)
+  const visibles = reproductoresVivos.filter((reproductor) => !esSpotifyOcioso(reproductor))
+  // Publicar un array nuevo en cada `notify` reconstruiría el carrusel entero, así que solo
+  // se sustituye cuando la lista visible cambia de verdad.
+  if (!mismosReproductores(visibles, reproductoresMultimedia.get())) {
+    establecerReproductoresMultimedia(visibles)
+  }
+  const spotify = visibles.find(esReproductorSpotify)
   establecerEstadoSpotify(spotify ? registros.get(spotify)?.estado ?? null : null)
   establecerRevisionMultimedia(revisionMultimedia.get() + 1)
 }
@@ -150,7 +170,7 @@ function sincronizarReproductores() {
     actualizarReproductor(reproductor, false)
   }
 
-  establecerReproductoresMultimedia(actuales)
+  reproductoresVivos = actuales
   publicar()
 }
 

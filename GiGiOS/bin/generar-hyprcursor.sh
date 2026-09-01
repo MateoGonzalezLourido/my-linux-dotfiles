@@ -108,6 +108,15 @@ DESTINO_NOMBRE="${2:-$ORIGEN_NOMBRE}"
 
 command -v hyprcursor-util >/dev/null || die "falta hyprcursor-util (paquete hyprcursor)"
 
+# hyprcursor-util NO descomprime los XCursor él mismo: --extract invoca `xcur2png` y, si
+# no lo encuentra, aborta con "missing dependency: -x requires xcur2png". El paquete
+# hyprcursor no lo arrastra (ni como optdepend), así que en una máquina recién instalada
+# esto falla siempre. Se comprueba AQUÍ, antes de extraer, porque el mensaje de
+# hyprcursor-util sale por el mismo stderr que install.sh mete en un aviso que dice
+# "elige otro tema": el tema no tenía nada que ver y probar otro no arregla nada.
+command -v xcur2png >/dev/null \
+  || die "falta xcur2png, que es lo que usa 'hyprcursor-util --extract' para leer los XCursor (Arch/CachyOS: sudo pacman -S --needed xcur2png). No es problema del tema: sin él no se puede generar ninguno."
+
 ORIGEN="$(buscar_tema "$ORIGEN_NOMBRE")" || die "no encuentro el tema '$ORIGEN_NOMBRE'. Prueba: $0 --list"
 [ -d "$ORIGEN/cursors" ] || die "'$ORIGEN' no tiene cursors/: no es un tema XCursor"
 

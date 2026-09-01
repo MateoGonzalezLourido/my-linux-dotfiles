@@ -36,3 +36,28 @@ export function obtenerMiniaturaYoutube(url: string | null | undefined): string 
 export function esReproductorSpotify(reproductor: { bus_name?: string | null } | null | undefined): boolean {
   return String(reproductor?.bus_name ?? "").toLowerCase().includes("spotify")
 }
+
+/**
+ * Spotify se anuncia en MPRIS en cuanto abre, aunque no haya nada seleccionado: sin lista
+ * ni pista queda parado (`Stopped`) y con los metadatos vacíos, y el reproductor de la barra
+ * enseñaba una tarjeta muerta que además ocupaba un hueco en el carrusel. Otros clientes sí
+ * usan `Stopped` como "pausa larga" con la pista aún cargada, así que la regla se aplica solo
+ * a Spotify y solo cuando de verdad no hay nada que enseñar.
+ */
+export function esSpotifyOcioso(reproductor: {
+  bus_name?: string | null
+  playback_status?: unknown
+  title?: string | null
+  trackid?: string | null
+} | null | undefined): boolean {
+  if (!esReproductorSpotify(reproductor)) return false
+
+  // AstalMpris.PlaybackStatus: 0 PLAYING, 1 PAUSED, 2 STOPPED. Se compara por número para
+  // no importar GI aquí (este módulo es lógica pura y se cubre con node --test).
+  const estado = Number((reproductor as any)?.playback_status ?? 2)
+  if (estado === 0 || estado === 1) return false
+
+  const titulo = String(reproductor?.title ?? "").trim()
+  const pista = String(reproductor?.trackid ?? "").trim()
+  return !titulo && !pista
+}

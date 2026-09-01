@@ -546,7 +546,15 @@ install_packages() {
     # BINARIO hyprcursor-util (mismo paquete) para generar la mitad hyprcursor
     # del tema de puntero. Se pide explícito para que sea una dependencia
     # declarada del instalador y no un efecto colateral de otro paquete.
-    hyprcursor
+    #
+    # xcur2png NO es adorno: `hyprcursor-util --extract` no lee los XCursor él mismo,
+    # se los pasa a ese binario (comprueba `xcur2png --help` y aborta con "missing
+    # dependency: -x requires xcur2png"). El paquete hyprcursor NO lo arrastra —en Arch
+    # ni siquiera figura como optdepend— así que en una máquina recién instalada el paso
+    # 10 fallaba SIEMPRE, y el aviso que salía ("no pude generar el tema hyprcursor
+    # 'Bibata-Modern-Ice' … elige otro con --list") mandaba a cambiar de tema cuando
+    # ningún tema iba a funcionar. Aquí la única cura es declararlo.
+    hyprcursor xcur2png
     # xorg-xwayland: hypr/gigios/reglas.lua tiene reglas específicas para ventanas
     # XWayland (el arreglo de arrastres) y monitores.lua configura su escalado. Hyprland
     # solo lo recomienda, no lo requiere: sin él las apps X11 (Steam, juegos, instaladores)

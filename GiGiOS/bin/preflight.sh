@@ -211,6 +211,12 @@ if [[ "$mode" == "--installed" ]]; then
     # explícito en vez de confiar en que libcanberra llegue como dependencia transitiva de otra
     # cosa: sin él, una alarma se ve pero no suena, y el fallo es silencioso por diseño.
     canberra-gtk-play:libcanberra
+    # Las DOS mitades del generador de punteros (bin/generar-hyprcursor.sh). xcur2png va
+    # explícito porque es la que se olvida: hyprcursor-util lo llama para leer los
+    # XCursor y sin él aborta con "missing dependency: -x requires xcur2png", pero el
+    # paquete hyprcursor no lo arrastra. Cuando falta, el compositor no dibuja el tema
+    # elegido: libhyprcursor coge el primer tema con manifest.hl que encuentre.
+    hyprcursor-util:hyprcursor xcur2png:xcur2png
   )
   for entry in "${commands[@]}"; do
     command="${entry%%:*}"
