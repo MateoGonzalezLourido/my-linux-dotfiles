@@ -141,12 +141,28 @@ hl.config({
     active_opacity   = opaco_ahorro and 1.0 or aspecto.active_opacity,
     inactive_opacity = opaco_ahorro and 1.0 or aspecto.inactive_opacity,
 
+    -- Sombra CORTA y tenue: lo justo para que la ventana se lea despegada del
+    -- fondo, sin la neblina que dejaba la de antes (range 10 / alpha 88).
+    --
+    -- `render_power` es lo que hace que una sombra tan pequeña se siga viendo, y
+    -- 4 es su MÁXIMO (Hyprland clampa a [1,4]: subirlo no da error, simplemente
+    -- no cambia nada). Concentra la caída pegada al borde, así que los pocos
+    -- píxeles disponibles quedan donde se notan. Sin él, acortar `range` no da
+    -- una sombra nítida: da la misma neblina, más pequeña.
+    --
+    -- Los otros dos valores salen de descartar a mano las alternativas:
+    --  · alpha por encima de ~0x99 comprimido en pocos px produce BANDING — el
+    --    degradado da saltos visibles de 8 bits y se ve un anillo escalonado
+    --    alrededor de la ventana. Medido con range 6 / alpha cc.
+    --  · un `offset` grande (probado 0,5) concentra la masa bajo el borde
+    --    inferior y deja el canto superior desnudo. Se lee como altura, pero con
+    --    `range` corto la sombra se despega del borde y parece un subrayado.
     shadow = {
       enabled      = true,
-      range        = 10,
+      range        = 5,
       render_power = 4,
       offset       = { 0, 2 },
-      color        = "rgba(00000088)",
+      color        = "rgba(00000066)",
     },
 
     blur = {
