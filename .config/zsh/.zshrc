@@ -1,10 +1,27 @@
 # Configuración interactiva autónoma de Zsh.
 [[ -o interactive ]] || return 0
 
+# Greeting, equivalente al del perfil Fish. Va POR ENCIMA del prompt instantáneo
+# a la fuerza: p10k captura la salida de la inicializacion y la reimprime, y las
+# secuencias de fastfetch (protocolo de imagenes de kitty y posicionamiento del
+# cursor) no sobreviven a ese replay. El sintoma era INTERMITENTE -- medido, salia
+# 1 de cada 5 arranques -- y sin ningun error ni el aviso de "console output",
+# pese a INSTANT_PROMPT=verbose. Adelantarlo cuesta 5-15 ms, que no se notan.
+# Solo en terminales que saben pintar el logo por el protocolo de imagenes: con
+# --logo-type kitty en cualquier otra (VS Code, ssh, tty) sale basura o un
+# retardo que no compensa.
+if [[ -t 1 ]] && command -v fastfetch >/dev/null 2>&1; then
+    case "${TERM_PROGRAM:-$TERM}" in
+        kitty | xterm-kitty | ghostty | xterm-ghostty | WezTerm | konsole)
+            fastfetch --logo-type kitty
+            ;;
+    esac
+fi
+
 # Prompt instantáneo de Powerlevel10k. Tiene que quedarse arriba del todo: pinta
-# el prompt desde una cache antes de que carguen Oh My Zsh, compinit, p10k y
-# fastfetch, que es lo que hacia esperar al abrir cada terminal. Cualquier cosa
-# que pida entrada por consola (contraseñas, [y/n]) va POR ENCIMA de este bloque.
+# el prompt desde una cache antes de que carguen Oh My Zsh, compinit y p10k, que
+# es lo que hacia esperar al abrir cada terminal. Cualquier cosa que pida entrada
+# por consola (contraseñas, [y/n]) va POR ENCIMA de este bloque, como el greeting.
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
     source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
@@ -193,17 +210,6 @@ _zsh_plugins=/usr/share/zsh/plugins
 [[ -r "$_zsh_plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] &&
     source "$_zsh_plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
 unset _zsh_plugins
-
-# Equivalente al greeting del perfil Fish. Solo en terminales que saben pintar el
-# logo por el protocolo de imagenes: con --logo-type kitty en cualquier otra
-# (VS Code, ssh, tty) sale basura o un retardo que no compensa.
-if [[ -t 1 ]] && command -v fastfetch >/dev/null 2>&1; then
-    case "${TERM_PROGRAM:-$TERM}" in
-        kitty | xterm-kitty | ghostty | xterm-ghostty | WezTerm | konsole)
-            fastfetch --logo-type kitty
-            ;;
-    esac
-fi
 
 # bun completions
 [ -s "/home/paraguayo33/.bun/_bun" ] && source "/home/paraguayo33/.bun/_bun"
