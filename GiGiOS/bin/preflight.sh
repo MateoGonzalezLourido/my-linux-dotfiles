@@ -538,8 +538,13 @@ EOF
     || fail "falta CaskaydiaCove Nerd Font (sudo pacman -S --needed ttf-cascadia-code-nerd)"
   current_user="$(id -un)"
   login_shell="$(getent passwd "$current_user" | cut -d: -f7)"
+  # El shell de login es Zsh, no Fish: Fish está instalado como referencia de la paridad
+  # que reproduce fish-parity.zsh (de ahí que arriba solo se le compruebe la sintaxis).
+  # Se mira /etc/passwd y no $SHELL: $SHELL lo hereda el proceso que lanzó el preflight
+  # del login, así que sigue valiendo lo de antes durante toda la sesión en la que se
+  # corrió el chsh, y daba OK con el cambio sin aplicar (y al revés).
   [[ "$(readlink -f "$login_shell" 2>/dev/null)" == "$(readlink -f "$(command -v zsh)")" ]] \
-    || fail "Zsh no es el shell predeterminado de $current_user (actual: $login_shell)"
+    || fail "Zsh no es el shell predeterminado de $current_user (actual: $login_shell); corré: chsh -s \"$(command -v zsh)\" y volvé a iniciar sesión"
   if pacman -Si cachyos-fish-config >/dev/null 2>&1; then
     [[ -r /usr/share/cachyos-fish-config/cachyos-config.fish ]] \
       || fail "falta el perfil Fish de CachyOS (sudo pacman -S --needed cachyos-fish-config)"

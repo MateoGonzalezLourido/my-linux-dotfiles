@@ -832,17 +832,48 @@ install_packages() {
   done
 }
 
+# ¿El shell de login de $1 en /etc/passwd es el binario $2? Relee /etc/passwd en cada
+# llamada a propósito: es lo que permite usarla como verificación DESPUÉS del chsh.
+# readlink -f a los dos lados porque /bin/zsh y /usr/bin/zsh son el mismo binario en
+# Arch, y compararlos como cadenas hacía que cada reejecución intentase el chsh otra vez.
+shell_de_login_es() {
+  local usuario="$1" objetivo="$2" actual
+  actual="$(getent passwd "$usuario" | cut -d: -f7)"
+  [[ "$(readlink -f "$actual" 2>/dev/null)" == "$(readlink -f "$objetivo")" ]]
+}
+
 # Cambiar el shell es el ÚLTIMO paso y no puede ser fatal: llegados aquí todo lo demás
 # ya está instalado, y morir por el shell dejaba un escritorio completo reportado como
 # instalación fallida. Además `chsh` pide contraseña, así que sin terminal (curl | bash)
 # no hay forma de hacerlo: se avisa con la orden exacta y se sigue.
+#
+# El shell de login es ZSH, y Fish NO es una alternativa a medio camino: son dos shells
+# paralelos, corre uno u otro, y todo el trabajo está en Zsh. `fish-parity.zsh` reproduce
+# sobre Zsh lo que da Fish (rutas y MANPAGER de cachyos-config.fish, sus alias y
+# funciones, el historial con fecha, la búsqueda por fragmento con las flechas, la paleta
+# exacta del tema por defecto de Fish y su Ctrl+C). Fish se instala como REFERENCIA de esa
+# paridad —por eso el preflight solo le comprueba la sintaxis—, no para usarlo: un login
+# en Fish pierde los ~270 alias de Zsh (todo el plugin git de Oh My Zsh y los atajos de
+# navegación) y se queda en unos 30.
+#
+# `chsh` NO SIRVE COMO SEÑAL DE ÉXITO. Devuelve 0 en casos donde /etc/passwd no cambia
+# —PAM lo deniega y lo reporta por stderr, o el shell no está en /etc/shells y algunas
+# implementaciones sólo avisan—, así que fiarse del código de salida dejaba una
+# instalación "completa" con la terminal abriendo el shell de antes y ni un error a la
+# vista: el mismo fallo mudo que el symlink de `display-manager.service` en el paso
+# `sddm`. Por eso se vuelve a leer /etc/passwd DESPUÉS y es esa lectura, no el rc, la que
+# decide si el paso salió bien.
 configure_default_shell() {
   local zsh_path current_shell current_user
+
   zsh_path="$(command -v zsh 2>/dev/null || true)"
   [[ -n "$zsh_path" ]] || {
     warn "Zsh no está instalado; el shell predeterminado se queda como estaba."
     return
   }
+  # Sin esta línea en /etc/shells, chsh lo rechaza para un usuario sin privilegios (y
+  # login/SDDM tratarían la cuenta como restringida). El paquete `zsh` la añade solo;
+  # comprobarlo distingue "falta el paquete a medio instalar" de "no pude cambiarlo".
   grep -Fxq "$zsh_path" /etc/shells || {
     warn "$zsh_path no figura en /etc/shells; no puedo activarlo como shell predeterminado."
     return
@@ -850,19 +881,20 @@ configure_default_shell() {
 
   current_user="$(id -un)"
   current_shell="$(getent passwd "$current_user" | cut -d: -f7)"
-  # readlink -f a los dos lados: /bin/zsh y /usr/bin/zsh son el mismo binario en Arch,
-  # y compararlos como cadenas hacía que cada reejecución intentase el chsh otra vez.
-  if [[ "$(readlink -f "$current_shell" 2>/dev/null)" == "$(readlink -f "$zsh_path")" ]]; then
+  if shell_de_login_es "$current_user" "$zsh_path"; then
     info "Zsh ya es el shell predeterminado de $current_user."
     return
   fi
 
   if ((INTERACTIVE)); then
-    info "Estableciendo Zsh como shell predeterminado de $current_user ..."
-    run_interactive chsh -s "$zsh_path" \
-      && return
+    info "Estableciendo Zsh como shell predeterminado de $current_user (shell actual: $current_shell) ..."
+    run_interactive chsh -s "$zsh_path" || true
+    if shell_de_login_es "$current_user" "$zsh_path"; then
+      info "Zsh quedó como shell predeterminado de $current_user; surte efecto al volver a iniciar sesión."
+      return
+    fi
   fi
-  warn "No pude cambiar el shell a Zsh. Ejecutalo vos: chsh -s '$zsh_path'"
+  warn "No pude cambiar el shell a Zsh (sigue en $current_shell). Ejecutalo vos: chsh -s '$zsh_path'"
 }
 
 # Resumen de lo que se va a hacer, antes de hacerlo. Con opciones combinadas es fácil
@@ -1776,7 +1808,9 @@ cat <<'EOF'
               ~/GiGiOS/ags/scripts/spotify-auth.sh y ~/GiGiOS/ags/scripts/google-calendar-auth.sh
 EOF
 paso_activo shell && cat <<'EOF'
-  • Shell:    Zsh quedó como predeterminado; abrí una terminal nueva para cargarlo.
+  • Shell:    Zsh quedó como predeterminado en /etc/passwd, pero NO basta con abrir una
+              terminal nueva: CERRÁ LA SESIÓN Y VOLVÉ A ENTRAR. Kitty mira $SHELL antes
+              que /etc/passwd, y $SHELL lo fija el login para toda la sesión de Hyprland.
 EOF
 paso_activo kitty && cat <<'EOF'
   • Kitty:    el perfil se eligió según KITTY_PROFILE; cambiá con ~/GiGiOS/bin/kitty-profile.sh.
