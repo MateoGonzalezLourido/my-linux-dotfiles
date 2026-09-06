@@ -16,7 +16,7 @@ One command bootstraps the whole machine — packages, this repo checked out int
 symlink GiGiOS needs, and the `/etc` fragments that require root:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiOS/install.sh | bash
 ```
 
 The same command **updates** an already-installed machine (fetches, fast-forwards, re-verifies
