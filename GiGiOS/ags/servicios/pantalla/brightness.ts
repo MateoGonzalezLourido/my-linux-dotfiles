@@ -220,7 +220,15 @@ export function applyBrightness(ratio: number) {
 export function stepBrightness(delta: number) {
   if (_backend === "none") return
   applyBrightness(brightness.get() + delta)
-  showBrightnessOSD()
+  // `releerHardware: false` NO es una optimización, es lo que hace que las teclas funcionen.
+  // `applyBrightness` acaba de fijar el valor nuevo y ha lanzado `brightnessctl` de forma
+  // ASÍNCRONA: en este instante sysfs todavía tiene el valor VIEJO. Releerlo aquí adoptaba
+  // ese valor viejo como estado del shell —deshaciendo el salto que acabábamos de dar— y el
+  // OSD salía con la cifra anterior. Peor: la siguiente pulsación partía de ese valor rancio
+  // si udev aún no había hecho eco, así que restaba el mismo salto otra vez y la pantalla no
+  // se movía. De ahí el «a veces cambia y a veces no» y el 100% clavado en la UI mientras el
+  // panel sí bajaba. Del cambio real ya nos avisa el watcher de udev cuando ocurre de verdad.
+  showBrightnessOSD(false, false)
 }
 
 // ── OSD ─────────────────────────────────────────────────────────────────────
@@ -234,7 +242,12 @@ function hideBrightnessOSD() {
   _osdTimer = null
 }
 
-export function showBrightnessOSD(startup = false) {
+/** Enseña el OSD del brillo.
+ *  `releerHardware` solo tiene sentido cuando el OSD lo pide alguien que NO acaba de
+ *  escribir el brillo (`ags request brightness-osd`, el resumen del arranque): ahí sysfs es
+ *  la única fuente fiable. Quien acaba de llamar a `applyBrightness` debe pasarlo en falso
+ *  — ver `stepBrightness`. */
+export function showBrightnessOSD(startup = false, releerHardware = true) {
   if (_backend === "none") {
     hideBrightnessOSD()
     return
@@ -246,9 +259,8 @@ export function showBrightnessOSD(startup = false) {
     hideBrightnessOSD()
     return
   }
-  if (_backend === "backlight") {
-    // brightnessctl ya ha terminado cuando llega esta petición IPC: leer sysfs aquí
-    // garantiza que cada repetición del atajo refresque el valor aunque udev tarde.
+  if (releerHardware && _backend === "backlight") {
+    // Cambio hecho fuera del shell: sysfs manda y udev puede tardar en avisar.
     const current = readBacklightRatio()
     if (current !== null) {
       const v = adoptarLecturaHardware(current)   // sysfs solo conoce el tramo hardware
