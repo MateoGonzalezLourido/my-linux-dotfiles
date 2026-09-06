@@ -1,4 +1,4 @@
-# my-linux-dotfiles
+# GiGi-shell
 
 Personal dotfiles for a full Arch Linux / CachyOS desktop (It may work without problems on other OS), managed as a **bare git repo**
 (`~/.dotfiles`) whose work-tree is `$HOME` — every file in this repository lives at its real,
