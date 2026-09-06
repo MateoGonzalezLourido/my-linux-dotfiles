@@ -277,6 +277,28 @@ _disk_is_internal() {
     return 0
 }
 
+# ¿La E/S que falló era una ESCRITURA? Hay que mirarlo antes de decirle a nadie que
+# "se quitó con escrituras pendientes", porque esa frase es una afirmación sobre
+# sus datos y en la mitad de los casos es falsa. Las dos formas del kernel:
+#
+#   I/O error, dev sda, sector 6293504 op 0x1:(WRITE)     ← escritura
+#   I/O error, dev sda, sector 57945872 op 0x0:(READ)     ← lectura
+#   Buffer I/O error on dev sdb1, …, lost async page write ← escritura
+#   Buffer I/O error on dev sda1, …, async page read       ← lectura
+#
+# Caso real que lo motivó: al tirar de un pendrive mientras algo lo estaba LEYENDO
+# (un `fsck.exfat -n` lanzado por udisks) salían decenas de "op 0x0:(READ)" y el
+# aviso afirmaba que había escrituras sin volcar y que podía haber archivos
+# incompletos. No había ninguna: no se había escrito nada.
+#
+# La ambigüedad se resuelve a favor de NO alarmar: si la línea no dice de qué tipo
+# es, se trata como lectura (mensaje suave). Preferimos quedarnos cortos en una
+# línea rara a acusar de pérdida de datos que no ha ocurrido.
+_io_es_escritura() {
+    local l=${1,,}
+    [[ "$l" == *"(write)"* || "$l" == *"page write"* || "$l" == *"write error"* ]]
+}
+
 # ── Kernel monitor (SOLO kernel, anclado con -k) ──────────────────────────────
 monitor_kernel() {
     # Si TODAS las categorías de kernel están desactivadas, no arrancamos el pipe.
@@ -304,6 +326,12 @@ monitor_kernel() {
     notif_grupo kdisk     disco.error-es           critical 15000 "Error de disco"                 "errores de disco"
     notif_grupo kusb      usb.extraccion-insegura  normal   12000 "Extracción insegura"            "extracciones inseguras" \
         "Se quitó " " con escrituras pendientes. Puede haber archivos incompletos o el sistema de ficheros marcado como sucio. Expúlsalo antes de retirarlo."
+    # Mismo tirón, pero solo se estaba LEYENDO: nada que se haya quedado a medias de
+    # escribir, así que no se habla de archivos incompletos. Id. propio para que se
+    # pueda silenciar por separado en Ajustes > Notificaciones > Sistema — es el más
+    # inocuo de los dos y el candidato natural a molestar.
+    notif_grupo kusbr     usb.extraccion-en-lectura normal  10000 "Se retiró mientras se leía"     "dispositivos retirados mientras se leían" \
+        "Se quitó " " mientras se leía de él. No había escrituras pendientes, así que no debería faltar nada; lo que estuviera leyéndolo (una copia, una comprobación) se quedó a medias."
     notif_grupo khw       hardware.error           critical 15000 "Error de hardware"              "errores de hardware"
     notif_grupo kmod      kernel.modulo-sin-firmar critical 15000 "Módulo de kernel sin firmar"    "módulos de kernel sin firmar"
     notif_grupo kgpu      gpu.error                critical 15000 "Error GPU"                      "errores de GPU"
@@ -397,16 +425,27 @@ monitor_kernel() {
                 _dev=$(_io_dev "$line")
                 _base=$(_disk_base "$_dev")
                 _now=$(date +%s)
-                _key="${_base:-desconocido}"
+
+                # El cooldown se lleva por dispositivo Y POR TIPO: una extracción en
+                # caliente a mitad de una copia suelta lecturas y escrituras fallidas
+                # entremezcladas, y con una sola clave la primera línea que llegase
+                # (normalmente una lectura, que es lo que más readahead genera) se
+                # comía los 30 s y ocultaba las escrituras, que son las que sí
+                # importan. Son dos hechos distintos sobre el mismo tirón.
+                if _io_es_escritura "$line"; then _tipo=w; else _tipo=r; fi
+                _key="${_base:-desconocido}:$_tipo"
 
                 if (( _now - ${_io_cooldown[$_key]:-0} >= 30 )); then
                     _io_cooldown[$_key]=$_now
                     if [[ -z "$_base" ]] || _disk_is_internal "$_base"; then
                         # Disco interno (o línea que no nombra dispositivo → no la tragamos).
                         notif_encolar kdisk "$line"
-                    else
-                        # Extraíble: aviso de datos, no de hardware.
+                    elif [[ "$_tipo" == w ]]; then
+                        # Extraíble con escrituras perdidas: aviso de datos, no de hardware.
                         notif_encolar kusb "$_dev"
+                    else
+                        # Extraíble, pero solo se leía: nada que se haya perdido.
+                        notif_encolar kusbr "$_dev"
                     fi
                 fi
 

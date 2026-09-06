@@ -450,6 +450,22 @@ notify_storage() {
 # error (fs no soportado, falta la herramienta —NTFS necesita ntfsprogs—) también es
 # silencio: esto es una comodidad, no puede convertirse en una fuente de ruido.
 #
+# ── «Check» NO es leer un flag: es un fsck completo que SECUESTRA el USB ──────
+# Y ese es el fallo silencioso que hay que tener presente aquí. udisks no consulta
+# el bit de "sucio" del superbloque: lanza la herramienta del fs (`fsck.exfat -n`,
+# `e2fsck -fn`, `fsck.fat -n`…), que recorre TODA la metainformación del volumen y
+# lo deja ocupado mientras tanto. Medido en este equipo con un pendrive exFAT de
+# 239 GB: `fsck.exfat -n /dev/sda1` pasaba de 1 min 40 s y seguía. Durante todo ese
+# rato el USB NO SE PUEDE MONTAR —ni por el botón «Abrir», ni desde Dolphin— y
+# desde fuera eso se ve exactamente como «el gestor de archivos se queda pensando
+# para siempre», sin un error, sin un log, sin nada que señale a este script.
+#
+# De ahí las dos guardas de abajo (tope de tamaño y ventana de asentamiento). La
+# clave para entender por qué hacen falta las dos: un volumen sucio SE MONTA
+# PERFECTAMENTE (exFAT escupe un "Volume was not properly unmounted" al log y
+# sigue adelante), así que comprobar es una comodidad y montar es el trabajo. Si
+# las dos cosas compiten, gana montar.
+#
 # ── Por qué reparar sin preguntar ────────────────────────────────────────────
 # Porque la operación es conservadora, no destructiva: para NTFS, udisks ejecuta
 # `ntfsfix`, y su propio man deja claro que NO es un chkdsk de Linux — "repara
@@ -459,12 +475,79 @@ notify_storage() {
 # el enchufe: es la única ventana en la que el volumen está sucio y aún sin montar,
 # que es lo que Repair exige. Preguntar aquí solo servía para que la ventana se
 # cerrara mientras el usuario decidía.
+
+# Tope por encima del cual no se comprueba sola (64 GiB). Cubre de sobra el
+# pendrive normal, que es donde la comodidad se nota, y deja fuera los discos
+# externos grandes, que es donde el fsck se hace eterno.
+CHECK_MAX_BYTES=${GIGIOS_USB_CHECK_MAX_BYTES:-$((64 * 1024 * 1024 * 1024))}
+# Segundos que se le conceden al montaje antes de plantearse comprobar nada.
+CHECK_SETTLE_SECS=${GIGIOS_USB_CHECK_SETTLE_SECS:-25}
+
+# ¿Está montado este dispositivo? Sin forks: /proc/mounts con el builtin `read`.
+# Se compara el campo 1 ENTERO y no por prefijo: "/dev/sda1" no debe casar con una
+# línea de "/dev/sda10". El `grep "^/dev/$part "` de antes era correcto solo por
+# ese espacio final, que es justo lo que se pierde al editar sin darse cuenta.
+esta_montado() {
+    local d
+    while read -r d _; do
+        [[ "$d" == "/dev/$1" ]] && return 0
+    done < /proc/mounts
+    return 1
+}
+
 check_volume() {
     local part=$1 name=$2 fs=$3
-    ( sleep 2                                        # deja que udisks registre el objeto
-      grep -q "^/dev/$part " /proc/mounts && exit 0  # ya montado → no se puede comprobar
+
+    # ── Guarda 1: tamaño ──────────────────────────────────────────────────────
+    # Por encima del tope no se comprueba sola. El coste del fsck crece con el
+    # volumen y el beneficio no: bloquear el dispositivo minutos para averiguar
+    # algo que no impide usarlo es un mal cambio. A mano sigue estando entero:
+    # `usb-repair.sh /dev/sdXN`. Se mira ANTES de la espera para no dejar un
+    # subshell vivo 25 s por un disco que ya sabemos que no vamos a tocar.
+    # /sys/.../size va SIEMPRE en sectores de 512 B, sea cual sea el tamaño de
+    # bloque lógico del dispositivo (es la unidad de la clase, no del hardware).
+    local sectores=0
+    [[ -r "/sys/class/block/$part/size" ]] && read -r sectores < "/sys/class/block/$part/size"
+    (( sectores * 512 > CHECK_MAX_BYTES )) && return 0
+
+    ( # ── Guarda 2: montar tiene preferencia, y se ESPERA a que ocurra ────────
+      # Esto era `sleep 2` y UN vistazo a /proc/mounts. La guarda era la correcta
+      # —si ya está montado no se puede comprobar— pero mirar UNA SOLA VEZ la
+      # convierte en una carrera que se pierde por un segundo. Medido:
+      #
+      #   · 1ª vez que se enchufa un pendrive en la sesión → hay que cargar el
+      #     módulo usb-storage EN FRÍO, la partición tarda ~2 s en aparecer y el
+      #     montaje llega sobre t=4 s. A los 2 s todavía no está → arrancábamos
+      #     el fsck y el USB quedaba secuestrado.
+      #   · 2ª vez, con el módulo ya caliente → el montaje llega a t=1 s. A los
+      #     2 s ya está → nos apartábamos y todo iba bien.
+      #
+      # O sea que el «la primera vez Dolphin se queda en bucle y la segunda lo
+      # abre sin problema» no era azar: era ese único segundo de diferencia. La
+      # ventana cubre de sobra la vida del popup con el botón «Abrir» (20 s), que
+      # es el tiempo real que tiene el usuario para decidir; si pulsa, montamos y
+      # ya no hay nada que comprobar.
+      #
+      # Se sondea con el builtin `read` sobre /proc/mounts en vez de con `grep`:
+      # son ~25 vueltas y este script presume de no forkear por evento. El único
+      # fork que queda es el `sleep`.
+      local i
+      for (( i = 0; i < CHECK_SETTLE_SECS; i++ )); do
+          esta_montado "$part" && exit 0
+          sleep 1
+      done
+      esta_montado "$part" && exit 0
+
       local obj="/org/freedesktop/UDisks2/block_devices/$part" out
-      out=$(busctl --system call org.freedesktop.UDisks2 "$obj" \
+      # --timeout EXPLÍCITO. El de DBus por defecto son 25 s y un fsck los pasa de
+      # largo; al vencer, busctl devuelve error, eso caía en el `|| exit 0` de esta
+      # misma línea y el volumen se daba por LIMPIO… mientras udisksd seguía
+      # fsckeando con el dispositivo bloqueado y sin nadie mirando. Comprobado en
+      # vivo: sin un solo `busctl` en la tabla de procesos, un `fsck.exfat -n
+      # /dev/sda1` llevaba más de minuto y medio corriendo. Con el tope de tamaño
+      # de arriba esto ya no debería vencer nunca; el timeout largo está para que,
+      # si vence, sea porque de verdad pasa algo raro y no por el reloj de DBus.
+      out=$(busctl --system --timeout=900 call org.freedesktop.UDisks2 "$obj" \
               org.freedesktop.UDisks2.Filesystem Check 'a{sv}' 0 2>/dev/null) || exit 0
       [[ "$out" == *"true"* ]] && exit 0             # limpio
 
@@ -475,7 +558,7 @@ check_volume() {
       # de archivos ha podido montarlo, y en modo automático NO vamos a desmontarle un
       # volumen que quizá ya está usando. En ese caso (y solo en ese) se cae al aviso
       # con botón, donde el desmontaje lo autoriza él con el clic.
-      if [[ -x "$REPAIR" ]] && ! grep -q "^/dev/$part " /proc/mounts; then
+      if [[ -x "$REPAIR" ]] && ! esta_montado "$part"; then
           "$REPAIR" "/dev/$part"
           exit 0
       fi

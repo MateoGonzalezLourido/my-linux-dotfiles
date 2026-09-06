@@ -2684,6 +2684,59 @@ cuando llega el `add` del `usb_device`.
   de reparar — si el gestor de archivos lo montó en ese hueco, **no** se le desmonta por la cara: ahí
   (y solo ahí) se cae al aviso con botón, donde el desmontaje lo autoriza el clic.
 
+#### `Check` NO lee un flag: es un fsck completo, y SECUESTRA el USB mientras corre
+
+El fallo silencioso más caro de esta sección, porque el síntoma no apunta a ningún sitio: **al enchufar
+un pendrive, Dolphin no lo abre y se queda «pensando» para siempre; al quitarlo y volverlo a meter, lo
+abre bien**. Ni un error, ni una línea de log que nombre a `usb-monitor.sh`.
+
+`org.freedesktop.UDisks2.Filesystem.Check` no consulta el bit de «sucio» del superbloque: udisks lanza
+la herramienta del sistema de ficheros (`fsck.exfat -n`, `e2fsck -fn`, `fsck.fat -n`…), que recorre
+**toda** la metainformación del volumen y lo deja ocupado mientras tanto. Medido con un pendrive exFAT
+de 239 GB: `fsck.exfat -n /dev/sda1` pasaba de **1 min 40 s** y seguía. Durante todo ese rato el USB no
+se puede montar, ni por el botón «Abrir» ni desde Dolphin, que es literalmente lo que se ve.
+
+Lo que lo convertía en «a veces sí y a veces no» era que la guarda de «si ya está montado me callo»
+miraba `/proc/mounts` **una sola vez, tras un `sleep 2`**. Eso es una carrera que se pierde por un
+segundo:
+
+| | partición visible | montada | qué veía el vistazo a t=2 s |
+|---|---|---|---|
+| **1ª vez en la sesión** | t≈2 s (hay que cargar `usb-storage` **en frío**) | t≈4 s | no montada → **arranca el fsck** → Dolphin en bucle |
+| **2ª vez** | t≈0 s (módulo caliente) | t≈1 s | montada → se aparta → todo bien |
+
+Tres arreglos, y hacen falta los tres:
+
+- **Tope de tamaño** (`CHECK_MAX_BYTES`, 64 GiB). El coste del fsck crece con el volumen y el beneficio
+  no: un volumen sucio **se monta perfectamente** (exFAT escupe un `Volume was not properly unmounted`
+  al log y sigue), así que bloquear el dispositivo minutos para averiguar algo que no impide usarlo es
+  un mal cambio. Por encima del tope no se comprueba sola; a mano sigue estando entero
+  (`usb-repair.sh /dev/sdXN`).
+- **Ventana de asentamiento** (`CHECK_SETTLE_SECS`, 25 s). Se **sondea** `/proc/mounts` en vez de mirar
+  una vez, y montar gana siempre que ocurra. 25 s cubre de sobra la vida del popup con el botón
+  «Abrir» (20 s), que es el tiempo real que tiene el usuario para decidir: si pulsa, montamos y ya no
+  hay nada que comprobar.
+- **`busctl --timeout=` explícito**, aquí y en `usb-repair.sh`. El de DBus por defecto son **25 s** y un
+  fsck los pasa de largo. Al vencer, `busctl` devuelve error, eso caía en el `|| exit 0` y el volumen
+  se daba por **limpio**… mientras `udisksd` seguía fsckeando con el dispositivo bloqueado y sin nadie
+  mirando. Comprobado en vivo: sin un solo `busctl` en la tabla de procesos, un `fsck.exfat -n` llevaba
+  más de minuto y medio corriendo. En `usb-repair.sh` era peor todavía: la reparación se daba por
+  fallida y se avisaba de ello mientras udisks la terminaba bien por debajo.
+
+Dos consecuencias que se arrastraban de aquí:
+
+- **`usb-repair.sh` desmontaba y no volvía a montar en ningún camino de error.** Una reparación fallida
+  dejaba el pendrive enchufado y **sin montar** — el mismo síntoma que esto viene a evitar — y como el
+  aviso que salía era el del fallo de la reparación, nada apuntaba a que además se había quedado
+  desmontado. Ahora hay un `remontar()` que se llama en todas las salidas, y solo remonta **si el
+  desmontaje fue nuestro**: en el camino automático el volumen nunca estuvo montado y montarlo sería
+  cambiarle el estado del escritorio al usuario sin pedirlo.
+- **El aviso de «extracción insegura» mentía.** `oom-monitor.sh` clasificaba cualquier `i/o error` en un
+  extraíble como *«se quitó con escrituras pendientes»*, sin mirar la operación. Al tirar del pendrive
+  mientras **nuestro propio fsck lo estaba leyendo**, el kernel suelta decenas de `op 0x0:(READ)` y el
+  aviso afirmaba que podía haber archivos incompletos. No había ninguno: no se había escrito nada. Ver
+  la sección de `oom-monitor.sh`.
+
 **Por qué udisks y no `fsck`/`ntfsfix` directos**: van a un dispositivo `root:disk 660`, harían falta
 privilegios, y escalarlos vía pkexec desde un script de `~/.config` (escribible por el usuario) sería
 exactamente la escalada silenciosa contra la que avisa CLAUDE.md. Con udisks el
@@ -2968,6 +3021,18 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   aviso normal **"Extracción insegura"** (datos, no hardware). Una línea que no nombre dispositivo
   **sí** alarma (fail-safe). Además hay cooldown de 30 s **por dispositivo**: un disco muriéndose de
   verdad suelta decenas de líneas por segundo. Ver la sección de USB para la causa raíz y la cura.
+  **Y dentro de "extraíble", se mira si la E/S era LECTURA o ESCRITURA** (`_io_es_escritura`), porque
+  el texto del aviso —«se quitó **con escrituras pendientes**, puede haber archivos incompletos»— es
+  una afirmación sobre los datos del usuario y era falsa la mitad de las veces. Caso real que lo
+  destapó: tirar del pendrive mientras lo estaba leyendo el `fsck.exfat -n` que lanzaba nuestro propio
+  `check_volume` (ver la sección de USB) llena el log de `op 0x0:(READ)` y salía el aviso de escrituras
+  perdidas sin que se hubiera escrito **nada**. Hoy la lectura tiene su propio id
+  (`usb.extraccion-en-lectura`, silenciable aparte) y su propio texto, que no habla de archivos
+  incompletos. El **cooldown pasa a ser por dispositivo Y tipo**: en una extracción a mitad de una
+  copia llegan lecturas y escrituras entremezcladas, y con una sola clave la primera línea —casi
+  siempre una lectura, que es la que más readahead genera— se comía los 30 s y **ocultaba las
+  escrituras**, que son las que sí importan. La ambigüedad se resuelve a favor de no alarmar: una línea
+  que no diga de qué tipo es cuenta como lectura.
 - `monitor_system` — `journalctl -f` filtered by `-t` identifier (sudo, sshd, su, pkexec,
   polkitd, systemd, systemd-coredump): failed-to-start services, sudo/su/polkit auth failures,
   SSH accepted/failed, coredumps, and a sliding-window "crash storm" detector (≥3 coredumps

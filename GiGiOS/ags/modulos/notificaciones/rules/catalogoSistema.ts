@@ -118,6 +118,7 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("usb.almacenamiento", "almacenamiento", "usb-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("usb.volumen-con-errores", "almacenamiento", "usb-monitor.sh"),
   ev("usb.extraccion-insegura", "almacenamiento", "oom-monitor.sh"),
+  ev("usb.extraccion-en-lectura", "almacenamiento", "oom-monitor.sh"),
   ev("usb.expulsado", "almacenamiento", "usb-eject.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("usb.desmontado", "almacenamiento", "usb-eject.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("usb.expulsar-fallo", "almacenamiento", "usb-eject.sh"),
