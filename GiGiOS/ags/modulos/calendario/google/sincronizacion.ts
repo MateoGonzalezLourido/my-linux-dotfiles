@@ -12,6 +12,7 @@
 // tres `sincronizar()` y tres lecturas del fichero de credenciales. El `enCurso` salvaba la red,
 // no el resto. Un disparador global es global, y este módulo se evalúa una sola vez.
 
+import GLib from "gi://GLib"
 import { createState } from "ags"
 import { calendarVisible } from "../../../estado/shell"
 import { cargarJsonCrudo, rutaConfig, saveJsonAsync } from "../../../servicios/almacenamiento/json.ts"
@@ -105,11 +106,17 @@ function posponerAuto(ms: number) {
 const DIAS_ATRAS = 90
 
 export async function sincronizar(
-  opciones: { forzarCompleta?: boolean; manual?: boolean } = {},
+  opciones: { forzarCompleta?: boolean; manual?: boolean; periodico?: boolean } = {},
 ): Promise<void> {
   if (enCurso) return
-  const manual = opciones.manual === true || opciones.forzarCompleta === true
-  if (!manual && Date.now() < proximaAuto) return
+  // `periodico` se salta el suelo por la misma razón que `manual`, y no es una excepción que lo
+  // deje sin efecto: el suelo existe para que ABRIR y cerrar el panel en bucle no sea un sondeo, y
+  // aquí el limitador ES el propio temporizador, que dispara una vez por minuto y nada más. Sin
+  // esto un tic caído a 59,9 s del anterior se lo tragaría el suelo y el refresco real serían dos
+  // minutos, la mitad de las veces y sin ninguna señal de por qué.
+  const saltarSuelo =
+    opciones.manual === true || opciones.forzarCompleta === true || opciones.periodico === true
+  if (!saltarSuelo && Date.now() < proximaAuto) return
   if (!hayCuentaConfigurada()) {
     establecerEstadoSync({ fase: "sin-configurar" })
     return
@@ -312,12 +319,105 @@ export function textoEstado(estado: EstadoSincronizacion): string {
 }
 
 /**
+ * Refresco periódico MIENTRAS EL PANEL ESTÁ ABIERTO.
+ *
+ * **No hay forma de que Google avise, y conviene saber por qué antes de intentar quitarlo.** La API
+ * de Calendar solo ofrece *push* por `watch`, que consiste en que Google haga una petición a un
+ * receptor **HTTPS público con certificado válido**; no existe long-poll, ni streaming, ni un
+ * socket al que suscribirse desde un cliente. Unos dotfiles no tienen dónde recibir eso, así que
+ * un temporizador es la única opción posible, no una elección de comodidad.
+ *
+ * **Solo corre con el panel visible.** Con el panel cerrado el sondeo sería un `curl` por minuto
+ * durante toda la sesión para actualizar algo que nadie está mirando, y abrir el panel ya
+ * sincroniza de por sí. Es el mismo criterio que el reloj de la cuadrícula y el tic del
+ * cronómetro: nada que se vea depende de un temporizador que siga vivo cuando no se ve.
+ */
+const INTERVALO_PANEL_ABIERTO_S = 60
+let tickRefresco = 0
+
+function pararRefrescoPeriodico() {
+  if (tickRefresco !== 0) {
+    GLib.source_remove(tickRefresco)
+    tickRefresco = 0
+  }
+}
+
+function arrancarRefrescoPeriodico() {
+  if (tickRefresco !== 0) return
+  tickRefresco = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, INTERVALO_PANEL_ABIERTO_S, () => {
+    if (!calendarVisible.get() || !hayCuentaConfigurada()) {
+      tickRefresco = 0
+      return GLib.SOURCE_REMOVE
+    }
+    void sincronizar({ periodico: true })
+    return GLib.SOURCE_CONTINUE
+  })
+}
+
+/**
  * Abrir el panel pone el calendario al día. **Una sola suscripción para todo el shell.**
  *
  * Vivía dentro de `EstadoGoogle`, que se construye una vez por monitor; aquí se registra una vez
- * porque el módulo se evalúa una vez. Cerrar el panel no cancela nada: la pasada en curso termina
- * sola, y `MIN_INTERVALO_AUTO_MS` se encarga de que abrir y cerrar en bucle no sea un sondeo.
+ * porque el módulo se evalúa una vez. Cerrar el panel no cancela la pasada en curso, que termina
+ * sola; lo que sí para es el refresco periódico.
  */
 calendarVisible.subscribe(() => {
-  if (calendarVisible.get() && hayCuentaConfigurada()) void sincronizar()
+  if (calendarVisible.get() && hayCuentaConfigurada()) {
+    void sincronizar()
+    arrancarRefrescoPeriodico()
+  } else {
+    pararRefrescoPeriodico()
+  }
+})
+
+/**
+ * Una mutación propia (crear, editar, borrar) SUBE EN EL ACTO, sin esperar a la próxima apertura.
+ *
+ * Antes no lo hacía: `eliminarEvento` marcaba `pendiente: "eliminar"`, ocultaba el evento y la cola
+ * la vaciaba `subirPendientes()` en la siguiente pasada, o sea al reabrir el panel. Nada se perdía
+ * —la cola va en `calendario.json` y sobrevive a un reinicio— pero el resultado de la petición
+ * llegaba cuando ya no estabas mirando, así que un borrado que fallara no tenía forma de contarlo:
+ * el chip te enseñaba el error de una acción hecha diez minutos antes.
+ *
+ * **El disparador es la LISTA de eventos, no una llamada desde `estado.ts`.** `sincronizacion.ts`
+ * ya importa de `estado.ts`; llamar desde allí hacia aquí cerraría un ciclo de imports entre los
+ * dos módulos. Observando la lista, la dependencia sigue yendo en un solo sentido.
+ *
+ * **Y por eso hace falta la firma.** Este módulo también escribe la lista (`reemplazarEventos` al
+ * final de cada pasada), así que reaccionar a cualquier cambio sería reentrar: una subida que
+ * FALLA deja la mutación pendiente, la escritura de la fusión notifica, y volveríamos a
+ * sincronizar contra el mismo error en bucle cerrado. Comparando la firma de la cola solo se
+ * dispara cuando la cola CAMBIA de verdad, o sea cuando el usuario ha hecho algo nuevo; un fallo se
+ * reintenta en la siguiente apertura o en el tic del minuto, que ya es donde toca.
+ */
+const REBOTE_MUTACION_MS = 800
+let firmaColaUltimoIntento = ""
+let reboteMutacion = 0
+
+function firmaCola(): string {
+  return mutacionesPendientes(eventos.get())
+    .map((m) => `${m.tipo}:${m.evento.id}`)
+    .sort()
+    .join("|")
+}
+
+eventos.subscribe(() => {
+  if (!hayCuentaConfigurada()) return
+  const firma = firmaCola()
+  // Cola vacía: se olvida el último intento para que volver a tocar ese mismo evento dispare.
+  if (firma === "") {
+    firmaColaUltimoIntento = ""
+    return
+  }
+  if (firma === firmaColaUltimoIntento) return
+  firmaColaUltimoIntento = firma
+
+  // Rebote corto: editar un evento toca la lista varias veces seguidas y guardar dos cambios
+  // seguidos son dos notificaciones. Se sube una vez, con todo dentro.
+  if (reboteMutacion !== 0) GLib.source_remove(reboteMutacion)
+  reboteMutacion = GLib.timeout_add(GLib.PRIORITY_DEFAULT, REBOTE_MUTACION_MS, () => {
+    reboteMutacion = 0
+    void sincronizar({ manual: true })
+    return GLib.SOURCE_REMOVE
+  })
 })
