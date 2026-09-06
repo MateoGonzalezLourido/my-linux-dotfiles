@@ -80,6 +80,19 @@
       "titulo": "Ocultar la barra automáticamente",
       "descripcion": "Oculta la barra cuando no se usa y la muestra al llevar el puntero al borde superior.\nDesactivado, las ventanas reservan espacio para ella."
     },
+    "avisoBateria": {
+      "titulo": "Mostrar la barra con la batería baja",
+      "descripcion": "Baja la barra y deja de ocultarla mientras la batería esté por debajo del umbral y no se esté cargando.\nVuelve a ocultarse sola al enchufar el cargador o al recuperar carga.",
+      "vinculo": {
+        "titulo": "Usar el umbral del modo ahorro",
+        "descripcion": "Toma el porcentaje de Ajustes > Energía en vez de tener el suyo.\nSolo el número: forzar el modo ahorro a mano no baja la barra."
+      },
+      "umbral": {
+        "titulo": "Mostrar la barra por debajo de",
+        "tooltip": "Editar el porcentaje de batería",
+        "descripcion": "Porcentaje propio del aviso, entre {minimo} y {maximo} %."
+      }
+    },
     "spotify": {
       "titulo": "Spotify en la barra",
       "descripcion": "Muestra la canción actual; clic izquierdo controla la reproducción y clic derecho abre Spotify."

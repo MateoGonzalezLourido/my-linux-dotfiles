@@ -34,6 +34,7 @@ import { gestosActivos } from "../../servicios/gestos/estado"
 import { anyPanelVisible, alternarQuickSettings, solicitudAlternarBar } from "../../estado/shell"
 import { notifPanelVisible } from "../notificaciones/store"
 import { suspensionFalsaActiva } from "../../servicios/energia/suspensionFalsa"
+import { barraFijaPorBateriaBaja } from "../../servicios/energia/avisoBateriaBarra"
 
 export default function Barra(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
@@ -114,10 +115,14 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (!visible()) return
     if (!barAutoHideEnabled.get()) return
+    // Batería baja y descargando: la barra se queda abajo aunque el auto-ocultado siga
+    // puesto. Es una suspensión del auto-ocultado, no un pin: al enchufar o recuperar
+    // carga esta guarda cae sola y la siguiente `checkVisibility()` la retrae.
+    if (barraFijaPorBateriaBaja.get()) return
     if (barPinnedByKey.get()) return
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
-      if (barAutoHideEnabled.get() && !isHovered() && !anyPanelVisible.get() && !visibilidad.menuAbierto.get() && !isWsPreview.get() && !isWsDragging() && !barPinnedByKey.get()) {
+      if (barAutoHideEnabled.get() && !barraFijaPorBateriaBaja.get() && !isHovered() && !anyPanelVisible.get() && !visibilidad.menuAbierto.get() && !isWsPreview.get() && !isWsDragging() && !barPinnedByKey.get()) {
         if (Date.now() - shownAt < SHOW_LOCK_MS) return
         if (lastY <= CLOSE_GUARD_Y) return
         setVisible(false)
@@ -151,7 +156,7 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
       hideNow()
     } else if (barOcultaPorTecla.get()) {
       hideNow()
-    } else if (!barAutoHideEnabled.get()) {
+    } else if (!barAutoHideEnabled.get() || barraFijaPorBateriaBaja.get()) {
       showNow()
     } else if (isHovered() || anyPanelVisible.get() || visibilidad.menuAbierto.get() || isWsPreview.get()) {
       handleShow()
@@ -196,6 +201,13 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
   // no hay hover ni paneles abiertos).
   bajas.push(barAutoHideEnabled.subscribe(checkVisibility))
 
+  // Aviso de batería baja (Ajustes > Barra): mientras esté puesto, la barra baja y no
+  // vuelve a retraerse sola. NO toca la exclusividad de la ventana —sigue en NORMAL,
+  // flotando sobre las ventanas— a diferencia de apagar el auto-ocultado: reservar 38 px
+  // al cruzar el umbral recolocaría TODAS las ventanas de la salida, y volvería a
+  // recolocarlas al enchufar el cargador. Un aviso no debe mover el escritorio.
+  bajas.push(barraFijaPorBateriaBaja.subscribe(checkVisibility))
+
   // Actualiza barTapada cuando aparece/desaparece una pantalla completa real en el
   // escritorio activo de esta salida. checkVisibility (suscrito abajo) hace el resto.
   bajas.push(suscribirPantallaCompleta(gdkmonitor, setBarTapada))
@@ -224,7 +236,7 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
   // en el arranque, donde lastY=0 los bloquearía.)
   startupTimer = setTimeout(() => {
     startupTimer = null
-    if (barAutoHideEnabled.get() && !isHovered() && !anyPanelVisible.get() && !visibilidad.menuAbierto.get() && !isWsPreview.get() && !isWsDragging() && !barPinnedByKey.get()) {
+    if (barAutoHideEnabled.get() && !barraFijaPorBateriaBaja.get() && !isHovered() && !anyPanelVisible.get() && !visibilidad.menuAbierto.get() && !isWsPreview.get() && !isWsDragging() && !barPinnedByKey.get()) {
       setVisible(false)
       setWidgetsRefresh(false)
     }

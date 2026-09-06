@@ -531,6 +531,17 @@ export const [opacidadVentanasForzada, _setOpacidadVentanasForzada] = createStat
 // Pre-composed human label so the UI doesn't have to combine three states in one binding.
 export const [batteryStatusText, _setBatteryStatusText] = createState(textos.estado.sinBateria)
 
+// ── Batería en crudo ────────────────────────────────────────────────────────────
+// Los tres datos que `recompute()` ya lee de AstalBattery, publicados tal cual para quien
+// necesite decidir con OTRO umbral que el del ahorro. Se exportan desde aquí, y no
+// conectando un segundo AstalBattery en el módulo consumidor, para que solo haya una fuente
+// de verdad de "hay batería / está cargando / va por X %": es el mismo criterio que ya
+// documenta `backgroundJobsSuspended` sobre rederivar el estado de batería en bash.
+export const [bateriaPresente, _setBateriaPresente] = createState(false)
+export const [bateriaCargando, _setBateriaCargando] = createState(false)
+/** Carga en porcentaje ENTERO (0..100), no la fracción 0..1 de AstalBattery. */
+export const [bateriaNivel, _setBateriaNivel] = createState(0)
+
 const bat = (() => { try { return AstalBattery.get_default() } catch { return null } })()
 
 // Segundo motivo de las suspensiones del shell, además del ahorro: la SUSPENSIÓN FALSA.
@@ -551,6 +562,9 @@ function recompute() {
   const present = !!(bat && bat.isPresent)
   const charging = present ? bat!.charging : false
   const pct = present ? Math.round(bat!.percentage * 100) : 0
+  _setBateriaPresente(present)
+  _setBateriaCargando(charging)
+  _setBateriaNivel(pct)
   _setBatteryStatusText(present
     ? formatearTexto(charging ? textos.estado.bateriaCargando : textos.estado.bateria, { porcentaje: pct })
     : textos.estado.sinBateria)

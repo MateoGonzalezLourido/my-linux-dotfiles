@@ -169,6 +169,35 @@ const clampWorkspaceVisibleLimit = (value: number): number =>
 const [barAutoHideEnabled, _setBarAutoHideEnabled] = createState(true)
 export { barAutoHideEnabled }
 
+// Aviso de batería baja EN LA BARRA: con la ocultación automática puesta, la barra
+// baja y deja de retraerse mientras la batería esté por debajo del umbral y NO se esté
+// cargando. Es un aviso pasivo —no roba el foco ni tapa nada, porque la barra sigue en
+// exclusivity NORMAL (ver Barra.tsx)— para el caso en que la única señal de carga baja
+// vive justo en lo que está escondido. Default: DESACTIVADO, porque cambia solo el
+// comportamiento de la barra y eso tiene que pedirse.
+const [barraAvisoBateria, _setBarraAvisoBateria] = createState(false)
+export { barraAvisoBateria }
+
+// De dónde sale el porcentaje del aviso. Activado (default) reutiliza el umbral del modo
+// ahorro (`thresholdPct` de ~/.config/power-save/config.json), que es lo que la mayoría
+// querrá: un solo número que gobierna "batería baja" en todo el escritorio. Se toma
+// prestado el NÚMERO y nada más — el aviso nunca sigue a `powerSaveActive`, así que el
+// ahorro forzado a mano (que también se enciende en un sobremesa sin batería) no baja la
+// barra: la condición sigue siendo batería presente, descargando y por debajo del umbral.
+const [barraAvisoBateriaUsaUmbralAhorro, _setBarraAvisoBateriaUsaUmbralAhorro] = createState(true)
+export { barraAvisoBateriaUsaUmbralAhorro }
+
+// Umbral propio del aviso, en uso solo con el anterior desactivado. El mínimo es 1 y no 0
+// a propósito: 0 nunca se cumple (`pct > 0` descarta la lectura transitoria del proxy
+// antes de tener el valor real) y sería un ajuste que parece encendido y no hace nada.
+export const BARRA_AVISO_BATERIA_MIN = 1
+export const BARRA_AVISO_BATERIA_MAX = 100
+const [barraAvisoBateriaPct, _setBarraAvisoBateriaPct] = createState(20)
+export { barraAvisoBateriaPct }
+
+const clampAvisoBateriaPct = (valor: number): number =>
+  Math.max(BARRA_AVISO_BATERIA_MIN, Math.min(BARRA_AVISO_BATERIA_MAX, Math.round(valor)))
+
 // Fondo común de las superficies principales. Se representa mediante una clase
 // reactiva en cada ventana para aplicarlo en caliente sin recompilar ni recargar AGS.
 // Negro conserva el aspecto histórico; Grafito ofrece la alternativa más clara.
@@ -475,6 +504,13 @@ function load() {
       _setWorkspaceVisibleLimit(clampWorkspaceVisibleLimit(saved.workspaceVisibleLimit))
     }
     if (typeof saved.barAutoHide === "boolean") _setBarAutoHideEnabled(saved.barAutoHide)
+    if (typeof saved.barraAvisoBateria === "boolean") _setBarraAvisoBateria(saved.barraAvisoBateria)
+    if (typeof saved.barraAvisoBateriaUsaUmbralAhorro === "boolean") {
+      _setBarraAvisoBateriaUsaUmbralAhorro(saved.barraAvisoBateriaUsaUmbralAhorro)
+    }
+    if (typeof saved.barraAvisoBateriaPct === "number" && Number.isFinite(saved.barraAvisoBateriaPct)) {
+      _setBarraAvisoBateriaPct(clampAvisoBateriaPct(saved.barraAvisoBateriaPct))
+    }
     _setFondoShell(normalizarFondoShell(saved.fondoShell))
     if (typeof saved.acentoAdaptativo === "boolean") {
       _setAcentoAdaptativoEnabled(saved.acentoAdaptativo)
@@ -568,6 +604,9 @@ function save() {
       workspaceAppLimit: workspaceAppLimit.get(),
       workspaceVisibleLimit: workspaceVisibleLimit.get(),
       barAutoHide: barAutoHideEnabled.get(),
+      barraAvisoBateria: barraAvisoBateria.get(),
+      barraAvisoBateriaUsaUmbralAhorro: barraAvisoBateriaUsaUmbralAhorro.get(),
+      barraAvisoBateriaPct: barraAvisoBateriaPct.get(),
       fondoShell: fondoShell.get(),
       acentoAdaptativo: acentoAdaptativoEnabled.get(),
       batteryMonitor: batteryMonitorEnabled.get(),
@@ -716,6 +755,23 @@ export function setWorkspaceVisibleLimit(value: number) {
 }
 export function setBarAutoHideEnabled(on: boolean) {
   _setBarAutoHideEnabled(on)
+  save()
+}
+export function setBarraAvisoBateria(on: boolean) {
+  if (barraAvisoBateria.get() === on) return
+  _setBarraAvisoBateria(on)
+  save()
+}
+export function setBarraAvisoBateriaUsaUmbralAhorro(on: boolean) {
+  if (barraAvisoBateriaUsaUmbralAhorro.get() === on) return
+  _setBarraAvisoBateriaUsaUmbralAhorro(on)
+  save()
+}
+export function setBarraAvisoBateriaPct(valor: number) {
+  if (!Number.isFinite(valor)) return
+  const pct = clampAvisoBateriaPct(valor)
+  if (barraAvisoBateriaPct.get() === pct) return
+  _setBarraAvisoBateriaPct(pct)
   save()
 }
 export function setFondoShell(fondo: FondoShell) {

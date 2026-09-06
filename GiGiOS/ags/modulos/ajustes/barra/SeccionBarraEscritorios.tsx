@@ -1,4 +1,4 @@
-import { For, onCleanup } from "ags"
+import { For, createComputed, onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import Interruptor from "../../../componentes/Interruptor"
 import CapturasMicrofono from "./CapturasMicrofono"
@@ -26,7 +26,12 @@ import {
   workspaceVisibleLimit, setWorkspaceVisibleLimit,
   WORKSPACE_VISIBLE_LIMIT_MIN, WORKSPACE_VISIBLE_LIMIT_MAX,
   segundaVentanaAlLado, setSegundaVentanaAlLado,
+  barraAvisoBateria, setBarraAvisoBateria,
+  barraAvisoBateriaUsaUmbralAhorro, setBarraAvisoBateriaUsaUmbralAhorro,
+  barraAvisoBateriaPct, setBarraAvisoBateriaPct,
+  BARRA_AVISO_BATERIA_MIN, BARRA_AVISO_BATERIA_MAX,
 } from "../preferences"
+import { bateriaPresente } from "../../../servicios/energia/powerState"
 import {
   knownTrayApps, hiddenTrayApps, trayOverflowAt,
   hideTrayApp, showTrayApp, forgetTrayApp, setTrayOverflowAt,
@@ -94,6 +99,42 @@ function LimiteWorkspace({ titulo, descripcion, tooltip, valor, minimo, maximo, 
   )
 }
 
+/** Umbral propio del aviso de batería baja. Misma presentación que los límites de
+ *  workspace —título + valor editable + deslizador—, pero con el valor en tanto por
+ *  ciento y hasta tres cifras, así que no reutiliza `LimiteWorkspace` (que fija
+ *  `maxLength={1}` porque sus límites son de un solo dígito). */
+function UmbralAvisoBateria({ visible }: { visible: any }) {
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={7} cssClasses={["dev-row"]} visible={visible}>
+      <box spacing={8} valign={Gtk.Align.CENTER}>
+        <TituloAjuste label={textos.barra.avisoBateria.umbral.titulo} hexpand halign={Gtk.Align.START} />
+        <InlineEditableValue
+          display={barraAvisoBateriaPct((pct: number) => `${pct} %`)}
+          getValue={() => barraAvisoBateriaPct.get()}
+          onCommit={setBarraAvisoBateriaPct}
+          min={BARRA_AVISO_BATERIA_MIN}
+          max={BARRA_AVISO_BATERIA_MAX}
+          labelClass="sp-field-value"
+          tooltip={textos.barra.avisoBateria.umbral.tooltip}
+          maxLength={3}
+        />
+      </box>
+      {DeslizadorLimite({
+        valor: barraAvisoBateriaPct,
+        minimo: BARRA_AVISO_BATERIA_MIN,
+        maximo: BARRA_AVISO_BATERIA_MAX,
+        alCambiar: setBarraAvisoBateriaPct,
+      }) as unknown as any}
+      <TextoInformativo
+        label={formatearTexto(textos.barra.avisoBateria.umbral.descripcion, {
+          minimo: BARRA_AVISO_BATERIA_MIN, maximo: BARRA_AVISO_BATERIA_MAX,
+        })}
+        halign={Gtk.Align.START} wrap xalign={0}
+      />
+    </box>
+  )
+}
+
 function FilaAppBandeja({ app }: { app: TrayAppInfo }) {
   const visible = hiddenTrayApps((ocultas: string[]) => !ocultas.includes(app.id))
   return (
@@ -129,6 +170,40 @@ export default function SeccionBarraEscritorios({ vista }: { vista: VistaBarra }
           informacion={textos.barra.ocultacionAutomatica.descripcion}
           activo={barAutoHideEnabled}
           alAlternar={() => setBarAutoHideEnabled(!barAutoHideEnabled.get())}
+        />
+        {/* Las tres filas del aviso solo existen si hay batería: en un sobremesa el ajuste
+            no puede cumplirse nunca (la condición exige batería presente y descargando) y
+            sería un interruptor que se deja encender sin efecto. `bateriaPresente` es un
+            accessor, no un booleano de arranque, porque una batería puede entrar y salir en
+            caliente y la sección tiene que enterarse sin reabrir Ajustes — mismo criterio
+            que el destino de Cámara en `panel/secciones.tsx`.
+
+            El aviso pende del auto-ocultado: sin él la barra ya está siempre abajo y no hay
+            nada que revelar, así que las filas se apagan en vez de mentir. */}
+        <AjusteInterruptor
+          titulo={textos.barra.avisoBateria.titulo}
+          informacion={textos.barra.avisoBateria.descripcion}
+          activo={barraAvisoBateria}
+          visible={bateriaPresente}
+          sensible={barAutoHideEnabled}
+          alAlternar={() => setBarraAvisoBateria(!barraAvisoBateria.get())}
+        />
+        <AjusteInterruptor
+          titulo={textos.barra.avisoBateria.vinculo.titulo}
+          informacion={textos.barra.avisoBateria.vinculo.descripcion}
+          activo={barraAvisoBateriaUsaUmbralAhorro}
+          visible={createComputed(
+            [bateriaPresente, barraAvisoBateria, barAutoHideEnabled],
+            (hayBateria, avisoPuesto, autoOcultar) => hayBateria && avisoPuesto && autoOcultar,
+          )}
+          alAlternar={() => setBarraAvisoBateriaUsaUmbralAhorro(!barraAvisoBateriaUsaUmbralAhorro.get())}
+        />
+        <UmbralAvisoBateria
+          visible={createComputed(
+            [bateriaPresente, barraAvisoBateria, barraAvisoBateriaUsaUmbralAhorro, barAutoHideEnabled],
+            (hayBateria, avisoPuesto, vinculado, autoOcultar) =>
+              hayBateria && avisoPuesto && !vinculado && autoOcultar,
+          )}
         />
       </TarjetaAjustes>}
 
