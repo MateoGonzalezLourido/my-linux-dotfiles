@@ -31,7 +31,11 @@ import InactividadAhorro from "./InactividadAhorro"
 import Segmentado from "./Segmentado"
 import SuspensionFalsa from "./SuspensionFalsa"
 import { tlpAvailable, tlpMode, tlpBusy, setTlpMode } from "../../../servicios/energia/tlp.ts"
-import { accionesEnergiaOcultas, botonApagado, setAccionEnergiaOculta, setBotonApagado } from "../preferences.ts"
+import {
+  accionesEnergiaOcultas, botonApagado, setAccionEnergiaOculta, setBotonApagado,
+  accionTapa, setAccionTapa,
+  tapaIgnorarConPantallaExterna, setTapaIgnorarConPantallaExterna,
+} from "../preferences.ts"
 import { ACCIONES_ENERGIA, accionesVisibles } from "../../menu-energia/acciones"
 import {
   ACCIONES_BOTON_ENCENDIDO,
@@ -39,6 +43,13 @@ import {
   teclaCedidaAHyprland,
   type AccionBotonEncendido,
 } from "../../../servicios/energia/botonEncendido.ts"
+import {
+  ACCIONES_TAPA,
+  comprobarTapa,
+  hayTapa,
+  tapaCedidaAHyprland,
+  type AccionTapa,
+} from "../../../servicios/energia/tapaPortatil.ts"
 import { DisplaySelect } from "../../../servicios/pantalla/controls"
 
 /** Deslizador 0..100 atado a un estado de `powerState`. Lo comparten el umbral de batería
@@ -109,6 +120,66 @@ function TarjetaBotonEncendido() {
           />
         </box>
       </box>
+    </TarjetaAjustes>
+  )
+}
+
+const etiquetaAccionTapa = (accion: AccionTapa) =>
+  (textos.tapa.opciones as Record<string, string>)[accion] ?? accion
+
+/**
+ * Qué hace el portátil al cerrar la tapa. Misma división de trabajo que el botón de
+ * encendido: aquí solo se guarda la elección y quien la ejecuta es
+ * `GiGiOS.tapa_cerrada()` (`hypr/gigios/tapa.lua`) desde un bind `{locked = true}`
+ * sobre `switch:on:Lid Switch`, releyéndola en cada cierre.
+ *
+ * El aviso avisa de otra cosa que el del botón: la tapa no se le quita a logind
+ * desde /etc sino con un inhibidor que solo dura lo que dure la sesión (ver
+ * `servicios/energia/tapaPortatil.ts`), así que lo que puede fallar es que el
+ * inhibidor no esté puesto — y entonces logind suspende ignorando la elección, sin
+ * dar ningún error. Con "Suspender" el resultado es el mismo venga de quien venga,
+ * así que ahí se calla.
+ */
+function TarjetaTapa() {
+  comprobarTapa()
+  const avisoVisible = createComputed(() =>
+    tapaCedidaAHyprland() === false && accionTapa() !== "suspender"
+  )
+
+  return (
+    <TarjetaAjustes titulo={textos.grupos.tapa} icono="󰌢">
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand>
+        <TituloAjuste label={textos.tapa.titulo} halign={Gtk.Align.START} />
+        <box cssClasses={["sp-field"]} widthRequest={320} hexpand={false} halign={Gtk.Align.START}>
+          <DisplaySelect
+            current={accionTapa((accion) => etiquetaAccionTapa(accion))}
+            options={accionTapa((actual) => ACCIONES_TAPA.map((accion) => ({
+              label: etiquetaAccionTapa(accion), value: accion, active: accion === actual,
+            })))}
+            onSelect={(valor) => setAccionTapa(valor as AccionTapa)}
+          />
+        </box>
+        <TextoInformativo label={textos.tapa.descripcion} halign={Gtk.Align.START} wrap />
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={avisoVisible}>
+          <TextoInformativo
+            label={textos.tapa.aviso}
+            cssClasses={["sp-field-hint-warn"]}
+            halign={Gtk.Align.START} wrap
+          />
+          <TextoInformativo
+            label={textos.tapa.avisoComando}
+            cssClasses={["sp-field-hint-command"]}
+            halign={Gtk.Align.START} wrap selectable
+          />
+        </box>
+      </box>
+      <AjusteInterruptor
+        titulo={textos.tapa.externa.titulo}
+        informacion={textos.tapa.externa.descripcion}
+        activo={tapaIgnorarConPantallaExterna}
+        sensible={accionTapa((a) => a !== "nada")}
+        alAlternar={() => setTapaIgnorarConPantallaExterna(!tapaIgnorarConPantallaExterna.get())}
+      />
     </TarjetaAjustes>
   )
 }
@@ -331,6 +402,11 @@ export default function SeccionEnergia() {
       </TarjetaAjustes>
 
       <TarjetaBotonEncendido />
+
+      {/* Ternario con `<></>` y no `&&` (ver la nota de TLP, arriba). Esta tarjeta es
+          la excepción al "una tarjeta se pinta siempre": sin tapa que cerrar la
+          pregunta no existe, así que en un sobremesa no hay nada que explicar. */}
+      {hayTapa ? <TarjetaTapa /> : <></>}
 
       <TarjetaMenuEnergia />
 

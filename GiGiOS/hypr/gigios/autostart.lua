@@ -127,6 +127,13 @@ hl.on("hyprland.start", function()
   hl.exec_cmd([[timeout 2 ags quit 2>/dev/null; pkill -f "ags\.js$" 2>/dev/null && sleep 0.3; ags run ~/.config/ags/]])
 
   hl.exec_cmd("hypridle")
+  -- Le quita a systemd-logind el interruptor de la TAPA mientras esta sesión
+  -- viva, para que la acción de cerrarla la decida Ajustes > Energía. Va a t=0 y
+  -- sin retardo: hasta que el inhibidor no está puesto, cerrar la tapa suspende
+  -- por logind, y los primeros segundos de sesión son un momento tan bueno como
+  -- otro para cerrarla. Cuesta un `pgrep` y un `tail` bloqueado en el kernel.
+  -- Ver la cabecera del script: el inhibidor muere con Hyprland A PROPÓSITO.
+  hl.exec_cmd("~/.config/hypr/scripts/tapa-inhibidor.sh")
   hl.exec_cmd("~/.config/inicializador/init.sh")
   -- OJO A LA RUTA SI ALGÚN DÍA SE ACTUALIZA hyprpolkitagent. Esta es la del
   -- 0.1.3 de los repos (Qt/QML): un directorio con el ejecutable dentro. La

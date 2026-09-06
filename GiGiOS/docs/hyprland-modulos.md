@@ -485,6 +485,90 @@ la única respuesta que no miente. El aviso solo sale cuando la elección **de v
 cumplirse**: con `apagar` el resultado es el mismo venga de quien venga, y avisar ahí sería ruido.
 Un `null` (no se pudo consultar) **no** avisa — no poder comprobarlo no es saber que está mal.
 
+### Tapa del portátil: `gigios/tapa.lua` + `tapa-inhibidor.sh` (y por qué aquí NO se toca `/etc`)
+
+Ajustes > Energía decide qué hace **cerrar la tapa**: suspender (de fábrica), suspensión falsa,
+hibernar, bloquear, apagar la pantalla, apagar el equipo o nada. La ejecuta `GiGiOS.tapa_cerrada()`
+(`hypr/gigios/tapa.lua`) desde el bind `switch:on:Lid Switch` de `gigios/keybinds.lua`, con
+**`{ locked = true }`**: la tapa se cierra sobre todo con la sesión ya bloqueada.
+
+Reparto de trabajo idéntico al del botón de encendido: **el shell solo guarda la elección**
+(`accionTapa` en `preferences.json`) y el config la **relee en cada cierre** (`util.leer_json`, no
+la caché de `util.prefs()`), así que cambiar el ajuste no relanza ni recarga nada. Y no solo el
+reparto: `tapa.lua` **toma prestada la tabla de acciones de `boton-apagado.lua`** en vez de copiarla,
+para que "suspender" signifique exactamente lo mismo en los dos sitios — pasa por
+`ags request suspend`, que es quien respeta el ajuste «sustituir la suspensión real por la falsa» —
+y lo mismo "bloquear", que pasa por `bloquear.sh`. La toma por `__index` sobre una tabla vacía, no
+por referencia directa: la extiende con una acción propia y escribir en la tabla del botón le
+añadiría a *ese* menú una acción que su UI no ofrece.
+
+Dos diferencias con el botón, y las dos son deliberadas:
+
+- **El vocabulario está podado y ampliado.** Fuera `menu` (con la tapa cerrada sería un menú
+  invisible esperando a que la abras), `reiniciar` y `cerrarSesion` (a ciegas, atados a un gesto
+  que también se hace sin querer). Dentro `suspensionFalsa`, que el botón no ofrece: allí
+  "suspender" ya entra en la falsa cuando el usuario la ha puesto a sustituir a la real; aquí se
+  pide por su nombre y entra siempre. Va por el request **`suspension-falsa-entrar`** de
+  `ags/app.ts`, que **ENTRA y no alterna**: cerrar la tapa estando ya dentro tiene que dejarla
+  puesta, y `toggle-suspension-falsa` haría justo lo contrario — sacar de ella con la tapa cerrada
+  y nadie delante de la pantalla.
+- **Abrir la tapa enciende la pantalla SIEMPRE** (`switch:off:Lid Switch` → `GiGiOS.tapa_abierta()`),
+  sin mirar la preferencia. Con la acción "Apagar la pantalla" no habría nadie más que la
+  encendiera (`mouse_move_enables_dpms = false`, ver `gigios/ventanas.lua`) y abrir la tapa a un
+  panel negro se lee como que el portátil no ha despertado. En el resto de acciones es inofensivo.
+  ⚠️ La forma es la **tabla** (`hl.dsp.dpms({ action = "on" })`): el string es un toggle disfrazado
+  — ver «Salir de suspensión» más arriba.
+
+**Y aquí está lo que separa esta sección de la del botón: la tapa NO se le quita a logind desde
+`/etc`.** `systemd-logind` gestiona el interruptor a nivel de asiento igual que la tecla de
+encendido (`HandleLidSwitch`, **`suspend` de fábrica**), así que sin desactivarlo suspende pase lo
+que pase y el bind no se nota. Con el botón eso se arregló con `HandlePowerKey=ignore` en
+`/etc/systemd/logind.conf.d/`, y ahí es correcto: si el bind no responde, lo que se pierde es un
+botón. Con la tapa, `ignore` es **permanente** y vale también para el saludador, para los TTY y
+para una sesión caída: **cerrar el portátil en la pantalla de login lo dejaría encendido dentro de
+la mochila**, y eso no da ningún síntoma hasta que quema.
+
+La salida es un **inhibidor** de logind (`--what=handle-lid-switch --mode=block`), que **no necesita
+privilegios** y solo vale mientras alguien lo sostiene. Lo sostiene
+`hypr/scripts/tapa-inhibidor.sh`, lanzado a t=0 desde `gigios/autostart.lua`. Tres detalles suyos
+que no son casuales:
+
+- Envuelve un **`tail --pid=<PID de Hyprland> -f /dev/null`**: bloqueado en el kernel (ni un
+  despertar ni un sondeo) y termina en el instante en que Hyprland muere. **No** un `sleep infinity`
+  ni el PID de la propia shell: con `KillUserProcesses=no` —el valor de fábrica— un proceso suelto
+  **sobrevive al cierre de sesión**, y un inhibidor huérfano dejaría la tapa muerta para el usuario
+  siguiente sin que nadie pudiera verlo.
+- **Guarda de instancia única**, porque `hyprctl reload full-reset` sí re-ejecuta el autostart y
+  apilaría un inhibidor por recarga (no rompe nada, pero deja `systemd-inhibit --list` ilegible).
+- Si `systemd-inhibit` no está, o no hay un Hyprland al que atarse, **no toma el inhibidor y sale
+  con 0**. El fallo degrada a «logind conserva la tapa y suspende al cerrarla», que es exactamente
+  lo que hay que hacer cuando el escritorio no está delante. Mismo fail-open que el resto del
+  repo: el cuerpo de `tapa_cerrada()` va en `pcall` y **cualquier error suspende**.
+
+**La UI comprueba que el inhibidor esté PUESTO, no que exista un fichero** (`systemd-inhibit
+--list`, sin privilegios, en `ags/servicios/energia/tapaPortatil.ts`), y busca además el nombre
+`GiGiOS`: que otro programa esté inhibiendo la tapa por su cuenta no querría decir que nuestro bind
+vaya a ejecutarse. Mismas dos reglas que en el botón — `null` (no se pudo consultar) **no** avisa, y
+con `suspender` tampoco, porque el resultado es el mismo venga de quien venga.
+
+**«No hacer nada si hay una pantalla externa» repone a mano lo que logind hacía gratis.**
+`HandleLidSwitchDocked` es `ignore` de fábrica: con un monitor conectado, logind no suspende al
+cerrar la tapa, porque cerrarla ahí suele ser seguir trabajando en la otra pantalla, no irse. Al
+quitarle el interruptor esa regla **se perdía en silencio**, así que `tapa.lua` la reimplementa
+sobre `hl.get_monitors()` (que solo enumera los habilitados): cualquier salida cuyo nombre no
+empiece por `eDP`/`LVDS`/`DSI` es externa. La diferencia con logind es que aquí **es conmutable**, y
+nace encendida para no cambiar el comportamiento heredado.
+
+La tarjeta **no se pinta en un equipo sin tapa** (`/proc/acpi/button/lid` vacío). Es la excepción
+al criterio de «la tarjeta se pinta siempre aunque no haya soporte» que siguen el brillo o las
+firmas de ClamAV: allí el ajuste sigue significando algo y lo que falta es el backend; sin tapa
+que cerrar, la pregunta no existe.
+
+El nombre del dispositivo va **literal** en el bind. Hyprland compara la cadena tal cual contra
+`"switch:on:" .. nombre` (no hay comodín), y `Lid Switch` es como llama el kernel al interruptor
+ACPI de la tapa en cualquier portátil. Para ver el de una máquina concreta: `hyprctl devices`,
+sección *Switches*. En un equipo sin tapa el bind simplemente no se dispara nunca.
+
 ### Notificaciones de los scripts: los hints `x-gigios-source` y `x-gigios-event`
 
 **Todo `notify-send` de `hypr/scripts/` sale por `notificar <id> …`, de

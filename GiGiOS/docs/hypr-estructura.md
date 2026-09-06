@@ -59,21 +59,22 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 7 | `gigios/reglas.lua` | Reglas de ventana y de capa | a mano |
 | 8 | `gigios/compactar.lua` | `GiGiOS.compactar()` — renumera escritorios | a mano |
 | 9 | `gigios/boton-apagado.lua` | `GiGiOS.boton_apagado()` — el botón físico | a mano |
-| 10 | `gigios/daltonismo.lua` | `GiGiOS.daltonismo(modo)` — shader de accesibilidad | a mano |
-| 11 | `gigios/orion.lua` | `GiGiOS.toggle_orion()` — el atajo del launcher | a mano |
-| 12 | `gigios/ancla-escritorio.lua` | `GiGiOS.anclar_escritorio()` / `GiGiOS.saltar_ancla()` — ir al escritorio ancla y volver | a mano |
-| 13 | `gigios/keybinds.lua` | Todos los atajos + `GiGiOS.toggle_gaps()` | a mano |
-| 14 | `gigios/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
-| 15 | `gigios/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
-| 16 | `gigios/reparto-ventanas.lua` | Que una ventana no acabe estrujada: al abrirse (elige qué se parte y por qué lado) y al soltarla arrastrada (le hace hueco a costa de los vecinos) | a mano |
-| 17 | `gigios/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
-| 18 | `gigios/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
-| 19 | `gigios/gpu.lua` | Elige el perfil de GPU y carga `gigios/gpu/<perfil>.lua` | **fichero local**, ver abajo |
-| 20 | `gigios/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
-| 21 | `gigios/userprefs.lua` | Overrides personales sueltos | a mano |
-| 22 | `gigios/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
-| 23 | `gigios/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
-| 24 | `gigios/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
+| 10 | `gigios/tapa.lua` | `GiGiOS.tapa_cerrada()` / `GiGiOS.tapa_abierta()` — qué hace el portátil al cerrar la tapa (reutiliza las acciones de `boton-apagado`) | a mano — **la acción** la escribe AGS en `preferences.json` |
+| 11 | `gigios/daltonismo.lua` | `GiGiOS.daltonismo(modo)` — shader de accesibilidad | a mano |
+| 12 | `gigios/orion.lua` | `GiGiOS.toggle_orion()` — el atajo del launcher | a mano |
+| 13 | `gigios/ancla-escritorio.lua` | `GiGiOS.anclar_escritorio()` / `GiGiOS.saltar_ancla()` — ir al escritorio ancla y volver | a mano |
+| 14 | `gigios/keybinds.lua` | Todos los atajos + `GiGiOS.toggle_gaps()` | a mano |
+| 15 | `gigios/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
+| 16 | `gigios/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
+| 17 | `gigios/reparto-ventanas.lua` | Que una ventana no acabe estrujada: al abrirse (elige qué se parte y por qué lado) y al soltarla arrastrada (le hace hueco a costa de los vecinos) | a mano |
+| 18 | `gigios/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
+| 19 | `gigios/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
+| 20 | `gigios/gpu.lua` | Elige el perfil de GPU y carga `gigios/gpu/<perfil>.lua` | **fichero local**, ver abajo |
+| 21 | `gigios/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
+| 22 | `gigios/userprefs.lua` | Overrides personales sueltos | a mano |
+| 23 | `gigios/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
+| 24 | `gigios/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
+| 25 | `gigios/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
 
 **El orden no es estético**: `gigios/pantalla` pisa al comodín de monitores,
 `gigios/dispositivos` pisa a `userprefs`, y `nop-binds` va el último porque
@@ -141,7 +142,7 @@ completo en la cabecera de ese módulo y en `CLAUDE.md`):
 
 | t= | Script | Por qué ahí |
 | --- | --- | --- |
-| 0 | `wallpaper.sh`, `limpiar-portapapeles.sh` + `clipboard-history.sh start`, `oom-monitor.sh` | se ve, o no puede perder eventos |
+| 0 | `wallpaper.sh`, `limpiar-portapapeles.sh` + `clipboard-history.sh start`, `oom-monitor.sh`, `tapa-inhibidor.sh` | se ve, o no puede perder eventos |
 | 3–6,5 | `bt-monitor.sh`, `usb-monitor.sh`, `wifi-monitor.sh`, `screencast-monitor.sh`, `camara-monitor.sh` | dirigidos por eventos, compiten con el servicio al que se enganchan |
 | 8–15 | `ram-monitor.sh`, `temp-monitor.sh`, `battery-monitor.sh`, `disk-monitor.sh` | sondeos de estado, nada urgente al segundo 0 |
 | 20–30 | `updates-monitor.sh`, `boot-healthcheck.sh` | lo caro (red, journal completo, SMART) |
@@ -150,6 +151,13 @@ completo en la cabecera de ese módulo y en `CLAUDE.md`):
 El escáner de apps de inicio ya no es un script: vive en
 `gigios/escaner-apps.lua`, que escucha `window.open` con datos ya tipados en vez
 de parsear el socket de eventos a mano.
+
+`tapa-inhibidor.sh` es el raro de la tabla: no es un monitor ni sondea nada. Le
+quita a logind el interruptor de la **tapa** (inhibidor `handle-lid-switch`, sin
+privilegios) para que la acción la decida Ajustes > Energía, y se queda bloqueado
+en un `tail --pid` que muere con Hyprland — a propósito, para que al caer la sesión
+logind recupere la tapa y vuelva a suspender. Ver su sección en
+[`hyprland-modulos.md`](hyprland-modulos.md).
 
 **2. Atajos de teclado** (`gigios/keybinds.lua`): `rofi-launch.py`
 (`SUPER+SPACE`), `clipboard-history.sh picker` (`SUPER+V`), `emoji-picker.sh`

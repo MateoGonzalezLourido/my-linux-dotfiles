@@ -8,6 +8,13 @@
 // rejilla y en la búsqueda hasta reiniciar el shell — y al pulsarla, sin dar
 // ningún error, no se abría nada.
 //
+// Hay dos disparadores. El que ya existía es desinstalar desde el panel
+// derecho (`RightPanel.tsx`). El otro — instalar una app POR FUERA de Orion —
+// lo detecta el `Gio.AppInfoMonitor` de `appsInfo.ts`, que es lo que faltaba:
+// hasta entonces solo se invalidaba lo que Orion mismo provocaba, así que una
+// app recién instalada no salía ni en la rejilla ni en la búsqueda hasta
+// reiniciar el shell.
+//
 // Este módulo es solo el punto de encuentro (y no importa GTK a propósito): así
 // `RightPanel` avisa sin depender de la sección ni del buscador, que es lo que
 // habría creado un ciclo de imports entre los tres.

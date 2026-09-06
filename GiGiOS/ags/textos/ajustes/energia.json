@@ -11,7 +11,8 @@
     "suspensionFalsa": "Suspensión falsa",
     "suspensionFalsaApps": "Apps que se congelan en la suspensión falsa",
     "botonEncendido": "Botón de encendido",
-    "menuEnergia": "Menú de energía"
+    "menuEnergia": "Menú de energía",
+    "tapa": "Tapa del portátil"
   },
   "estado": {
     "sinBateria": "Sin batería detectada",
@@ -159,6 +160,25 @@
       "menu": "Abrir el menú de energía",
       "cerrarSesion": "Cerrar sesión",
       "reiniciar": "Reiniciar",
+      "nada": "No hacer nada"
+    }
+  },
+  "tapa": {
+    "titulo": "Al cerrar la tapa",
+    "descripcion": "Se aplica al cerrar la tapa, también con la sesión bloqueada. Al abrirla se enciende siempre la pantalla.",
+    "externa": {
+      "titulo": "No hacer nada si hay una pantalla externa",
+      "descripcion": "Con un monitor conectado, cerrar la tapa suele ser seguir trabajando en la otra pantalla, no irse. Apágalo para que la acción se aplique también entonces."
+    },
+    "aviso": "La tapa la sigue controlando systemd-logind, así que suspenderá el equipo ignorando esta elección. El inhibidor que se la cede lo pone el arranque de la sesión; comprueba que el script esté en marcha:",
+    "avisoComando": "~/.config/hypr/scripts/tapa-inhibidor.sh",
+    "opciones": {
+      "suspender": "Suspender",
+      "suspensionFalsa": "Suspensión falsa",
+      "hibernar": "Hibernar",
+      "bloquear": "Bloquear la sesión",
+      "pantalla": "Apagar la pantalla",
+      "apagar": "Apagar el equipo",
       "nada": "No hacer nada"
     }
   },

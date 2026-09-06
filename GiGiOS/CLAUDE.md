@@ -264,6 +264,18 @@ Puntos que conviene recordar sin abrir el documento:
   sin tocar el escritorio: `gestos.py --diagnostico`, que mide en dos fases —primero SIN manos, para
   contar falsos positivos— porque la tasa de detección a solas no distingue una mano de una cara.
 
+- **La TAPA del portátil no se le quita a logind desde `/etc`, y es a propósito.** Qué hace cerrar
+  la tapa lo decide Ajustes > Energía (`accionTapa` en `preferences.json`, ejecutada por
+  `gigios/tapa.lua` desde `switch:on:Lid Switch`), pero para eso hay que desactivar
+  `HandleLidSwitch`, que es de logind y de fábrica suspende. Con el botón de encendido eso se
+  resolvió con un `ignore` permanente en `/etc`; con la tapa **no se puede**: valdría también para
+  el saludador y para una sesión caída, y cerrar el portátil en la pantalla de login lo dejaría
+  encendido dentro de la mochila, sin ningún síntoma hasta que quema. Se usa un **inhibidor** de
+  logind (sin privilegios) que sostiene `hypr/scripts/tapa-inhibidor.sh` mientras Hyprland viva:
+  si la sesión se cae, logind recupera la tapa y vuelve a suspender. Ver su sección en
+  [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) antes de tocar nada de esto — documenta
+  también por qué el inhibidor se ata a un `tail --pid` y no a un `sleep`, y por qué «no hacer nada
+  si hay una pantalla externa» tiene que reimplementarse a mano.
 - **Editar un `*-monitor.sh` no afecta al que ya está corriendo**: hace falta `pkill -f
   <script>` + relanzarlo, o `hyprctl reload full-reset` (que sí re-ejecuta el autostart; un
   `hyprctl reload` normal no).

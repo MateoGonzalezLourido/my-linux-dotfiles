@@ -29,6 +29,7 @@ import {
   propsDeStream,
   type TipoMezcla,
 } from "../../servicios/multimedia/presetsApps"
+import { claveDispositivo } from "../../servicios/multimedia/presetsDispositivos"
 import { claveApp, esClienteDeSistema } from "../../servicios/multimedia/identidadApps"
 import { presentacionApp, tieneEntradaEscritorio } from "../../servicios/multimedia/presentacionApps"
 import {
@@ -2947,7 +2948,6 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
   )
   const presets = audioPresets
   const setPresets = setAudioPresets
-  const handledDevices = new Set<string>()
 
   if (!wp.audio) return <box />
 
@@ -3089,7 +3089,12 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={audioMode((m) => m === "devices")}>
             <label cssClasses={["qs-dropdown-header"]} label={isSpk ? "DISPOSITIVOS DE SALIDA" : "DISPOSITIVOS DE ENTRADA"} halign={Gtk.Align.START} />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-              <For each={endpoints}>
+              {/* Con `id`: `reparto` se recomputa cada vez que cambia el
+                  dispositivo ACTIVO o la lista de ocultos, y sin él eso reconstruía
+                  todas las filas —tirando y rehaciendo cuatro deslizadores por un
+                  clic—. El id de AstalWp es el id global de PipeWire: un nodo
+                  recreado trae uno nuevo, así que la fila sí se rehace cuando debe. */}
+              <For each={endpoints} id={(ep: AstalWp.Endpoint) => ep.id}>
                 {(ep: AstalWp.Endpoint) => {
                   const vol = createBinding(ep, "volume")
                   const mute = createBinding(ep, "mute")
@@ -3105,20 +3110,15 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   // decía de qué aparato hablaba. La segunda se omite si no aporta.
                   const etiqueta = endpointLabel(ep)
 
-                  // Apply device preset if new.
-                  // `ep.name` viene a null en el perfil ALSA clásico (altavoces/mic
-                  // comparten sink/source genérico); sin fallback, la clave colapsaba
-                  // literalmente a "dev:mic:null" y el guard `ep.name &&` de abajo
-                  // impedía releerla, así que el preset se guardaba pero nunca se
-                  // restauraba. `ep.description` sí se puebla en ese caso (ver Volume.tsx).
-                  const devTag = isSpk ? "spk" : "mic"
-                  const stableId = ep.name || ep.description || `id:${ep.id}`
-                  const devKey = `dev:${devTag}:${stableId}`
+                  // La CLAVE del preset sale de `presetsDispositivos.ts`, la MISMA que
+                  // usa el vigilante que lo aplica y lo mantiene al día — mismo criterio
+                  // que la de las apps, y por el mismo motivo: dos implementaciones que
+                  // divergen dejan la fila guardando bajo una clave que nadie lee.
+                  const devKey = claveDispositivo(isSpk ? "speaker" : "mic", ep)
                   // El micro tiene su propia escala: el 100 % de la UI es
                   // `MIC_SAFE_MAX` de la curva cruda de PipeWire
                   // (`servicios/multimedia/volumenMicrofono.ts`; hoy 1.00, o sea el
-                  // máximo real). El clamp al restaurar protege contra un preset
-                  // guardado con otro techo. `aPorcentaje`/`desdePorcentaje`
+                  // máximo real). `aPorcentaje`/`desdePorcentaje`
                   // son la MISMA conversión que usan la pastilla y el OSD: tenerla en
                   // un solo sitio es lo que impide que dos vistas del mismo micro
                   // enseñen números distintos, que es justo lo que pasaba.
@@ -3130,13 +3130,19 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                   const aPorcentaje = (v: number) => isSpk ? Math.round(v * 100) : porcentajeMic(v)
                   const desdePorcentaje = (p: number) =>
                     isSpk ? clamp(p / 100, 0, VOLUMEN_MAX) : crudoDesdePorcentajeMic(p)
-                  if (!handledDevices.has(`${devTag}:${stableId}`)) {
-                    const p = presets.get()[devKey]
-                    if (p !== undefined) {
-                      fijarVolumenEndpoint(ep, clamp(p, 0, maxVol))
-                    }
-                    handledDevices.add(`${devTag}:${stableId}`)
-                  }
+                  // ⚠️ AQUÍ NO SE RESTAURA NADA, y no es un olvido. Esta fila aplicaba
+                  // el preset guardado la primera vez que se construía, una vez por
+                  // sesión, y ESA era la causa del salto de volumen: el preset solo se
+                  // escribía desde el deslizador de aquí abajo, así que cualquier volumen
+                  // puesto con las teclas, la rueda de la barra, `wpctl` o pavucontrol lo
+                  // dejaba rancio, y abrir el submenú escribía el valor viejo encima del
+                  // vivo. De ahí se colaba a `system_state.json` por el `notify::volume`
+                  // del altavoz por defecto y de ahí al arranque siguiente vía `init.sh`
+                  // ("lo dejo en 50 % y vuelve en 80 %"). Restaurar y sincronizar viven
+                  // ahora juntos en `servicios/multimedia/presetsDispositivos.ts`, y
+                  // además se aplica cuando el aparato APARECE, no cuando se mira la
+                  // lista: unos cascos enchufados a mitad de sesión no recuperaban su
+                  // volumen hasta que abrías esto.
 
                   const scale = makeScale(
                     ["qs-slider", isSpk ? "speaker" : "mic"],
@@ -3150,7 +3156,14 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                       setPresets(p)
                       saveAudioPresets(p)
                     },
-                    (cb) => { ep.connect("notify::volume", cb) },
+                    // Se DESCONECTA al morir la fila. Sin esto cada reconstrucción
+                    // dejaba un manejador vivo sobre el endpoint, escribiendo en el
+                    // ajuste de un deslizador ya desechado: no da error, solo va
+                    // acumulando trabajo por cada clic en un dispositivo.
+                    (cb) => {
+                      const manejador = ep.connect("notify::volume", cb)
+                      onCleanup(() => { try { ep.disconnect(manejador) } catch { } })
+                    },
                     {
                       heightRequest: 4, max: maxVol, marcarAmplificado: true,
                       ajustar: (v) => ajustarVolumen(v, maxVol),
@@ -3263,7 +3276,7 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                 </box>
               </button>
               <box orientation={Gtk.Orientation.VERTICAL} spacing={3} visible={ocultosAbiertos}>
-                <For each={endpointsOcultos}>
+                <For each={endpointsOcultos} id={(ep: AstalWp.Endpoint) => ep.id}>
                   {(ep: AstalWp.Endpoint) => {
                     // Fila compacta a propósito: sin slider ni mute. Un dispositivo
                     // apartado no se maneja desde aquí, solo se devuelve a la lista.

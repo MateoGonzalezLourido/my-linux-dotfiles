@@ -21,6 +21,11 @@ import {
   type AccionBotonEncendido,
 } from "../../../servicios/energia/botonEncendido"
 import {
+  ACCION_TAPA_PREDETERMINADA,
+  normalizarAccionTapa,
+  type AccionTapa,
+} from "../../../servicios/energia/tapaPortatil"
+import {
   normalizarAccionesOcultas,
 } from "../../menu-energia/acciones"
 import {
@@ -383,6 +388,19 @@ export { modoDaltonismo }
 const [botonApagado, _setBotonApagado] = createState<AccionBotonEncendido>(ACCION_BOTON_PREDETERMINADA)
 export { botonApagado }
 
+// Acción al cerrar la tapa del portátil. Mismo contrato que `botonApagado`: la
+// ejecuta hypr/gigios/tapa.lua (bind sobre `switch:on:Lid Switch`) releyendo esta
+// clave en cada cierre, así que el setter solo persiste. El valor de fábrica es
+// "suspender", que es lo que hacía logind antes.
+const [accionTapa, _setAccionTapa] = createState<AccionTapa>(ACCION_TAPA_PREDETERMINADA)
+export { accionTapa }
+
+// Excepción de "docked": no hacer nada al cerrar la tapa si hay una pantalla
+// externa. De fábrica ENCENDIDA, y no es un capricho — es lo que hacía logind
+// (HandleLidSwitchDocked=ignore) y que se perdía en silencio al quitarle la tapa.
+const [tapaIgnorarConPantallaExterna, _setTapaIgnorarConPantallaExterna] = createState(true)
+export { tapaIgnorarConPantallaExterna }
+
 // Acciones retiradas del menú de energía (ids de modulos/menu-energia/acciones.ts).
 // Se guardan las OCULTAS y no las visibles a propósito: así una acción nueva aparece
 // sola en los perfiles que ya existen, en vez de quedarse invisible por no estar en
@@ -514,6 +532,10 @@ function load() {
     // Sin guarda de `typeof`: normalizar ya devuelve el valor de fábrica ante
     // cualquier cosa que no sea una acción conocida (ausente incluida).
     _setBotonApagado(normalizarAccionBotonEncendido(saved.botonApagado))
+    _setAccionTapa(normalizarAccionTapa(saved.accionTapa))
+    if (typeof saved.tapaIgnorarConPantallaExterna === "boolean") {
+      _setTapaIgnorarConPantallaExterna(saved.tapaIgnorarConPantallaExterna)
+    }
     _setAccionesEnergiaOcultas(normalizarAccionesOcultas(saved.accionesEnergiaOcultas))
   } catch (e) { /* archivo ausente o corrupto → nos quedamos con los defaults */ }
 }
@@ -574,6 +596,8 @@ function save() {
       timeFormat: timeFormat.get(),
       modoDaltonismo: modoDaltonismo.get(),
       botonApagado: botonApagado.get(),
+      accionTapa: accionTapa.get(),
+      tapaIgnorarConPantallaExterna: tapaIgnorarConPantallaExterna.get(),
       accionesEnergiaOcultas: accionesEnergiaOcultas.get(),
     }
     GLib.file_set_contents(PREFS_PATH, JSON.stringify(config, null, 2))
@@ -814,6 +838,19 @@ export function setBotonApagado(accion: AccionBotonEncendido) {
   const siguiente = normalizarAccionBotonEncendido(accion)
   if (botonApagado.get() === siguiente) return
   _setBotonApagado(siguiente)
+  save()
+}
+// Igual que setBotonApagado: sin recarga de Hyprland, porque el bind es fijo y
+// gigios/tapa.lua relee la preferencia en cada cierre de tapa.
+export function setAccionTapa(accion: AccionTapa) {
+  const siguiente = normalizarAccionTapa(accion)
+  if (accionTapa.get() === siguiente) return
+  _setAccionTapa(siguiente)
+  save()
+}
+export function setTapaIgnorarConPantallaExterna(on: boolean) {
+  if (tapaIgnorarConPantallaExterna.get() === on) return
+  _setTapaIgnorarConPantallaExterna(on)
   save()
 }
 /** Muestra u oculta una acción del menú de energía. Si el cambio dejaría el menú

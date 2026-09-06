@@ -308,6 +308,32 @@ bind("XF86PowerOff", function()
   end
 end, { locked = true })
 
+-- Tapa del portátil. Mismo contrato que el botón de encendido: la acción la
+-- decide `accionTapa` de preferences.json (Ajustes > Energía), leída EN CADA
+-- CIERRE por GiGiOS.tapa_cerrada (gigios/tapa.lua — enlace tardío, este módulo
+-- NO lo requiere: lo carga el entry point).
+-- `locked = true`: la tapa se cierra sobre todo con la sesión ya bloqueada.
+-- El nombre del dispositivo es literal y va sin normalizar — "Lid Switch" es como
+-- llama el kernel al interruptor ACPI de la tapa en cualquier portátil, y
+-- Hyprland compara la cadena TAL CUAL contra "switch:on:" .. nombre (no hay
+-- comodín). Para ver el nombre real de una máquina: `hyprctl devices`, sección
+-- Switches. En un equipo sin tapa el bind simplemente no se dispara nunca.
+-- Requiere que logind suelte el interruptor: lo hace scripts/tapa-inhibidor.sh
+-- desde el autostart, mientras esta sesión viva (ver su cabecera).
+-- Si el módulo no cargó, suspende: la tapa no puede quedarse sin acción.
+bind("switch:on:Lid Switch", function()
+  if GiGiOS.tapa_cerrada then
+    GiGiOS.tapa_cerrada()
+  else
+    hl.exec_cmd("systemctl suspend")
+  end
+end, { locked = true })
+-- Abrir la tapa enciende la pantalla SIEMPRE (ver el porqué en gigios/tapa.lua):
+-- con la acción "Apagar la pantalla" no hay nadie más que la encienda.
+bind("switch:off:Lid Switch", function()
+  if GiGiOS.tapa_abierta then GiGiOS.tapa_abierta() end
+end, { locked = true })
+
 -- Requiere playerctl (los bindl de multimedia)
 bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { locked = true })
 bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })

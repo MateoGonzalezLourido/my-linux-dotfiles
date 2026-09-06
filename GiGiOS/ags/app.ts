@@ -37,6 +37,7 @@ import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
 import { initPlanificadorFondos } from "./servicios/fondos/planificador"
 import { initAcentoAdaptativo } from "./servicios/fondos/acento"
 import { initPresetsApps } from "./servicios/multimedia/presetsApps"
+import { initPresetsDispositivos } from "./servicios/multimedia/presetsDispositivos"
 import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
 
 app.start({
@@ -97,6 +98,18 @@ app.start({
         execAsync(["systemctl", "suspend"]).catch((e) => console.error("[suspend] falló:", e))
         response("real")
       }
+      return
+    }
+    // Entrada SIN alternar. La pide la TAPA del portátil («Suspensión falsa» en
+    // Ajustes > Energía, hypr/gigios/tapa.lua): cerrar la tapa estando ya dentro
+    // tiene que dejarla puesta, y `toggle-suspension-falsa` haría justo lo
+    // contrario — sacar de ella con la tapa cerrada y nadie delante de la pantalla.
+    // Es un request aparte y no un parámetro del de arriba porque `suspend` significa
+    // otra cosa: allí la falsa solo entra si el usuario la ha puesto a sustituir a la
+    // real, y aquí la ha pedido por su nombre.
+    if (argv.includes("suspension-falsa-entrar")) {
+      entrarSuspensionFalsa().catch((e) => console.error("[suspension-falsa] entrada falló:", e))
+      response("ok")
       return
     }
     if (argv.includes("toggle-suspension-falsa")) {
@@ -263,6 +276,12 @@ app.start({
       // su barrido inicial atiende a lo que ya estuviera sonando, así que cuatro
       // segundos no le pierden ningún stream, solo lo atienden un poco más tarde.
       initPresetsApps()
+      // Y el mismo vigilante para el volumen POR DISPOSITIVO. Restaura el preset del
+      // aparato al APARECER (no al mirar la lista, que es lo que hacía Quick Settings) y
+      // —lo que faltaba— lo mantiene al día con el volumen real, de modo que no pueda
+      // quedar rancio y pisar el volumen vivo. Ver la cabecera de su módulo: ese pisotón
+      // acababa en `system_state.json` y de ahí en el arranque siguiente.
+      initPresetsDispositivos()
       // El puente «Wake up + al vencer la inactividad, entrar en suspensión falsa». Aquí y
       // no a t=0 porque no limpia nada peligroso: solo pone un Gio.FileMonitor sobre el
       // aviso que deja idle-action.sh al vetar, y los avisos que pudieran caer en estos

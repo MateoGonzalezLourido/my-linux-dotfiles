@@ -48,6 +48,7 @@ util.carga("gigios.reglas")         -- reglas de ventana y de capa
 -- cargan antes de keybinds solo por claridad — el orden real no las ata.
 util.carga("gigios.compactar")      -- GiGiOS.compactar()
 util.carga("gigios.boton-apagado")  -- GiGiOS.boton_apagado()
+util.carga("gigios.tapa")           -- GiGiOS.tapa_cerrada() / tapa_abierta()
 util.carga("gigios.daltonismo")     -- GiGiOS.daltonismo(modo)
 util.carga("gigios.orion")          -- GiGiOS.toggle_orion()
 util.carga("gigios.ancla-escritorio") -- GiGiOS.anclar_escritorio() / saltar_ancla()

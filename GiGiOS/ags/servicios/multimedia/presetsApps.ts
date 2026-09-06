@@ -38,6 +38,16 @@
 // **Se escribe con `fijarVolumenEndpoint`**, no con `stream.volume = v`: el setter de
 // AstalWp recorta a 1.5 en silencio y los presets de app llegan al 200 % (ver
 // `escrituraVolumen.ts`).
+//
+// **El preset SIGUE al volumen real (y antes no).** Pasada la gracia el manejador no se
+// suelta: cambia de oficio y pasa a ANOTAR lo que el volumen valga. Hasta ahora los presets
+// solo se escribían desde los deslizadores de Quick Settings, así que bajar una app desde la
+// propia app o desde pavucontrol se respetaba esa sesión y se olvidaba: en la siguiente volvía
+// a imponerse el valor viejo del JSON. Solo se anotan claves que YA existen (`recordarPreset`);
+// el porqué de esa condición está en esa función, y es lo que impide cambiar un bug por otro.
+// La misma regla la aplica `presetsDispositivos.ts` al volumen por dispositivo, que es donde
+// el preset rancio salía más caro: acababa copiado a `system_state.json` y repuesto en el
+// arranque siguiente.
 
 import GLib from "gi://GLib"
 import AstalWp from "gi://AstalWp"
@@ -73,6 +83,37 @@ export function guardarAudioPresets(p: Record<string, number>) {
     idGuardado = null
     return GLib.SOURCE_REMOVE
   })
+}
+
+/**
+ * Anota en el preset el volumen REAL de algo que ya tenía preset. Es la mitad que faltaba:
+ * hasta ahora los presets solo se escribían desde los deslizadores de Quick Settings, así que
+ * un volumen puesto por cualquier otra vía (la propia app, pavucontrol, las teclas de volumen,
+ * `wpctl`) dejaba el preset RANCIO — y como el preset se sigue aplicando al aparecer el
+ * stream, el valor viejo volvía a imponerse en la sesión siguiente. Con esto no puede quedar
+ * rancio, así que aplicarlo no puede pisar nada.
+ *
+ * **Solo toca claves que YA existen, y esa condición es la que evita cambiar de bug.** Anotar
+ * también las que no existen convertiría cada app que suena una vez en un preset con el
+ * volumen que ella trajera, que a partir de entonces se le IMPONDRÍA en cada arranque: el
+ * mismo pisotón que se quiere quitar, con otro origen. La clave la crea el deslizador de Quick
+ * Settings —o sea, una decisión explícita del usuario— y a partir de ahí esto la mantiene al
+ * día. Lo comparten el vigilante de apps de este módulo y el de dispositivos
+ * (`presetsDispositivos.ts`).
+ *
+ * La tolerancia de 1 punto es la misma que la de la corrección tardía y por el mismo motivo:
+ * la curva cúbica de PipeWire no devuelve el valor exacto que se escribió (medido: 0,20 →
+ * 0,2000000031), y sin ella el fichero se reescribiría en cada eco.
+ */
+export function recordarPreset(clave: string, valor: number) {
+  const actual = audioPresets.get()
+  const guardado = actual[clave]
+  if (guardado === undefined) return
+  if (!Number.isFinite(valor)) return
+  if (Math.abs(guardado - valor) <= 0.01) return
+  const p = { ...actual, [clave]: valor }
+  setAudioPresets(p)
+  guardarAudioPresets(p)
 }
 
 /**
@@ -123,6 +164,9 @@ export function clavePreset(tipo: TipoMezcla, nombre: string): string {
 // índices de Pulse había que podar contra la lista viva porque PulseAudio los recicla.
 const atendidos: Record<TipoMezcla, Set<number>> = { speaker: new Set(), mic: new Set() }
 
+/** Manejador de `notify::volume` vivo por stream, para soltarlo en `stream-removed`. */
+const manejadores: Record<TipoMezcla, Map<number, number>> = { speaker: new Map(), mic: new Map() }
+
 /** Ventana en la que se vigila que el cliente no pise el preset recién aplicado. */
 const GRACIA_MS = 1500
 
@@ -148,21 +192,43 @@ function atender(tipo: TipoMezcla, stream: any) {
   if (vistos.has(stream.id)) return
   vistos.add(stream.id)
 
-  const preset = audioPresets.get()[clavePreset(tipo, nombreDeProps(propsDeStream(stream)))]
-  if (preset === undefined) return
+  const clave = clavePreset(tipo, nombreDeProps(propsDeStream(stream)))
+  const preset = audioPresets.get()[clave]
 
-  fijarVolumenEndpoint(stream, preset)
+  if (preset !== undefined) fijarVolumenEndpoint(stream, preset)
 
-  let manejador: number | null = stream.connect("notify::volume", () => {
+  // El manejador se engancha AUNQUE no haya preset, y no sobra: la clave la crea el
+  // deslizador de Quick Settings a mitad de la vida del stream, y sin estar ya escuchando no
+  // habría nadie para anotar los cambios posteriores hasta el siguiente arranque de la app.
+  // Sin preset, `recordarPreset` es un no-op hasta que la clave exista.
+  //
+  // Pasada la gracia el manejador NO se suelta: cambia de oficio. Deja de corregir —bajar el
+  // volumen desde la propia app tiene que funcionar— y pasa a ANOTAR, que es lo que impide
+  // que el preset se quede rancio y vuelva a imponer el valor viejo en el arranque siguiente.
+  let enGracia = preset !== undefined
+  const manejador: number = stream.connect("notify::volume", () => {
+    if (!enGracia) { recordarPreset(clave, stream.volume); return }
     // Tolerancia de 1 punto: la curva cúbica de PipeWire no devuelve el valor exacto que
     // se escribió (medido: 0.20 → 0.2000000031). Sin ella esto se re-dispararía a sí mismo.
-    if (Math.abs(stream.volume - preset) <= 0.01) return
-    fijarVolumenEndpoint(stream, preset)
+    if (Math.abs(stream.volume - preset!) <= 0.01) return
+    fijarVolumenEndpoint(stream, preset!)
   })
-  GLib.timeout_add(GLib.PRIORITY_DEFAULT, GRACIA_MS, () => {
-    if (manejador !== null) { try { stream.disconnect(manejador) } catch { } ; manejador = null }
-    return GLib.SOURCE_REMOVE
-  })
+  manejadores[tipo].set(stream.id, manejador)
+  if (enGracia) {
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, GRACIA_MS, () => {
+      enGracia = false
+      return GLib.SOURCE_REMOVE
+    })
+  }
+}
+
+/** Se sueltan en `stream-removed`: el manejador vive ahora toda la vida del stream. */
+function olvidar(tipo: TipoMezcla, stream: any) {
+  atendidos[tipo].delete(stream.id)
+  const manejador = manejadores[tipo].get(stream.id)
+  if (manejador === undefined) return
+  try { stream.disconnect(manejador) } catch { }
+  manejadores[tipo].delete(stream.id)
 }
 
 let iniciado = false
@@ -181,7 +247,7 @@ export function initPresetsApps() {
   const enganchar = (tipo: TipoMezcla, senalAlta: string, senalBaja: string) => {
     for (const stream of listaViva(tipo, a)) atender(tipo, stream)
     a.connect(senalAlta, (_a: any, stream: any) => atender(tipo, stream))
-    a.connect(senalBaja, (_a: any, stream: any) => atendidos[tipo].delete(stream.id))
+    a.connect(senalBaja, (_a: any, stream: any) => olvidar(tipo, stream))
   }
   enganchar("speaker", "stream-added", "stream-removed")
   enganchar("mic", "recorder-added", "recorder-removed")
