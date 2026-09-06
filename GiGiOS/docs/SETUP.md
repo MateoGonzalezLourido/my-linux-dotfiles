@@ -6,7 +6,7 @@ En una instalación de **Arch Linux o CachyOS**, con conexión a Internet y `par
 disponible, ejecuta:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiOS/install.sh | bash
 ```
 
 El instalador se encarga de:
@@ -31,7 +31,7 @@ El perfil de Kitty puede forzarse sin mantener ramas distintas para cada
 máquina:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh \
+curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiOS/install.sh \
   | KITTY_PROFILE=desktop bash
 ```
 
@@ -88,7 +88,7 @@ son opcionales; su ausencia no impide arrancar GiGiOS.
 Si ya instalaste las dependencias o no usas Arch/CachyOS:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mglourido/my-linux-dotfiles/main/GiGiOS/install.sh | INSTALL_PACKAGES=0 bash
+curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiOS/install.sh | INSTALL_PACKAGES=0 bash
 ```
 
 En otra distribución tendrás que traducir manualmente los paquetes descritos debajo.
@@ -652,7 +652,7 @@ no demuestra que esos archivos estén en Git.
 Ejecuta esto en la máquina origen antes del push:
 
 ```sh
-cd ~/Github-Repos/my-linux-dotfiles
+cd ~/Github-Repos/gigi-shell
 git status --short
 GiGiOS/bin/preflight.sh
 GIGIOS="$PWD/GiGiOS" GiGiOS/bin/link.sh --check
