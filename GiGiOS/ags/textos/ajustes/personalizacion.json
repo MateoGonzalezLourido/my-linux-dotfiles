@@ -82,7 +82,7 @@
     },
     "avisoBateria": {
       "titulo": "Mostrar la barra con la batería baja",
-      "descripcion": "Baja la barra y deja de ocultarla mientras la batería esté por debajo del umbral y no se esté cargando.\nVuelve a ocultarse sola al enchufar el cargador o al recuperar carga.",
+      "descripcion": "Asoma la barra al bajar del umbral sin estar cargando, igual que si la revelaras con el puntero.\nSe oculta de nuevo con el ratón, como siempre.",
       "vinculo": {
         "titulo": "Usar el umbral del modo ahorro",
         "descripcion": "Toma el porcentaje de Ajustes > Energía en vez de tener el suyo.\nSolo el número: forzar el modo ahorro a mano no baja la barra."

@@ -5,7 +5,14 @@
 // Une los dos lados que ninguno de los dos módulos debe conocer del otro: el estado real
 // de la batería (`powerState.ts`, que es quien habla con AstalBattery) y las tres
 // preferencias del ajuste (`modulos/ajustes/preferences.ts`). Publica un solo booleano
-// para que `Barra.tsx` no tenga que combinar siete accessors dentro de `checkVisibility()`.
+// para que `Barra.tsx` no tenga que combinar siete accessors.
+//
+// Es una CONDICIÓN, y quien la consume solo mira su FLANCO DE SUBIDA para revelar la barra
+// una vez (ver la sección del aviso en `Barra.tsx`). No es un "modo": la barra no se queda
+// fija mientras dure, se muestra como si la hubieras revelado con el puntero y se oculta
+// igual que siempre. Ojo al suscribirse: el `subscribe` de un accessor computado salta ante
+// cualquier cambio de sus dependencias —el nivel de batería se mueve punto a punto— aunque
+// el booleano no haya cambiado, así que el flanco hay que llevarlo a mano.
 //
 // Vive en `servicios/` y no dentro de `modulos/barra/` porque importa la fachada de
 // preferencias, y esa fachada ya importa de `servicios/energia/`: colgarlo del lado de la
@@ -24,9 +31,9 @@ import {
   barraAvisoBateria, barraAvisoBateriaPct, barraAvisoBateriaUsaUmbralAhorro,
 } from "../../modulos/ajustes/preferences"
 
-/** La barra debe estar abajo y dejar de auto-ocultarse: batería presente, descargando y
- *  por debajo del umbral elegido. */
-export const barraFijaPorBateriaBaja = createComputed(
+/** Hay motivo para asomar la barra: batería presente, descargando y por debajo del umbral
+ *  elegido. */
+export const avisoBateriaBaja = createComputed(
   [
     barraAvisoBateria, barraAvisoBateriaUsaUmbralAhorro, barraAvisoBateriaPct,
     powerSaveThreshold, bateriaPresente, bateriaCargando, bateriaNivel,

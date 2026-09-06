@@ -34,7 +34,7 @@ import { gestosActivos } from "../../servicios/gestos/estado"
 import { anyPanelVisible, alternarQuickSettings, solicitudAlternarBar } from "../../estado/shell"
 import { notifPanelVisible } from "../notificaciones/store"
 import { suspensionFalsaActiva } from "../../servicios/energia/suspensionFalsa"
-import { barraFijaPorBateriaBaja } from "../../servicios/energia/avisoBateriaBarra"
+import { avisoBateriaBaja } from "../../servicios/energia/avisoBateriaBarra"
 
 export default function Barra(gdkmonitor: Gdk.Monitor) {
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
@@ -115,14 +115,10 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
     if (showTimer) { clearTimeout(showTimer); showTimer = null }
     if (!visible()) return
     if (!barAutoHideEnabled.get()) return
-    // Batería baja y descargando: la barra se queda abajo aunque el auto-ocultado siga
-    // puesto. Es una suspensión del auto-ocultado, no un pin: al enchufar o recuperar
-    // carga esta guarda cae sola y la siguiente `checkVisibility()` la retrae.
-    if (barraFijaPorBateriaBaja.get()) return
     if (barPinnedByKey.get()) return
     if (hideTimer) clearTimeout(hideTimer)
     hideTimer = setTimeout(() => {
-      if (barAutoHideEnabled.get() && !barraFijaPorBateriaBaja.get() && !isHovered() && !anyPanelVisible.get() && !visibilidad.menuAbierto.get() && !isWsPreview.get() && !isWsDragging() && !barPinnedByKey.get()) {
+      if (barAutoHideEnabled.get() && !isHovered() && !anyPanelVisible.get() && !visibilidad.menuAbierto.get() && !isWsPreview.get() && !isWsDragging() && !barPinnedByKey.get()) {
         if (Date.now() - shownAt < SHOW_LOCK_MS) return
         if (lastY <= CLOSE_GUARD_Y) return
         setVisible(false)
@@ -156,7 +152,7 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
       hideNow()
     } else if (barOcultaPorTecla.get()) {
       hideNow()
-    } else if (!barAutoHideEnabled.get() || barraFijaPorBateriaBaja.get()) {
+    } else if (!barAutoHideEnabled.get()) {
       showNow()
     } else if (isHovered() || anyPanelVisible.get() || visibilidad.menuAbierto.get() || isWsPreview.get()) {
       handleShow()
@@ -201,12 +197,39 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
   // no hay hover ni paneles abiertos).
   bajas.push(barAutoHideEnabled.subscribe(checkVisibility))
 
-  // Aviso de batería baja (Ajustes > Barra): mientras esté puesto, la barra baja y no
-  // vuelve a retraerse sola. NO toca la exclusividad de la ventana —sigue en NORMAL,
-  // flotando sobre las ventanas— a diferencia de apagar el auto-ocultado: reservar 38 px
-  // al cruzar el umbral recolocaría TODAS las ventanas de la salida, y volvería a
-  // recolocarlas al enchufar el cargador. Un aviso no debe mover el escritorio.
-  bajas.push(barraFijaPorBateriaBaja.subscribe(checkVisibility))
+  // ── Aviso de batería baja (Ajustes > Barra) ──────────────────────────────────────
+  // Se dispara en el FLANCO, no mientras la condición dure, y esa es toda la diferencia
+  // entre un aviso y una barra clavada: baja la barra UNA vez —exactamente lo mismo que
+  // hace revelarla con el puntero— y a partir de ahí manda el auto-ocultado de siempre,
+  // así que se esconde sola al pasar el ratón por encima y apartarlo. NO va a
+  // `checkVisibility()`: cualquier condición sostenida ahí dentro reimpondría la barra en
+  // cada evento (hover, panel, escritorio) y dejaría al usuario sin poder ocultarla hasta
+  // enchufar el cargador. Tampoco toca la exclusividad de la ventana, que sigue en NORMAL
+  // flotando sobre las ventanas: reservar sus 38 px al cruzar el umbral recolocaría TODAS
+  // las ventanas de la salida y volvería a recolocarlas al enchufar. Un aviso no mueve el
+  // escritorio.
+  let avisoBateriaPrevio = avisoBateriaBaja.get()
+  bajas.push(avisoBateriaBaja.subscribe(() => {
+    const aviso = avisoBateriaBaja.get()
+    const previo = avisoBateriaPrevio
+    avisoBateriaPrevio = aviso
+    // Solo el flanco de subida. Al enchufar el cargador no se hace NADA: la barra se
+    // queda como esté y se retraerá por su cuenta cuando toque, que es lo que haría
+    // cualquier otra revelación.
+    if (!aviso || previo) return
+    // Pantalla completa real y suspensión falsa mandan sobre esto, igual que en
+    // `checkVisibility()`: ni una película ni la pantalla apagada quieren una barra
+    // asomando. El aviso se pierde, y es lo correcto — no hay nadie mirando.
+    if (barTapada.get() || suspensionFalsaActiva.get()) return
+    // Ocultada a mano con el atajo: se levanta esa marca en vez de ignorarla. Dejarla
+    // puesta y llamar a `showNow()` dejaría la barra visible con `barOcultaPorTecla` en
+    // true, y el primer `checkVisibility()` que pasara por cualquier otro motivo la
+    // volvería a esconder de golpe — un parpadeo sin causa aparente. Levantarla equivale
+    // a que el usuario hubiera vuelto a pulsar el atajo, y el aviso sigue siendo
+    // descartable con el ratón como cualquier otro.
+    if (barOcultaPorTecla.get()) setBarOcultaPorTecla(false)
+    showNow()
+  }))
 
   // Actualiza barTapada cuando aparece/desaparece una pantalla completa real en el
   // escritorio activo de esta salida. checkVisibility (suscrito abajo) hace el resto.
@@ -234,9 +257,13 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
   // Tras un breve margen, si no hay hover ni paneles abiertos, se oculta solo.
   // (Hide directo: omite los guards de flicker —lastY/SHOW_LOCK— que no aplican
   // en el arranque, donde lastY=0 los bloquearía.)
+  // (El aviso de batería baja entra aquí porque en el arranque no hay flanco que
+  // escuchar: si la sesión empieza ya por debajo del umbral y descargando, la barra
+  // simplemente no se retrae en este primer ocultado. Sigue siendo una revelación
+  // normal — se esconde en cuanto el ratón la roce y se aparte.)
   startupTimer = setTimeout(() => {
     startupTimer = null
-    if (barAutoHideEnabled.get() && !barraFijaPorBateriaBaja.get() && !isHovered() && !anyPanelVisible.get() && !visibilidad.menuAbierto.get() && !isWsPreview.get() && !isWsDragging() && !barPinnedByKey.get()) {
+    if (barAutoHideEnabled.get() && !avisoBateriaBaja.get() && !isHovered() && !anyPanelVisible.get() && !visibilidad.menuAbierto.get() && !isWsPreview.get() && !isWsDragging() && !barPinnedByKey.get()) {
       setVisible(false)
       setWidgetsRefresh(false)
     }
